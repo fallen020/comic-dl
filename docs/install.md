@@ -49,12 +49,15 @@ it inside [Termux](https://termux.dev) by building from source, or create
 ### Linux
 
 Each release attaches one package per distro per architecture, named
-`comic-dl-<ver>-<distro>-<arch>`. Pick the artifact matching your machine:
+`comic-dl-<ver>...-<arch>`. Pick the artifact matching your machine:
 
 | Your machine | `uname -m` | Debian/Ubuntu | Fedora/RHEL | Arch |
 | :----------- | :--------- | :------------ | :---------- | :--- |
-| amd64 / x86_64 | `x86_64` | `_amd64.deb` | `.x86_64.rpm` | `-x86_64.pkg.tar.zst` |
-| arm64 / aarch64 | `aarch64` | `_arm64.deb` | `.aarch64.rpm` | — |
+| amd64 / x86_64 | `x86_64` | `_amd64.deb` | `.fcNN.x86_64.rpm` | `-x86_64.pkg.tar.zst` |
+| arm64 / aarch64 | `aarch64` | `_arm64.deb` | `.fcNN.aarch64.rpm` | — |
+
+The Fedora RPM name includes the Fedora release it was built against (for
+example `-1.fc44.`); that marker is part of the filename, not optional.
 
 Every release artifact is built in CI, installed into a **clean container**
 (Debian/Fedora/Arch) or runner (Windows) with no source tree, and smoke-tested
@@ -75,8 +78,10 @@ ARM64 machines).
 === "Fedora / RHEL"
 
     ```bash
-    sudo dnf install ./comic-dl-0.0.1-1.x86_64.rpm
+    curl -LO https://github.com/fallen020/comic-dl/releases/latest/download/comic-dl-0.0.1-1.fc44.x86_64.rpm
+    sudo dnf install ./comic-dl-0.0.1-1.fc44.x86_64.rpm
     ```
+    On ARM64, replace `.x86_64` with `.aarch64` in the filename.
 
 === "Arch Linux"
 

@@ -358,8 +358,9 @@
                 by a trusted publisher only when one is configured; the artifacts
                 on this release are always installable directly.
               - Windows: `comic-dl-${{ env.VER }}-windows-amd64.zip` (standalone exe)
-              - Linux: `.deb` (Debian/Ubuntu), `.rpm` (Fedora/RHEL),
-                `.pkg.tar.zst` (Arch) for amd64 and arm64
+              - Linux: `.deb` (Debian/Ubuntu, amd64+arm64), `.rpm`
+                (Fedora/RHEL, amd64+arm64, named with the Fedora build marker
+                like `-1.fc44.`), `.pkg.tar.zst` (Arch, amd64)
               - See docs/ for per-platform commands
 
               ### Known limitations
