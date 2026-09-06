@@ -1,0 +1,11 @@
+# Each line is a glob pattern followed by one or more owners.
+# Owners can be a user (@name) or a team (org/team-name).
+
+*                   @fallen020
+
+/.github/           @fallen020
+/docs/              @fallen020
+/packaging/         @fallen020
+/scripts/           @fallen020
+/src/comic_dl/      @fallen020
+/tests/             @fallen020

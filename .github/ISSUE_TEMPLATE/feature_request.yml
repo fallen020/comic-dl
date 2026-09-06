@@ -1,0 +1,34 @@
+name: Feature request
+description: Suggest a new feature or improvement.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / motivation
+      description: What can't you do today? What problem are you trying to solve?
+      placeholder: "I want to be able to ... because ..."
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behaviour
+      description: Describe the feature and how it should behave.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Workarounds or alternative approaches you tried.
+    validations:
+      required: false
+  - type: input
+    id: sites
+    attributes:
+      label: Related site(s)
+      description: Which supported site(s), if any, does this affect?
+      placeholder: "e.g. FSIComics, E-Hentai, all"
+    validations:
+      required: false

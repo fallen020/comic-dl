@@ -1,0 +1,103 @@
+# comic-dl configuration file.
+# Location: ~/.config/comic-dl/config.toml (Linux),
+#           ~/Library/Application Support/comic-dl/config.toml (macOS),
+#           %APPDATA%\comic-dl\config.toml (Windows).
+#
+# Precedence: CLI flag > config file > built-in default.
+
+# Default download directory. CLI -o/--output still overrides this.
+output = "~/Downloads/comic-dl"
+
+# Number of parallel page downloads.
+concurrency = 5
+
+# Max URLs in flight across a batch file (1-16).
+parallel = 5
+
+# Max chapters of a series downloading at once (1-8).
+chapter_parallel = 1
+
+# Maximum size per image (accepts 500MB, 2GB, 512KB, or plain bytes).
+max_image_size = "100MB"
+
+# Maximum total download size per run (0 = unlimited).
+max_size = 0
+
+# HTTP / anti-bot settings. Each key can be overridden per-run by a CLI flag.
+[http]
+# TLS/HTTP impersonation profile used for requests (--impersonate).
+impersonate = "chrome146"
+
+# Cloudflare challenge solver (--solver):
+#   auto           detect a challenge, clear the stale cookie, retry once;
+#                  solve in the system webview when available, else fall
+#                  back to impersonation-only
+#   impersonation  never open a webview; rely on the fingerprint profile
+#   webview        force the system-webview solver
+#   off            never retry challenged requests
+solver = "auto"
+
+# Persist session cookies across runs. --no-cookie disables for one run.
+# Inspect/clear with: comic-dl cookie ls|clear [HOST]
+cookie-jar = true
+
+# On-disk scrape response cache (metadata GETs). --no-cache disables for one
+# run; inspect/clear with: comic-dl cache status|clear
+cache = true
+# Hours a cached scrape response is served without a revalidation request.
+cache-ttl = 6
+# Total on-disk size budget for cached responses (accepts 100MB, 2GB, 512KB,
+# or plain bytes). When the cache exceeds it, the oldest entries are evicted.
+cache-max-bytes = "50MB"
+# Advisory entry-count ceiling, retained for display; eviction is governed by
+# cache-max-bytes and the 14-day hard drop age, not this count.
+cache-max-entries = 5000
+
+# Per-site request throttling. --no-rate disables for one run.
+rate-enabled = true
+
+# Requests/second per host. Built-in defaults cover kagane.to (1.5),
+# kstatic.to (2.0) and e-hentai.org (2.0); add or override hosts here.
+rate = { "kagane.to" = 1.5, "kstatic.to" = 2.0, "e-hentai.org" = 2.0 }
+
+# Hard bound on one image download: seconds before an in-flight page fetch is
+# abandoned (retries still apply). Raise for slow servers.
+download-timeout = 60
+
+# Retries after the first attempt per image (total attempts = this + 1).
+# Lower to fail faster on flaky hosts; the shared backoff still paces retries.
+download-retries = 2
+
+# Generic fallback scraper: when a URL's host has no dedicated/plugin scraper,
+# extract a direct image, a gallery, or a chapter-list series straight from the
+# page (static HTML + embedded JSON only). --no-generic disables for one run.
+[download]
+generic = true
+
+# Scratch space for chapter staging (pages land here before archiving).
+# Defaults to the system temp dir; set this to a large stable disk when the
+# system temp is small or RAM-backed (many distros mount /tmp as tmpfs).
+# tmp-dir = ""
+
+# Archive output. format is the container: cbz (default, most widely supported),
+# zip (plain zip, still embeds ComicInfo.xml), or cbt (tar). --format
+# overrides for one run.
+[archive]
+format = "cbz"
+
+# CBZ archive compression. stored (default) writes pages as-is (fastest);
+# deflate | deflate:0-9 opts into zlib. Comic pages are already-compressed
+# raster, so deflate rarely shrinks the CBZ — enable deliberately.
+# Applies to zip-family archives only; cbt is never compressed.
+# --compress overrides for one run.
+compression = "stored"
+
+# Per-source overrides keyed by host. Host keys must be quoted (a bare
+# [sources.kagane.to] would nest into sources.kagane.to).
+# Supported keys: rate (req/s), mode (solver mode), impersonate (profile).
+# It beats the global [http] rate map and solver setting.
+# Example (uncomment to apply):
+# [sources."kagane.to"]
+# rate = 0.8
+# mode = "auto"        # auto | impersonation | webview | off
+# impersonate = "chrome146"

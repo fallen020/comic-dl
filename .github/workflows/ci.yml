@@ -1,0 +1,164 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Full OS x Python matrix: the package targets all three OSes.
+  test:
+    name: test (${{ matrix.os }}, py${{ matrix.python-version }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          # macos-14 is arm64 (macos-13 was the last Intel image).
+          - macos-14
+          - windows-latest
+        python-version:
+          - "3.11"
+          - "3.12"
+          - "3.13"
+          - "3.14"
+    steps:
+      # SHA-pinned (not tag-pinned): a compromised action can't move.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: uv sync --extra dev --locked
+
+      - name: Run tests with coverage
+        run: ./scripts/test.sh --cov=comic_dl --cov-report=xml --cov-report=term
+
+      # One artifact from the fixed cell only; all 12 cells would collide.
+      # Reported for review, not enforced as a gate.
+      - name: Upload coverage report
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: ${{ matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12' }}
+        with:
+          name: coverage-report
+          path: coverage.xml
+          if-no-files-found: error
+
+  # Environment-independent; one runner suffices, own job so it can't hide
+  # test failures.
+  lint:
+    name: lint (ruff, mypy, bandit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: uv sync --extra dev --locked
+
+      - name: Lint, type check, static security scan
+        run: ./scripts/lint.sh
+
+  # Runtime deps only (dev deps excluded); result doesn't vary by OS/Python.
+  # Secret-free so fork PRs stay safe.
+  security:
+    name: security (audit runtime dependencies)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+
+      - name: Audit runtime dependencies
+        run: |
+          uv export --format requirements-txt --no-dev --no-emit-project --output-file /tmp/req.txt
+          uvx pip-audit -r /tmp/req.txt
+
+  # Build sdist + wheel, install into a fresh venv (no source tree access),
+  # smoke-test. Ubuntu only: OS-agnostic, other jobs cover the platforms.
+  package:
+    name: package (build + clean install)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+
+      - name: Build sdist + wheel
+        run: uv build
+
+      - name: Install wheel into a fresh venv
+        run: |
+          uv venv /tmp/pkgtest
+          uv pip install --python /tmp/pkgtest/bin/python dist/comic_dl-*.whl
+
+      - name: Smoke test the installed package (no source tree)
+        run: |
+          cd /tmp
+          /tmp/pkgtest/bin/comic-dl --version
+          /tmp/pkgtest/bin/comic-dl --help >/dev/null
+          /tmp/pkgtest/bin/python - <<'EOF'
+          import importlib.metadata
+          import comic_dl
+          assert comic_dl.__version__ == importlib.metadata.version("comic-dl")
+          print("installed package import + metadata parity OK")
+          EOF
+
+  docs:
+    name: docs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: uv sync --extra dev --extra docs --locked
+
+      - name: Lint Markdown
+        run: uv run pymarkdown scan docs README.md
+
+      - name: Check external links (lychee)
+        uses: lycheeverse/lychee-action@e7477775783ea5526144ba13e8db5eec57747ce8 # v2
+        with:
+          args: --config .lychee.toml --no-progress README.md docs

@@ -1,0 +1,162 @@
+name: Packaging
+
+# Validates the release packaging pipeline on PRs (before a tag triggers
+# release.yml). Path-filtered: source-only changes don't pay the container bill
+# twice.
+
+# Distro images are pinned (not `latest`) for reproducible packaging:
+#   debian:13    stable baseline
+#   fedora:42    current release
+#   archlinux    rolling; no versioned tags exist
+
+on:
+  pull_request:
+    paths:
+      - "packaging/**"
+      - "scripts/build-binary.sh"
+      - "scripts/build-binary.ps1"
+      - "scripts/write-version.py"
+      - ".github/workflows/packaging.yml"
+      - ".github/workflows/release.yml"
+      - "pyproject.toml"
+      - "src/comic_dl/_version.py"
+      - "src/comic_dl/platform.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: packaging-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  version-drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+      - name: Sync
+        run: uv sync --extra dev --locked
+      - name: Version drift guard
+        run: uv run scripts/write-version.py --check
+
+  # Same distro x arch matrix as release.yml, minus publishing: builds fresh and
+  # installs in a clean container so PR artifacts are proven to work.
+  linux-packages:
+    runs-on: ubuntu-latest
+    # Cap QEMU/multi-distro runtime so a wedged arm64 emulation can't hang.
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - distro: debian
+            image: debian:13
+            platform: linux/amd64
+            build: bash /src/packaging/deb/build.sh docker-build
+            outdir: /tmp/debian-amd64-out
+            validate: deb/validate.sh
+            glob: "*.deb"
+          - distro: debian
+            image: debian:13
+            platform: linux/arm64
+            build: bash /src/packaging/deb/build.sh docker-build
+            outdir: /tmp/debian-arm64-out
+            validate: deb/validate.sh
+            glob: "*.deb"
+          - distro: fedora
+            image: fedora:42
+            platform: linux/amd64
+            build: bash /src/packaging/rpm/build.sh
+            outdir: /tmp/fedora-x86_64-out
+            validate: rpm/validate.sh
+            glob: "*.rpm"
+          - distro: fedora
+            image: fedora:42
+            platform: linux/arm64
+            build: bash /src/packaging/rpm/build.sh
+            outdir: /tmp/fedora-aarch64-out
+            validate: rpm/validate.sh
+            glob: "*.rpm"
+          - distro: arch
+            image: archlinux:latest
+            platform: linux/amd64
+            build: bash /src/packaging/arch/build.sh
+            outdir: /tmp/arch-x86_64-out
+            validate: arch/validate.sh
+            glob: "*.pkg.tar.zst"
+          # No arch/arm64 entry: archlinux:latest ships no arm64 manifest, so
+          # the image cannot even be pulled under QEMU (unlike debian/fedora).
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+      - name: Read project version
+        run: |
+          echo "PKG_VER=$(python3 -c 'import tomllib; print(tomllib.load(open("pyproject.toml","rb"))["project"]["version"])')" >> "$GITHUB_ENV"
+      - name: Set up QEMU for arm64 containers
+        if: matrix.platform == 'linux/arm64'
+        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
+        with:
+          platforms: arm64
+      - name: Build package in container
+        run: |
+          mkdir -p "${{ matrix.outdir }}"
+          docker run --rm --platform ${{ matrix.platform }} \
+            -v "${{ github.workspace }}:/src:ro" \
+            -v "${{ matrix.outdir }}:/out" \
+            -e VERSION="${{ env.PKG_VER }}" \
+            ${{ matrix.image }} \
+            bash -c "${{ matrix.build }}"
+      - name: Validate package in clean container
+        run: |
+          docker run --rm --platform ${{ matrix.platform }} \
+            -v "${{ github.workspace }}:/src:ro" \
+            -v "${{ matrix.outdir }}:/pkg:ro" \
+            -e EXPECTED_VERSION="${{ env.PKG_VER }}" \
+            ${{ matrix.image }} \
+            bash /src/packaging/${{ matrix.validate }} "/pkg/${{ matrix.glob }}"
+      # Keep artifacts on failure so a broken PR can be inspected without
+      # re-running the full (QEMU-costly) matrix.
+      - name: Upload artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ${{ matrix.distro }}-${{ matrix.platform }}
+          path: ${{ matrix.outdir }}/*
+
+  # Windows standalone exe built natively on a Windows runner and smoke-tested.
+  windows-build:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+      - name: Build binary
+        shell: pwsh
+        run: ./scripts/build-binary.ps1
+      - name: Smoke test exe
+        shell: pwsh
+        run: |
+          $got = (& "dist\comic-dl.exe" --version | Out-String).Trim()
+          if (-not $got.StartsWith("comic-dl ")) {
+            throw "unexpected --version output: '$got'"
+          }
+          Write-Host $got
+          & "dist\comic-dl.exe" --help | Out-Null
+          # Offline command exercising real CLI plumbing.
+          & "dist\comic-dl.exe" --list-sources > $null
+      - name: Upload exe on failure
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: windows-exe
+          path: dist/comic-dl.exe

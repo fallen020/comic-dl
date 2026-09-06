@@ -1,0 +1,25 @@
+#!/usr/bin/make -f
+
+export PYTHONHASHSEED = 0
+
+%:
+	dh $@
+
+override_dh_auto_configure:
+	@true
+
+override_dh_auto_build:
+	bash $(CURDIR)/packaging/deb/build.sh stage
+
+override_dh_auto_install:
+	@true
+
+override_dh_install:
+	dh_install --sourcedir=debian/stage
+
+override_dh_auto_test:
+	@true
+
+override_dh_clean:
+	dh_clean
+	rm -rf debian/tmp debian/stage

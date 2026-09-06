@@ -1,0 +1,70 @@
+name: Bug report
+description: Report a bug in Comic Downloader.
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug. Please fill in as much of this
+        as you can — the details below are what let us reproduce and fix it.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What went wrong? What did you expect to happen instead?
+      placeholder: "e.g. Downloading this gallery fails with a 404 halfway through"
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Provide the exact command(s) and input you used.
+      value: |
+        1. Install/version: `comic-dl --version`
+        2. Command: e.g. `comic-dl --url <url> --output ~/Comics`
+        3. Expected: ...
+        4. Actual: ...
+    validations:
+      required: true
+
+  - type: input
+    id: url
+    attributes:
+      label: Affected URL
+      description: The gallery/series URL, if relevant (sanitise personal data).
+      placeholder: "https://e-hentai.org/g/..."
+    validations:
+      required: false
+
+  - type: input
+    id: os
+    attributes:
+      label: Platform
+      description: OS + architecture (e.g. Linux x86_64, macOS arm64, Windows amd64).
+      placeholder: "macOS arm64"
+    validations:
+      required: false
+
+  - type: dropdown
+    id: install
+    attributes:
+      label: How did you run it?
+      options:
+        - Installed via pip/uvx
+        - Prebuilt binary
+        - From a source checkout
+        - Not sure
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Debug output
+      description: Paste the error or traceback. Add `-vvv` to your command for a full traceback.
+      render: text
+    validations:
+      required: false

@@ -1,0 +1,18 @@
+# One URL per line. Lines starting with # are ignored.
+# pawchive.pw post
+https://pawchive.pw/patreon/user/123/post/456/
+
+# e-hentai.org gallery
+https://e-hentai.org/g/3161202/e7a26f9e16/
+
+# WEBTOON series (downloads every new chapter)
+https://www.webtoons.com/en/action/my-series/list?title_no=1234
+
+# WEBTOON single episode
+https://www.webtoons.com/en/action/my-series/ep-5/viewer?title_no=1234&episode_no=5
+
+# flamecomics.xyz chapter
+https://flamecomics.xyz/series/42/1a2b3c4d5e6f/
+
+# fsicomics.com comic
+https://fsicomics.com/my-comic/

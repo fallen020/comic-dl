@@ -1,0 +1,18 @@
+# Lychee link-checker configuration, used by the docs CI job.
+# Full reference: https://lychee.cli.rs/
+#
+# The following URLs are expected to fail right now (first release not yet
+# published, example/placeholder hosts in the docs, or runtime-only resources
+# loaded by the self-contained diagram HTML pages).
+exclude = [
+  "https://github.com/fallen020/comic-dl/releases/download/",
+  "https://github.com/fallen020/comic-dl/releases/latest/download/",
+  "https://pypi.org/project/comic-dl/",
+  "https://e-hentai.org/",
+  "https://pawchive.pw/",
+  "https://cdn.mysite.example/",
+  "https://mysite.example/",
+  "https://fonts.googleapis.com/",
+  "http://www.w3.org/2000/svg",
+  "https://...",
+]

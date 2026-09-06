@@ -1,0 +1,23 @@
+{
+  "languages": {
+    "Python": {
+      "tab_size": 4,
+      // The repo gate is `ruff check` (scripts/lint.sh); `ruff format` is not
+      // enforced, so leave format-on-save off to avoid reformatting diffs.
+      "format_on_save": "off"
+    }
+  },
+  "lsp": {
+    "basedpyright": {
+      "settings": {
+        "analysis": {
+          "diagnosticMode": "openFilesOnly",
+          "inlayHints": {
+            "variableTypes": false,
+            "functionReturnTypes": false
+          }
+        }
+      }
+    }
+  }
+}

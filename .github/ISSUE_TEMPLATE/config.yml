@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Discussions
+    url: https://github.com/fallen020/comic-dl/discussions
+    about: Please use Discussions for questions, ideas, and general conversation.
+  - name: Security
+    url: https://github.com/fallen020/comic-dl/security/advisories/new
+    about: Report security vulnerabilities privately here.

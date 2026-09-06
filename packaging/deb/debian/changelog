@@ -1,0 +1,10 @@
+comic-dl (0.0.1) unstable; urgency=medium
+
+  * Initial Debian packaging.
+  * Debian-native runtime dependencies where available (bs4, lxml, rich,
+    platformdirs, defusedxml, certifi, cffi).
+  * curl-cffi (not packaged in Debian) vendored as an abi3 wheel under
+    /usr/lib/comic-dl/site-packages; /usr/bin/comic-dl launcher injects it
+    via PYTHONPATH.
+
+ -- Comic Downloader contributors <maintainers@users.noreply.github.com>  Fri, 07 Aug 2026 00:00:00 +0000

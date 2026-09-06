@@ -1,0 +1,40 @@
+name: "CodeQL"
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  schedule:
+    - cron: "0 3 * * 0"
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  analyze:
+    name: Analyze
+    runs-on: ubuntu-latest
+    # Python analyses finish in minutes; 60 caps a misbehaving run.
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout repository
+        # SHA-pinned (not tag-pinned): see ci.yml.
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@6f5948dfacef28e207b48d0905cf90c03365536d # v3.37.9
+        with:
+          languages: python
+          # Quality queries are intentional: they surfaced real findings in
+          # the first triage.
+          queries: security-and-quality
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@6f5948dfacef28e207b48d0905cf90c03365536d # v3.37.9
+        with:
+          category: "/language:python"
+
+      # No Autobuild: pure-Python project, no compilation step.

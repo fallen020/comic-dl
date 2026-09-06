@@ -1,0 +1,29 @@
+# Dependabot keeps Python + GitHub Actions dependencies up to date.
+#
+# NOTE (repo convention): Dependabot updates pyproject.toml but not uv.lock.
+# After merging any dependency PR, run `uv lock` against the merged tree and
+# push the refreshed lockfile, or every `--locked` CI gate fails.
+version: 2
+
+updates:
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+    groups:
+      python-minor-patch:
+        applies-to: version-updates
+        update-types:
+          - "minor"
+          - "patch"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    labels:
+      - "github-actions"

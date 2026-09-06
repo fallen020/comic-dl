@@ -1,0 +1,29 @@
+# Normalize line endings to LF on commit/checkout for all text files.
+* text=auto eol=lf
+
+# Binary assets must never have line-ending normalization or diffing applied.
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.icns  binary
+*.woff  binary
+*.woff2 binary
+*.ttf   binary
+*.otf   binary
+
+# Lockfiles — text, but diff-friendly and normalized.
+uv.lock text eol=lf
+
+# Windows PowerShell scripts use CRLF.
+*.ps1 text eol=crlf
+
+# Diff drivers (built-in) for better hunk boundaries.
+*.py  diff=python
+*.md  diff=markdown
+
+# Linguist: these are artifacts of the project, not primary source.
+docs/                linguist-documentation
+examples/            linguist-documentation
+*.spec               linguist-language=Python

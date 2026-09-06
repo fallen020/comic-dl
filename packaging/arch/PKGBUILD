@@ -1,0 +1,47 @@
+# Maintainer: fallen020 <github.com/fallen020>
+# arch=('x86_64' 'aarch64'): the vendored curl-cffi wheel bundles native
+# libcurl-impersonate shared objects for the build architecture, so each arch
+# must be built on that architecture (amd64 -> x86_64, arm64 -> aarch64).
+# Build script: packaging/arch/build.sh.
+pkgname=comic-dl
+pkgver=0.0.1
+pkgrel=1
+pkgdesc="Download comic and manga galleries as CBZ archives"
+arch=('x86_64' 'aarch64')
+url="https://github.com/fallen020/comic-dl"
+license=('MIT')
+depends=(
+  'python>=3.11'
+  'python-beautifulsoup4'
+  'python-lxml'
+  'python-rich'
+  'python-platformdirs'
+  'python-defusedxml'
+  'python-certifi'
+  'python-cffi'
+)
+source=()
+sha256sums=()
+
+package() {
+  install -dm755 "$pkgdir/usr/lib/comic-dl/site-packages" "$pkgdir/usr/bin"
+  install -Dm644 "$srcdir/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+
+  python -m pip wheel --no-deps --no-cache-dir --wheel-dir "$srcdir/.wheel" .
+  python -m pip wheel --no-deps --no-cache-dir --wheel-dir "$srcdir/.wheel" \
+    "curl-cffi==${CURL_CFFI_VERSION:-$(awk '
+      /^name = "curl-cffi"$/ { f=1 }
+      f && /^version =/ { gsub(/"/, "", $3); print $3; exit }
+    ' "$srcdir/uv.lock")}"
+
+  (cd "$srcdir/.wheel" && for w in comic_dl-*.whl curl_cffi-*.whl; do
+    unzip -qo "$w" -d "$pkgdir/usr/lib/comic-dl/site-packages"
+  done)
+
+  cat > "$pkgdir/usr/bin/comic-dl" <<'EOF'
+#!/bin/sh
+PYTHONPATH=/usr/lib/comic-dl/site-packages${PYTHONPATH:+:$PYTHONPATH} \
+    exec /usr/bin/python3 -m comic_dl "$@"
+EOF
+  chmod 0755 "$pkgdir/usr/bin/comic-dl"
+}
