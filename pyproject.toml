@@ -64,7 +64,7 @@ dev = [
     "types-defusedxml>=0.7,<0.8",
 ]
 docs = [
-    "pymarkdownlnt>=0.9",
+    "pymarkdownlnt>=0.9.39",
 ]
 
 [project.scripts]
