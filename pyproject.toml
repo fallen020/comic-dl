@@ -54,7 +54,7 @@ path = "packaging/hatch/version_hook.py"
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=9.0,<10.0",
+    "pytest>=9.1.1,<10.0",
     "pytest-asyncio>=1.4,<2.0",
     "pytest-cov>=6.0,<7.0",
     "ruff>=0.16.6,<1.0",
