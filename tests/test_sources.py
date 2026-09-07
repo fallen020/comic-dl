@@ -177,6 +177,15 @@ class TestRunListSources:
         out = capsys.readouterr().out
         assert "e-hentai.org" in out
 
+    def test_json_stdout_is_pure_payload(self, capsys):
+        import json
+
+        self._run(["--json"])
+        captured = capsys.readouterr()
+        payload = json.loads(captured.out)
+        assert payload["schema_version"] == 1
+        assert "Supported sources" not in captured.out
+
     def test_json_output(self, capsys):
         import json
 

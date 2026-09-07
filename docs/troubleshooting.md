@@ -102,6 +102,11 @@ Use `-vvv` for full diagnostic output:
 comic-dl -u <URL> -vvv
 ```
 
+Verbosity levels: `-v` narrates the run, `-vv` adds network-level lines
+(HTTP, retries, timings), `-vvv` adds pipeline internals. All diagnostics go
+to stderr, so `--json` stdout stays a pure payload (every payload carries
+`schema_version`, currently `1`).
+
 Or redirect diagnostics to a file:
 
 ```bash
@@ -110,6 +115,11 @@ comic-dl -u <URL> -vvv --debug-file debug.log
 
 Set `COMIC_DL_TRACE_HTTP=1` to see HTTP headers at `-vv` without the full
 `-vvv` noise.
+
+Diagnostic output never carries secrets: cookies, tokens, and authorization
+headers are masked, and credential query parameters are redacted. The debug
+file is created owner-only (`0600`) for the same reason — treat it as
+sensitive when sharing.
 
 ## Platform-specific issues
 

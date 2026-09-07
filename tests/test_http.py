@@ -363,6 +363,22 @@ class TestRunCookie:
         assert "e-hentai.org  sk" not in listing
         assert "kagane.to  sk" in listing
 
+    def test_ls_json_stdout_is_pure_payload(self, capsys, tmp_path, monkeypatch):
+        import json as _json
+        from unittest.mock import patch
+
+        from comic_dl.cookies import CookieJar
+
+        with patch("comic_dl.cookies.config_dir") as cd:
+            cd.return_value = tmp_path
+            CookieJar().set("e-hentai.org", "sk", "v1")
+
+        assert self._run(["ls", "--json"], tmp_path, monkeypatch) == 0
+        captured = capsys.readouterr()
+        payload = _json.loads(captured.out)
+        assert payload["schema_version"] == 1
+        assert "cookie(s)" not in captured.out
+
     def test_cookie_ls_json(self, capsys, tmp_path, monkeypatch):
         import json as _json
         from unittest.mock import patch

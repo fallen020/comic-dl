@@ -21,11 +21,14 @@ from comic_dl.ui import (
     VERBOSE,
     Activity,
     Pipeline,
+    SafeURL,
+    Secret,
     SourceRow,
     _checkbox_renderable,
     _decode_key,
     _format_remaining,
     _http_trace_enabled,
+    _redact_text,
     checkbox_prompt,
     http_event,
     make_download_progress,
@@ -39,6 +42,8 @@ from comic_dl.ui import (
     print_skipped,
     print_success,
     print_summary,
+    print_traceback,
+    print_url,
     print_warning,
     redact_url,
     render_sources_table,
@@ -233,6 +238,92 @@ class TestRedactUrl:
         assert redact_url("https://s/p?page=2&lang=en") == "https://s/p?page=2&lang=en"
 
 
+class TestRedactText:
+    @pytest.fixture(autouse=True)
+    def _reset(self):
+        set_verbosity(0)
+        yield
+        set_verbosity(0)
+
+    def test_masks_secret_pairs_in_free_text(self):
+        assert (
+            _redact_text("cover download failed: 401 for https://s/i?token=abc&x=1")
+            == "cover download failed: 401 for https://s/i?token=***&x=1"
+        )
+
+    def test_leaves_benign_text_alone(self):
+        assert _redact_text("page failures: HTTP 530 x34") == "page failures: HTTP 530 x34"
+
+    def test_vlog_applies_redaction(self, capsys):
+        set_verbosity(TRACE)
+        trace("skip: https://s/p?sig=deadbeef — already downloaded")
+        err = capsys.readouterr().err
+        assert "sig=deadbeef" not in err
+        assert "sig=***" in err
+
+    def test_print_error_redacts_url_token(self, capsys):
+        print_error("Failed: https://s/p?token=abc")
+        err = capsys.readouterr().err
+        assert "token=abc" not in err
+        assert "token=***" in err
+
+    def test_header_whitelist_carries_no_secrets(self):
+        # Masking can never fire inside the header block (the whitelist holds
+        # no secret-bearing names), so pin the guarantee explicitly: secrecy
+        # there holds by omission.
+        from comic_dl.ui import _HTTP_KEEP_HEADERS, _REDACT_HEADERS
+
+        assert not ({h.lower() for h in _HTTP_KEEP_HEADERS} & _REDACT_HEADERS)
+
+
+class TestSecretTypes:
+    def test_secret_renders_masked(self):
+        assert str(Secret("hunter2")) == "***"
+        assert f"value={Secret('hunter2')}" == "value=***"
+
+    def test_safe_url_renders_redacted(self):
+        assert str(SafeURL("https://s/p?token=abc")) == "https://s/p?token=***"
+        assert str(SafeURL("https://s/plain")) == "https://s/plain"
+
+    def test_print_url_accepts_safe_url(self, capsys):
+        print_url(SafeURL("https://s/p?token=abc"))
+        err = capsys.readouterr().err
+        assert "token=abc" not in err
+        assert "token=***" in err
+
+
+class TestPrintTraceback:
+    @pytest.fixture(autouse=True)
+    def _reset(self):
+        set_verbosity(0)
+        yield
+        set_verbosity(0)
+        set_debug_file(None)
+
+    def test_redacts_secrets_and_writes_stderr(self, capsys):
+        try:
+            raise ValueError("boom for https://s/p?token=abc")
+        except ValueError as exc:
+            print_traceback(exc)
+        err = capsys.readouterr().err
+        assert "Traceback" in err
+        assert "ValueError: boom" in err
+        assert "token=abc" not in err
+        assert "token=***" in err
+
+    def test_routes_to_debug_file(self, tmp_path):
+        path = tmp_path / "dbg.log"
+        set_debug_file(str(path))
+        try:
+            try:
+                raise ValueError("boom")
+            except ValueError as exc:
+                print_traceback(exc)
+        finally:
+            set_debug_file(None)
+        assert "Traceback" in path.read_text()
+
+
 class TestStageLine:
     @pytest.fixture(autouse=True)
     def _reset(self):
@@ -240,12 +331,10 @@ class TestStageLine:
         yield
         set_verbosity(0)
 
-    def test_tagless_at_verbose(self, capsys):
+    def test_tagged_at_verbose(self, capsys):
         set_verbosity(VERBOSE)
         stage_line("Fetching chapter…")
-        err = capsys.readouterr().err
-        assert "Fetching chapter…" in err
-        assert "[scrape]" not in err
+        assert "[scrape] Fetching chapter…" in capsys.readouterr().err
 
     def test_tagged_at_diagnostic(self, capsys):
         set_verbosity(DIAGNOSTIC)

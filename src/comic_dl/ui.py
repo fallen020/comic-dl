@@ -12,6 +12,7 @@ import os
 import re
 import sys
 import time
+import traceback
 from collections.abc import Callable, Coroutine, Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -207,6 +208,7 @@ def vlog(level: int, message: str, *, tag: str | None = None) -> None:
     """
     if level > VERBOSITY:
         return
+    message = _redact_text(message)
     if _DEBUG_FILE is not None:
         prefix = f"[{tag}] " if tag is not None else ""
         _DEBUG_FILE.write(f"{prefix}{message}\n")
@@ -223,15 +225,10 @@ def vlog(level: int, message: str, *, tag: str | None = None) -> None:
 def stage_line(text: str) -> None:
     """Emit a lifecycle-stage step (``Fetching chapter…``) at ``-v``.
 
-    Plain and tagless at ``VERBOSE`` (-v) so the run's narrative reads
-    naturally; from ``DIAGNOSTIC`` (-vv) upward the same step carries the
-    ``[scrape]`` tag so it stays scannable next to other diagnostics.
-    No-op at NORMAL verbosity.
+    Always carries the ``[scrape]`` tag so the line stays greppable next to
+    other diagnostics at every verbosity. No-op at NORMAL verbosity.
     """
-    if VERBOSITY >= DIAGNOSTIC:
-        vlog(VERBOSE, text, tag=TAG_SCRAPE)
-    else:
-        vlog(VERBOSE, text)
+    vlog(VERBOSE, text, tag=TAG_SCRAPE)
 
 
 def trace(message: str) -> None:
@@ -259,6 +256,8 @@ _REDACT_HEADERS = frozenset({
     "token",
 })
 
+# Bare ``key`` stays in the set on purpose: masking ``?key=chapter-id`` in a
+# display line costs nothing, while missing a real secret costs everything.
 _REDACT_QUERY_PARAMS = frozenset({
     "token",
     "access_token",
@@ -273,6 +272,41 @@ _REDACT_QUERY_PARAMS = frozenset({
     "code",
     "password",
 })
+
+_REDACT_QUERY_RE = re.compile(
+    r"([?&])(" + "|".join(sorted(_REDACT_QUERY_PARAMS)) + r")=[^&\s]*"
+)
+
+
+def _redact_text(text: str) -> str:
+    """Mask secret-bearing ``key=value`` pairs anywhere in free text.
+
+    :func:`redact_url` only handles well-formed URLs; exception messages,
+    tracebacks and ad-hoc diagnostics embed the same tokens as bare text.
+    This is the choke point every emitter runs through, so no caller has to
+    remember to redact.
+    """
+    return _REDACT_QUERY_RE.sub(r"\1\2=***", text)
+
+
+@dataclass(frozen=True)
+class Secret:
+    """A value that must never appear in output; renders as ``***``."""
+
+    value: str
+
+    def __str__(self) -> str:
+        return "***"
+
+
+@dataclass(frozen=True)
+class SafeURL:
+    """A URL safe to interpolate into diagnostics; renders redacted."""
+
+    value: str
+
+    def __str__(self) -> str:
+        return redact_url(self.value)
 
 _HEADER_VALUE_MAX = 200
 
@@ -355,7 +389,7 @@ def _print_header_block(headers: list[str], indent: int = 3) -> None:
 
 def http_event(
     method: str,
-    url: str,
+    url: str | SafeURL,
     *,
     status: str | int = "",
     duration: float | None = None,
@@ -373,13 +407,13 @@ def http_event(
     stable user-facing identifier (e.g. ``page_0001.webp``) so the line can be
     cross-referenced against retry/verify logs regardless of URL shape.
 
-    Response ``headers``, when shown, are appended to the *same* line as
-    collapsed ``key: value`` pairs — reachable at ``TRACE`` verbosity, or
-    earlier when ``COMIC_DL_TRACE_HTTP`` is set — so full observability
-    never costs one stdout line per header. Sensitive headers are masked
-    and the displayed URL has credentials query-params redacted.
+    Response ``headers``, when shown, follow on an indented block beneath the
+    line — reachable at ``TRACE`` verbosity, or earlier when
+    ``COMIC_DL_TRACE_HTTP`` is set — so full observability never costs one
+    stdout line per header. Sensitive headers are masked and the displayed
+    URL has credentials query-params redacted.
     """
-    display_url = redact_url(url)
+    display_url = redact_url(str(url))
     line = (
         f"{method} {glyphs().dash} {error} {glyphs().dash} {display_url}"
         if error
@@ -885,24 +919,24 @@ def print_header(text: str, *, console_obj: Console | None = None) -> None:
 def print_meta(label: str, value: str, *, console_obj: Console | None = None) -> None:
     """Print a key/value metadata line."""
     (console_obj or _active_console()).print(
-        f"    [{MUTED}]{esc(label)}:[/] [white]{esc(value)}[/]"
+        f"    [{MUTED}]{esc(label)}:[/] [white]{esc(_redact_text(value))}[/]"
     )
 
 
 def print_success(message: str) -> None:
     """Print a success message line."""
     target = err_console if JSON_MODE else console
-    target.print(f"  [bold {SUCCESS}]{glyphs().success}[/] {esc(message)}")
+    target.print(f"  [bold {SUCCESS}]{glyphs().success}[/] {esc(_redact_text(message))}")
 
 
 def print_skipped(message: str) -> None:
     """Print a skipped message line."""
-    _active_console().print(f"  [{MUTED}]{glyphs().skip}[/] {esc(message)}")
+    _active_console().print(f"  [{MUTED}]{glyphs().skip}[/] {esc(_redact_text(message))}")
 
 
-def print_error(message: str) -> None:
+def print_error(message: str | SafeURL) -> None:
     """Print an error message line to stderr."""
-    err_console.print(f"  [bold {ERROR}]{glyphs().err}[/] {esc(message)}")
+    err_console.print(f"  [bold {ERROR}]{glyphs().err}[/] {esc(_redact_text(str(message)))}")
 
 
 def print_error_block(headline: str, details: list[str], *, limit: int = 5) -> None:
@@ -914,14 +948,14 @@ def print_error_block(headline: str, details: list[str], *, limit: int = 5) -> N
     verification) stays visually grouped with its summary instead of being
     flush at column 0.
     """
-    err_console.print(f"  [bold {ERROR}]{glyphs().err}[/] {esc(headline)}")
+    err_console.print(f"  [bold {ERROR}]{glyphs().err}[/] {esc(_redact_text(headline))}")
     shown = details[:limit]
     for line in shown:
-        err_console.print(f"      {esc(line)}")
+        err_console.print(f"      {esc(_redact_text(line))}")
 
 
 def print_partial_block(
-    url: str,
+    url: str | SafeURL,
     *,
     missing: int,
     total: int,
@@ -933,18 +967,19 @@ def print_partial_block(
     with one exit block that answers *what / why / what to do*: the URL, the
     missing count, and a consistent ``rerun to resume`` hint on stderr.
     """
+    safe = _redact_text(str(url))
     err_console.print(
-        f"  [bold {ERROR}]{glyphs().warn}[/] [white]{esc(url)}[/] {glyphs().dash} "
+        f"  [bold {ERROR}]{glyphs().warn}[/] [white]{esc(safe)}[/] {glyphs().dash} "
         f"partial download: {missing} of {total} pages missing."
     )
     err_console.print(
-        f"      rerun to resume: comic-dl -u {esc(url)} -o {esc(str(output_dir))}"
+        f"      rerun to resume: comic-dl -u {esc(safe)} -o {esc(str(output_dir))}"
     )
 
 
 def print_warning(message: str) -> None:
     """Print a warning message line to stderr."""
-    err_console.print(f"  [bold {WARNING}]{glyphs().warn}[/] {esc(message)}")
+    err_console.print(f"  [bold {WARNING}]{glyphs().warn}[/] {esc(_redact_text(message))}")
 
 
 def print_interrupt(
@@ -962,7 +997,7 @@ def print_interrupt(
     When ``resume_cmd`` is provided, the hint echoes the real command the user
     ran instead of a hardcoded example.
     """
-    tail = f" ({progress})" if progress else ""
+    tail = f" ({_redact_text(progress)})" if progress else ""
     err_console.print(
         f"  [bold {WARNING}]{glyphs().warn}[/] [bold]Interrupted.{tail}[/]"
     )
@@ -971,18 +1006,18 @@ def print_interrupt(
         err_console.print(
             "      [white]Partial save kept[/] "
             f"{glyphs().dash} rerun to resume: "
-            f"[muted]{esc(hint)}[/]"
+            f"[muted]{esc(_redact_text(hint))}[/]"
         )
 
 
-def print_url(url: str) -> None:
+def print_url(url: str | SafeURL) -> None:
     """Print a URL line."""
-    _active_console().print(f"  [{INFO}]{esc(url)}[/]")
+    _active_console().print(f"  [{INFO}]{esc(_redact_text(str(url)))}[/]")
 
 
 def print_dim(message: str, *, console_obj: Console | None = None) -> None:
     """Print a muted helper line."""
-    (console_obj or _active_console()).print(f"  [{MUTED}]{esc(message)}[/]")
+    (console_obj or _active_console()).print(f"  [{MUTED}]{esc(_redact_text(message))}[/]")
 
 
 def print_retry(attempt: int, total: int, *, reason: str = "") -> None:
@@ -996,46 +1031,50 @@ def print_retry(attempt: int, total: int, *, reason: str = "") -> None:
 def print_error_detail(context: str, reason: str, *, hint: str = "") -> None:
     """Print an error with its cause and an optional remediation hint."""
     err_console.print(
-        f"  [bold {ERROR}]{glyphs().err}[/] [white]{esc(context)}[/]"
+        f"  [bold {ERROR}]{glyphs().err}[/] [white]{esc(_redact_text(context))}[/]"
     )
-    err_console.print(f"    [{MUTED}]reason:[/] {esc(reason)}")
+    err_console.print(f"    [{MUTED}]reason:[/] {esc(_redact_text(reason))}")
     if hint:
-        err_console.print(f"    [{MUTED}]hint:[/] {esc(hint)}")
+        err_console.print(f"    [{MUTED}]hint:[/] {esc(_redact_text(hint))}")
+
+
+def _classify_all(exc: BaseException) -> tuple[str, str, int]:
+    """Single source for (machine kind, human message, exit code).
+
+    :func:`_classify` and :func:`error_kind` are thin views over this so the
+    message taxonomy and the machine taxonomy cannot drift apart.
+    """
+    if isinstance(exc, ScrapeTimeout):
+        return "timeout", f"Request timed out after {exc.timeout:.0f}s fetching {exc.url}", 1
+    if isinstance(exc, DownloadTimeout):
+        return "timeout", f"Download timed out after {exc.timeout:.0f}s ({exc.filename})", 1
+    if isinstance(exc, ComicError):
+        return getattr(exc, "kind", "error"), exc.message, exc.exit_code
+    module = type(exc).__module__ or ""
+    if module.startswith("curl_cffi") or isinstance(exc, ConnectionError):
+        return "network", "Network error. Check your internet connection.", 1
+    if isinstance(exc, OSError):
+        return "os", f"{type(exc).__name__}: {exc}", 1
+    return "internal", "Unexpected internal error.", 1
 
 
 def _classify(exc: BaseException) -> tuple[str, int]:
     """Map an exception to a (friendly message, exit code) pair."""
-    if isinstance(exc, ScrapeTimeout):
-        return f"Request timed out after {exc.timeout:.0f}s fetching {exc.url}", 1
-    if isinstance(exc, DownloadTimeout):
-        return f"Download timed out after {exc.timeout:.0f}s ({exc.filename})", 1
-    if isinstance(exc, ComicError):
-        return exc.message, exc.exit_code
-    module = type(exc).__module__ or ""
-    if module.startswith("curl_cffi") or isinstance(exc, ConnectionError):
-        return "Network error. Check your internet connection.", 1
-    if isinstance(exc, OSError):
-        return f"{type(exc).__name__}: {exc}", 1
-    return "Unexpected internal error.", 1
+    _, message, code = _classify_all(exc)
+    return message, code
 
 
 def error_kind(exc: BaseException) -> str:
     """Stable machine-readable category for ``exc``.
 
-    Mirrors :func:`_classify`'s branches so JSON-mode and library consumers
-    can branch on a taxonomy instead of parsing message text. Kinds:
-    ``usage``/``scrape``/``download``/``timeout``/``library`` for
+    A view over :func:`_classify_all` so JSON-mode and library consumers can
+    branch on a taxonomy instead of parsing message text. Kinds: ``usage``/
+    ``scrape``/``download``/``timeout``/``library`` for
     :class:`~comic_dl.errors.ComicError` subclasses, then ``network``,
     ``os``, and ``internal``.
     """
-    if isinstance(exc, ComicError):
-        return getattr(exc, "kind", "error")
-    module = type(exc).__module__ or ""
-    if module.startswith("curl_cffi") or isinstance(exc, ConnectionError):
-        return "network"
-    if isinstance(exc, OSError):
-        return "os"
-    return "internal"
+    kind, _, _ = _classify_all(exc)
+    return kind
 
 
 def report_error(
@@ -1055,10 +1094,23 @@ def report_error(
         if hint:
             err_console.print(f"    [{MUTED}]hint:[/] {esc(hint)}")
     if VERBOSITY >= TRACE:
-        import traceback
-
-        traceback.print_exception(exc)
+        print_traceback(exc)
     return code
+
+
+def print_traceback(exc: BaseException) -> None:
+    """Write a secret-redacted traceback to stderr (or the debug file).
+
+    Raw ``traceback.print_exception`` bypasses both secret redaction and
+    ``--debug-file`` routing, and exception messages can embed token-bearing
+    URLs — so format first, mask, then emit.
+    """
+    text = _redact_text("".join(traceback.format_exception(exc)))
+    if _DEBUG_FILE is not None:
+        _DEBUG_FILE.write(text)
+        _DEBUG_FILE.flush()
+        return
+    sys.stderr.write(text)
 
 
 def print_batch_summary(
@@ -2733,6 +2785,17 @@ def print_chapter_preview(
     _active_console().print()
 
 
+def _group_by_reason(pairs: list[tuple[str, str]]) -> dict[str, list[str]]:
+    """Group ``(label, reason)`` pairs by reason, preserving first-seen order.
+
+    Shared by the failure/partial recaps so both group and count identically.
+    """
+    grouped: dict[str, list[str]] = {}
+    for label, reason in pairs:
+        grouped.setdefault(reason, []).append(label)
+    return grouped
+
+
 def print_failure_recap(failures: list[tuple[str, str]]) -> None:
     """Print the final list of failed downloads as one grouped, deduped unit.
 
@@ -2744,9 +2807,7 @@ def print_failure_recap(failures: list[tuple[str, str]]) -> None:
         return
     _console = _active_console()
     _console.print(f"  [bold {ERROR}]{glyphs().err}[/] [bold]Failed:[/]")
-    grouped: dict[str, list[str]] = {}
-    for label, reason in failures:
-        grouped.setdefault(reason, []).append(label)
+    grouped = _group_by_reason(failures)
     for reason, labels in grouped.items():
         count = f"  [{MUTED}]x{len(labels)}[/]" if len(labels) > 1 else ""
         _console.print(
@@ -2768,9 +2829,7 @@ def print_partial_recap(partials: list[tuple[str, str]]) -> None:
         return
     _console = _active_console()
     _console.print(f"  [bold {WARNING}]{glyphs().warn}[/] [bold]Incomplete:[/]")
-    grouped: dict[str, list[str]] = {}
-    for label, reason in partials:
-        grouped.setdefault(reason, []).append(label)
+    grouped = _group_by_reason(partials)
     for reason, labels in grouped.items():
         count = f"  [{MUTED}]x{len(labels)}[/]" if len(labels) > 1 else ""
         _console.print(

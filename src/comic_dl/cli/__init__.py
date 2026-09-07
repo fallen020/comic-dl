@@ -170,6 +170,7 @@ from ..ui import (
     print_skipped,
     print_success,
     print_summary,
+    print_traceback,
     print_url,
     print_warning,
     render_sources_table,
@@ -1781,9 +1782,7 @@ async def process_url(
                     return _fail(f"Failed to process gallery: {e}")
                 except Exception as e:
                     if VERBOSITY >= TRACE:
-                        import traceback
-
-                        traceback.print_exception(e)
+                        print_traceback(e)
                     return _fail(f"Failed to process gallery: {_classify(e)[0]}")
 
             if last_error is not None or meta is None:
@@ -3324,9 +3323,7 @@ async def _run_urls(urls: list[str], args: argparse.Namespace) -> int:
                     duration_s = time.monotonic() - started
                     message, code = _classify(exc)
                     if VERBOSITY >= TRACE:
-                        import traceback
-
-                        traceback.print_exception(exc)
+                        print_traceback(exc)
                     failed_details.append(
                         (f"Failed: {url}{_url_origin(args, url)}", message)
                     )
@@ -3849,6 +3846,7 @@ def _run_cookie(argv: list[str]) -> int:
             print_success(
                 f"Stored cookie '{args.name}' for '{args.host}' (expires {when})."
             )
+        print_warning("Note: the value stays in your shell history.")
         return EXIT_OK
 
     # clear
