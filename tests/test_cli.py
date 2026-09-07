@@ -803,6 +803,92 @@ class TestParseUrls:
         assert args.quiet is False
 
 
+class TestBarePositionalUrl:
+    """``comic-dl <URL>`` is a supported shorthand for ``comic-dl -u <URL>``."""
+
+    def test_positional_routes_like_u(self, monkeypatch):
+        monkeypatch.setattr(
+            "sys.argv", ["prog", "https://e-hentai.org/g/123/abc/"],
+        )
+        urls, args = parse_urls()
+        assert urls == ["https://e-hentai.org/g/123/abc/"]
+        assert args.url == "https://e-hentai.org/g/123/abc/"
+        assert args.file is None
+
+    def test_positional_with_flags(self, monkeypatch):
+        monkeypatch.setattr(
+            "sys.argv",
+            ["prog", "https://a.com/", "--no-color", "--quiet"],
+        )
+        urls, args = parse_urls()
+        assert urls == ["https://a.com/"]
+        assert args.quiet is True
+
+    def test_positional_invalid_scheme_rejected(self, monkeypatch, capsys):
+        monkeypatch.setattr("sys.argv", ["prog", "ftp://a.com/"])
+        with pytest.raises(SystemExit) as exc_info:
+            parse_urls()
+        assert exc_info.value.code == EXIT_USAGE
+        assert "Unsupported URL scheme" in capsys.readouterr().err.replace("\n", "")
+
+    def test_positional_conflicts_with_u(self, monkeypatch, capsys):
+        monkeypatch.setattr(
+            "sys.argv", ["prog", "https://a.com/", "-u", "https://b.com/"],
+        )
+        with pytest.raises(SystemExit) as exc_info:
+            parse_urls()
+        assert exc_info.value.code == EXIT_USAGE
+        assert "not both" in capsys.readouterr().err.replace("\n", "")
+
+    def test_positional_conflicts_with_file(self, tmp_path, monkeypatch, capsys):
+        f = tmp_path / "urls.txt"
+        f.write_text("https://b.com/\n")
+        monkeypatch.setattr(
+            "sys.argv", ["prog", "https://a.com/", "-f", str(f)],
+        )
+        with pytest.raises(SystemExit) as exc_info:
+            parse_urls()
+        assert exc_info.value.code == EXIT_USAGE
+        assert "not both" in capsys.readouterr().err.replace("\n", "")
+
+    def test_help_still_advertises_url_form(self, capsys):
+        from comic_dl.ui import print_help
+
+        print_help()
+        assert "comic-dl [URL]" in capsys.readouterr().out
+
+
+class TestBareUrlDispatch:
+    """The dispatcher routes a bare URL to the download path, not an error."""
+
+    pytestmark = pytest.mark.asyncio
+
+    async def test_main_routes_bare_url(self, monkeypatch):
+        captured: dict[str, list[str]] = {}
+
+        async def fake_run_urls(urls, args):
+            captured["urls"] = list(urls)
+            return 0
+
+        monkeypatch.setattr("comic_dl.cli._run_urls", fake_run_urls)
+        monkeypatch.setattr(
+            "sys.argv", ["prog", "--quiet", "https://e-hentai.org/g/123/abc/"],
+        )
+        from comic_dl.cli import main
+
+        assert await main() == 0
+        assert captured["urls"] == ["https://e-hentai.org/g/123/abc/"]
+
+    async def test_main_still_rejects_unknown_command(self, monkeypatch, capsys):
+        monkeypatch.setattr("sys.argv", ["prog", "frobnicate"])
+        from comic_dl.cli import main
+
+        assert await main() == EXIT_USAGE
+        assert "unknown command 'frobnicate'" in capsys.readouterr().err.replace(
+            "\n", ""
+        )
+
+
 class TestScanGlobalFlags:
     def test_counts_single(self):
         flags = _scan_global_flags(["-v"])

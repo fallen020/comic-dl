@@ -353,6 +353,18 @@ def _validate_list_url(raw: str) -> bool:
     return parsed.scheme in {"http", "https"} and bool(parsed.hostname)
 
 
+def _looks_like_url(raw: str) -> bool:
+    """Whether the first argv token is a URL candidate rather than a command.
+
+    ``main``'s dispatcher uses this to decide between the download path and
+    ``_unknown_command``. Any token with a scheme is routed onward so
+    ``parse_urls`` emits the authoritative ``Unsupported URL scheme`` error
+    instead of a misleading ``unknown command``; only scheme-less words are
+    treated as commands.
+    """
+    return bool(urlparse(raw).scheme)
+
+
 def _read_urls_from_file_indexed(path: Path) -> list[tuple[str, int]] | None:
     """Read a URL-list file, skipping blanks and ``#`` comments.
 
@@ -873,6 +885,13 @@ def _build_first_stage_parser() -> ComicArgumentParser:
         metavar="FILE",
         help="Download URLs from a text file (errors cite file:line)",
     )
+    parser.add_argument(
+        "positional_url",
+        nargs="?",
+        default=None,
+        metavar="URL",
+        help="Download a single gallery URL (shorthand for -u/--url)",
+    )
 
     parser.add_argument(
         "--output", "-o",
@@ -1074,6 +1093,22 @@ def parse_urls() -> tuple[list[str], argparse.Namespace]:
     parser = _build_first_stage_parser()
 
     args = parser.parse_args(sys.argv[1:])
+    positional_url = getattr(args, "positional_url", None)
+    if positional_url is not None:
+        if args.url is not None:
+            print_error(
+                "Provide a URL either as a positional argument or with "
+                "-u/--url, not both."
+            )
+            sys.exit(EXIT_USAGE)
+        if args.file is not None:
+            print_error(
+                "Provide a URL either as a positional argument or with "
+                "-f/--file, not both."
+            )
+            sys.exit(EXIT_USAGE)
+        # Route the positional through the same -u validation and download path.
+        args.url = positional_url
     if getattr(args, "config", None) is not None:
         set_config_path(args.config)
     if getattr(args, "no_config", False):
@@ -4505,7 +4540,7 @@ async def main() -> int:
                 return await asyncio.to_thread(
                     run_library_command, command, argv[1:]
                 )
-            if raw_command and not raw_command.startswith("-"):
+            if raw_command and not raw_command.startswith("-") and not _looks_like_url(raw_command):
                 return _unknown_command(raw_command)
 
         urls, args = parse_urls()
