@@ -401,6 +401,53 @@ class TestRetryBlocked:
         assert sleeps == [RETRY_AFTER_CAP]
 
 
+class TestOpenStreamCookieScoping:
+    pytestmark = pytest.mark.asyncio
+
+    async def test_redirect_hop_rederives_cookies_per_host(self, monkeypatch):
+        """A cross-host redirect must not carry the first host's jar cookies
+        to the second host: every hop re-derives ``cookies=`` for its own
+        host, so host scoping cannot rot unnoticed."""
+        from comic_dl import downloader as dlmod
+        from comic_dl.downloader import _open_stream
+
+        seen: dict[str, object] = {}
+
+        class FakeResp:
+            def __init__(self, status, headers):
+                self.status_code = status
+                self.headers = headers
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *args):
+                return False
+
+        class FakeClient:
+            def stream(self, method, url, **kwargs):
+                seen[url] = kwargs.get("cookies")
+                if url == "https://a.example/img":
+                    return FakeResp(302, {"location": "https://b.example/img"})
+                return FakeResp(200, {})
+
+        async def fake_ratelimit(host, rate=None):
+            return None
+
+        def fake_jar_kwargs(url):
+            if url == "https://a.example/img":
+                return {"cookies": {"tok-a": "1"}}
+            return {}
+
+        monkeypatch.setattr(dlmod, "await_ratelimit", fake_ratelimit)
+        monkeypatch.setattr(dlmod, "jar_cookies_kwargs", fake_jar_kwargs)
+
+        resp = await _open_stream(FakeClient(), "https://a.example/img")  # type: ignore
+        assert resp.status_code == 200
+        assert seen["https://a.example/img"] == {"tok-a": "1"}
+        assert seen["https://b.example/img"] is None
+
+
 class TestStreamToDiskEnospc:
     pytestmark = pytest.mark.asyncio
 

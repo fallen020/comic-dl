@@ -32,12 +32,15 @@ def get_jar() -> CookieJar | None:
 
 
 def jar_cookies_for(url: str) -> dict[str, str]:
-    """Non-expired jar cookies for the host of ``url`` (as name→value)."""
+    """Non-expired jar cookies for the host of ``url`` (as name→value).
+
+    ``Secure`` cookies are included only for ``https`` requests.
+    """
     jar = get_jar()
     host = urlsplit(url).hostname
     if jar is None or not host:
         return {}
-    return jar.cookies_for(host)
+    return jar.cookies_for(host, https=urlsplit(url).scheme == "https")
 
 
 def jar_cookies_kwargs(url: str) -> dict[str, Any]:

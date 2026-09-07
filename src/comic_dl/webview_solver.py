@@ -413,6 +413,14 @@ def main() -> int:
     args = parser.parse_args()
 
     try:
+        from .utils import validate_request_url
+        validate_request_url(args.url)
+    except Exception as exc:
+        _result(False, [])
+        print(f"webview_solver: URL rejected: {exc}", file=sys.stderr)
+        return 1
+
+    try:
         import webview
     except Exception as exc:  # pragma: no cover - backend probe path
         _result(False, [])

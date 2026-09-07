@@ -32,12 +32,13 @@ class CookieJar:
 
     Follows the RFC 6265 subset needed by scrapers: matching by domain
     suffix, honoring ``expires`` (``NULL`` = session cookie, kept for this
-    process only). ``path``, ``secure`` and ``HttpOnly`` are stored but
-    deliberately NOT enforced on read — every matching host cookie is
-    returned for any request path, and a single-label host (``localhost``)
-    also matches subdomains of it. This covers the scraping cases that
-    matter and is a known, accepted deviation from RFC 6265. Failures are
-    silent — a broken or unwritable store never breaks downloads.
+    process only) and ``Secure`` (never returned over plain HTTP).
+    ``path`` and ``HttpOnly`` are stored but deliberately NOT enforced on
+    read — every matching host cookie is returned for any request path, and
+    a single-label host (``localhost``) also matches subdomains of it. This
+    covers the scraping cases that matter and is a known, accepted deviation
+    from RFC 6265. Failures are silent — a broken or unwritable store never
+    breaks downloads.
 
     Writes are serialized with a lock; each operation opens its own short
     connection so concurrent async tasks (and ``asyncio.to_thread`` callers)
@@ -78,12 +79,14 @@ class CookieJar:
 
     # -- read ---------------------------------------------------------------
 
-    def cookies_for(self, host: str) -> dict[str, str]:
+    def cookies_for(self, host: str, *, https: bool = False) -> dict[str, str]:
         """Non-expired ``{name: value}`` cookies matching ``host``.
 
         ``host`` matches a stored domain exactly, or as a subdomain
-        (``api.kagane.to`` matches a stored ``kagane.to``). Session-only
-        cookies (this process) are merged in.
+        (``api.kagane.to`` matches a stored ``kagane.to``). Cookies flagged
+        ``Secure`` are only returned when ``https`` is set — they must never
+        ride a plain-HTTP request to their own host. Session-only cookies
+        (this process) are merged in.
         """
         host = (host or "").lower()
         out: dict[str, str] = {}
@@ -93,18 +96,21 @@ class CookieJar:
         try:
             with self._connect() as conn:
                 rows = conn.execute(
-                    "SELECT path, name, value, expires FROM cookies WHERE host = ?",
+                    "SELECT path, name, value, expires, secure "
+                    "FROM cookies WHERE host = ?",
                     (host,),
                 ).fetchall()
                 rows += conn.execute(
-                    "SELECT path, name, value, expires FROM cookies "
-                    "WHERE host != ? AND (? LIKE '%.' || host)",
+                    "SELECT path, name, value, expires, secure "
+                    "FROM cookies WHERE host != ? AND (? LIKE '%.' || host)",
                     (host, host),
                 ).fetchall()
         except sqlite3.Error:
             return out
-        for _path, name, value, expires in rows:
+        for _path, name, value, expires, secure in rows:
             if expires is not None and expires <= now:
+                continue
+            if secure and not https:
                 continue
             out[name] = value
         with self._lock:

@@ -360,3 +360,19 @@ def test_body_b64_decode_round_trip():
     assert _decode_body(None) == b""
     assert _decode_body("aGVsbG8=") == b"hello"
     assert _decode_body("!!!not-base64!!!") == b""
+
+
+class TestMainURLValidation:
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "file:///etc/passwd",
+            "javascript:void(0)",
+            "http://127.0.0.1/x",
+        ],
+    )
+    def test_blocks_unsafe_url_before_webview(self, monkeypatch, url):
+        from comic_dl.webview_solver import main
+
+        monkeypatch.setattr("sys.argv", ["webview_solver", "--url", url])
+        assert main() == 1

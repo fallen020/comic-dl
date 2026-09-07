@@ -13,6 +13,21 @@ from comic_dl.cookies import CookieJar
 from comic_dl.utils import http_client_args
 
 
+class _FakeCookie:
+    """Minimal stand-in for an http.cookiejar.Cookie feeding store_cookiejar."""
+
+    def __init__(self, name, value, domain, *, path="/", expires, secure=False):
+        self.name = name
+        self.value = value
+        self.domain = domain
+        self.path = path
+        self.expires = expires
+        self.secure = secure
+
+    def has_nonstandard_attr(self, name):
+        return False
+
+
 def _patch_paths(monkeypatch, tmp_path):
     monkeypatch.setattr(cfgmodule, "config_path", lambda: tmp_path / "config.toml")
 
@@ -69,6 +84,25 @@ class TestCookieJarList:
         assert len(jar.list()) == 1
         jar.clear()
         assert len(jar.list()) == 0
+
+    def test_secure_cookie_kept_for_https_only(self, tmp_path):
+        import time
+
+        jar = CookieJar(tmp_path / "cookies.db")
+        jar.store_cookiejar(
+            [
+                _FakeCookie(
+                    "sf", "tok", ".kagane.to", secure=True,
+                    expires=int(time.time()) + 3600,
+                ),
+                _FakeCookie(
+                    "plain", "ok", ".kagane.to", expires=int(time.time()) + 3600
+                ),
+            ]
+        )
+        assert "sf" not in jar.cookies_for("kagane.to", https=False)
+        assert jar.cookies_for("kagane.to", https=False)["plain"] == "ok"
+        assert jar.cookies_for("kagane.to", https=True)["sf"] == "tok"
 
     def test_store_created_owner_only(self, tmp_path):
         import stat
@@ -131,6 +165,22 @@ class TestCookieShortCircuit:
             "cookies": {"sk": "v1"}
         }
         assert httpmodule.jar_cookies_kwargs("http://other.test/") == {}
+
+    def test_secure_jar_cookie_skipped_over_http(self, monkeypatch, tmp_path):
+        import time
+
+        jar = CookieJar(tmp_path / "cookies.db")
+        jar.store_cookiejar(
+            [
+                _FakeCookie(
+                    "sf", "tok", ".kagane.to", secure=True,
+                    expires=int(time.time()) + 3600,
+                )
+            ]
+        )
+        monkeypatch.setattr(httpmodule, "get_jar", lambda: jar)
+        assert httpmodule.jar_cookies_for("http://kagane.to/a") == {}
+        assert httpmodule.jar_cookies_for("https://kagane.to/a") == {"sf": "tok"}
 
 
 class TestChallengeDetection:
