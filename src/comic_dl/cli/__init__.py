@@ -3069,20 +3069,25 @@ async def _run_dry_run(
             main = act.row("main")
             main.stage(f"Resolving URLs for dry-run{glyphs().ellipsis}")
             tasks = {url: asyncio.create_task(_probe_one(url)) for url in urls}
-            # as_completed yields the same Task objects passed in, so a
-            # reverse map resolves url in O(1) instead of scanning per
-            # completion. (as_completed's Future type is the Task itself.)
+            # The reverse map keys on the task's coroutine (as_completed
+            # hands back the same object passed in — for a Task that is the
+            # task itself, not the coroutine).
             task_to_url = {t: u for u, t in tasks.items()}
             resolved: dict[str, dict] = {}
-            for fut in asyncio.as_completed(tasks.values()):
-                url = task_to_url[cast(asyncio.Task[dict], fut)]
-                resolved[url] = await fut
-                main.set_label(_short_url_label(url))
-                main.stage(
-                    f"Resolving URLs for dry-run{glyphs().ellipsis} "
-                    f"{len(resolved)}/{len(urls)} {_short_url_label(url)}"
+            pending: set[asyncio.Task[dict]] = set(tasks.values())
+            while pending:
+                done, pending = await asyncio.wait(
+                    pending, return_when=asyncio.FIRST_COMPLETED,
                 )
-            entries = [resolved[u] for u in urls]
+                for fut_task in done:
+                    url = task_to_url[fut_task]
+                    resolved[url] = fut_task.result()
+                    main.set_label(_short_url_label(url))
+                    main.stage(
+                        f"Resolving URLs for dry-run{glyphs().ellipsis} "
+                        f"{len(resolved)}/{len(urls)} {_short_url_label(url)}"
+                    )
+            entries = [resolved[u] for u in urls if u in resolved]
     else:
         entries = await asyncio.gather(*(_probe_one(u) for u in urls))
         for u, entry in zip(urls, entries, strict=True):

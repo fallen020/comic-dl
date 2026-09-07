@@ -624,6 +624,8 @@ def is_valid_webtoon_url(url: str) -> bool:
 
 def verify_image_bytes(data: bytes) -> str | None:
     """Detect an image format from a byte buffer via magic bytes, or None."""
+    # ponytail: magic-byte sniff only — the pipeline never decodes images,
+    # so a decompression bomb cannot expand here. Revisit if a decoder lands.
     for magic, offset, fmt in IMAGE_MAGIC:
         if len(data) < offset + len(magic):
             continue
