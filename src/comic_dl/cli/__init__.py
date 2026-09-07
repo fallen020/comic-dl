@@ -124,6 +124,12 @@ from ..scrapers.sites.webtoon import (
 from ..scrapers.sites.webtoon import (
     normalize_webtoon_url,
 )
+from ..scrapers.sites.weebcentral import (
+    is_chapter_url as is_weebcentral_chapter_url,
+)
+from ..scrapers.sites.weebcentral import (
+    is_series_url as is_weebcentral_series_url,
+)
 from ..ui import (
     DIAGNOSTIC,
     ERROR,
@@ -1580,6 +1586,11 @@ _CHAPTER_URL_GUARDS: dict[str, _ChapterUrlGuard] = {
         "https://kagane.to/series/{series}/reader/{book} "
         "or https://kagane.to/series/{series}/",
     ),
+    "weebcentral.com": _ChapterUrlGuard(
+        is_weebcentral_chapter_url,
+        "https://weebcentral.com/chapters/{id} "
+        "or https://weebcentral.com/series/{id}/{slug}",
+    ),
 }
 
 
@@ -2762,6 +2773,7 @@ _SERIES_URL_CHECKERS = {
     "gedecomix.com": is_gedecomix_series_url,
     "asurascans.com": is_asurascans_series_url,
     "kagane.to": is_kagane_series_url,
+    "weebcentral.com": is_weebcentral_series_url,
 }
 
 

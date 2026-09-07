@@ -20,6 +20,7 @@ from . import manhwaz as manhwaz
 from . import pawchive as pawchive
 from . import toonily as toonily
 from . import webtoon as webtoon
+from . import weebcentral as weebcentral
 
 __all__ = [
     "asurascans",
@@ -34,4 +35,5 @@ __all__ = [
     "pawchive",
     "toonily",
     "webtoon",
+    "weebcentral",
 ]

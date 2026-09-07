@@ -1,6 +1,6 @@
 # Supported Sites
 
-The 12 built-in scrapers shipped with comic-dl. The live registry — including
+The 13 built-in scrapers shipped with comic-dl. The live registry — including
 any third-party plugins — is shown by `comic-dl --list-sources`.
 
 ## Sites
@@ -29,17 +29,19 @@ any third-party plugins — is shown by `comic-dl --list-sources`.
 | **Manhwaz** | `manhwaz.com` | `/webtoon/{slug}` | — | Yes |
 | **KodokuStudio** | `kodokustudio.com` | `/manhua/{slug}/capitulo-{n}/` | Yes | — |
 | **KodokuStudio** | `kodokustudio.com` | `/manhua/{slug}/` | — | Yes |
+| **WeebCentral** | `weebcentral.com` | `/chapters/{id}` | Yes | — |
+| **WeebCentral** | `weebcentral.com` | `/series/{id}/{slug}` | — | Yes |
 
 ## Per-site features
 
-| Feature | Pawchive | E-Hentai | WEBTOON | FlameComics | FSIComics | GEDE Comix | Asura Scans | Kagane | MangaDex | Toonily | Manhwaz | KodokuStudio |
-| :------ | :------- | :------- | :------ | :---------- | :-------- | :--------- | :---------- | :----- | :------- | :------ | :------ | :---------- |
-| Individual posts/chapters | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| Series chapter listing | — | — | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| Image dedup (SHA-256) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| Download resume | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| Concurrent downloads | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| Chapter title from tags | — | Yes | Yes | — | — | — | — | — | — | — | — | — |
+| Feature | Pawchive | E-Hentai | WEBTOON | FlameComics | FSIComics | GEDE Comix | Asura Scans | Kagane | MangaDex | Toonily | Manhwaz | KodokuStudio | WeebCentral |
+| :------ | :------- | :------ | :---------- | :-------- | :-------- | :--------- | :---------- | :----- | :------- | :------ | :------ | :---------- | :---------- |
+| Individual posts/chapters | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Series chapter listing | — | — | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Image dedup (SHA-256) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Download resume | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Concurrent downloads | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Chapter title from tags | — | Yes | Yes | — | — | — | — | — | — | — | — | — | — |
 
 ## Site notes
 
@@ -90,6 +92,13 @@ any third-party plugins — is shown by `comic-dl --list-sources`.
   images are served from WordPress's `i*.wp.com` CDN proxy. Series pages carry
   no cover or blurb, so those metadata fields stay empty rather than falling
   back to the site logo.
+
+- **WeebCentral** — Server-rendered pages with HTMX image fragments. Chapter
+  pages list no images inline; pages come from the chapter's `/images`
+  endpoint (`reading_style=long_strip`). Chapter labels read
+  `"<Type> <Number>"` (e.g. `Navigation 67.5`). Images are hotlink-protected
+  and need the chapter page as `Referer`, supplied by comic-dl's per-download
+  headers.
 
 ## Adding more sites
 
