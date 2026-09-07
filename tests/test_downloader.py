@@ -42,6 +42,7 @@ from comic_dl.downloader import (
 )
 from comic_dl.models import ImageItem
 from comic_dl.utils import image_source_name, verify_image_file
+from comic_dl.webview import SessionTransportError
 
 MAGIC_JPEG = b'\xff\xd8\xff'
 
@@ -245,6 +246,106 @@ class TestRetryBlocked:
 
         resp = await _retry_blocked(fetch, "")
         assert getattr(resp, "status_code", None) == 200
+        assert len(calls) == 2
+
+    class _LiveRecovered:
+        status_code = 200
+        headers = {}
+        content = b"<img src='/img/1.jpg'>"
+
+    class _LiveForbidden:
+        status_code = 403
+        headers = {"server": "cloudflare"}
+        content = b"blocked"
+
+    class _FakeLiveSession:
+        """Stand-in for a WebViewSession: records stream calls, never spawns."""
+
+        def __init__(self, outcome):
+            self.outcome = outcome
+            self.calls = []
+
+        async def stream_request(self, method, url):
+            self.calls.append((method, url))
+            if isinstance(self.outcome, BaseException):
+                raise self.outcome
+            return self.outcome
+
+    async def test_cf_live_session_recovery_skips_solve(self, monkeypatch):
+        # A live, authenticated session is the top rung: WebKit replays the
+        # cookies + TLS fingerprint plain HTTP lacks, so a 200 from inside
+        # the session is authoritative and no challenge solve happens.
+        live = self._FakeLiveSession(self._LiveRecovered())
+        monkeypatch.setattr("comic_dl.webview.live_session_for", lambda url: live)
+        solves = []
+        monkeypatch.setattr(
+            "comic_dl.cf.handle_challenge", lambda url: solves.append(url) or True
+        )
+
+        calls = []
+
+        async def fetch():
+            calls.append(len(calls))
+            return self._Challenge()
+
+        resp = await _retry_blocked(fetch, "https://example.com/x")
+        assert live.calls == [("GET", "https://example.com/x")]
+        assert getattr(resp, "status_code", None) == 200
+        assert solves == []
+
+    async def test_cf_live_session_4xx_returns_honestly(self, monkeypatch):
+        # A 403 from inside WebKit means the block is real there too; surface
+        # it rather than pretending the transport failed, which would throw
+        # away a healthy session and burn a solve.
+        blocked = self._LiveForbidden()
+        live = self._FakeLiveSession(blocked)
+        monkeypatch.setattr("comic_dl.webview.live_session_for", lambda url: live)
+        closes = []
+        monkeypatch.setattr(
+            "comic_dl.webview.close_session", lambda *a, **k: closes.append(1)
+        )
+        solves = []
+        monkeypatch.setattr(
+            "comic_dl.cf.handle_challenge", lambda url: solves.append(url) or True
+        )
+
+        async def fetch():
+            return self._Challenge()
+
+        resp = await _retry_blocked(fetch, "https://example.com/x")
+        assert resp is blocked
+        assert closes == []
+        assert solves == []
+
+    async def test_cf_live_session_transport_failure_discards_and_solves(
+        self, monkeypatch
+    ):
+        # A dead pipe means the session is unusable: discard it, then fall
+        # through to the normal one-shot solve path.
+        live = self._FakeLiveSession(SessionTransportError("pipe died"))
+        monkeypatch.setattr("comic_dl.webview.live_session_for", lambda url: live)
+        closes = []
+        monkeypatch.setattr(
+            "comic_dl.webview.close_session", lambda *a, **k: closes.append(1) or None
+        )
+        solves = []
+
+        async def _handle(url):
+            solves.append(url)
+            return True
+
+        monkeypatch.setattr("comic_dl.cf.handle_challenge", _handle)
+
+        calls = []
+
+        async def fetch():
+            calls.append(len(calls))
+            return self._Ok() if len(calls) == 2 else self._Challenge()
+
+        resp = await _retry_blocked(fetch, "https://example.com/x")
+        assert getattr(resp, "status_code", None) == 200
+        assert solves == ["https://example.com/x"]
+        assert closes == [1]
         assert len(calls) == 2
 
     async def test_block_honors_retry_after(self, monkeypatch):

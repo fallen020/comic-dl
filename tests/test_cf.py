@@ -15,8 +15,36 @@ def _run(coro):
 
 
 @pytest.fixture(autouse=True)
-def _clean_jar(monkeypatch):
-    monkeypatch.setattr(cf, "get_jar", lambda: None)
+def _clean_state(monkeypatch):
+    monkeypatch.setattr(cf, "_failed_solves", set())
+
+
+def _fake_webview(monkeypatch, *, available=True, live_session=None, solves=True):
+    """Install a stand-in for comic_dl.webview and track solve calls.
+
+    ``live_session`` is returned by ``live_session_for`` (None = no session
+    running); ``solves`` is the truth value ``solve_challenge`` reports.
+    """
+    calls = {"solve": []}
+
+    class _FakeWebview:
+        @staticmethod
+        def available():
+            return available
+
+        @staticmethod
+        def live_session_for(_url):
+            return live_session
+
+        @staticmethod
+        async def solve_challenge(url):
+            calls["solve"].append(url)
+            return solves
+
+    monkeypatch.setitem(
+        __import__("sys").modules, "comic_dl.webview", _FakeWebview
+    )
+    return calls
 
 
 class TestEscalationLadder:
@@ -30,75 +58,68 @@ class TestEscalationLadder:
         monkeypatch.setattr(
             cf, "solver_mode", lambda host=None: "impersonation"
         )
-        opened = []
-
-        class _FakeWebview:
-            @staticmethod
-            def available():
-                return True
-
-            @staticmethod
-            async def solve_challenge(url):
-                opened.append(url)
-                return True
-
-        monkeypatch.setitem(
-            __import__("sys").modules, "comic_dl.webview", _FakeWebview
-        )
+        calls = _fake_webview(monkeypatch)
         assert _run(cf.handle_challenge("https://kagane.to/x")) is True
-        assert opened == []  # impersonation retry signal only; no webview
+        assert calls["solve"] == []  # impersonation retry signal only; no webview
 
     def test_auto_mode_escalates_to_webview(self, monkeypatch):
         """auto must reach the webview rung — a cookie wipe alone never
         passes a managed challenge (regression: auto returned early)."""
         monkeypatch.setattr(cf, "solver_mode", lambda host=None: "auto")
-        opened = []
-
-        class _FakeWebview:
-            @staticmethod
-            def available():
-                return True
-
-            @staticmethod
-            async def solve_challenge(url):
-                opened.append(url)
-                return True
-
-        monkeypatch.setitem(
-            __import__("sys").modules, "comic_dl.webview", _FakeWebview
-        )
+        calls = _fake_webview(monkeypatch)
         assert _run(cf.handle_challenge("https://kagane.to/x")) is True
-        assert opened == ["https://kagane.to/x"]
+        assert calls["solve"] == ["https://kagane.to/x"]
+
+    def test_auto_reuses_live_session_without_spawning(self, monkeypatch):
+        """An already-running session for the host must not pop another
+        window: its clearance is live in the WebKit context already."""
+        monkeypatch.setattr(cf, "solver_mode", lambda host=None: "auto")
+        calls = _fake_webview(monkeypatch, live_session=object())
+        assert _run(cf.handle_challenge("https://kagane.to/x")) is True
+        assert calls["solve"] == []
+
+    def test_failed_solve_spawns_no_second_window(self, monkeypatch):
+        """A failed solve must not re-pop the window for the same host on
+        every blocked request (regression: one window per attempt)."""
+        monkeypatch.setattr(cf, "solver_mode", lambda host=None: "auto")
+        calls = _fake_webview(monkeypatch, solves=False)
+        assert _run(cf.handle_challenge("https://kagane.to/x")) is True
+        assert _run(cf.handle_challenge("https://kagane.to/x")) is True
+        assert calls["solve"] == ["https://kagane.to/x"]
+
+    def test_failed_solve_does_not_block_other_hosts(self, monkeypatch):
+        monkeypatch.setattr(cf, "solver_mode", lambda host=None: "auto")
+        calls = _fake_webview(monkeypatch)
+        assert _run(cf.handle_challenge("https://kagane.to/x")) is True
+        monkeypatch.setattr(cf, "_failed_solves", set())
+        assert _run(cf.handle_challenge("https://other.example/x")) is True
+        assert calls["solve"] == ["https://kagane.to/x", "https://other.example/x"]
 
     def test_auto_falls_back_to_retry_when_webview_unavailable(
         self, monkeypatch
     ):
         monkeypatch.setattr(cf, "solver_mode", lambda host=None: "auto")
-
-        class _FakeWebview:
-            @staticmethod
-            def available():
-                return False
-
-        monkeypatch.setitem(
-            __import__("sys").modules, "comic_dl.webview", _FakeWebview
-        )
+        _fake_webview(monkeypatch, available=False)
         assert _run(cf.handle_challenge("https://kagane.to/x")) is True
 
     def test_auto_survives_solver_exception(self, monkeypatch):
         monkeypatch.setattr(cf, "solver_mode", lambda host=None: "webview")
 
-        class _FakeWebview:
+        class _BoomWebview:
             @staticmethod
             def available():
                 return True
+
+            @staticmethod
+            def live_session_for(_url):
+                return None
 
             @staticmethod
             async def solve_challenge(url):
                 raise RuntimeError("gtk exploded")
 
         monkeypatch.setitem(
-            __import__("sys").modules, "comic_dl.webview", _FakeWebview
+            __import__("sys").modules, "comic_dl.webview", _BoomWebview
         )
         assert _run(cf.handle_challenge("https://kagane.to/x")) is True
 
@@ -106,20 +127,9 @@ class TestEscalationLadder:
         self, monkeypatch
     ):
         monkeypatch.setattr(cf, "solver_mode", lambda host=None: "webview")
-
-        class _FakeWebview:
-            @staticmethod
-            def available():
-                return True
-
-            @staticmethod
-            async def solve_challenge(url):
-                return True
-
-        monkeypatch.setitem(
-            __import__("sys").modules, "comic_dl.webview", _FakeWebview
-        )
+        calls = _fake_webview(monkeypatch)
         assert _run(cf.handle_challenge("https://kagane.to/x")) is True
+        assert calls["solve"] == ["https://kagane.to/x"]
 
 
 class TestSolverModePrecedence:

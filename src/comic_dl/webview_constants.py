@@ -24,6 +24,12 @@ SESSION_TIMEOUT = 300.0
 #: than ``SESSION_TIMEOUT`` so a single stuck request doesn't kill the session.
 REQUEST_TIMEOUT = 30.0
 
+#: How long a WebView session may sit idle before the parent shuts it down.
+#: Measured from the *last completed request* (not from solve), so concurrent
+#: downloads keep the session alive and it disappears shortly after the work
+#: ends instead of lingering all run.
+WEBVIEW_IDLE_TIMEOUT = 15.0
+
 #: How long the helper waits for a ``cf_clearance`` cookie to land.
 COOKIE_TIMEOUT = 60.0
 
@@ -39,6 +45,9 @@ MAX_FRAME_BYTES = 1 * 1024 * 1024
 
 #: Maximum bytes to drain from the helper's stderr before discarding.
 STDERR_DRAIN_BYTES = 4096
+
+#: Chunk size for streaming responses parent-side (``readexactly()`` slices).
+WEBVIEW_STREAM_CHUNK_BYTES = 64 * 1024
 
 
 def origin_of(url: str) -> str:

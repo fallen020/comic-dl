@@ -149,6 +149,15 @@ async def _retry_blocked(
     """
     from .antibot import BlockVerdict, classify_block
     from .cf import handle_challenge
+    from .webview import (
+        SessionTransportError as WvSessionTransportError,
+    )
+    from .webview import (
+        close_session as _webview_close_session,
+    )
+    from .webview import (
+        live_session_for as _webview_live_session,
+    )
 
     verdict: BlockVerdict | None = None
     for attempt in range(_HUMANE_MAX_RETRIES):
@@ -172,6 +181,38 @@ async def _retry_blocked(
         if verdict.vendor == "cloudflare" and verdict.kind in ("interstitial", "honeypot"):
             host = urlsplit(url).hostname or "unknown"
             trace(f"retry_blocked: CF challenge on {host} (attempt {attempt + 1})")
+            # A live, already-authenticated session is the highest rung of the
+            # ladder: its WebKit transport replays cookies + TLS fingerprint
+            # that plain HTTP cannot, and it costs no new solve or window.
+            live = _webview_live_session(url)
+            if live is not None:
+                try:
+                    # Same-origin XHR: the browser supplies Referer/Origin/UA
+                    # from the loaded page, so no caller headers are replayed.
+                    via_session = await live.stream_request("GET", url)
+                except WvSessionTransportError:
+                    # The pipe itself died — the session is unusable, so
+                    # discard it and fall through to the normal solve path.
+                    trace(
+                        f"retry_blocked: webview session transport failed for "
+                        f"{host}; discarding session"
+                    )
+                    with contextlib.suppress(Exception):
+                        await _webview_close_session()
+                else:
+                    via_status = via_session.status_code
+                    if via_status < 400:
+                        trace(f"retry_blocked: recovered via live session for {host}")
+                        return via_session
+                    # A 4xx from inside WebKit means the block is real there
+                    # too. Report it honestly rather than treating it as a
+                    # transport failure (that would discard a healthy session).
+                    trace(
+                        f"retry_blocked: live session returned {via_status} "
+                        f"for {host}; not solving again"
+                    )
+                    await _close_response(via_session)
+                    return via_session
             if await handle_challenge(url):
                 await _close_response(resp)
                 # A successful solve cleared the stale cf_clearance and (via

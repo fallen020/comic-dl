@@ -18,9 +18,10 @@ import pytest
 
 from comic_dl.webview import (
     SessionRequestError,
+    SessionTransportError,
     WebViewSession,
 )
-from comic_dl.webview_solver import _handle_request, _xhr_js
+from comic_dl.webview_solver import _emit_stream, _handle_request, _xhr_js
 
 
 class TestXhrJsEscaping:
@@ -118,6 +119,116 @@ class TestHandleRequest:
         assert resp["status"] == 0
         assert "cross-origin" in resp["error"]
 
+    def test_stream_request_uses_binary_xhr(self):
+        # Binary payloads must survive: the stream path forces the response
+        # through charset=x-user-defined and maps code points straight to
+        # bytes (sync XHR cannot use responseType=arraybuffer).
+        window = _FakeWindow('{"status": 200, "body_b64": "AAEC/w=="}')
+        _handle_request(
+            window, {"id": 5, "url": "https://x/", "stream": True}, "https://x"
+        )
+        js = window.calls[0]
+        assert "x-user-defined" in js
+        assert "& 0xFF" in js
+        assert "getAllResponseHeaders" in js
+
+
+class TestEmitStream:
+    def test_writes_header_line_then_exact_body_bytes(self):
+        class _Buf:
+            def __init__(self):
+                self.data = b""
+
+            def write(self, b):
+                self.data += b
+
+            def flush(self):
+                pass
+
+        import base64
+        import json
+
+        body = b"\x00\x01\x02\xff"
+        buf = _Buf()
+        _emit_stream(
+            {
+                "id": 3,
+                "status": 200,
+                "headers": {"content-type": "image/jpeg"},
+                "body_b64": base64.b64encode(body).decode(),
+            },
+            buf,
+        )
+        header_line, sep, raw = buf.data.partition(b"\n")
+        assert sep == b"\n"
+        header = json.loads(header_line.decode("utf-8"))
+        assert header["id"] == 3
+        assert header["stream"] is True
+        assert header["length"] == len(body)
+        assert raw == body
+
+    def test_header_flushed_before_body(self):
+        # If the header weren't flushed first, the parent would deadlock
+        # waiting for a header line that still shares the buffer with the
+        # body. Track the flush count at the moment each write lands.
+        events = []
+
+        class _Buf:
+            def flush(self):
+                events.append(("flush",))
+
+            def write(self, b):
+                events.append(("write", b, len([e for e in events if e[0] == "flush"])))
+
+        buf = _Buf()
+        _emit_stream({"id": 1, "status": 200, "body_b64": ""}, buf)
+        header_write = events[0]
+        assert header_write[0] == "write"
+        assert header_write[1].endswith(b"\n")
+        assert header_write[2] == 0
+        assert any(e[0] == "flush" for e in events[1:])
+
+
+def _fake_serve_streaming() -> str:
+    """A serve helper that also implements the stream frame protocol."""
+    return r"""
+import json
+import sys
+
+
+def out(obj):
+    sys.stdout.write(json.dumps(obj) + "\n")
+    sys.stdout.flush()
+
+
+out({"ready": True, "cookies": []})
+for line in sys.stdin:
+    line = line.strip()
+    if not line:
+        continue
+    try:
+        req = json.loads(line)
+    except Exception:
+        continue
+    if req.get("shutdown"):
+        break
+    if not req.get("stream"):
+        out({
+            "id": req.get("id"),
+            "status": 200,
+            "headers": {"x-fake": "yes"},
+            "body_b64": __import__("base64").b64encode(
+                ("ok:" + str(req.get("method", ""))).encode()
+            ).decode(),
+        })
+        continue
+    body = b"streamed:" + str(req.get("method", "")).encode()
+    out({"id": req.get("id"), "status": 200, "headers": {"x-fake": "yes"},
+         "stream": True, "length": len(body)})
+    sys.stdout.buffer.write(body)
+    sys.stdout.buffer.flush()
+"""
+
 
 FAKE_SERVE = r"""
 import json
@@ -199,6 +310,39 @@ class TestWebViewSessionWireProtocol:
                 await sess.request("FAIL", "https://example.com/x")
         finally:
             await sess.close()
+
+    async def test_stream_request_round_trip_via_wire(self, monkeypatch):
+        # The parent drives its documented client against a serve helper that
+        # ships a header line followed by raw body bytes — no b64 anywhere in
+        # the transport path.
+        import comic_dl.webview as webview_mod
+
+        monkeypatch.setattr(
+            webview_mod,
+            "_helper_command",
+            lambda: [sys.executable, "-c", _fake_serve_streaming()],
+        )
+        monkeypatch.setattr(webview_mod, "validate_request_url", lambda url: url)
+        sess = WebViewSession("https://example.com/")
+        try:
+            assert await sess.start() is True
+            resp = await sess.stream_request("GET", "https://example.com/foo")
+            assert resp.status_code == 200
+            assert resp.headers == {"x-fake": "yes"}
+            parts = [chunk async for chunk in resp.aiter_content()]
+            assert b"".join(parts) == b"streamed:GET"
+            # The stream must not have poisoned the pipe: a plain request
+            # still round-trips on the same session.
+            _, _, body = await sess.request("GET", "https://example.com/bar")
+            assert body == b"ok:GET"
+        finally:
+            await sess.close()
+
+    async def test_stream_request_cross_host_rejected_without_pipeline(self):
+        sess = WebViewSession("https://example.com/")
+        assert sess._proc is None
+        with pytest.raises(SessionTransportError):
+            await sess.stream_request("GET", "https://other.example/x")
 
     async def test_cross_host_request_rejected_without_pipeline(self):
         # Same-host enforcement happens before the subprocess exists: a wrong

@@ -15,12 +15,15 @@ Two modes:
 
 * ``--serve``: after a ``cf_clearance`` lands, stay open and act as a
   long-lived *request session*. The parent writes JSON request lines to
-  stdin (``{"id", "method", "url", "headers", "body"}``); each is executed
-  as a same-origin synchronous ``XMLHttpRequest`` from inside the page, so
-  it carries the session's cookies and WebKit TLS fingerprint — which a
-  replayed cookie cannot. The JSON response line (``{"id", "status",
-  "headers", "body_b64"}``) is written to stdout. ``{"shutdown": true}`` or
-  EOF tears the window down.
+  stdin (``{"id", "method", "url", "stream", "headers", "body"}``); each is
+  executed as a same-origin synchronous ``XMLHttpRequest`` from inside the
+  page, so it carries the session's cookies and WebKit TLS fingerprint —
+  which a replayed cookie cannot. The JSON response line (``{"id",
+  "status", "headers", "body_b64"}``) is written to stdout; for ``stream``
+  requests the response is a JSON header line (with ``length``) followed by
+  that many raw body bytes, so binary downloads ride the same authenticated
+  pipe without a 1 MiB whole-body cap. ``{"shutdown": true}`` or EOF tears
+  the window down.
 
 The window is shown in both modes because Cloudflare fingerprints hidden/
 offscreen renders and interactive challenges need the user.
@@ -62,14 +65,27 @@ _BLOCKED_HEADERS = frozenset({
 })
 
 
-def _xhr_js(method: str, url: str, headers: dict, body: str | None) -> str:
+def _xhr_js(
+    method: str,
+    url: str,
+    headers: dict,
+    body: str | None,
+    *,
+    binary: bool = False,
+) -> str:
     """JS that runs one same-origin synchronous XHR and returns a JSON string.
 
     The request runs from the loaded page's context, so it automatically
     carries the session's cookies and WebKit TLS fingerprint — the two things
     a replayed ``cf_clearance`` cannot reproduce. The response is returned as
-    ``{status, headers, body_b64}`` (body base64 via TextEncoder so binary
-    payloads survive).
+    ``{status, headers, body_b64}`` (body base64 so binary payloads survive).
+
+    With ``binary=True`` the response is forced through
+    ``charset=x-user-defined`` so each byte maps to a code point 0-255 and
+    ``responseText`` is not lossy-mangled by charset decoding — the text-mode
+    default would silently corrupt any byte above 127 (sync XHR cannot use
+    ``responseType='arraybuffer'``).  Callers doing this must treat
+    ``body_b64`` as raw bytes, not text.
     """
     header_lines = "\n".join(
         f"xhr.setRequestHeader({json.dumps(str(k))}, {json.dumps(str(v))});"
@@ -77,12 +93,23 @@ def _xhr_js(method: str, url: str, headers: dict, body: str | None) -> str:
         if k.lower() not in _BLOCKED_HEADERS
     )
     body_literal = "null" if body is None else json.dumps(body)
+    mime_override = (
+        ""
+        if not binary
+        else "try { xhr.overrideMimeType('text/plain; charset=x-user-defined'); } catch (e) {}\n"
+    )
+    byte_map = (
+        "bytes.charCodeAt(i) & 0xFF"
+        if binary
+        else "bytes[i]"
+    )
     return (
         "(function () {\n"
         "try {\n"
         "var xhr = new XMLHttpRequest();\n"
         f"xhr.open({json.dumps(str(method))}, {json.dumps(url)}, false);\n"
         "xhr.withCredentials = true;\n"
+        f"{mime_override}"
         f"{header_lines}\n"
         f"xhr.send({body_literal});\n"
         "var raw = xhr.getAllResponseHeaders() || '';\n"
@@ -94,9 +121,14 @@ def _xhr_js(method: str, url: str, headers: dict, body: str | None) -> str:
         "}\n"
         "var b64 = '';\n"
         "try {\n"
-        "  var bytes = new TextEncoder().encode(xhr.responseText);\n"
+        "  var bytes = " + (
+            "new TextEncoder().encode(xhr.responseText)"
+            if not binary
+            else "xhr.responseText"
+        ) + ";\n"
         "  var binary = '';\n"
-        "  for (var i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);\n"
+        "  for (var i = 0; i < bytes.length; i++) { "
+        "binary += String.fromCharCode(" + byte_map + "); }\n"
         "  b64 = btoa(binary);\n"
         "} catch (e) { b64 = ''; }\n"
         f"return JSON.stringify({{status: xhr.status, headers: headers, body_b64: b64}});\n"
@@ -216,7 +248,13 @@ def _handle_request(window: Any, req: dict[str, Any], page_origin: str) -> dict[
             if k.lower() not in _BLOCKED_HEADERS
         }
 
-        js = _xhr_js(method, url, filtered_headers, body)
+        js = _xhr_js(
+            method,
+            url,
+            filtered_headers,
+            body,
+            binary=req.get("stream") is True,
+        )
         raw = window.evaluate_js(js)
         payload = json.loads(raw) if isinstance(raw, str) else {}
         resp: dict[str, Any] = {
@@ -238,13 +276,32 @@ def _handle_request(window: Any, req: dict[str, Any], page_origin: str) -> dict[
         }
 
 
+def _emit_stream(resp: dict[str, Any], buf: Any) -> None:
+    """Write a stream response: one JSON header line, then the raw body.
+
+    The parent reads the header with readline(), parses ``length``, then
+    reads exactly that many raw bytes.  An exact ``length`` (rather than a
+    terminator byte) keeps a truncated download detectable without any body
+    content colliding with the frame boundary.
+    """
+    body_b64 = resp.pop("body_b64", "")
+    raw = _decode_body(body_b64)
+    resp["stream"] = True
+    resp["length"] = len(raw)
+    buf.write((json.dumps(resp, ensure_ascii=True) + "\n").encode("utf-8"))
+    buf.flush()
+    buf.write(raw)
+    buf.flush()
+
+
 def _serve_loop(window: Any, page_origin: str) -> None:
     """Read JSON request lines from stdin, run each as an in-page XHR.
 
     Runs on the pywebview func thread (the GUI loop owns the main thread).
     Blocks on stdin until ``{"shutdown": true}`` or EOF; each request line is
-    one ``{id, method, url, headers, body}`` and each response line is one
-    ``{id, status, headers, body_b64}``.
+    one ``{id, method, url, stream, headers, body}`` and each response is one
+    JSON line — or, for ``stream`` requests, a JSON header line followed by
+    exactly ``length`` raw body bytes.
 
     Lines exceeding ``MAX_FRAME_BYTES`` are rejected to protect against a
     misbehaving parent flooding stdin.
@@ -269,8 +326,11 @@ def _serve_loop(window: Any, page_origin: str) -> None:
         resp = _handle_request(window, req, page_origin)
         if resp is None:
             break
-        print(json.dumps(resp))
-        sys.stdout.flush()
+        if req.get("stream"):
+            _emit_stream(resp, sys.stdout.buffer)
+        else:
+            print(json.dumps(resp))
+            sys.stdout.flush()
 
 
 def _read_line(stream: Any, max_bytes: int) -> str | None:

@@ -9,7 +9,6 @@ from urllib.parse import urlsplit
 
 from .antibot import BlockVerdict, looks_like_challenge
 from .config import _RUNTIME_HTTP, http_setting
-from .http import get_jar
 from .ui import TAG_WARNING, trace, vlog
 
 
@@ -37,14 +36,22 @@ def solver_mode(host: str | None = None) -> str:
     return "auto"
 
 
+#: Hosts whose webview solve already failed this run.  Spawning the helper
+#: once per host is enough: repeated 403s after a failed solve mean the
+#: fingerprint-bound traffic can't fall back to plain HTTP anyway, and
+#: re-spawning would pop a window per blocked request.
+_failed_solves: set[str] = set()
+
+
 async def handle_challenge(url: str, verdict: BlockVerdict | None = None) -> bool:
     """Solve or clear the challenge for ``url``'s host using an escalation ladder.
 
     Resolution order (escalation):
     1. ``off`` — skip entirely, return False
     2. ``impersonation`` — try with fresh impersonation profile (fastest)
-    3. ``webview`` — escalate to system webview if impersonation fails
-    4. ``auto`` — try impersonation first, then webview if available
+    3. reuse an already-running webview session for the host (no new window)
+    4. ``webview`` — escalate to system webview if impersonation fails
+    5. ``auto`` — try impersonation first, then webview if available
 
     Returns True when the caller should retry the request once with a fresh
     jar; False when retrying is pointless (solver disabled, or the solver
@@ -55,9 +62,9 @@ async def handle_challenge(url: str, verdict: BlockVerdict | None = None) -> boo
     host = (urlsplit(url).hostname or "").lower()
     if not host:
         return False
-    jar = get_jar()
-    if jar is not None:
-        jar.delete(host, "cf_clearance")
+    # A 403 does not mean the clearance cookie is stale — fingerprint-bound
+    # hosts (e.g. kagane.to) reject plain-HTTP replays even with valid
+    # clearance. Deleting it here would throw away a working webview session.
 
     mode = solver_mode(host)
     trace(
@@ -79,8 +86,16 @@ async def handle_challenge(url: str, verdict: BlockVerdict | None = None) -> boo
         # import (it never imports pywebview at module scope). A static
         # import keeps the coroutine return type for the `await` below.
         from .webview import available as _webview_available
-        from .webview import solve_challenge
+        from .webview import live_session_for, solve_challenge
 
+        if live_session_for(url) is not None:
+            # The session's WebKit context already holds clearance for this
+            # host; opening a second helper would only pop another window.
+            trace(f"cf: reusing live webview session for {host}, not re-solving")
+            return True
+        if host in _failed_solves:
+            trace(f"cf: webview already failed for {host} this run, not re-spawning")
+            return True
         if not _webview_available():
             trace(f"cf: webview solver unavailable for {host}")
         else:
@@ -89,6 +104,7 @@ async def handle_challenge(url: str, verdict: BlockVerdict | None = None) -> boo
             if solved:
                 trace(f"cf: webview harvested fresh cf_clearance for {host}")
                 return True
+            _failed_solves.add(host)
             vlog(
                 1,
                 f"webview solver failed for {host} — falling back to impersonation",
