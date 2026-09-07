@@ -27,7 +27,11 @@ a = Analysis(
     [os.path.join(ROOT, "packaging", "pyinstaller_entry.py")],
     pathex=[os.path.join(ROOT, "src")],
     binaries=curl_libs,
-    datas=[(os.path.join(ROOT, "Third-Party-Licenses"), "third_party_licenses")],
+    datas=[
+        (os.path.join(ROOT, "Third-Party-Licenses"), "third_party_licenses"),
+        # Runtime data files read via Path(__file__) (see ui.BANNER_PATH).
+        (os.path.join(ROOT, "src", "comic_dl", "banner.txt"), "comic_dl"),
+    ],
     hiddenimports=[
         # Keep in sync with src/comic_dl/scrapers/sites/__init__.py
         "comic_dl.config",
