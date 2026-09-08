@@ -263,24 +263,36 @@ class TestSeriesComicInfo:
             year=2024, has_cover=True,
         )
         pages = "".join(
-            f'<Page Image="{i}" />' if i else '<Page Image="0" Type="FrontCover" />'
+            f'    <Page Image="{i}" />\n' if i else '    <Page Image="0" Type="FrontCover" />\n'
             for i in range(30)
         )
         assert xml == (
             '<?xml version="1.0" encoding="utf-8"?>\n'
             '<ComicInfo xmlns:ty="http://www.w3.org/2001/XMLSchema" '
             'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
-            'xmlns:xsd="http://www.w3.org/2001/XMLSchema">'
-            "<Series>My Series</Series><Title>My Series</Title>"
-            "<Number>5</Number><Volume>1</Volume><PageCount>30</PageCount>"
-            "<Summary>A great series</Summary><Web>https://example.com/g/1</Web>"
-            "<Genre>Action, Romance</Genre><Writer>A, B</Writer><Artist>X</Artist>"
-            "<Colorist>C</Colorist><Publisher>Pub</Publisher><Status>Ongoing</Status>"
-            "<ty:PublishingStatusTachiyomi>Ongoing</ty:PublishingStatusTachiyomi>"
-            "<LanguageISO>en</LanguageISO><Manga>YesAndRightToLeft</Manga>"
-            "<CommunityRating>9.2</CommunityRating><Year>2024</Year>"
-            f"<Pages>{pages}</Pages>"
-            "</ComicInfo>"
+            'xmlns:xsd="http://www.w3.org/2001/XMLSchema">\n'
+            '  <Series>My Series</Series>\n'
+            '  <Title>My Series</Title>\n'
+            '  <Number>5</Number>\n'
+            '  <Volume>1</Volume>\n'
+            '  <PageCount>30</PageCount>\n'
+            '  <Summary>A great series</Summary>\n'
+            '  <Web>https://example.com/g/1</Web>\n'
+            '  <Genre>Action, Romance</Genre>\n'
+            '  <Writer>A, B</Writer>\n'
+            '  <Artist>X</Artist>\n'
+            '  <Colorist>C</Colorist>\n'
+            '  <Publisher>Pub</Publisher>\n'
+            '  <Status>Ongoing</Status>\n'
+            '  <ty:PublishingStatusTachiyomi>Ongoing</ty:PublishingStatusTachiyomi>\n'
+            '  <LanguageISO>en</LanguageISO>\n'
+            '  <Manga>YesAndRightToLeft</Manga>\n'
+            '  <CommunityRating>9.2</CommunityRating>\n'
+            '  <Year>2024</Year>\n'
+            '  <Pages>\n'
+            f'{pages}'
+            '  </Pages>\n'
+            '</ComicInfo>'
         )
 
     def test_snapshot_series_xml(self):
@@ -294,16 +306,23 @@ class TestSeriesComicInfo:
             '<?xml version="1.0" encoding="utf-8"?>\n'
             '<ComicInfo xmlns:ty="http://www.w3.org/2001/XMLSchema" '
             'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
-            'xmlns:xsd="http://www.w3.org/2001/XMLSchema">'
-            "<Series>My Series</Series><Title>My Series</Title>"
-            "<Summary>A blurb</Summary><Web>https://example.com/s</Web>"
-            "<Genre>Action, Romance</Genre><Writer>Auth A</Writer>"
-            "<Artist>Art B</Artist><Colorist>Col C</Colorist>"
-            "<Publisher>Pub</Publisher><Status>Ongoing</Status>"
-            "<ty:PublishingStatusTachiyomi>Ongoing</ty:PublishingStatusTachiyomi>"
-            "<LanguageISO>en</LanguageISO><Manga>YesAndRightToLeft</Manga>"
-            "<CommunityRating>9.2</CommunityRating><Year>2024</Year>"
-            "</ComicInfo>"
+            'xmlns:xsd="http://www.w3.org/2001/XMLSchema">\n'
+            '  <Series>My Series</Series>\n'
+            '  <Title>My Series</Title>\n'
+            '  <Summary>A blurb</Summary>\n'
+            '  <Web>https://example.com/s</Web>\n'
+            '  <Genre>Action, Romance</Genre>\n'
+            '  <Writer>Auth A</Writer>\n'
+            '  <Artist>Art B</Artist>\n'
+            '  <Colorist>Col C</Colorist>\n'
+            '  <Publisher>Pub</Publisher>\n'
+            '  <Status>Ongoing</Status>\n'
+            '  <ty:PublishingStatusTachiyomi>Ongoing</ty:PublishingStatusTachiyomi>\n'
+            '  <LanguageISO>en</LanguageISO>\n'
+            '  <Manga>YesAndRightToLeft</Manga>\n'
+            '  <CommunityRating>9.2</CommunityRating>\n'
+            '  <Year>2024</Year>\n'
+            '</ComicInfo>'
         )
 
     def test_series_fields_present(self):

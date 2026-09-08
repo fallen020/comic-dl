@@ -508,8 +508,21 @@ def apply_color_mode(mode: str | None) -> None:
         resolved = _resolve_env_color()
         if resolved is not None:
             mode = resolved
+    if mode is None or mode == "auto":
+        # stderr follows stdout's terminal-ness: wrappers that grant only
+        # stdout a TTY (uv, IDE consoles) otherwise leave error text plain
+        # next to a colored help. Falls back to per-stream TTY detection.
+        # Read the native tty status, not is_terminal (a stale force could
+        # linger from an earlier explicit "always").
+        if console.file.isatty():
+            for c in (console, err_console):
+                _pin_console_color(c, "always")
+            return
+        for c in (console, err_console):
+            _pin_console_color(c, "auto")
+        return
     for c in (console, err_console):
-        _pin_console_color(c, mode or "auto")
+        _pin_console_color(c, mode)
 
 
 def set_no_color(enabled: bool) -> None:
@@ -783,19 +796,20 @@ def _lcp(a: str, b: str) -> int:
 
 
 class ComicArgumentParser(argparse.ArgumentParser):
-    """argparse parser whose usage errors carry a "Did you mean" hint.
+    """argparse parser whose usage errors are compact and styled.
 
-    Overrides ``error()`` to keep the usage line on stderr, add a fuzzy
-    suggestion when the offending token resembles a known flag, and exit
-    with code 2 (invalid CLI usage).
+    Overrides ``error()`` to skip argparse's raw usage dump (a wrapped wall of
+    flags that dwarfs the actual problem), point stderr at ``--help`` instead,
+    and add a fuzzy suggestion when the offending token resembles a known
+    flag. Exits with code 2 (invalid CLI usage).
     """
 
     def error(self, message: str) -> NoReturn:
-        self.print_usage(sys.stderr)
         hint = self._suggest_for(message)
-        err_console.print(f"  [bold {ERROR}]{glyphs().err}[/] error: {esc(message)}")
+        err_console.print(f"  [bold {ERROR}]{glyphs().err} error:[/] {esc(message)}")
         if hint:
             err_console.print(f"  [{MUTED}]Did you mean:[/] {esc(hint)}?")
+        err_console.print(f"  [{MUTED}]Run 'comic-dl --help' for usage.[/]")
         raise SystemExit(2)
 
     def print_help(self, file: SupportsWrite[str] | None = None) -> None:
@@ -1176,6 +1190,8 @@ def print_summary(
     elapsed_secs: float = 0,
     partial: int = 0,
     interrupted: bool = False,
+    selected: int | None = None,
+    total_chapters: int = 0,
 ) -> None:
     """Print the final per-series download summary block.
 
@@ -1200,6 +1216,10 @@ def print_summary(
         _console.print(f"  [bold {SUCCESS}]{glyphs().success}[/] [bold]Download complete[/]")
     _console.print()
     _console.print(f"    [{MUTED}]Series     :[/] [white]{esc(series_title)}[/]")
+    if selected is not None and total_chapters:
+        _console.print(
+            f"    [{MUTED}]Selected   :[/] [white]{selected} / {total_chapters} chapters[/]"
+        )
     chapters_word = "chapter" if downloaded == 1 else "chapters"
     brief = ""
     if partial and failed:
@@ -1213,16 +1233,14 @@ def print_summary(
         _console.print(f"    [{MUTED}]Skipped    :[/] [white]{skipped} chapter(s)[/]")
     if total_bytes:
         size_str = format_bytes(total_bytes)
+        _console.print(f"    [{MUTED}]Size       :[/] [white]{size_str}[/]")
         if elapsed_secs > 0 and downloaded > 0:
             mb = total_bytes / 1024 / 1024
             throughput = mb / elapsed_secs
+            _console.print(f"    [{MUTED}]Duration   :[/] [white]{elapsed}[/]")
             _console.print(
-                f"    [{MUTED}]Total      :[/] [white]{size_str}[/] "
-                f"[white]in[/] [white]{elapsed}[/] "
-                f"[white]({throughput:.2f} MB/s)[/]"
+                f"    [{MUTED}]Average    :[/] [white]{throughput:.2f} MB/s[/]"
             )
-        else:
-            _console.print(f"    [{MUTED}]Size       :[/] [white]{size_str}[/]")
     _console.print(f"    [{MUTED}]Saved to   :[/] [white]{esc(output_dir)}[/]")
     _console.print()
 
@@ -2559,22 +2577,30 @@ class Activity:
         nbytes = sum(st.bytes for st in states)
         elapsed = time.monotonic() - self._started if self._started else 0.0
 
-        frac_done, frac_total = done, self._batch_total
-        if self._batch_total == 1 and done == 0 and running == 1:
-            single = next(st for st in states if st.status == "running")
-            if single.total and single.done:
-                frac_done, frac_total = single.done, single.total
+        # Progress aggregates pages (each row's page total), so one huge
+        # chapter isn't stuck at a tiny row fraction while its pages stream.
+        # Rows whose page count isn't known yet contribute nothing to the page
+        # total; until any page count appears, fall back to a per-row count.
+        done_pages = sum(st.done for st in states if st.total > 0)
+        total_pages = sum(st.total for st in states if st.total > 0)
+        if total_pages > 0:
+            frac_done, frac_total = done_pages, total_pages
+        else:
+            frac_done, frac_total = done, self._batch_total
         pct = (frac_done / frac_total * 100) if frac_total else 0.0
 
-        w = len(str(self._batch_total))
+        w = len(str(frac_total)) if frac_total else 1
         parts: list[tuple[str, str]] = [
             ("  Overall: ", f"bold {BRAND}"),
-            (f"{frac_done:>{w}d}/{frac_total}  ", "bold white"),
+            (f"{frac_done:>{w}d}/{frac_total}{' pages' if total_pages else ''}  ", "bold white"),
             (_mini_bar(frac_done, frac_total), "white"),
             (f"  {pct:3.0f}%", "white"),
         ]
+        if total_pages > 0 and self._batch_total > 0:
+            parts.append((f"  {glyphs().bullet}  ", MUTED))
+            parts.append((f"{done}/{self._batch_total} chapters", MUTED))
         parts.append((f"  {glyphs().bullet}  ", MUTED))
-        parts.append((f"{running:>{w}d} running", "white"))
+        parts.append((f"{running:>{w}d} active", "white"))
 
         parts.append((f"  {glyphs().bullet}  ", MUTED))
         parts.append((f"{queued:>{w}d} queued", MUTED if queued else f"dim {MUTED}"))

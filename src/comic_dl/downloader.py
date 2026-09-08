@@ -1106,10 +1106,7 @@ async def _run_downloads(
 
         for attempt in range(max_attempts):
             if activity_cb is not None:
-                if total_pages:
-                    activity_cb(f"Downloading {completed + 1}/{total_pages}")
-                else:
-                    activity_cb(f"Downloading images{glyphs().ellipsis}")
+                activity_cb("Downloading...")
             if _budget_exhausted():
                 failed.add(item.filename)
                 failure_labels[item.filename] = "exceeds max total size"

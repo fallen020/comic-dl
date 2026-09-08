@@ -2271,7 +2271,8 @@ async def _process_series(
                         source_id=_source_id_for(domain),
                     )
                 downloaded = 0
-                skipped = total_chapters - len(new_items)
+                selected_count = len(new_items)
+                skipped = 0
                 failed_count = 0
                 partial_count = 0
                 interrupted = False
@@ -2291,7 +2292,7 @@ async def _process_series(
                     _ch_label = _ch_title or f"Ep. {_ch['episode_no']}"
                     act.add_queued_row(
                         f"{chapters_key}:{_idx}",
-                        label=f"{_ch_label}  ({_idx}/{total_chapters})",
+                        label=_ch_label,
                     )
                 # Up to ``chapter_parallel`` chapters run at once, each on its
                 # own Activity row; the semaphore keeps the concurrency bounded.
@@ -2308,7 +2309,7 @@ async def _process_series(
                     ch_title = ch["title"]
                     ch_label = ch_title or f"Ep. {ch['episode_no']}"
 
-                    sink.set_label(f"{ch_label}  ({idx}/{total_chapters})")
+                    sink.set_label(ch_label)
                     sink.stage("Preparing chapter...")
 
                     ch_slug = ch_title or ch["episode_no"]
@@ -2321,7 +2322,7 @@ async def _process_series(
                     # Only the sequential path sleeps — parallel chapters already
                     # interleave naturally.
                     if chapter_parallel == 1:
-                        sink.stage(f"Pacing before chapter {ch['episode_no']}...")
+                        sink.stage("Waiting for rate limit...")
                         await asyncio.sleep(max(0.3, min(4.0, random.gauss(1.5, 0.5))))
 
                     async with chapter_sem:
@@ -2382,7 +2383,7 @@ async def _process_series(
                             act.finish_row(row_key, ok=False, message=fail_reason)
                             return "failed", 1, (ch_label, fail_reason)
 
-                        sink.set_label(f"{ch_label}  ({idx}/{total_chapters})")
+                        sink.set_label(ch_label)
 
                         total_pages = len(meta.images)
                         if total_pages == 0:
@@ -2549,6 +2550,8 @@ async def _process_series(
         if not quiet:
             print_summary(
                 series_title=series_title,
+                selected=selected_count,
+                total_chapters=total_chapters,
                 downloaded=downloaded,
                 skipped=skipped,
                 failed=failed_count,
@@ -3221,7 +3224,7 @@ async def _run_urls(urls: list[str], args: argparse.Namespace) -> int:
         )
 
         def _label_for(url: str) -> str:
-            return _short_url_label(url) if batch_parallel > 1 else ""
+            return _short_url_label(url) if total > 1 and batch_parallel > 1 else ""
 
         if batch_act is not None:
             # Pre-create one queued row per URL so the Overall header can show

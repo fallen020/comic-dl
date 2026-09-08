@@ -30,6 +30,10 @@ _SERIES_PATH_RE = re.compile(r"^/series/([A-Za-z0-9_-]+)(?:/[^/]*)?/?$")
 # nav also links "/series/random", which must never win as the series.
 _SERIES_SLUG_PATH_RE = re.compile(r"^/series/([A-Za-z0-9_-]+)/[^/]+/?$")
 _CHAPTER_LABEL_RE = re.compile(r"^(.*?)\s+([\d.]+)$")
+# Weeb Central nests a "Last Read <ISO timestamp>" reading-progress span
+# inside each chapter-list link; `get_text()` picks it up and would pollute
+# both the displayed title and the episode number.
+_LAST_READ_RE = re.compile(r"\s+Last Read\s+[\dT:.\-+Z]+$", re.IGNORECASE)
 
 
 def is_chapter_url(url: str) -> bool:
@@ -129,7 +133,7 @@ def _extract_chapter_list(soup: BeautifulSoup) -> list[tuple[str, str]]:
     entries: list[tuple[str, str]] = []
     for link in soup.select('a[href^="/chapters/"]'):
         href = _attr_text(link.get("href"))
-        label = link.get_text(" ", strip=True)
+        label = _LAST_READ_RE.sub("", link.get_text(" ", strip=True)).strip()
         if not href or not label or (label, href) in entries:
             continue
         entries.append((label, f"https://{DOMAIN}{href}"))

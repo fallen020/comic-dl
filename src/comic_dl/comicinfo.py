@@ -236,8 +236,7 @@ def generate_comicinfo_xml(
             if has_cover and page_index == 0:
                 page.set("Type", "FrontCover")
 
-    raw = ET.tostring(root, encoding="unicode")
-    return '<?xml version="1.0" encoding="utf-8"?>\n' + raw
+    return _serialize(root)
 
 
 def generate_series_comicinfo_xml(
@@ -286,6 +285,17 @@ def generate_series_comicinfo_xml(
         year=year,
     )
 
+    return _serialize(root)
+
+
+def _serialize(root: ET.Element) -> str:
+    """Serialize ``root`` with a declaration and human-readable indentation.
+
+    ComicInfo.xml is read by humans (and by readers that parse by tag name),
+    so a compact one-line tree is needlessly unreadable. ``ET.indent`` is
+    stdlib (3.9+) and re-indents in place, then we prepend the declaration.
+    """
+    ET.indent(root, space="  ")
     raw = ET.tostring(root, encoding="unicode")
     return '<?xml version="1.0" encoding="utf-8"?>\n' + raw
 

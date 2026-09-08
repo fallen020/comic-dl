@@ -151,6 +151,17 @@ class TestExtractChapterList:
         ]
         assert all(url.startswith("https://weebcentral.com/chapters/") for _, url in items)
 
+    def test_strips_last_read_reading_progress(self):
+        html = """
+        <a href="/chapters/AAA">
+          Episode 1
+          <span>Last Read 2025-01-20T17:45:02.876247Z</span>
+        </a>
+        <a href="/chapters/BBB">Episode 2</a>
+        """
+        items = _extract_chapter_list(BeautifulSoup(html, "lxml"))
+        assert [label for label, _ in items] == ["Episode 1", "Episode 2"]
+
 
 class TestWeebCentralScraper:
     def test_domain_attr(self):

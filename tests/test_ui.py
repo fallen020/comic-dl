@@ -1014,7 +1014,7 @@ class TestActivityOverallHeader:
         plain = header.plain
         assert "Overall" in plain
         assert "1/4" in plain
-        assert "1 running" in plain
+        assert "1 active" in plain
         assert "2 queued" in plain
         act.finish_row("u1", ok=True, message="ok")
         assert "2/4" in act._overall_renderable().plain
@@ -1023,7 +1023,7 @@ class TestActivityOverallHeader:
         act.finish_row("u4", ok=True, message="ok")
         final = act._overall_renderable().plain
         assert "100%" in final
-        assert "0 running" in final
+        assert "0 active" in final
         # The queued slot is always rendered (0 queued in dim) so the line
         # keeps a stable width instead of shifting the size/ETA columns.
         assert "0 queued" in final
@@ -1041,6 +1041,30 @@ class TestActivityOverallHeader:
         completed = act._completed_renderable()
         assert completed is not None
         assert any("already downloaded" in r.plain for r in completed.renderables)
+
+    def test_aggregates_pages_with_explicit_units(self):
+        act = Activity(quiet=False)  # quiet=True drops progress state
+        act.begin_batch(2)
+        act.add_queued_row("c1", label="Chapter 1")
+        act.add_queued_row("c2", label="Chapter 2")
+        act.show_progress("c1", 174)
+        act.update_progress("c1", 12)
+        act.show_progress("c2", 174)
+        header = act._overall_renderable()
+        assert header is not None
+        plain = header.plain
+        # Page progress becomes the metric, with an explicit unit and a
+        # separate chapter fraction, instead of a bare "0/2" row count.
+        assert "12/348 pages" in plain
+        assert "0/2 chapters" in plain
+        act.update_progress("c1", 174)
+        act.finish_row("c1", ok=True)
+        act.update_progress("c2", 174)
+        act.finish_row("c2", ok=True)
+        final = act._overall_renderable().plain
+        assert "348/348 pages" in final
+        assert "2/2 chapters" in final
+        assert "100%" in final
 
     def test_completed_section_shows_bytes(self):
         act = Activity(quiet=True)
@@ -2319,9 +2343,9 @@ class TestSinkDurability:
         act.update_progress("ch", 61)
 
         line = act._overall_renderable().plain
-        assert "61/84" in line
+        assert "61/84 pages" in line
         assert "73%" in line
-        assert "0/1" not in line
+        assert "0/1 chapters" in line
 
     def test_multi_chapter_overall_keeps_chapter_fraction(self):
         import comic_dl.ui as ui_mod
