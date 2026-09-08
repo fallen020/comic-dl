@@ -20,6 +20,7 @@ from ...models import (
     chapter_to_post_metadata,
 )
 from ...ui import DIAGNOSTIC, TAG_SCRAPE, vlog
+from ...utils import canonical_chapter_number
 from ..base import (
     BaseScraper,
     _attr_text,
@@ -48,26 +49,6 @@ _NEXT_DATA_SEL = 'script#__NEXT_DATA__[type="application/json"]'
 _ASSETS_PREFIX = "/assets/read/"
 
 _VALID_EXTS = frozenset({"jpg", "jpeg", "png", "webp", "gif", "bmp"})
-
-
-def _canonical_chapter_number(raw: str) -> str:
-    """Canonicalize a numeric chapter label without mangling trailing zeros.
-
-    ``"10.0"`` → ``"10"``, ``"100"`` → ``"100"``, ``"1.5"`` → ``"1.5"``.
-    Non-numeric labels are returned unchanged. The old ``rstrip("0")``
-    approach turned chapter 100 into chapter 1.
-    """
-    value = raw.strip()
-    try:
-        as_float = float(value)
-    except ValueError:
-        return value
-    if as_float.is_integer():
-        return str(int(as_float))
-    text = repr(as_float)
-    if "." not in text:
-        return text
-    return text.rstrip("0").rstrip(".")
 
 
 def is_series_url(url: str) -> bool:
@@ -209,7 +190,7 @@ class FlameScraper(BaseScraper):
 
             raw_ch = chapter_data.get("chapter")
             if raw_ch is not None:
-                chapter_number = _canonical_chapter_number(str(raw_ch))
+                chapter_number = canonical_chapter_number(str(raw_ch))
 
             sid = series_data.get("series_id") or chapter_data.get("series_id")
             if sid is not None:
@@ -448,7 +429,7 @@ class FlameScraper(BaseScraper):
             seen_tokens.add(token)
             chapter_str = str(ch.get("chapter", ""))
             ch_title = ch.get("title") or ""
-            episode_no = _canonical_chapter_number(chapter_str)
+            episode_no = canonical_chapter_number(chapter_str)
             title = (
                 f"Ch. {episode_no} - {ch_title}"
                 if ch_title

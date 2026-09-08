@@ -74,6 +74,7 @@ from ..errors import (
     EXIT_USAGE,
     ComicError,
     ScrapeTimeout,
+    ValidationError,
 )
 from ..library import Library, library_path, source_id
 from ..models import PostMetadata
@@ -210,6 +211,8 @@ from .library import _resolve_series, run_library_command
 from .selection import (
     ChapterSelection,
     ChapterSelectionQuit,
+    chapter_matches_number,
+    chapter_numbers_in,
     parse_chapter_selection,
     validate_chapter_flag,
 )
@@ -1084,7 +1087,8 @@ def _build_first_stage_parser() -> ComicArgumentParser:
     parser.add_argument(
         "--chapters",
         default=None,
-        help="Chapter selection, e.g. '1-3,7' or 'all' (interactive picker if omitted)",
+        help="Chapter selection by number, e.g. '1-3,7' or 'all' "
+        "(0 selects a prologue/promo; interactive picker if omitted)",
     )
 
     return parser
@@ -1917,12 +1921,13 @@ async def process_url(
 
         tmp_dir = _tmp_root() / sanitize_filename(f"{meta.series_title}_{meta.chapter_title}")
         tmp_dir.mkdir(parents=True, exist_ok=True)
+        total = meta.total_pages or len(meta.images)
         if not force and _is_partial(cbz_path):
             # Seed the temp dir with the previous run's intact pages so the
             # skip-if-present check spares them; only gaps hit the network.
-            _restore_pages_from_archive(cbz_path, tmp_dir)
-
-        total = meta.total_pages or len(meta.images)
+            restored = _restore_pages_from_archive(cbz_path, tmp_dir)
+            if restored > 0 and not quiet:
+                print_dim(f"Resuming: {restored} of {total} pages already on disk.")
 
         main.stage("Estimating download size...")
         if activity is None and not stream_mode:
@@ -2201,7 +2206,7 @@ async def _process_series(
 
                 selection: ChapterSelection
                 if chapters_spec is not None:
-                    selection = parse_chapter_selection(chapters_spec, total_chapters)
+                    selection = parse_chapter_selection(chapters_spec)
                 elif interactive and not (single_new and not verbose):
                     act.pause()
                     try:
@@ -2223,12 +2228,32 @@ async def _process_series(
                 if selection.kind == "quit":
                     raise ChapterSelectionQuit
                 if selection.kind == "indices":
-                    selected_numbers = selection.indices or frozenset()
-                    new_items = [
-                        it for it in new_items if it[0] in selected_numbers
-                    ]
+                    if selection.by_number:
+                        # --chapters names canonical chapter numbers (0 is a
+                        # prologue/promo), unlike the interactive picker,
+                        # which hands back 1-based list positions.
+                        wanted = selection.indices or frozenset()
+                        missing = sorted(wanted - chapter_numbers_in(chapters))
+                        if missing:
+                            raise ValidationError(
+                                f"Invalid --chapters {chapters_spec!r}: no "
+                                f"chapter numbered "
+                                f"{', '.join(map(str, missing))} in "
+                                f"{series_title}."
+                            )
+                        new_items = [
+                            it for it in new_items
+                            if any(
+                                chapter_matches_number(it[1], n) for n in wanted
+                            )
+                        ]
+                    else:
+                        selected_numbers = selection.indices or frozenset()
+                        new_items = [
+                            it for it in new_items if it[0] in selected_numbers
+                        ]
                     if not quiet and activity is None:
-                        sel = len(selected_numbers)
+                        sel = len(new_items)
                         word = "chapter" if sel == 1 else "chapters"
                         print_dim(f"Selected {sel}/{total_chapters} {word}")
 
@@ -2408,7 +2433,12 @@ async def _process_series(
                         if not force and _is_partial(cbz_path):
                             # Seed the temp dir with the previous run's
                             # intact pages so only gaps hit the network.
-                            _restore_pages_from_archive(cbz_path, tmp_dir)
+                            restored = _restore_pages_from_archive(cbz_path, tmp_dir)
+                            if restored > 0 and not quiet:
+                                print_dim(
+                                    f"Resuming: {restored} of {total_pages} "
+                                    "pages already on disk."
+                                )
 
                         estimate = _estimate_download_bytes(meta.estimated_size)
                         ok = _check_disk_space(series_dir, estimate)

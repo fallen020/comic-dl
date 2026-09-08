@@ -7,10 +7,10 @@ import pytest
 from comic_dl.scrapers.sites.flamecomics import (
     DOMAIN,
     FlameScraper,
-    _canonical_chapter_number,
     is_chapter_url,
     is_series_url,
 )
+from comic_dl.utils import canonical_chapter_number as _canonical_chapter_number
 from tests.helpers import MockResponse as _MockResponse
 from tests.helpers import MockSession as _MockSession
 

@@ -62,8 +62,16 @@ comic-dl -u <series-url> --chapters 1-3,5     # specific chapters
 comic-dl -u <series-url> --chapters 7          # a single chapter
 ```
 
-`--chapters` only accepts numbers and ranges. The `q`/`quit` cancel token is
-reserved for the interactive picker.
+`--chapters` selects by **chapter number**, not by the row number shown in
+the listing. Chapters are numbered as the site numbers them: a
+prologue/promo chapter labeled `Ch. 0` is selected with `0`, so
+`--chapters 0-1` downloads the prologue plus chapter 1. Chapters without a
+number (e.g. an unnumbered one-shot or a "Season 1 End" extra) can't be
+matched by number; use `--chapters all` for those. Only numbers and ranges
+are accepted (`q`/`quit` is reserved for the interactive picker).
+
+A partially downloaded chapter resumes on the next run: intact pages are
+kept and only the missing ones are fetched again.
 
 ## Size limits
 

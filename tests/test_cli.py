@@ -35,6 +35,7 @@ from comic_dl.cli import (
     _scan_global_flags,
     _tmp_root,
     _with_spinner,
+    chapter_numbers_in,
     format_option_size,
     parse_chapter_selection,
     parse_urls,
@@ -45,6 +46,7 @@ from comic_dl.cli import (
     stop_requested,
     validate_chapter_flag,
 )
+from comic_dl.cli.selection import chapter_matches_number
 from comic_dl.errors import EXIT_ERROR, EXIT_OK, EXIT_USAGE, ScrapeTimeout
 from comic_dl.library import Library, library_path
 from comic_dl.models import ImageItem, PostMetadata
@@ -1544,73 +1546,69 @@ class TestProcessUrl:
 
 class TestChapterSelection:
     def test_empty_is_all(self):
-        assert parse_chapter_selection("", 5) == ChapterSelection(kind="all")
+        assert parse_chapter_selection("") == ChapterSelection(kind="all")
 
     def test_a_is_all(self):
-        assert parse_chapter_selection("a", 5) == ChapterSelection(kind="all")
-        assert parse_chapter_selection("A", 5) == ChapterSelection(kind="all")
+        assert parse_chapter_selection("a") == ChapterSelection(kind="all")
+        assert parse_chapter_selection("A") == ChapterSelection(kind="all")
 
     def test_all_keyword(self):
-        assert parse_chapter_selection("all", 5) == ChapterSelection(kind="all")
+        assert parse_chapter_selection("all") == ChapterSelection(kind="all")
 
     def test_q_is_quit(self):
-        assert parse_chapter_selection("q", 5) == ChapterSelection(kind="quit")
+        assert parse_chapter_selection("q") == ChapterSelection(kind="quit")
 
     def test_quit_keyword(self):
-        assert parse_chapter_selection("quit", 5) == ChapterSelection(kind="quit")
+        assert parse_chapter_selection("quit") == ChapterSelection(kind="quit")
 
-    def test_single_index(self):
-        sel = parse_chapter_selection("2", 5)
+    def test_single_number(self):
+        sel = parse_chapter_selection("2")
         assert sel.kind == "indices"
+        assert sel.by_number is True
         assert sel.indices == frozenset({2})
 
     def test_range(self):
-        sel = parse_chapter_selection("1-3", 5)
+        sel = parse_chapter_selection("1-3")
         assert sel.indices == frozenset({1, 2, 3})
 
     def test_mixed_list(self):
-        sel = parse_chapter_selection("10-12,1", 12)
+        sel = parse_chapter_selection("10-12,1")
         assert sel.indices == frozenset({1, 10, 11, 12})
 
     def test_whitespace_tolerant(self):
-        sel = parse_chapter_selection(" 2 , 4 ", 5)
+        sel = parse_chapter_selection(" 2 , 4 ")
         assert sel.indices == frozenset({2, 4})
 
-    def test_out_of_bounds_raises(self):
-        with pytest.raises(ValueError, match="out of range"):
-            parse_chapter_selection("6", 5)
-
-    def test_zero_raises(self):
-        with pytest.raises(ValueError, match="1-based"):
-            parse_chapter_selection("0", 5)
+    def test_zero_selects_prologue(self):
+        sel = parse_chapter_selection("0")
+        assert sel.indices == frozenset({0})
+        sel = parse_chapter_selection("0-1")
+        assert sel.indices == frozenset({0, 1})
 
     def test_negative_raises(self):
         with pytest.raises(ValueError, match="not a number or range"):
-            parse_chapter_selection("-1", 5)
+            parse_chapter_selection("-1")
 
     def test_reversed_range_raises(self):
         with pytest.raises(ValueError, match="reversed"):
-            parse_chapter_selection("5-2", 5)
+            parse_chapter_selection("5-2")
 
     def test_mixing_keyword_raises(self):
         with pytest.raises(ValueError, match="cannot mix"):
-            parse_chapter_selection("a,2", 5)
+            parse_chapter_selection("a,2")
 
     def test_bad_token_raises(self):
         with pytest.raises(ValueError, match="not a number or range"):
-            parse_chapter_selection("abc", 5)
+            parse_chapter_selection("abc")
 
-    def test_boundary_in_bounds_ok(self):
-        assert parse_chapter_selection("4", 4).indices == frozenset({4})
-
-    def test_boundary_out_of_range(self):
-        with pytest.raises(ValueError):
-            parse_chapter_selection("5", 4)
+    def test_out_of_bounds_not_checked(self):
+        # Whether a number exists is checked per-series after scraping.
+        assert parse_chapter_selection("6").indices == frozenset({6})
 
 
 class TestValidateChapterFlag:
     def test_valid_specs(self):
-        for spec in ("", "a", "all", "1", "1-3", "1-3,5", "2,4"):
+        for spec in ("", "a", "all", "0", "1", "0-2", "1-3,5", "2,4"):
             validate_chapter_flag(spec)  # must not raise
 
     def test_whitespace_ok(self):
@@ -1632,10 +1630,6 @@ class TestValidateChapterFlag:
         with pytest.raises(ValueError, match="reversed"):
             validate_chapter_flag("5-2")
 
-    def test_zero_raises(self):
-        with pytest.raises(ValueError):
-            validate_chapter_flag("0")
-
     def test_negative_raises(self):
         with pytest.raises(ValueError):
             validate_chapter_flag("-1")
@@ -1651,6 +1645,49 @@ class TestValidateChapterFlag:
     def test_out_of_bounds_not_checked(self):
         # Bounds are validated per-series after scraping, not at flag parse.
         validate_chapter_flag("99")
+
+
+class TestChapterNumberMatching:
+    """--chapters names canonical chapter numbers, so matching must be
+    number-driven (0 = prologue) and robust against leading zeros and
+    site-added decimal suffixes."""
+
+    def _promo_series(self):
+        # A FlameComics-style listing with a numbered prologue.
+        return [
+            {"title": "Ch. 0 - Promo", "episode_no": "0"},
+            {"title": "Ch. 1", "episode_no": "1"},
+            {"title": "Ch. 2", "episode_no": "2"},
+            {"title": "Ch. 3", "episode_no": "3"},
+        ]
+
+    def test_numbers_in_series(self):
+        numbers = chapter_numbers_in(self._promo_series())
+        assert numbers == {0, 1, 2, 3}
+
+    def test_numbers_ignore_non_numeric_labels(self):
+        chapters = [
+            {"title": "Season 1 End", "episode_no": "Season 1 End"},
+            *self._promo_series(),
+        ]
+        assert chapter_numbers_in(chapters) == {0, 1, 2, 3}
+
+    def test_numbers_ignore_missing_episode(self):
+        chapters = [{"title": "One-shot"}, *self._promo_series()]
+        assert chapter_numbers_in(chapters) == {0, 1, 2, 3}
+
+    def test_leading_zero_episode_matches(self):
+        ch = {"title": "Ch. 0 - Promo", "episode_no": "0.00"}
+        assert chapter_matches_number(ch, 0)
+
+    def test_canonical_suffix_matches_number(self):
+        ch = {"title": "Ch. 10", "episode_no": "10.0"}
+        assert chapter_matches_number(ch, 10)
+
+    def test_never_collapses_100_to_1(self):
+        ch = {"title": "Ch. 100", "episode_no": "100"}
+        assert chapter_matches_number(ch, 100)
+        assert not chapter_matches_number(ch, 1)
 
 
 class TestParseUrlsChaptersFlag:

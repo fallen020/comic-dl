@@ -445,6 +445,27 @@ def clean_title(s: str) -> str:
     return s.strip()
 
 
+def canonical_chapter_number(raw: str) -> str:
+    """Canonicalize a numeric chapter label without mangling trailing zeros.
+
+    ``"10.0"`` → ``"10"``, ``"100"`` → ``"100"``, ``"1.5"`` → ``"1.5"``,
+    ``"0.00"`` → ``"0"``. Non-numeric labels pass through unchanged.
+    Shared by selection matching and site scrapers so ``--chapters 100``
+    never collides with chapter 1 and a prologue numbered 0 stays selectable.
+    """
+    value = raw.strip()
+    try:
+        as_float = float(value)
+    except ValueError:
+        return value
+    if as_float.is_integer():
+        return str(int(as_float))
+    text = repr(as_float)
+    if "." not in text:
+        return text
+    return text.rstrip("0").rstrip(".")
+
+
 IMAGE_MAGIC: list[tuple[bytes, int, str]] = [
     (b'\xff\xd8\xff', 0, 'jpeg'),
     (b'\x89PNG\r\n\x1a\n', 0, 'png'),

@@ -72,7 +72,7 @@ comic-dl <COMMAND> [ARGS]
 | `--url` | `-u` | — | Single URL to download |
 | `--file` | `-f` | — | Text file with one URL per line |
 | `--output` | `-o` | `~/Downloads/comic-dl` | Output directory |
-| `--chapters` | | | Chapter subset: `all` or ranges like `1-3,5` |
+| `--chapters` | | | Chapter subset by chapter number: `all` or ranges like `1-3,5` (`0` selects a prologue/promo) |
 
 ### Performance
 

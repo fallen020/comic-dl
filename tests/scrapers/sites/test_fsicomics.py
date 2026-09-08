@@ -495,6 +495,30 @@ class TestFsicomixScraper:
         assert chapter.cover_url == "https://fsicomics.com/wp-content/uploads/2026/07/cover.webp"
 
     @pytest.mark.asyncio
+    async def test_unnumbered_single_chapter_gets_no_number(self):
+        # Sites like FSIComics don't number their comics; a directly
+        # downloaded single chapter must stay unnumbered, never "0".
+        html = b"""
+        <html><head>
+            <title>My Comic - Cool Artist - FSIComics</title>
+        </head><body>
+        <div class="entry-content">
+            <figure class="wp-block-image"><img src="https://fsicomics.com/wp-content/uploads/2026/07/comic-001.webp"/></figure>
+        </div>
+        </body></html>
+        """
+
+        session = _MockSession(lambda url: _MockResponse(html))
+        scraper = FsicomixScraper()
+        chapter = await scraper._scrape_chapter(
+            "https://fsicomics.com/my-comic/", session,
+        )
+
+        assert chapter.info.chapter_title == "My Comic"
+        assert chapter.info.chapter_number is None
+        assert chapter.info.chapter_number != "0"
+
+    @pytest.mark.asyncio
     async def test_scrape_extracts_post_id_from_body_class(self):
         html = b"""
         <html><head><title>My Comic - Artist - FSIComics</title></head>
