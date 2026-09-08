@@ -1334,6 +1334,13 @@ def verify_downloads(
 
 # --- Size probe (informational only) ---
 
+# Anti-hotlink/CDN throttle responses can return HTTP 200 with a tiny HTML
+# body (H@H e-hentai nodes answer e.g. content-length 15-28 for expired
+# keystamp links); a real comic page is never this small, so treat stub
+# sizes as unknown rather than accounting them into the estimate.
+_RANGE_GET_MIN_BYTES = 1024
+
+
 async def probe_download_size(
     images: list[ImageItem],
     referer_url: str | None = None,
@@ -1392,7 +1399,11 @@ async def _probe_image_size(c: AsyncSession, url: str, timeout: float) -> int:
     try:
         resp = await asyncio.wait_for(c.head(url), timeout=timeout)
         content_length = resp.headers.get("content-length")
-        if content_length and content_length.isdigit():
+        if (
+            content_length
+            and content_length.isdigit()
+            and int(content_length) >= _RANGE_GET_MIN_BYTES
+        ):
             return int(content_length)
     except Exception:  # nosec B110
         pass
@@ -1406,10 +1417,17 @@ async def _probe_image_size(c: AsyncSession, url: str, timeout: float) -> int:
             content_range = resp.headers.get("content-range")
             if content_range and "/" in content_range:
                 total = content_range.rsplit("/", 1)[1]
-                if total.isdigit():
+                if (
+                    total.isdigit()
+                    and int(total) >= _RANGE_GET_MIN_BYTES
+                ):
                     return int(total)
             content_length = resp.headers.get("content-length")
-            if content_length and content_length.isdigit():
+            if (
+                content_length
+                and content_length.isdigit()
+                and int(content_length) >= _RANGE_GET_MIN_BYTES
+            ):
                 return int(content_length)
         finally:
             with contextlib.suppress(Exception):

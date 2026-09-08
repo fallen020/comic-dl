@@ -1447,13 +1447,17 @@ async def _probe_estimate_display(
     Never gates or blocks the real download: failures, timeouts and unknown
     sizes all silently fall through to a no-op.
 
-    When the site reports an exact size (e.g. e-hentai's gdata ``filesize``)
-    that value is used directly and the probe is skipped — there is no point
-    burning up to the probe budget re-measuring what the source already knows.
-    Otherwise the line appears only when ``probe_download_size`` returns a
-    positive value, which requires at least three successful ``content-length``
-    / ``content-range`` probes on a sample of pages within the budget — sites
-    without size headers (or with slow responses) print nothing.
+    When the source reports a size that matches what actually gets written
+    (``known_size``, e.g. per-file byte totals), that value is used directly
+    and the probe is skipped — there is no point burning up to the probe
+    budget re-measuring what the source already knows. Sources whose figure
+    does not match the downloaded bytes must leave it unset (e-hentai's gdata
+    ``filesize`` counts originals while only display images are fetched), so
+    the probe measures the real pages instead. Otherwise the line appears
+    only when ``probe_download_size`` returns a positive value, which
+    requires at least three successful ``content-length`` / ``content-range``
+    probes on a sample of pages within the budget — sites without size
+    headers (or with slow responses) print nothing.
     """
     if quiet or not images:
         return

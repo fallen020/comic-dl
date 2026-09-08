@@ -579,7 +579,10 @@ class TestScrapeEhentai:
 
         # Verify enriched metadata
         assert meta.cover_url == "https://ehgt.org/cover.jpg"
-        assert meta.estimated_size == 7 * 1024 ** 3
+        # gdata filesize counts ORIGINAL files; only display images are
+        # downloaded, so the estimate must stay unset and let the byte probe
+        # measure what actually gets written.
+        assert meta.estimated_size == 0
         # Manga category -> right-to-left; rating 4.5/5 -> 9.0/10
         assert meta.reading_direction == "rtl"
         assert meta.community_rating == 9.0

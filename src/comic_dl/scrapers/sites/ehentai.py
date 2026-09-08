@@ -576,7 +576,10 @@ class EHentaiScraper(BaseScraper):
                 reading_direction=reading_direction,
                 community_rating=community_rating,
                 year=year,
-                estimated_size=int(meta.get("filesize") or 0),
+                # Not wired to gdata ``filesize``: that field sums the ORIGINAL
+                # files, but the reader downloads the ~1280px display images,
+                # which can be 100x smaller. Let the byte probe measure the
+                # display sizes instead of advertising a wrong "exact" figure.
             ),
             "source": SourceInfo(
                 url=url,
