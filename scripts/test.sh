@@ -2,4 +2,4 @@
 # Run the test suite.
 set -euo pipefail
 cd "$(dirname "$0")/.."
-uv run pytest tests/ -q "$@"
+uv run pytest tests/ -q -p no:cacheprovider "$@"
