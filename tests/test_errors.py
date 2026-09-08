@@ -21,6 +21,7 @@ from comic_dl.ui import (
     print_warning,
     report_error,
     set_verbosity,
+    suggest,
 )
 
 
@@ -139,6 +140,43 @@ class TestUnknownCommand:
         _unknown_command("update")
         err = capsys.readouterr().err
         assert "Did you mean" not in err
+
+
+class TestSuggest:
+    """Fuzzy flag suggestions: prefix priority, edit distance, no noise."""
+
+    FLAGS = [
+        "-h",
+        "-?",
+        "--version",
+        "--list-sources",
+        "--url",
+        "--file",
+        "--force",
+        "--parallel",
+        "--chapter-parallel",
+        "--solver",
+        "--no-rate",
+        "--help",
+    ]
+
+    def test_shared_prefix_outranks_edit_distance(self):
+        # A plain edit distance would pick --file; the shared "--fol" must win.
+        assert suggest("--folp", self.FLAGS) == "--force"
+
+    def test_transposition_caught(self):
+        assert suggest("--tehs", self.FLAGS) == "--help"
+
+    def test_typo_without_prefix(self):
+        assert suggest("--utl", self.FLAGS) == "--url"
+
+    def test_short_tokens_suggest_nothing(self):
+        # -l / -p are not short forms of any flag; noise would be worse.
+        assert suggest("-l", self.FLAGS) is None
+        assert suggest("-p", self.FLAGS) is None
+
+    def test_case_insensitive_exact(self):
+        assert suggest("--URL", self.FLAGS) == "--url"
 
 
 class TestLibraryExitCodes:

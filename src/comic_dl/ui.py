@@ -6,7 +6,6 @@ import argparse
 import asyncio
 import atexit
 import contextlib
-import difflib
 import locale
 import os
 import re
@@ -764,26 +763,59 @@ err_console = Console(
 def suggest(word: str, candidates: list[str]) -> str | None:
     """Best fuzzy match for ``word`` among ``candidates``, if any.
 
-    Ranks by longest common prefix (right for ``--flag`` typos, where
-    difflib gets confused by the shared leading dashes), falling back to
-    difflib for short words without a shared prefix.
+    Longer shared prefixes win outright: a plain edit distance is fooled by
+    the shared leading dashes and outranks the right flag (``--folp`` is two
+    edits from ``--file`` but shares four chars with ``--force``). Without a
+    shared prefix, fall back to Damerau-Levenshtein similarity (the scheme Git
+    and Cargo use): hand-rolled, pure-python, transposition-aware, and cheap
+    at flag lengths. Accept only close matches (<= 3 edits and at most half
+    the word length) so a short typo can't drag in a much longer flag, and
+    require the typo to keep at least one real character so ``-l``/``-p``
+    (which are not short forms of anything) stay suggestion-free.
     """
     if not candidates:
         return None
-    best = max(
-        candidates,
-        key=lambda c: (_lcp(word, c), difflib.SequenceMatcher(None, word, c).ratio()),
-    )
-    if _lcp(word, best) >= 3:
-        return best
-    matches = difflib.get_close_matches(word, candidates, n=1, cutoff=0.6)
-    if matches:
-        return matches[0]
     lower = word.lower()
     for cand in candidates:
         if cand.lower() == lower:
             return cand
+
+    def similarity(cand: str) -> float:
+        return 1 - _damerau(word, cand) / max(len(word), len(cand))
+
+    # A long shared prefix usually means partial typing of a long flag
+    # (``--no``, ``--max``), not a typo, so it wins outright.
+    prefix_best = max(candidates, key=lambda c: (_lcp(word, c), similarity(c)))
+    if _lcp(word, prefix_best) >= 3:
+        return prefix_best
+    # No shared prefix: keep only plausible typos (<= 3 edits and at most half
+    # the word length) that retained at least one real character, so ``-l`` /
+    # ``-p`` (short forms of nothing) stay suggestion-free.
+    close = [
+        cand
+        for cand in candidates
+        if (dist := _damerau(word, cand)) <= 3
+        and dist <= len(word) // 2
+        and set(word.lstrip("-")) & set(cand.lstrip("-"))
+    ]
+    if close:
+        return max(close, key=lambda c: (_lcp(word, c), similarity(c)))
     return None
+
+
+def _damerau(a: str, b: str) -> int:
+    """Optimal string alignment distance, counting adjacent transpositions."""
+
+    rows = [[j for j in range(len(b) + 1)]]
+    for i in range(1, len(a) + 1):
+        row = [i] + [0] * len(b)
+        for j in range(1, len(b) + 1):
+            cost = 0 if a[i - 1] == b[j - 1] else 1
+            row[j] = min(row[j - 1] + 1, rows[i - 1][j] + 1, rows[i - 1][j - 1] + cost)
+            if i > 1 and j > 1 and a[i - 1] == b[j - 2] and a[i - 2] == b[j - 1]:
+                row[j] = min(row[j], rows[i - 2][j - 2] + 1)
+        rows.append(row)
+    return rows[-1][-1]
 
 
 def _lcp(a: str, b: str) -> int:
