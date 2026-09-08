@@ -185,10 +185,10 @@ class TestFlameScraper:
         assert info.description == "A great series"
         assert info.cover_url == "https://cdn.flamecomics.xyz/uploads/images/series/42/cover.webp"
         assert len(info.chapters) == 2
-        assert info.chapters[0]["title"] == "Ch. 2"
-        assert info.chapters[0]["episode_no"] == "2"
-        assert info.chapters[1]["title"] == "Ch. 1 - Prologue"
-        assert info.chapters[1]["episode_no"] == "1"
+        assert info.chapters[0]["title"] == "Ch. 1 - Prologue"
+        assert info.chapters[0]["episode_no"] == "1"
+        assert info.chapters[1]["title"] == "Ch. 2"
+        assert info.chapters[1]["episode_no"] == "2"
 
     @pytest.mark.asyncio
     async def test_scrape_series_keeps_trailing_zero_chapters(self):
@@ -290,6 +290,8 @@ class TestFlameScraper:
                             "publisher": ["Acme Studio"],
                             "status": "Hiatus",
                             "year": 2021,
+                            "author": ["Creator One", "Creator Two"],
+                            "artist": ["Artist Only"],
                         }
                     }
                 }
@@ -311,6 +313,8 @@ class TestFlameScraper:
         assert meta.status == "Hiatus"
         assert meta.year == 2021
         assert meta.reading_direction == "ltr"
+        assert meta.authors == ["Creator One", "Creator Two"]
+        assert meta.artists == ["Artist Only"]
 
     @pytest.mark.asyncio
     async def test_scrape_series_no_next_data_raises(self):
@@ -449,3 +453,118 @@ class TestFlameScraper:
         assert meta.genres == ["Action", "Drama"]
         assert meta.description == "The real description"
         assert meta.language == "English"
+
+    @pytest.mark.asyncio
+    async def test_chapter_series_title_from_embedded_data(self):
+        """chapter['title'] embeds the series title, so no JSON-LD is needed
+        to recover it on the current chapter-page layout."""
+        next_data = {
+            "props": {
+                "pageProps": {
+                    "chapter": {
+                        "chapter": "9.50",
+                        "chapter_title": "Interlude",
+                        "token": "b0b20c",
+                        "title": "Embedded Series Title",
+                    }
+                }
+            }
+        }
+        html = self._chapter_html(next_data)
+        session = _MockSession(lambda url: _MockResponse(html))
+        scraper = FlameScraper()
+        meta = await scraper.scrape(
+            "https://flamecomics.xyz/series/42/b0b20c/", session
+        )
+
+        assert meta.series_title == "Embedded Series Title"
+        assert meta.chapter_title == "Interlude"
+        assert meta.chapter_number == "9.5"
+
+    @pytest.mark.asyncio
+    async def test_404_chapter_friendly_error(self):
+        session = _MockSession(lambda url: _MockResponse(b"", status=404))
+        scraper = FlameScraper()
+        with pytest.raises(ValueError, match="page not found on Flame Comics"):
+            await scraper.scrape("https://flamecomics.xyz/series/1/a1b2/", session)
+
+    @pytest.mark.asyncio
+    async def test_404_series_friendly_error(self):
+        session = _MockSession(lambda url: _MockResponse(b"", status=404))
+        scraper = FlameScraper()
+        with pytest.raises(ValueError, match="page not found on Flame Comics"):
+            await scraper.scrape_series("https://flamecomics.xyz/series/1/", session)
+
+    @pytest.mark.asyncio
+    async def test_series_order_is_progressive(self):
+        """Chapters list ascending (earliest first), decimals preserved, and
+        unparseable labels stay at the end in document order."""
+        next_data = {
+            "props": {
+                "pageProps": {
+                    "series": {
+                        "series_id": 3,
+                        "title": "Ordered Series",
+                        "cover": "cover.webp",
+                    },
+                    "chapters": [
+                        {"chapter": "4.00", "token": "ttt4", "title": ""},
+                        {"chapter": "2.5", "token": "ttt25", "title": ""},
+                        {"chapter": "100", "token": "ttt100", "title": ""},
+                        {"chapter": "Side Story", "token": "tttSS", "title": ""},
+                        {"chapter": "1.00", "token": "ttt1", "title": ""},
+                    ],
+                }
+            }
+        }
+        html = (
+            b"<html><head>"
+            b'<title>Ordered Series - Flame Comics</title>'
+            b'<script id="__NEXT_DATA__" type="application/json">'
+            + json.dumps(next_data).encode()
+            + b'</script>'
+            b"</head><body></body></html>"
+        )
+        session = _MockSession(lambda url: _MockResponse(html))
+        scraper = FlameScraper()
+        info = await scraper.scrape_series("https://flamecomics.xyz/series/3/", session)
+
+        numbers = [ch["episode_no"] for ch in info.chapters]
+        assert numbers == ["1", "2.5", "4", "100", "Side Story"]
+
+    @pytest.mark.asyncio
+    async def test_series_keeps_same_number_different_releases(self):
+        """Two chapters sharing a number but with distinct tokens are real
+        distinct chapters and must both be listed."""
+        next_data = {
+            "props": {
+                "pageProps": {
+                    "series": {
+                        "series_id": 3,
+                        "title": "Duplicate Series",
+                        "cover": "cover.webp",
+                    },
+                    "chapters": [
+                        {"chapter": "1.00", "token": "tokA", "title": ""},
+                        {"chapter": "2.00", "token": "tokB", "title": ""},
+                        {"chapter": "1.00", "token": "tokC", "title": "Revised"},
+                    ],
+                }
+            }
+        }
+        html = (
+            b"<html><head>"
+            b'<title>Duplicate Series - Flame Comics</title>'
+            b'<script id="__NEXT_DATA__" type="application/json">'
+            + json.dumps(next_data).encode()
+            + b'</script>'
+            b"</head><body></body></html>"
+        )
+        session = _MockSession(lambda url: _MockResponse(html))
+        scraper = FlameScraper()
+        info = await scraper.scrape_series("https://flamecomics.xyz/series/3/", session)
+
+        assert len(info.chapters) == 3
+        urls = [ch["url"] for ch in info.chapters]
+        assert "https://flamecomics.xyz/series/3/tokA" in urls
+        assert "https://flamecomics.xyz/series/3/tokC" in urls

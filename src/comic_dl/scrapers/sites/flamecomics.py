@@ -7,6 +7,7 @@ import re
 
 from bs4 import BeautifulSoup
 from curl_cffi.requests import AsyncSession
+from curl_cffi.requests.exceptions import HTTPError as CurlHTTPError
 
 from ...errors import ScrapeError
 from ...models import (
@@ -22,6 +23,8 @@ from ...ui import DIAGNOSTIC, TAG_SCRAPE, vlog
 from ..base import (
     BaseScraper,
     _attr_text,
+    extract_jsonld,
+    jsonld_type_includes,
     meta_get,
     meta_index,
     no_chapters_error,
@@ -42,7 +45,6 @@ CHAPTER_PATTERN = re.compile(
 )
 
 _NEXT_DATA_SEL = 'script#__NEXT_DATA__[type="application/json"]'
-_JSONLD_SEL = 'script[type="application/ld+json"]'
 _ASSETS_PREFIX = "/assets/read/"
 
 _VALID_EXTS = frozenset({"jpg", "jpeg", "png", "webp", "gif", "bmp"})
@@ -88,6 +90,20 @@ class FlameScraper(BaseScraper):
     def matches_url(self, url: str) -> bool:
         return is_chapter_url(url) or is_series_url(url)
 
+    @staticmethod
+    async def _fetch(url: str, client: AsyncSession) -> BeautifulSoup:
+        """Fetch a page, turning a 404 into a friendly removal error."""
+        try:
+            return await BaseScraper.fetch_html(url, client)
+        except CurlHTTPError as exc:
+            status = getattr(getattr(exc, "response", None), "status_code", None)
+            if status == 404:
+                raise ScrapeError(
+                    "page not found on Flame Comics.",
+                    hint="the series may have been removed, or this chapter link is dead.",
+                ) from None
+            raise
+
     def __init__(self) -> None:
         super().__init__()
         self._series_cache: dict[str, dict] = {}
@@ -132,7 +148,7 @@ class FlameScraper(BaseScraper):
     async def _scrape_chapter(
         self, url: str, client: AsyncSession,
     ) -> ScrapedChapter:
-        soup = await self.fetch_html(url, client)
+        soup = await self._fetch(url, client)
         idx = meta_index(soup)
 
         series_title = ""
@@ -149,7 +165,9 @@ class FlameScraper(BaseScraper):
         year: int | None = None
         series_id: str | None = None
         description = meta_get(idx, "og:description", "description", "twitter:description")
-        cover_url = meta_get(idx, "og:image", "twitter:image")
+        cover_url = BaseScraper.clean_image_url(
+            meta_get(idx, "og:image", "twitter:image")
+        )
         site_name = meta_get(idx, "og:site_name")
 
         # Priority 1: __NEXT_DATA__ — present on most chapter pages
@@ -159,10 +177,14 @@ class FlameScraper(BaseScraper):
             chapter_data = page_props.get("chapter") or {}
             series_data = page_props.get("series") or {}
 
-            series_title = series_data.get("title", "") or chapter_data.get("series_title", "")
             # NOTE: chapter["title"] nests the SERIES title on this site (its
-            # chapter_title field is often empty), so it must never be read as
-            # the chapter label — that would shadow the JSON-LD fallback below.
+            # chapter_title field carries the actual label), so it is read as
+            # the series title here and never as the chapter label.
+            series_title = (
+                series_data.get("title", "")
+                or chapter_data.get("title", "")
+                or chapter_data.get("series_title", "")
+            )
             chapter_title = (chapter_data.get("chapter_title") or "").strip()
 
             raw_authors = series_data.get("author") or chapter_data.get("author")
@@ -220,10 +242,13 @@ class FlameScraper(BaseScraper):
                     desc_soup = BeautifulSoup(raw_desc, "lxml")
                     description = desc_soup.get_text(strip=True)
 
-        # Priority 2: JSON-LD with @type Chapter (series page data)
+        # Priority 2: JSON-LD Chapter node — carry missing titles/metadata.
         if not series_title or not chapter_title:
-            ld = self._find_jsonld(soup)
-            if ld and ld.get("@type") == "Chapter":
+            ld = next(
+                (n for n in extract_jsonld(soup) if jsonld_type_includes(n, "Chapter")),
+                None,
+            )
+            if ld:
                 series_title = series_title or (ld.get("isPartOf") or {}).get("name", "")
                 name = ld.get("name", "")
                 if not chapter_title:
@@ -320,13 +345,23 @@ class FlameScraper(BaseScraper):
         if not images:
             raise no_images_error()
 
-        # Enrichment: the chapter page lacks publisher/status/type/year; the
-        # series page carries them. Best-effort and cached per series_id.
+        # Enrichment: the chapter page lacks author/artist/publisher/type/status/
+        # year; the series page carries them. Best-effort and cached per series_id.
         if (series_id and not year and not publisher and not status) or (
             series_id and reading_direction is None
         ):
             series = await self._series_page_data(series_id, client)
             if series:
+                raw_auth = series.get("author")
+                if not authors and isinstance(raw_auth, list):
+                    authors = [a for a in raw_auth if isinstance(a, str) and a]
+                elif not authors and isinstance(raw_auth, str) and raw_auth:
+                    authors = [raw_auth]
+                raw_art = series.get("artist")
+                if not artists and isinstance(raw_art, list):
+                    artists = [a for a in raw_art if isinstance(a, str) and a]
+                elif not artists and isinstance(raw_art, str) and raw_art:
+                    artists = [raw_art]
                 if not publisher:
                     raw_pub = series.get("publisher")
                     if isinstance(raw_pub, list):
@@ -375,7 +410,7 @@ class FlameScraper(BaseScraper):
     async def _scrape_series(
         self, url: str, client: AsyncSession,
     ) -> SeriesMetadata:
-        soup = await self.fetch_html(url, client)
+        soup = await self._fetch(url, client)
         idx = meta_index(soup)
 
         data = self._find_next_data(soup)
@@ -403,13 +438,15 @@ class FlameScraper(BaseScraper):
             cover_url = meta_get(idx, "og:image", "twitter:image")
 
         chapters: list[dict] = []
-        seen: set[str] = set()
+        seen_tokens: set[str] = set()
         for ch in chapters_data:
-            chapter_str = str(ch.get("chapter", ""))
-            if chapter_str in seen:
+            token = str(ch.get("token") or "")
+            # Chapter numbers recur across re-uploads; the token is the only
+            # unique identity, so dedupe on it, not on the displayed number.
+            if not token or token in seen_tokens:
                 continue
-            seen.add(chapter_str)
-            token = ch.get("token", "")
+            seen_tokens.add(token)
+            chapter_str = str(ch.get("chapter", ""))
             ch_title = ch.get("title") or ""
             episode_no = _canonical_chapter_number(chapter_str)
             title = (
@@ -427,7 +464,18 @@ class FlameScraper(BaseScraper):
         if not chapters:
             raise no_chapters_error()
 
-        chapters.reverse()
+        # The API hands chapters newest-first; the project convention (and the
+        # other adapters) lists the earliest chapter first. Numeric episodes
+        # sort ascending; anything unparsable keeps its document order at the
+        # end of the list instead of depending on the server's order.
+        chapters.sort(
+            key=lambda item: (
+                0,
+                float(item["episode_no"]),
+            )
+            if item["episode_no"].replace(".", "", 1).isdigit()
+            else (1, 0),
+        )
 
         return SeriesMetadata(
             series_title=series_title,
@@ -445,28 +493,6 @@ class FlameScraper(BaseScraper):
                 return json.loads(script.string)
             except json.JSONDecodeError:
                 pass
-        return None
-
-    @staticmethod
-    def _find_jsonld(soup: BeautifulSoup) -> dict | None:
-        scripts = soup.select(_JSONLD_SEL)
-        for s in scripts:
-            if not s.string:
-                continue
-            try:
-                data = json.loads(s.string)
-            except json.JSONDecodeError:
-                continue
-            if isinstance(data, dict):
-                # Chapter pages carry Organization / WebSite / Chapter /
-                # BreadcrumbList blocks; only the Chapter node holds the
-                # chapter fields we read below.
-                if data.get("@type") == "Chapter":
-                    return data
-            elif isinstance(data, list):
-                for item in data:
-                    if isinstance(item, dict) and item.get("@type") == "Chapter":
-                        return item
         return None
 
     @staticmethod
