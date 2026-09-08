@@ -116,7 +116,7 @@ class FlameScraper(BaseScraper):
                     .get("series", {})
                 )
         # Enrichment is best-effort.
-        except Exception as exc:  # nosec B110
+        except Exception as exc:
             vlog(
                 DIAGNOSTIC,
                 f"series enrichment unavailable for {series_id}: "

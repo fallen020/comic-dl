@@ -92,13 +92,12 @@ def rebase_url(old_url: str, new_host: str) -> str:
 
 
 def source_id(name: str, domain: str, version: str) -> str:
-    """Stable 64-bit source identifier (MD5 of lowercased name/domain/version).
+    """Stable 64-bit source identifier (SHA-256 of lowercased name/domain/version).
 
     Stored on series rows for future source-level features; not surfaced to
     users yet.
     """
-    # Identity hash, not security.
-    digest = hashlib.md5(  # nosec B324
+    digest = hashlib.sha256(
         f"{name.strip().lower()}|{domain.strip().lower()}|{version.strip()}".encode()
     ).hexdigest()
     return digest[:16]
@@ -685,7 +684,7 @@ class Library:
         try:
             # {column} is whitelisted in the guard above, so this is constant SQL.
             self._db.execute(
-                f"UPDATE series SET {column} = ? WHERE series_id = ?",  # nosec B608
+                f"UPDATE series SET {column} = ? WHERE series_id = ?",  # nosec
                 (ts or _now(), series_id),
             )
             self._db.commit()

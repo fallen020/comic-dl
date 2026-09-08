@@ -257,7 +257,7 @@ class MadaraScraper(BaseScraper):
             soup = BeautifulSoup(response.text, "lxml")
             data = self._parse_series_page(soup) or {}
         # Enrichment is best-effort.
-        except Exception as exc:  # nosec B110
+        except Exception as exc:
             vlog(
                 DIAGNOSTIC,
                 f"series enrichment unavailable for {slug}: "

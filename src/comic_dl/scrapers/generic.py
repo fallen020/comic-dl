@@ -618,7 +618,7 @@ async def _is_image_response(url: str, client: AsyncSession) -> bool:
     try:
         resp = await BaseScraper._timeout_get(url, client, method="HEAD")
     # Sniffing is best-effort.
-    except Exception:  # nosec B110
+    except Exception:
         return False
     headers = getattr(resp, "headers", None) or {}
     return str(headers.get("content-type", "")).lower().startswith("image/")

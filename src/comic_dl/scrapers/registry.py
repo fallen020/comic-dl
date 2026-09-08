@@ -44,12 +44,11 @@ class SourceEntry:
     def source_id(self) -> str:
         """Stable 64-bit source identifier across versions.
 
-        MD5 of the lowercased ``{name}|{domain}|{version}`` tuple, first
+        SHA-256 of the lowercased ``{name}|{domain}|{version}`` tuple, first
         64 bits (16 hex chars). Stored on series rows for future
         source-level features; not surfaced to users yet.
         """
-        # Identity hash, not security.
-        digest = hashlib.md5(  # nosec B324
+        digest = hashlib.sha256(
             f"{self.name.strip().lower()}|{self.domain.strip().lower()}"
             f"|{self.version.strip()}".encode()
         ).hexdigest()
