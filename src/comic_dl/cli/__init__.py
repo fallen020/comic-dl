@@ -2932,6 +2932,10 @@ def _dry_run_dest(
     if not title or entry.get("kind") not in ("chapter", "series"):
         return None
     series_dir = Path(args.output) / sanitize_filename(entry.get("series") or title)
+    if entry["kind"] == "series":
+        # A live series run writes one archive per chapter into this folder;
+        # there is no single CBZ named after the series to point at.
+        return series_dir
     fmt = getattr(args, "format", "cbz") or "cbz"
     dest = _resolve_archive_path(
         series_dir,
@@ -3000,7 +3004,10 @@ def _report_dry_run(
                     if dest.is_relative_to(Path(args.output))
                     else dest
                 )
-                dest_suffix = f"  -> {esc(str(rel))}{esc(compression_suffix)}"
+                rel_text = str(rel)
+                if entry["kind"] == "series":
+                    rel_text = f"{rel_text}/"
+                dest_suffix = f"  -> {esc(rel_text)}{esc(compression_suffix)}"
             title_repr = esc(repr(entry["title"]))
             out.print(
                 f"{head}  ({entry['kind']} {title_repr} {glyphs().dot} "
