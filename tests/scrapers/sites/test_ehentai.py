@@ -15,8 +15,12 @@ from comic_dl.scrapers.sites.ehentai import (
     _extract_series_chapter,
     _extract_tag_metadata,
     _fetch_gallery_page,
+    _fetch_gallery_page_with_retry,
+    _gallery_base_url,
+    _gallery_parts,
     _image_page_url,
     _iter_image_items,
+    _ThrottledPageError,
     scrape_ehentai,
 )
 
@@ -120,10 +124,11 @@ class TestBracketPrefix:
 class TestExtractTagMetadata:
     def test_basic_extraction(self):
         tags = ["artist:foo", "language:english", "full color"]
-        artists, genres, language = _extract_tag_metadata(tags)
+        artists, genres, language, publishers = _extract_tag_metadata(tags)
         assert artists == ["foo"]
         assert language == "en"
         assert genres == ["full color"]
+        assert publishers == []
 
     def test_language_iso_mapping(self):
         assert _extract_tag_metadata(["language:japanese"])[2] == "ja"
@@ -131,12 +136,13 @@ class TestExtractTagMetadata:
         assert _extract_tag_metadata(["language:chinese"])[2] == "zh"
 
     def test_non_language_tag_not_leaked(self):
-        artists, genres, language = _extract_tag_metadata(
+        artists, genres, language, publishers = _extract_tag_metadata(
             ["language:textless narrative"]
         )
         assert language is None
         assert artists == []
         assert genres == []
+        assert publishers == []
 
     def test_namespace_filtering(self):
         tags = [
@@ -147,31 +153,38 @@ class TestExtractTagMetadata:
             "female:big breasts",
             "action",
         ]
-        artists, genres, language = _extract_tag_metadata(tags)
+        artists, genres, language, publishers = _extract_tag_metadata(tags)
         assert genres == ["action"]
         assert artists == ["a"]
         assert language is None
+        assert publishers == ["x"]
+
+    def test_groups_become_publishers(self):
+        tags = ["group:Circle A", "group:Circle B", "group:Circle A", "artist:x"]
+        _artists, _genres, _language, publishers = _extract_tag_metadata(tags)
+        assert publishers == ["Circle A", "Circle B"]
 
     def test_duplicate_removal(self):
         tags = ["artist:a", "artist:a", "action", "action"]
-        artists, genres, _language = _extract_tag_metadata(tags)
+        artists, genres, _language, _publishers = _extract_tag_metadata(tags)
         assert artists == ["a"]
         assert genres == ["action"]
 
     def test_empty_tags(self):
-        artists, genres, language = _extract_tag_metadata([])
+        artists, genres, language, publishers = _extract_tag_metadata([])
         assert artists == []
         assert genres == []
         assert language is None
+        assert publishers == []
 
     def test_non_namespaced_tag_with_colon(self):
         tags = ["misc:anthology", "full color"]
-        _artists, genres, _language = _extract_tag_metadata(tags)
+        _artists, genres, _language, _publishers = _extract_tag_metadata(tags)
         assert genres == ["anthology", "full color"]
 
     def test_first_language_wins(self):
         tags = ["language:english", "language:translated"]
-        _artists, _genres, language = _extract_tag_metadata(tags)
+        _artists, _genres, language, _publishers = _extract_tag_metadata(tags)
         assert language == "en"
 
 
@@ -253,6 +266,129 @@ class TestImagePageUrl:
         assert result is None
 
 
+class TestGalleryUrlParsing:
+    def test_gallery_parts_valid(self):
+        assert _gallery_parts("https://e-hentai.org/g/4177141/2635bc6867/") == (
+            4177141,
+            "2635bc6867",
+        )
+
+    def test_gallery_parts_no_trailing_slash(self):
+        assert _gallery_parts("https://e-hentai.org/g/123/abc") == (123, "abc")
+
+    def test_gallery_parts_www(self):
+        assert _gallery_parts("https://www.e-hentai.org/g/123/abc/") == (123, "abc")
+
+    def test_gallery_parts_uppercase_token_normalized(self):
+        assert _gallery_parts("https://e-hentai.org/g/123/ABC123/") == (123, "abc123")
+
+    def test_gallery_parts_strips_query(self):
+        assert _gallery_parts(
+            "https://e-hentai.org/g/123/abc/?g_export=download"
+        ) == (123, "abc")
+
+    def test_gallery_parts_invalid(self):
+        from comic_dl.errors import ScrapeError
+
+        for url in (
+            "",
+            "https://example.com/g/123/abc",
+            "https://e-hentai.org/",
+            "https://e-hentai.org/g/123/",
+            "https://e-hentai.org/g/123",
+            "https://e-hentai.org/g/xyz/abc",
+            "https://e-hentai.org/g/123/abc/page",
+            "https://e-hentai.org/s/a1a84ef9ec/4177141-1",
+        ):
+            with pytest.raises(ScrapeError, match="Invalid e-hentai gallery URL"):
+                _gallery_parts(url)
+
+    def test_gallery_base_url_canonicalizes(self):
+        assert _gallery_base_url(
+            "https://e-hentai.org/g/123/abc/?g_export=download#top"
+        ) == "https://e-hentai.org/g/123/abc/"
+        assert _gallery_base_url("https://e-hentai.org/g/123/abc") == (
+            "https://e-hentai.org/g/123/abc/"
+        )
+
+
+class TestThrottlePageDetection:
+    pytestmark = pytest.mark.asyncio
+
+    async def test_throttle_page_raises_retryable(self):
+        class MockClient:
+            async def get(self, url, **kwargs):
+                class Resp:
+                    status_code = 200
+                    content = b"404: Throttled - you are going too fast"
+
+                    def raise_for_status(self):
+                        pass
+
+                return Resp()
+
+        with pytest.raises(_ThrottledPageError):
+            await _fetch_gallery_page(
+                "https://e-hentai.org/g/123/abc/", MockClient()
+            )
+
+    async def test_throttle_retried_then_succeeds(self):
+        attempts = [0]
+        html = (
+            "<html><body><div id=\"gdt\">"
+            "<a href=\"https://e-hentai.org/s/abc/1-1\"></a>"
+            "</div></body></html>"
+        )
+
+        class MockClient:
+            async def get(self, url, **kwargs):
+                attempts[0] += 1
+
+                class Resp:
+                    status_code = 200
+
+                    def __init__(self, body):
+                        self.content = body
+
+                    def raise_for_status(self):
+                        pass
+
+                body = (
+                    b"IP address has been temporarily banned"
+                    if attempts[0] == 1
+                    else html.encode()
+                )
+                return Resp(body)
+
+        urls = await _fetch_gallery_page_with_retry(
+            "https://e-hentai.org/g/123/abc/", MockClient()
+        )
+        assert urls == ["https://e-hentai.org/s/abc/1-1"]
+        assert attempts[0] == 2
+
+    async def test_offsite_anchor_ignored(self):
+        html = """
+        <html><body><div id="gdt">
+            <a href="https://e-hentai.org/s/abc/1-1"></a>
+            <a href="https://evil.example.com/s/abc/2-1"></a>
+        </div></body></html>
+        """
+
+        class MockClient:
+            async def get(self, url, **kwargs):
+                class Resp:
+                    status_code = 200
+                    text = html
+
+                    def raise_for_status(self):
+                        pass
+
+                return Resp()
+
+        urls = await _fetch_gallery_page("https://e-hentai.org/g/123/abc/", MockClient())
+        assert urls == ["https://e-hentai.org/s/abc/1-1"]
+
+
 class TestApiGdata:
     pytestmark = pytest.mark.asyncio
 
@@ -274,6 +410,27 @@ class TestApiGdata:
 
         from comic_dl.scrapers.sites.ehentai import _api_gdata
         with pytest.raises(ValueError, match="Gallery not found"):
+            await _api_gdata(0, "token", MockClient())
+
+    async def test_key_missing_gives_friendly_error(self):
+        class MockClient:
+            async def post(self, url, json=None, **kwargs):
+                class MockResponse:
+                    def json(self):
+                        return {"error": "Key missing, or incorrect key provided."}
+
+                    def raise_for_status(self):
+                        pass
+
+                    @property
+                    def status_code(self):
+                        return 200
+
+                return MockResponse()
+
+        from comic_dl.scrapers.sites.ehentai import _api_gdata
+
+        with pytest.raises(ValueError, match="missing or inaccessible"):
             await _api_gdata(0, "token", MockClient())
 
 
@@ -302,9 +459,12 @@ class TestScrapeEhentai:
             {
                 "title": "Some Gallery Title Chapter 7",
                 "filecount": "5",
+                "posted": "1788854818",
                 "tags": [
                     "parody:School Daze",
                     "artist:Great Artist",
+                    "group:Circle One",
+                    "group:Circle One",
                     "language:english",
                     "full color",
                     "action",
@@ -314,6 +474,41 @@ class TestScrapeEhentai:
             }
         ]
     }
+
+    _api_response_chapter_x = {
+        "gmetadata": [
+            {
+                "title": "My Gallery Chapter X",
+                "filecount": "3",
+                "tags": [],
+                "thumb": "https://ehgt.org/cover.jpg",
+                "category": "Misc",
+            }
+        ]
+    }
+
+    async def test_chapter_number_guard_non_numeric(self):
+        class MockClient:
+            async def post(self, url, json=None, **kwargs):
+                class Resp:
+                    status_code = 200
+
+                    def __init__(self, data):
+                        self._data = data
+
+                    def json(self):
+                        return self._data
+
+                    def raise_for_status(self):
+                        pass
+
+                return Resp(TestScrapeEhentai._api_response_chapter_x)
+
+        scraper = EHentaiScraper()
+        skel = await scraper._gallery_skeleton(
+            "https://e-hentai.org/g/1/abc/", MockClient()
+        )
+        assert skel["info"].chapter_number is None
 
     _gallery_html = """
     <html>
@@ -399,6 +594,10 @@ class TestScrapeEhentai:
         assert len(meta.images) == 2
         assert meta.total_pages == 5
         assert meta.cover_url == "https://ehgt.org/cover2.jpg"
+        # Circle tags map to the publisher slot (deduplicated).
+        assert meta.publisher == "Circle One"
+        # posted epoch → upload year.
+        assert meta.year == 2026
         # Doujinshi category -> right-to-left; no rating field -> None
         assert meta.reading_direction == "rtl"
         assert meta.community_rating is None

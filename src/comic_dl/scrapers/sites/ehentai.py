@@ -5,10 +5,11 @@ from __future__ import annotations
 import asyncio
 import json
 import re
+import time
 from collections.abc import AsyncIterator
 from dataclasses import replace
 from typing import Any
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlsplit
 
 from bs4 import BeautifulSoup
 from curl_cffi.requests import AsyncSession
@@ -43,6 +44,50 @@ from ..registry import register_scraper
 
 _BRACKET_GROUP_RE = re.compile(r'^\[([^\]]+)\]\s*')
 _BRACKET_GROUP_ARTIST_RE = re.compile(r'^(.+?)\s*\(([^)]+)\)\s*$')
+
+_GALLERY_URL_RE = re.compile(
+    r"^https?://(?:www\.)?e-hentai\.org/g/(\d+)/([a-fA-F0-9]+)/?(?:[?#].*)?$"
+)
+
+# e-hentai serves its throttle/ban page as HTTP 200 with one of these markers
+# and no gallery thumbnail grid; treat it as transient so the page is retried
+# instead of silently dropping up to 20 pages.
+_THROTTLE_MARKERS = (
+    "404: Throttled",
+    "IP address has been temporarily banned",
+    "You have exceeded the amount",
+    "Accelerate and improve your enjoyment",
+)
+
+
+class _ThrottledPageError(Exception):
+    """The gallery page was served as a throttle/ban page."""
+
+
+def _gallery_parts(url: str) -> tuple[int, str]:
+    """``(gid, token)`` from an e-hentai gallery URL.
+
+    Raises :class:`ScrapeError` for anything that is not a ``/g/<gid>/<token>/``
+    address. The token is normalized to lowercase so hand-typed URLs match.
+    """
+    m = _GALLERY_URL_RE.match(url)
+    if not m:
+        raise ScrapeError(
+            f"Invalid e-hentai gallery URL: {url}",
+            hint="Expected a gallery URL like "
+                 "https://e-hentai.org/g/{id}/{token}/",
+        )
+    return int(m.group(1)), m.group(2).lower()
+
+
+def _gallery_base_url(url: str) -> str:
+    """Canonical ``https://e-hentai.org/g/<gid>/<token>/`` URL for a gallery.
+
+    Dropping the query string and fragment keeps hand-supplied suffixes
+    (``?g_export=...``, ``?p=``) from leaking into ``?p=N`` page URLs.
+    """
+    parsed = urlsplit(url)
+    return f"{parsed.scheme}://{parsed.netloc}{parsed.path}".rstrip("/") + "/"
 
 
 def _decode_text(resp: Any) -> str:
@@ -133,10 +178,11 @@ _LANGUAGE_ISO_MAP: dict[str, str] = {
 
 def _extract_tag_metadata(
     tags: list[str],
-) -> tuple[list[str], list[str], str | None]:
+) -> tuple[list[str], list[str], str | None, list[str]]:
     artists: list[str] = []
     genres: list[str] = []
     language: str | None = None
+    publishers: list[str] = []
     exclude = frozenset({"artist", "language", "parody", "character", "group", "female", "male"})
 
     for tag in tags:
@@ -146,6 +192,10 @@ def _extract_tag_metadata(
             value = value.strip()
             if ns == "artist" and value:
                 artists.append(value)
+            elif ns == "group" and value:
+                # The circle behind a doujinshi maps naturally onto
+                # ComicInfo's publisher slot (matching other adapters).
+                publishers.append(value)
             elif ns == "language" and value and language is None:
                 language = _LANGUAGE_ISO_MAP.get(value.strip().lower())
             elif ns not in exclude and value:
@@ -159,6 +209,7 @@ def _extract_tag_metadata(
         list(dict.fromkeys(artists)),
         list(dict.fromkeys(genres)),
         language,
+        list(dict.fromkeys(publishers)),
     )
 
 
@@ -181,7 +232,14 @@ async def _api_gdata(gid: int, token: str, client: AsyncSession) -> dict:
     resp.raise_for_status()
     data = _decode_json(resp)
     if "error" in data:
-        raise ScrapeError(f"e-hentai API error: {data['error']}")
+        error = str(data["error"])
+        if "Key missing" in error:
+            raise ScrapeError(
+                "This e-hentai gallery is missing or inaccessible.",
+                hint="The gallery may have been removed, expunged, or the "
+                     "ID/token in the URL is wrong.",
+            )
+        raise ScrapeError(f"e-hentai API error: {error}")
     return data["gmetadata"][0]
 
 
@@ -203,18 +261,27 @@ def _extract_series_chapter(title: str) -> tuple[str, str]:
     )
 
 
-async def _fetch_gallery_page(page_url: str, client: AsyncSession) -> list[str]:
-    resp = await BaseScraper._timeout_get(page_url, client, use_cache=True)
+async def _fetch_gallery_page(
+    page_url: str, client: AsyncSession, use_cache: bool = True,
+) -> list[str]:
+    resp = await BaseScraper._timeout_get(page_url, client, use_cache=use_cache)
     resp.raise_for_status()
-    soup = BeautifulSoup(_decode_text(resp), "lxml")
+    body = _decode_text(resp)
+    if any(marker in body for marker in _THROTTLE_MARKERS):
+        raise _ThrottledPageError("e-hentai served a throttle page")
+    soup = BeautifulSoup(body, "lxml")
     urls: list[str] = []
+    # The page's own host anchors every /s/ link; accepting other origins
+    # here would let a hostile cross-site link point the scraper's client
+    # anywhere, so keep image pages on the same origin as the gallery.
+    page_host = (urlsplit(page_url).hostname or "").lower()
     for a in soup.select("#gdt a"):
         href = _attr_text(a.get("href"))
         if "/s/" in href:
-            # Gallery thumbnails link to relative /s/<token>/<gid>-<n> paths;
-            # resolve them so downstream fetches target an absolute, validable
-            # URL instead of a host-less path.
-            urls.append(urljoin(page_url, href))
+            resolved = urljoin(page_url, href)
+            host = (urlsplit(resolved).hostname or "").lower()
+            if host == page_host:
+                urls.append(resolved)
     return urls
 
 
@@ -235,7 +302,15 @@ _GALLERY_PAGE_RETRYABLE_HTTP = frozenset({429, 500, 502, 503, 504, 509})
 def _is_transient_page_error(exc: BaseException) -> bool:
     """Whether ``exc`` is worth re-fetching a gallery page over."""
     if isinstance(
-        exc, (ScrapeTimeout, CurlConnectionError, CurlTimeout, ConnectionError, TimeoutError)
+        exc,
+        (
+            _ThrottledPageError,
+            ScrapeTimeout,
+            CurlConnectionError,
+            CurlTimeout,
+            ConnectionError,
+            TimeoutError,
+        ),
     ):
         return True
     if isinstance(exc, CurlHTTPError):
@@ -245,11 +320,17 @@ def _is_transient_page_error(exc: BaseException) -> bool:
 
 
 async def _fetch_gallery_page_with_retry(page_url: str, client: AsyncSession) -> list[str]:
-    """Fetch one gallery page, retrying transient failures with backoff."""
+    """Fetch one gallery page, retrying transient failures with backoff.
+
+    The first attempt may serve a cached copy; a cached throttle body is
+    useless, so retries bypass the cache for a fresh response.
+    """
     last_exc: BaseException | None = None
     for attempt in range(_GALLERY_PAGE_RETRIES):
         try:
-            return await _fetch_gallery_page(page_url, client)
+            return await _fetch_gallery_page(
+                page_url, client, use_cache=attempt == 0
+            )
         except Exception as exc:
             if not _is_transient_page_error(exc):
                 raise
@@ -409,22 +490,12 @@ class EHentaiScraper(BaseScraper):
         already scraped it (e.g. from :meth:`scrape_meta`).
         """
         if total_pages is None:
-            m = re.match(
-                r"^https?://(?:www\.)?e-hentai\.org/g/(\d+)/([a-f0-9]+)/?",
-                url,
-            )
-            if not m:
-                raise ScrapeError(
-                    f"Invalid e-hentai gallery URL: {url}",
-                    hint="Expected a gallery URL like "
-                         "https://e-hentai.org/g/{id}/{token}/",
-                )
-            gid, token = int(m.group(1)), m.group(2)
+            gid, token = _gallery_parts(url)
             meta = await _api_gdata(gid, token, client)
             total_pages = int(meta.get("filecount", 0))
         if not total_pages:
             return
-        base_url = url.rstrip("/") + "/"
+        base_url = _gallery_base_url(url)
         async for item in _iter_image_items(base_url, total_pages, client):
             yield ImageItem(
                 url=item.url,
@@ -437,17 +508,7 @@ class EHentaiScraper(BaseScraper):
         self, url: str, client: AsyncSession
     ) -> dict[str, Any]:
         """Everything about a gallery except its image URLs (one API call)."""
-        m = re.match(
-            r"^https?://(?:www\.)?e-hentai\.org/g/(\d+)/([a-f0-9]+)/?",
-            url,
-        )
-        if not m:
-            raise ScrapeError(
-                f"Invalid e-hentai gallery URL: {url}",
-                hint="Expected a gallery URL like "
-                     "https://e-hentai.org/g/{id}/{token}/",
-            )
-        gid, token = int(m.group(1)), m.group(2)
+        gid, token = _gallery_parts(url)
 
         meta = await _api_gdata(gid, token, client)
         tags = meta.get("tags", [])
@@ -467,7 +528,7 @@ class EHentaiScraper(BaseScraper):
 
         series_title, chapter_title = _extract_series_chapter(full_title)
 
-        artists, genres, language = _extract_tag_metadata(tags)
+        artists, genres, language, publishers = _extract_tag_metadata(tags)
         _, bracket_artist = _extract_bracket_prefix(full_title)
         if not artists and bracket_artist:
             artists = [bracket_artist]
@@ -475,11 +536,17 @@ class EHentaiScraper(BaseScraper):
         if category:
             genres.insert(0, category)
 
-        chapter_number = (
-            chapter_title.split(" ")[-1]
-            if chapter_title.startswith("Chapter ")
-            else None
-        )
+        chapter_number = None
+        if chapter_title.startswith("Chapter "):
+            candidate = chapter_title.split(" ")[-1]
+            if re.fullmatch(r"\d+(?:\.\d+)?", candidate):
+                chapter_number = candidate
+
+        try:
+            posted = int(meta.get("posted") or 0)
+            year = time.gmtime(posted).tm_year if posted else None
+        except (TypeError, ValueError, OSError):
+            year = None
 
         # Manga and doujinshi read right-to-left; everything else left-to-right.
         reading_direction = (
@@ -495,7 +562,7 @@ class EHentaiScraper(BaseScraper):
             community_rating = round(raw_rating * 2, 2)
 
         return {
-            "base_url": url.rstrip("/") + "/",
+            "base_url": _gallery_base_url(url),
             "filecount": filecount,
             "info": ChapterInfo(
                 series_title=series_title,
@@ -504,9 +571,11 @@ class EHentaiScraper(BaseScraper):
                 total_pages=filecount,
                 artists=artists,
                 genres=genres,
+                publisher=", ".join(publishers) or None,
                 language=language,
                 reading_direction=reading_direction,
                 community_rating=community_rating,
+                year=year,
                 estimated_size=int(meta.get("filesize") or 0),
             ),
             "source": SourceInfo(
