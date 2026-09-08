@@ -68,8 +68,9 @@ any third-party plugins — is shown by `comic-dl --list-sources`.
   `.listing-chapters_wrap`. Chapter pages expose pages directly (no AJAX paging).
 
 - **Asura Scans** — An Astro site. Series pages fully server-render the chapter
-  list. Chapter images come from `cdn.asurascans.com`. Pages marked `Premium`
-  are locked/paid and raise an error.
+  list, so every chapter is captured in one request (no pagination). Chapter
+  images come from ``cdn.asurascans.com`` (any ``*.asurascans.com`` host is
+  accepted). Pages marked `Premium` are locked/paid and raise an error.
 
 - **Kagane** — Requires a `cf_clearance` cookie obtained via the webview solver
   (`--solver auto`). Chapter images are unlocked through the site's

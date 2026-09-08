@@ -295,6 +295,19 @@ class TestImageExtraction:
         assert len(images) == 2
         assert all("/chapters-restored/" in img.url for img in images)
 
+    def test_accepts_other_asura_cdn_subdomains(self):
+        html = """
+        <html><body><div class="reader">
+            <img src="https://cdn2.asurascans.com/asura-images/chapters/s/1/001.webp?v=1"/>
+            <img src="https://cdn.asurascans.com/asura-images/covers/s-400.webp?v=2"/>
+            <img src="https://static.asurascans.com/asura-images/chapters-restored/s/1/002.webp?v=3"/>
+        </div></body></html>
+        """
+        soup = BeautifulSoup(html, "lxml")
+        images = _extract_images(soup)
+        assert len(images) == 2
+        assert "/covers/" not in " ".join(img.url for img in images)
+
 
 class TestAsurascansScraper:
     _SLUG = "murim-psychopath-00dcbf97"
@@ -464,6 +477,30 @@ class TestAsurascansScraper:
         assert meta.community_rating is None
         assert meta.cover_url == COVER
         assert len(meta.images) == 3
+
+    @pytest.mark.asyncio
+    async def test_scrape_404_gives_friendly_error(self):
+        session = _MockSession(
+            lambda url: _MockResponse(b"<html><body></body></html>", status=404)
+        )
+        scraper = AsurascansScraper()
+        with pytest.raises(ValueError, match="page not found"):
+            await scraper.scrape(
+                "https://asurascans.com/comics/gone-00dcbf97/chapter/1",
+                session,
+            )
+
+    @pytest.mark.asyncio
+    async def test_scrape_series_404_gives_friendly_error(self):
+        session = _MockSession(
+            lambda url: _MockResponse(b"<html><body></body></html>", status=404)
+        )
+        scraper = AsurascansScraper()
+        with pytest.raises(ValueError, match="page not found on Asura Scans"):
+            await scraper.scrape_series(
+                "https://asurascans.com/comics/gone-00dcbf97",
+                session,
+            )
 
     @pytest.mark.asyncio
     async def test_scrape_series(self):

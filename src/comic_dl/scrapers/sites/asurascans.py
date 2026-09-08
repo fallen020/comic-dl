@@ -7,6 +7,7 @@ from urllib.parse import urljoin, urlparse
 
 from bs4 import BeautifulSoup
 from curl_cffi.requests import AsyncSession
+from curl_cffi.requests.exceptions import HTTPError as CurlHTTPError
 
 from ...errors import ScrapeError
 from ...models import (
@@ -33,7 +34,7 @@ from ..registry import register_scraper
 DOMAIN = "asurascans.com"
 BASE = "https://asurascans.com"
 
-_CDN_HOST = "cdn.asurascans.com"
+_CDN_HOST_SUFFIX = ".asurascans.com"
 _CHAPTER_PATH_MARKS = (
     "/asura-images/chapters/",
     "/asura-images/chapters-restored/",
@@ -254,7 +255,7 @@ def _extract_images(soup: BeautifulSoup) -> list[ImageItem]:
         if not src or src.startswith("data:"):
             continue
         host = (urlparse(src).hostname or "").lower()
-        if host != _CDN_HOST or not any(
+        if not host.endswith(_CDN_HOST_SUFFIX) or not any(
             mark in src for mark in _CHAPTER_PATH_MARKS
         ):
             continue
@@ -281,6 +282,20 @@ class AsurascansScraper(BaseScraper):
 
     def matches_url(self, url: str) -> bool:
         return is_chapter_url(url) or is_series_url(url)
+
+    @staticmethod
+    async def _fetch(url: str, client: AsyncSession) -> tuple[BeautifulSoup, str]:
+        """Fetch a page, turning a 404 into a friendly removal error."""
+        try:
+            return await BaseScraper.fetch_html_raw(url, client)
+        except CurlHTTPError as exc:
+            status = getattr(getattr(exc, "response", None), "status_code", None)
+            if status == 404:
+                raise ScrapeError(
+                    "page not found on Asura Scans.",
+                    hint="the series may have been removed, or this chapter link is dead.",
+                ) from None
+            raise
 
     async def scrape(self, url: str, client: AsyncSession) -> PostMetadata:
         chapter = await self._scrape_chapter(url, client)
@@ -326,7 +341,7 @@ class AsurascansScraper(BaseScraper):
     async def _scrape_chapter(
         self, url: str, client: AsyncSession,
     ) -> ScrapedChapter:
-        soup, _ = await self.fetch_html_raw(url, client)
+        soup, _ = await self._fetch(url, client)
         idx = meta_index(soup)
 
         if _is_premium_page(soup, idx):
@@ -400,7 +415,7 @@ class AsurascansScraper(BaseScraper):
     async def _scrape_series(
         self, url: str, client: AsyncSession,
     ) -> SeriesMetadata:
-        soup = await self.fetch_html(url, client)
+        soup, _ = await self._fetch(url, client)
         idx = meta_index(soup)
         meta = _extract_meta(soup)
 
