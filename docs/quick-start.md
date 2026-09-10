@@ -1,10 +1,10 @@
 # Quick Start
 
-Go from zero to a downloaded comic in three steps.
+Install comic-dl, download a gallery, and read the archive it produces.
 
 ## 1. Install
 
-Download the latest binary for your platform from
+Download a binary from
 [GitHub Releases](https://github.com/fallen020/comic-dl/releases), or build
 from source:
 
@@ -14,22 +14,37 @@ cd comic-dl
 uv sync
 ```
 
-The commands below assume a binary install (`comic-dl` on PATH). From a source
-checkout use `uv run python -m comic_dl` instead. See
-[Installation](install.md) for details.
+The commands below assume `comic-dl` is on your PATH. From a source checkout
+replace `comic-dl` with `uv run python -m comic_dl`. See
+[Installation](install.md) for platform-specific details.
 
 ## 2. Download a gallery
 
 ```bash
-comic-dl -u https://e-hentai.org/g/3161202/e7a26f9e16/
+comic-dl -u <gallery-url>
 ```
 
-## 3. Find your files
+Replace `<gallery-url>` with a gallery or series page from a
+[supported site](reference/supported-sites.md).
 
-Output lands in:
+## 3. Find the output
+
+Output lands in `<Downloads>/comic-dl/`:
+
+| Platform | Default output |
+| :------- | :------------- |
+| Linux | `~/Downloads/comic-dl/` |
+| macOS | `~/Downloads/comic-dl/` |
+| Windows | `%USERPROFILE%\Downloads\comic-dl\` |
+
+On Windows this follows the real Shell Folders value, so a OneDrive-redirected
+home still resolves correctly. Run `comic-dl config show` to print the exact
+directory for your machine.
+
+Inside the output directory, each series gets its own folder:
 
 ```text
-~/Downloads/comic-dl/
+<Downloads>/comic-dl/
   <Series Title>/
     ComicInfo.xml       # series metadata
     cover.jpg           # series cover
@@ -39,7 +54,7 @@ Output lands in:
 Override the output directory with `--output`:
 
 ```bash
-comic-dl -u https://e-hentai.org/g/3161202/e7a26f9e16/ -o ~/Comics
+comic-dl -u <gallery-url> -o ~/Comics
 ```
 
 ## Other ways to provide URLs
@@ -50,8 +65,8 @@ Create a text file with one URL per line:
 
 ```text
 # My weekend batch
-https://e-hentai.org/g/123/abc/
-https://pawchive.pw/patreon/user/456/post/789/
+https://e-hentai.org/g/<gid>/<token>/
+https://pawchive.pw/patreon/user/<id>/post/<id>/
 ```
 
 ```bash
@@ -71,11 +86,11 @@ comic-dl
 
 ## What happens during a download
 
-1. **Resolve** — the URL is matched to a scraper, metadata is fetched
-2. **Download** — page images stream to disk with concurrency (default 5 parallel)
-3. **Verify** — magic-byte validation rejects non-image responses
-4. **Archive** — images are packed into a CBZ with ComicInfo.xml metadata
-5. **Library** — the download is recorded for skip/resume on future runs
+1. **Resolve** — match the URL to a scraper and fetch metadata
+2. **Download** — fetch page images concurrently, 5 at a time by default
+3. **Verify** — check that each downloaded response is actually an image
+4. **Archive** — pack the images into a CBZ with a `ComicInfo.xml`
+5. **Record** — save the download in the library so future runs can skip it
 
 ## Next steps
 

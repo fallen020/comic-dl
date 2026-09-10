@@ -97,6 +97,7 @@ either.
 | Toonily | varies | `<html lang>` | — | Artists | Genres | Publisher | — |
 | Manhwaz | varies | `<html lang>` | — | Authors | Genres | — | — |
 | KodokuStudio | `ltr` | `<html lang>` | — | — | — | — | — |
+| WeebCentral | varies | `<html lang>` | — | — | — | — | — |
 
 ## Series vs archive level
 

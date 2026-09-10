@@ -53,9 +53,9 @@ src/comic_dl/
       asurascans.py      Asura Scans scraper
       kagane.py          Kagane scraper
       mangadex.py        MangaDex scraper
-       manhwaz.py         Manhwaz scraper
-       toonily.py         Toonily scraper
-       kodokustudio.py    KodokuStudio scraper
+      manhwaz.py         Manhwaz scraper
+      toonily.py         Toonily scraper
+      kodokustudio.py    KodokuStudio scraper
 ```
 
 ## Data flow
