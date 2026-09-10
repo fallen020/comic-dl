@@ -8,6 +8,9 @@ pkgver=0.0.1
 pkgrel=1
 pkgdesc="Download comic and manga galleries as CBZ archives"
 arch=('x86_64' 'aarch64')
+# makepkg.conf enables debug-symbol splitting by default; this is a launcher
+# package with no compiled code of its own, so never ship -debug artifacts.
+options=('!debug')
 url="https://github.com/fallen020/comic-dl"
 license=('MIT')
 depends=(

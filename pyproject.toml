@@ -1,7 +1,7 @@
 [project]
 name = "comic-dl"
 version = "0.0.1"
-description = "Download comic and manga galleries from supported websites and compile them into CBZ/ZIP archives."
+description = "Download comic and manga galleries from supported websites and compile them into CBZ, ZIP, and CBT archives."
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
@@ -12,7 +12,8 @@ classifiers = [
   "Development Status :: 3 - Alpha",
   "Environment :: Console",
   "License :: OSI Approved :: MIT License",
-  "Operating System :: OS Independent",
+  "Operating System :: POSIX :: Linux",
+  "Operating System :: Microsoft :: Windows",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
@@ -20,6 +21,7 @@ classifiers = [
   "Programming Language :: Python :: 3.14",
   "Topic :: Internet :: WWW/HTTP",
   "Topic :: Multimedia :: Graphics",
+  "Typing :: Typed",
 ]
 dependencies = [
     "beautifulsoup4>=4.15",
@@ -72,6 +74,7 @@ comic-dl = "comic_dl.__main__:entry"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+testpaths = ["tests"]
 markers = [
   "perf: performance regression smoke test (offline, no wall-clock assertions)",
 ]

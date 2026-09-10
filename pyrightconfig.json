@@ -2,5 +2,11 @@
   "venvPath": ".",
   "venv": ".venv",
   "pythonVersion": "3.11",
-  "typeCheckingMode": "standard"
+  "typeCheckingMode": "standard",
+  "include": [
+    "src",
+    "scripts/write-version.py",
+    "packaging/versioning.py",
+    "packaging/hatch/version_hook.py"
+  ]
 }

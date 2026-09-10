@@ -22,7 +22,7 @@ PAT via the credential helper (password auth is dead).
 | Lint | `./scripts/lint.sh` |
 | Test | `./scripts/test.sh` — single file: `uv run pytest tests/test_X.py -q` |
 | Build | `./scripts/build.sh` |
-| Docs | `uv run --extra docs pymarkdown scan docs README.md` (when `docs/` or `README.md` change) |
+| Docs | `./scripts/docs.sh` (when `docs/` or `README.md` change) |
 
 ## Repository map
 
@@ -53,7 +53,7 @@ tests/                     # Offline-safe suite (no live network)
   security/                # SSRF and filesystem safety tests
   scrapers/sites/          # Per-site parser tests
 docs/                      # Plain Markdown docs (no site build; source of truth)
-scripts/                   # CI gate scripts (lint.sh, test.sh, build.sh, etc.)
+scripts/                   # CI gate scripts (lint.sh, test.sh, build.sh, docs.sh)
 packaging/                 # Distro packaging (deb/rpm/arch), versioning, PyInstaller
 examples/                  # Sample config, plugin, URL list
 ```
@@ -62,6 +62,10 @@ examples/                  # Sample config, plugin, URL list
 
 - **Security:** every outbound fetch passes `validate_request_url` via
   `BaseScraper._timeout_get` / `_open_stream`. Never weaken it.
+- **Bandit nosec:** scoped `# nosec BXXX` triggers a spurious bandit warning
+  whenever the marked line also falls inside an enclosing AST statement
+  (bandit 1.9.4). Prefer fixing the flagged call (e.g. `sha256` over `md5`
+  for identity hashes) or a plain `# nosec` plus a WHY comment.
 - **Politeness:** per-host rate limiter (`rate.py`) and shared retry cooldown
   are load-bearing. Never bypass them.
 - **Errors:** 0 success / 1 error / 2 usage / 130 interrupted (`errors.py`).

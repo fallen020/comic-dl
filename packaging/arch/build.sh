@@ -54,6 +54,9 @@ su builder -c \
     "cd '$BUILD_DIR' && CURL_CFFI_VERSION='$CURL_CFFI_VERSION' makepkg -f"
 
 mkdir -p "$OUT_DIR"
+# Guard against -debug splits even if makepkg.conf re-enables them: the
+# release pipeline uploads every *.pkg.tar.zst in $OUT_DIR.
+rm -f "$BUILD_DIR"/comic-dl-debug-*.pkg.tar.zst
 cp "$BUILD_DIR"/comic-dl-*.pkg.tar.zst "$OUT_DIR"/
 echo
 echo "Package(s) written to $OUT_DIR:"
