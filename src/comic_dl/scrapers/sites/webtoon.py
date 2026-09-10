@@ -5,9 +5,9 @@ from __future__ import annotations
 import asyncio
 import json
 import re
-from urllib.parse import parse_qs, urljoin, urlparse
+from urllib.parse import parse_qs, parse_qsl, urlencode, urljoin, urlparse, urlsplit, urlunsplit
 
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 from curl_cffi.requests import AsyncSession
 
 from ...errors import ScrapeError
@@ -34,6 +34,7 @@ _MAX_PAGES = 500
 PATTERN = WEBTOON_PATTERN
 
 _SERIES_TITLE_SEL = 'a.subj[href*="list?title_no"]'
+_SERIES_HEADING_SEL = "h1.subj"
 _CHAPTER_TITLE_SEL = "h1.subj_episode"
 _EPISODE_ITEM_SEL = "li._episodeItem a[href]"
 _IMAGE_SEL = "img._images[data-url]"
@@ -183,6 +184,13 @@ def normalize_webtoon_url(url: str) -> str:
     return f"https://{WEBTOON_DOMAIN}{path}?{query}"
 
 
+def _page_url(url: str, page: int) -> str:
+    parts = urlsplit(url)
+    query = [(k, v) for k, v in parse_qsl(parts.query) if k != "page"]
+    query.append(("page", str(page)))
+    return urlunsplit(parts._replace(query=urlencode(query)))
+
+
 def _strip_trailing_noise(text: str) -> str:
     while True:
         new = _BADGE_NOISE_RE.sub("", text).strip()
@@ -205,29 +213,23 @@ def _normalize_episode_title(title: str) -> str:
     return title
 
 
-def _extract_authors(
-    soup: BeautifulSoup, idx: dict[str, list[str]] | None = None,
-) -> list[str]:
-    idx = idx if idx is not None else meta_index(soup)
-    for key in (
-        "prop:com-linewebtoon:webtoon:author",
-        "prop:com-linewebtoon:episode:author",
-    ):
-        vals = idx.get(key)
-        if vals and vals[0]:
-            return [a.strip() for a in re.split(r"[/,]+\s*", vals[0])]
-    return []
+_AUTHOR_KEYS = (
+    "prop:com-linewebtoon:webtoon:author",
+    "prop:com-linewebtoon:episode:author",
+)
+_ARTIST_KEYS = (
+    "prop:com-linewebtoon:webtoon:artist",
+    "prop:com-linewebtoon:episode:artist",
+)
 
 
-def _extract_artists(
-    soup: BeautifulSoup, idx: dict[str, list[str]] | None = None,
+def _extract_credit(
+    soup: BeautifulSoup,
+    keys: tuple[str, ...],
+    idx: dict[str, list[str]] | None = None,
 ) -> list[str]:
-    """Artists are credited separately (e.g. "Art by X") from the writer(s)."""
     idx = idx if idx is not None else meta_index(soup)
-    for key in (
-        "prop:com-linewebtoon:webtoon:artist",
-        "prop:com-linewebtoon:episode:artist",
-    ):
+    for key in keys:
         vals = idx.get(key)
         if vals and vals[0]:
             return [a.strip() for a in re.split(r"[/,]+\s*", vals[0])]
@@ -305,20 +307,21 @@ class WebtoonScraper(BaseScraper):
         series_title = self._series_title(soup, idx)
         description = meta_get(idx, "og:description", "description", "twitter:description")
         cover_url = meta_get(idx, "og:image", "twitter:image")
-        authors = _extract_authors(soup, idx)
-        artists = _extract_artists(soup, idx)
+        authors = _extract_credit(soup, _AUTHOR_KEYS, idx)
+        # Artists are credited separately (e.g. "Art by X") from the writer(s);
+        # WEBTOON pages only credit the creator (writer), so without a separate
+        # artist credit the creator is also the artist.
+        artists = _extract_credit(soup, _ARTIST_KEYS, idx)
         if not artists:
-            # WEBTOON pages only credit the creator (writer); without a separate
-            # artist credit the creator is also the artist.
             artists = authors
         genre_name = _extract_genre(soup, idx)
         genres = [genre_name] if genre_name else []
 
         images = self._images_from_json(soup)
         if not images:
-            images = self._images_from_data_urls(soup)
+            images = self._images_from_img_tags(soup, _IMAGE_SEL, "data-url")
         if not images:
-            images = self._images_from_src(soup)
+            images = self._images_from_img_tags(soup, _IMGS_SCR_SEL, "src")
 
         if not images:
             raise no_images_error(
@@ -392,7 +395,7 @@ class WebtoonScraper(BaseScraper):
             sem = asyncio.Semaphore(3)
 
             async def _fetch_page(pn: int) -> list[dict]:
-                page_url = f"{url}&page={pn}"
+                page_url = _page_url(url, pn)
                 async with sem:
                     try:
                         ps = await self.fetch_html(page_url, client)
@@ -421,7 +424,7 @@ class WebtoonScraper(BaseScraper):
                 page += 1
 
             chapters.sort(
-                key=lambda c: int(c["episode_no"]) if c["episode_no"].isdigit() else 0
+                key=lambda c: int(c["episode_no"]) if str(c["episode_no"]).isdigit() else 0
             )
 
         if not chapters:
@@ -439,12 +442,18 @@ class WebtoonScraper(BaseScraper):
         )
 
     @staticmethod
-    def _chapter_title(
-        soup: BeautifulSoup, idx: dict[str, list[str]] | None = None,
+    def _page_title(
+        soup: BeautifulSoup,
+        idx: dict[str, list[str]] | None,
+        selectors: tuple[str, ...],
+        meta_keep: int,
+        tag_keep: int,
+        tag_require_sep: bool,
     ) -> str:
-        el = soup.select_one(_CHAPTER_TITLE_SEL)
-        if el:
-            return el.get_text(strip=True)
+        for sel in selectors:
+            el = soup.select_one(sel)
+            if el:
+                return el.get_text(strip=True)
 
         if idx is not None:
             title = meta_get(idx, "og:title", "twitter:title")
@@ -452,39 +461,31 @@ class WebtoonScraper(BaseScraper):
             title = WebtoonScraper.meta(soup, "og:title", "twitter:title")
         if title:
             parts = title.rsplit(" - ", 1)
-            return parts[-1].strip() if len(parts) == 2 else title
+            return parts[meta_keep].strip() if len(parts) == 2 else title
 
         title_tag = soup.select_one("title")
         if title_tag and title_tag.string:
             text = title_tag.string.strip()
             parts = text.rsplit(" | ", 1)
-            return parts[0].strip()
+            if tag_require_sep and len(parts) != 2:
+                return text
+            return parts[tag_keep].strip()
 
         return ""
+
+    @staticmethod
+    def _chapter_title(
+        soup: BeautifulSoup, idx: dict[str, list[str]] | None = None,
+    ) -> str:
+        return WebtoonScraper._page_title(soup, idx, (_CHAPTER_TITLE_SEL,), -1, 0, False)
 
     @staticmethod
     def _series_title(
         soup: BeautifulSoup, idx: dict[str, list[str]] | None = None,
     ) -> str:
-        el = soup.select_one(_SERIES_TITLE_SEL)
-        if el:
-            return el.get_text(strip=True)
-
-        if idx is not None:
-            title = meta_get(idx, "og:title", "twitter:title")
-        else:
-            title = WebtoonScraper.meta(soup, "og:title", "twitter:title")
-        if title:
-            parts = title.rsplit(" - ", 1)
-            return parts[0].strip() if len(parts) == 2 else title
-
-        title_tag = soup.select_one("title")
-        if title_tag and title_tag.string:
-            text = title_tag.string.strip()
-            parts = text.rsplit(" | ", 1)
-            return parts[-1].strip() if len(parts) == 2 else text
-
-        return ""
+        return WebtoonScraper._page_title(
+            soup, idx, (_SERIES_TITLE_SEL, _SERIES_HEADING_SEL), 0, -1, True,
+        )
 
     @staticmethod
     def _find_json_script(soup: BeautifulSoup) -> dict | None:
@@ -496,23 +497,18 @@ class WebtoonScraper(BaseScraper):
                 pass
 
         for s in soup.find_all("script"):
-            if s.string and "window.__INITIAL_STATE__" in s.string:
-                start = s.string.find("{")
-                if start == -1:
-                    continue
-                depth = 0
-                for end in range(start, len(s.string)):
-                    ch = s.string[end]
-                    if ch == "{":
-                        depth += 1
-                    elif ch == "}":
-                        depth -= 1
-                        if depth == 0:
-                            try:
-                                return json.loads(s.string[start:end + 1])
-                            except json.JSONDecodeError:
-                                pass
-                            break
+            text = s.string
+            if not text or "window.__INITIAL_STATE__" not in text:
+                continue
+            start = text.find("{")
+            if start == -1:
+                continue
+            try:
+                data, _ = json.JSONDecoder().raw_decode(text, start)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(data, dict):
+                return data
         return None
 
     @staticmethod
@@ -550,25 +546,13 @@ class WebtoonScraper(BaseScraper):
         return images or None
 
     @staticmethod
-    def _images_from_data_urls(soup: BeautifulSoup) -> list[ImageItem]:
+    def _images_from_img_tags(
+        soup: BeautifulSoup, selector: str, attr: str,
+    ) -> list[ImageItem]:
         images: list[ImageItem] = []
         seen: set[str] = set()
-        for img in soup.select(_IMAGE_SEL):
-            data_url = _attr_text(img.get("data-url"))
-            if not data_url or data_url in seen:
-                continue
-            if "webtoon-phinf" not in data_url:
-                continue
-            seen.add(data_url)
-            images.append(ImageItem(url=data_url, page_number=len(images) + 1))
-        return images
-
-    @staticmethod
-    def _images_from_src(soup: BeautifulSoup) -> list[ImageItem]:
-        images: list[ImageItem] = []
-        seen: set[str] = set()
-        for img in soup.select(_IMGS_SCR_SEL):
-            img_url = _attr_text(img.get("src"))
+        for img in soup.select(selector):
+            img_url = _attr_text(img.get(attr))
             if not img_url or img_url in seen:
                 continue
             if "webtoon-phinf" not in img_url:
@@ -597,10 +581,10 @@ class WebtoonScraper(BaseScraper):
             ep_url = ep.get("url", "")
             if ep_url:
                 ep_url = urljoin(url, ep_url)
-                if not is_chapter_url(ep_url) and parsed:
-                    ep_url = normalize_webtoon_url(
-                        f"https://{WEBTOON_DOMAIN}/{parsed['lang']}/{parsed['category']}/{parsed['series_slug']}/ep-{ep_no}/viewer?title_no={parsed['title_no']}&episode_no={ep_no}"
-                    )
+            if (not ep_url or not is_chapter_url(ep_url)) and parsed:
+                ep_url = normalize_webtoon_url(
+                    f"https://{WEBTOON_DOMAIN}/{parsed['lang']}/{parsed['category']}/{parsed['series_slug']}/ep-{ep_no}/viewer?title_no={parsed['title_no']}&episode_no={ep_no}"
+                )
             chapters.append({
                 "title": _normalize_episode_title(ep.get("title", f"Episode {ep_no}")),
                 "url": normalize_webtoon_url(ep_url) if ep_url else "",
@@ -609,14 +593,17 @@ class WebtoonScraper(BaseScraper):
         return chapters or None
 
     @staticmethod
-    def _chapters_from_episode_items(soup: BeautifulSoup, url: str) -> list[dict]:
+    def _chapters_from_anchors(anchors: list[Tag], url: str) -> list[dict]:
         chapters: list[dict] = []
         seen_ep_nos: set[str] = set()
 
-        for a in soup.select(_EPISODE_ITEM_SEL):
+        for a in anchors:
             href = _attr_text(a.get("href"))
-            qs = parse_qs(urlparse(href).query)
-            ep_no = (qs.get("episode_no") or [""])[0]
+            li = a.find_parent("li")
+            ep_no = _attr_text(li.get("data-episode-no")) if li is not None else ""
+            if not ep_no:
+                qs = parse_qs(urlparse(href).query)
+                ep_no = (qs.get("episode_no") or [""])[0]
             if not ep_no or ep_no in seen_ep_nos:
                 continue
             seen_ep_nos.add(ep_no)
@@ -635,32 +622,18 @@ class WebtoonScraper(BaseScraper):
         return chapters
 
     @staticmethod
-    def _chapters_from_fallback_links(soup: BeautifulSoup, url: str) -> list[dict]:
-        chapters: list[dict] = []
-        seen_ep_nos: set[str] = set()
+    def _chapters_from_episode_items(soup: BeautifulSoup, url: str) -> list[dict]:
+        return WebtoonScraper._chapters_from_anchors(
+            soup.select(_EPISODE_ITEM_SEL), url,
+        )
 
+    @staticmethod
+    def _chapters_from_fallback_links(soup: BeautifulSoup, url: str) -> list[dict]:
         list_ul = soup.select_one("#_listUl")
         container = list_ul if list_ul else soup
-        for a in container.select('li._episodeItem a[href*="episode_no"]'):
-            href = _attr_text(a.get("href"))
-            qs = parse_qs(urlparse(href).query)
-            ep_no = (qs.get("episode_no") or [""])[0]
-            if not ep_no or ep_no in seen_ep_nos:
-                continue
-            seen_ep_nos.add(ep_no)
-
-            title_el = a.select_one("span.subj")
-            ep_title = (
-                title_el.get_text(" ", strip=True)
-                if title_el
-                else a.get_text(" ", strip=True)
-            )
-            chapters.append({
-                "title": _normalize_episode_title(ep_title),
-                "url": normalize_webtoon_url(urljoin(url, href)),
-                "episode_no": ep_no,
-            })
-        return chapters
+        return WebtoonScraper._chapters_from_anchors(
+            container.select('li._episodeItem a[href*="episode_no"]'), url,
+        )
 
 
 async def scrape_chapter(url: str, client: AsyncSession) -> PostMetadata:
