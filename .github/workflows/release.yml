@@ -19,6 +19,7 @@
   permissions:
     contents: write
     id-token: write  # trusted publishing to PyPI (OIDC)
+    attestations: write  # SLSA build-provenance attestations (Sigstore)
 
   concurrency:
     group: release-${{ github.ref }}
@@ -66,6 +67,10 @@
             name: py-wheel
             path: dist/*
             if-no-files-found: error
+        - name: Attest build provenance (Sigstore, keyless)
+          uses: actions/attest-build-provenance@96b4a1ef7235a096b17240c259729fdd70c83d45 # v2
+          with:
+            subject-path: "dist/*"
 
     # Linux distro packages. The vendored curl_cffi wheel bundles native
     # libcurl-impersonate shared objects, so each package is architecture-
@@ -149,6 +154,12 @@
               -e EXPECTED_VERSION="${{ env.VER }}" \
               ${{ matrix.image }} \
               bash /src/packaging/${{ matrix.validate }} "/pkg/${{ matrix.glob }}"
+        # Attest after validation: only packages that installed and
+        # smoke-tested cleanly carry build provenance into the release.
+        - name: Attest build provenance (Sigstore, keyless)
+          uses: actions/attest-build-provenance@96b4a1ef7235a096b17240c259729fdd70c83d45 # v2
+          with:
+            subject-path: "${{ matrix.outdir }}/*"
 
     # Windows standalone exe. Built natively on a Windows runner (never
     # cross-compiled from Linux). Artifact naming follows the
@@ -203,6 +214,10 @@
             name: windows-package
             path: out/*
             if-no-files-found: error
+        - name: Attest build provenance (Sigstore, keyless)
+          uses: actions/attest-build-provenance@96b4a1ef7235a096b17240c259729fdd70c83d45 # v2
+          with:
+            subject-path: "out/*"
 
     # -------------------------------------------------------------------------
     # NOT ENABLED — extension points (explicitly unsupported in CI today).
@@ -365,10 +380,20 @@
 
               ### Known limitations
               - Windows ARM64 and macOS binaries are not shipped yet — use `uvx`
-              - The Windows binary is unsigned
+              - The Windows binary carries no Authenticode signature (SLSA
+                provenance below still applies to it)
               - Early maturity — read the README status banner before use
 
-              All artifacts are checksummed in `SHA256SUMS`.
+              All artifacts are checksummed in `SHA256SUMS` and carry SLSA
+              build-provenance attestations (Sigstore, keyless). Verify any
+              downloaded file with the [GitHub CLI](https://cli.github.com):
+
+              ```sh
+              gh attestation verify <file> --repo fallen020/comic-dl
+              ```
+
+              A passing check proves the file was built by this repository's
+              release workflow from the tagged source — no keys to manage.
             files: dist/*
             generate_release_notes: true
 

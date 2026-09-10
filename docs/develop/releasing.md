@@ -143,5 +143,15 @@ is updated with each tag. For each release:
 
 ## Code signing
 
-The Windows `comic-dl.exe` is currently **unsigned**. Authenticode signing
-and macOS notarization are future enhancements.
+Every build job (`package`, `linux-packages`, `windows-build`) attests its
+artifacts with SLSA build provenance via `actions/attest-build-provenance`
+(Sigstore, keyless — no secrets to manage). The distro-package attestation
+runs after the install-and-smoke-test validation, so only packages that
+installed cleanly carry provenance. Consumers verify any downloaded file with:
+
+```sh
+gh attestation verify <file> --repo fallen020/comic-dl
+```
+
+The Windows `comic-dl.exe` additionally remains **Authenticode-unsigned**.
+Authenticode signing and macOS notarization are future enhancements.
