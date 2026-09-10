@@ -104,6 +104,40 @@ class TestCookieJarList:
         assert jar.cookies_for("kagane.to", https=False)["plain"] == "ok"
         assert jar.cookies_for("kagane.to", https=True)["sf"] == "tok"
 
+    def test_store_rejects_public_suffix_hosts(self, tmp_path):
+        import time
+
+        jar = CookieJar(tmp_path / "cookies.db")
+        jar.store_cookiejar(
+            [
+                _FakeCookie(
+                    "evil", "v", ".com",
+                    expires=int(time.time()) + 3600,
+                ),
+                _FakeCookie(
+                    "tenant", "leak", ".github.io",
+                    expires=int(time.time()) + 3600,
+                ),
+                _FakeCookie(
+                    "ok", "fine", ".kagane.to",
+                    expires=int(time.time()) + 3600,
+                ),
+            ]
+        )
+        assert jar.cookies_for("victim.example.com") == {}
+        assert jar.cookies_for("other.github.io") == {}
+        assert jar.cookies_for("kagane.to") == {"ok": "fine"}
+
+    def test_set_rejects_public_suffix_host(self, tmp_path):
+        jar = CookieJar(tmp_path / "cookies.db")
+        jar.set("com", "sid", "poison")
+        jar.set("github.io", "sid", "poison")
+        jar.set("co.uk", "sid", "poison")
+        assert jar.list() == []
+        jar.set("localhost", "sk", "v")
+        jar.set("kagane.to", "sk", "v")
+        assert {r["host"] for r in jar.list()} == {"localhost", "kagane.to"}
+
     def test_store_created_owner_only(self, tmp_path):
         import stat
         db = tmp_path / "cookies.db"

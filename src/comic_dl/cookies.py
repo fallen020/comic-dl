@@ -26,6 +26,37 @@ CREATE TABLE IF NOT EXISTS cookies (
 
 _DB_NAME = "cookies.db"
 
+# A cookie stored for a *public suffix* is replayed to every subdomain of it,
+# so a malicious site can plant a value every co-tenant then receives (a
+# hostile *.github.io page can poison the jar for all *.github.io visits via
+# ``Domain=.github.io``).  Single-label hosts (bare TLDs) are always public
+# suffixes and are rejected outright.  For two-label hosts the precise test
+# needs the Mozilla Public Suffix List, which is not in the stdlib and not a
+# dependency here; this curated subset covers the suffixes most relevant to
+# scraping contexts.
+# ponytail: curated, not the full PSL — swap in a PSL-backed check
+# (publicsuffix2) if co-tenant leakage on unlisted two-label suffixes matters.
+_TWO_LABEL_PUBLIC_SUFFIXES = frozenset({
+    "github.io",
+    "co.uk", "org.uk", "ac.uk",
+    "com.au", "net.au", "org.au",
+    "com.br", "net.br", "org.br",
+    "co.nz", "net.nz", "org.nz",
+    "com.mx", "com.ar",
+    "co.jp", "co.kr", "com.cn",
+    "co.in", "net.in", "org.in",
+    "co.id", "com.tw", "com.hk", "com.sg", "com.my", "com.ph",
+})
+
+
+def _is_public_suffix_host(host: str) -> bool:
+    """True when ``host`` is a public-suffix label anyone can set cookies for."""
+    host = host.lstrip(".").lower()
+    labels = host.split(".")
+    if len(labels) < 2:
+        return host != "localhost"
+    return host in _TWO_LABEL_PUBLIC_SUFFIXES
+
 
 class CookieJar:
     """Persistent, per-domain cookie store backed by SQLite (WAL).
@@ -176,7 +207,7 @@ class CookieJar:
             if c.name is None or c.value is None:
                 continue
             host = (c.domain or "").lstrip(".").lower()
-            if not host:
+            if not host or _is_public_suffix_host(host):
                 continue
             path = c.path or "/"
             if c.expires is None:
@@ -220,6 +251,8 @@ class CookieJar:
         expires: int | None = None,
     ) -> None:
         """Explicitly store a cookie (used by challenge-solver harvests)."""
+        if _is_public_suffix_host(host or ""):
+            return
         if expires is not None and expires <= int(time.time()):
             self.delete(host, name, path)
             return

@@ -1314,6 +1314,14 @@ def verify_downloads(
         return {item.filename: f"directory not found ({dest_dir})" for item in images}, {}
     for item in images:
         path = dest_dir / item.filename
+        try:
+            path.resolve().relative_to(dest_dir.resolve())
+        except ValueError:
+            # A producer (e.g. a plugin) must not be able to point verification
+            # at files outside the staging dir, or invalid/empty files there
+            # would be unlinked. Same containment as _download_one.
+            errors[item.filename] = "unsafe file name"
+            continue
         if not path.exists():
             errors[item.filename] = "missing"
             continue
@@ -1392,49 +1400,102 @@ async def probe_download_size(
 
 
 async def _probe_image_size(c: AsyncSession, url: str, timeout: float) -> int:
-    try:
-        await validate_request_url_async(url)
-    except RequestBlockedError:
-        return 0
-    try:
-        resp = await asyncio.wait_for(c.head(url), timeout=timeout)
-        content_length = resp.headers.get("content-length")
-        if (
-            content_length
-            and content_length.isdigit()
-            and int(content_length) >= _RANGE_GET_MIN_BYTES
-        ):
-            return int(content_length)
-    except Exception:  # nosec B110
-        pass
+    """Best-effort byte-size probe that validates every redirect hop.
 
-    try:
-        resp = await asyncio.wait_for(
-            c.get(url, headers={"Range": "bytes=0-0"}, stream=True),
-            timeout=timeout,
-        )
+    Mirrors :func:`_open_stream`: the initial URL and each ``Location`` are run
+    through :func:`validate_request_url_async`, so a public image URL can never
+    probe an internal/metadata/LAN address via a hostile redirect.
+    """
+    current = url
+    for _ in range(MAX_REDIRECTS + 1):
         try:
-            content_range = resp.headers.get("content-range")
-            if content_range and "/" in content_range:
-                total = content_range.rsplit("/", 1)[1]
-                if (
-                    total.isdigit()
-                    and int(total) >= _RANGE_GET_MIN_BYTES
-                ):
-                    return int(total)
-            content_length = resp.headers.get("content-length")
-            if (
-                content_length
-                and content_length.isdigit()
-                and int(content_length) >= _RANGE_GET_MIN_BYTES
-            ):
-                return int(content_length)
+            await validate_request_url_async(current)
+        except RequestBlockedError:
+            return 0
+        try:
+            resp = await asyncio.wait_for(
+                c.head(current, allow_redirects=False), timeout=timeout
+            )
+        # Advisory probe — HEAD failures are non-fatal; fall through to Range GET.
+        except Exception:  # nosec
+            resp = None
+        if resp is not None:
+            hop = _redirect_hop(resp)
+            if hop is not None:
+                next_url = await _probe_next_hop(current, hop)
+                if next_url is None:
+                    return 0
+                current = next_url
+                continue
+            size = _probe_size_hint(resp)
+            if size is not None:
+                return size
+
+        try:
+            resp = await asyncio.wait_for(
+                c.get(
+                    current,
+                    headers={"Range": "bytes=0-0"},
+                    stream=True,
+                    allow_redirects=False,
+                ),
+                timeout=timeout,
+            )
+        # Advisory probe — Range GET failures are non-fatal.
+        except Exception:  # nosec
+            return 0
+        try:
+            hop = _redirect_hop(resp)
+            if hop is not None:
+                next_url = await _probe_next_hop(current, hop)
+                if next_url is None:
+                    return 0
+                current = next_url
+                continue
+            size = _probe_size_hint(resp)
+            if size is not None:
+                return size
+            return 0
         finally:
             with contextlib.suppress(Exception):
-                await resp.aclose()
-    except Exception:  # nosec B110
-        pass
+                await _close_response(resp)
     return 0
+
+
+def _redirect_hop(resp: Any) -> str | None:
+    """``Location`` header when ``resp`` is a redirect status, else None."""
+    if resp.status_code not in _REDIRECT_STATUSES:
+        return None
+    return (resp.headers or {}).get("location")
+
+
+async def _probe_next_hop(current: str, location: str) -> str | None:
+    """Resolve and validate one probe redirect hop; None when blocked."""
+    try:
+        return await resolve_redirect_url_async(current, location)
+    except RequestBlockedError:
+        return None
+
+
+def _probe_size_hint(resp: Any) -> int | None:
+    """Byte-size hint from ``content-range``/``content-length`` headers.
+
+    Returns None when the response carries no usable total (a stub body or a
+    redirect's own headers) so the caller falls through to a Range GET. The
+    digits-only and 1 KB stub-hysteresis mirror the probe's previous parsing.
+    """
+    headers = resp.headers or {}
+    content_range = headers.get("content-range")
+    if content_range and "/" in content_range:
+        total = content_range.rsplit("/", 1)[1]
+        if total.isdigit() and int(total) >= _RANGE_GET_MIN_BYTES:
+            return int(total)
+    content_length = headers.get("content-length")
+    if content_length and content_length.isdigit():
+        length = int(content_length)
+        if length >= _RANGE_GET_MIN_BYTES:
+            return length
+    return None
 
 
 # --- Download Pipeline ---

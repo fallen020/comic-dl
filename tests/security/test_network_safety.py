@@ -238,6 +238,71 @@ async def test_pawchive_full_resolution_validates_redirect_hops() -> None:
             monkeypatching.undo()
 
 
+async def test_probe_size_refuses_private_redirect_hop() -> None:
+    """The size probe validates redirect hops, so a hostile 302 cannot probe
+    an internal endpoint."""
+    routes = {
+        "/img": (302, {"Location": "/steal"}, b""),
+        "/steal": (200, {"Content-Type": "image/jpeg"}, b"x" * 2048),
+    }
+    async with FakeHttpServer(routes) as srv:
+        client = NetHttpClient(srv.host, srv.port)
+        monkeypatching = pytest.MonkeyPatch()
+        monkeypatching.setattr(
+            downloader, "validate_request_url_async", _fake_permissive
+        )
+        try:
+            size = await downloader._probe_image_size(client, f"{srv.url}/img", 5.0)
+            assert size == 0
+            assert srv.hits == ["/img"]
+        finally:
+            monkeypatching.undo()
+
+
+async def test_probe_size_follows_validated_redirects() -> None:
+    """Redirect hops in the size probe are followed manually and re-validated."""
+    routes = {
+        "/img": (302, {"Location": "/real"}, b""),
+        "/real": (200, {"Content-Type": "image/jpeg"}, b"x" * 2048),
+    }
+    async with FakeHttpServer(routes) as srv:
+        client = NetHttpClient(srv.host, srv.port)
+        monkeypatching = pytest.MonkeyPatch()
+        monkeypatching.setattr(
+            downloader, "validate_request_url_async", _fake_permissive
+        )
+        monkeypatching.setattr(
+            downloader, "resolve_redirect_url_async", _fake_resolve
+        )
+        try:
+            size = await downloader._probe_image_size(client, f"{srv.url}/img", 5.0)
+            assert size == 2048
+            assert srv.hits == ["/img", "/real"]
+        finally:
+            monkeypatching.undo()
+
+
+async def test_probe_size_caps_redirect_loop() -> None:
+    """An endless redirect loop in the size probe is aborted after
+    MAX_REDIRECTS."""
+    routes = {"/r": (302, {"Location": "/r"}, b"")}
+    async with FakeHttpServer(routes) as srv:
+        client = NetHttpClient(srv.host, srv.port)
+        monkeypatching = pytest.MonkeyPatch()
+        monkeypatching.setattr(
+            downloader, "validate_request_url_async", _fake_permissive
+        )
+        monkeypatching.setattr(
+            downloader, "resolve_redirect_url_async", _fake_resolve
+        )
+        try:
+            size = await downloader._probe_image_size(client, f"{srv.url}/r", 5.0)
+            assert size == 0
+            assert len(srv.hits) <= utils.MAX_REDIRECTS + 1
+        finally:
+            monkeypatching.undo()
+
+
 async def _fake_permissive(url: str) -> str:
     return url
 

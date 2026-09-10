@@ -10,7 +10,7 @@ import pytest
 
 from comic_dl import utils
 from comic_dl.cli import MAX_CONCURRENCY, parse_urls
-from comic_dl.downloader import download_httpx
+from comic_dl.downloader import download_httpx, verify_downloads
 from comic_dl.library import Library
 from comic_dl.models import ImageItem
 
@@ -65,6 +65,21 @@ async def test_download_cannot_escape_host(tmp_path) -> None:
     failed = await download_httpx([evil], dest, concurrency=1, client=_CloneClient())
     assert "../escape.jpg" in failed or "../../escape.jpg" in failed
     assert not (tmp_path / "escape.jpg").exists()
+
+
+def test_verify_downloads_cannot_unlink_outside_dest(tmp_path) -> None:
+    dest = tmp_path / "out"
+    dest.mkdir()
+    victim = tmp_path / "victim"
+    victim.write_bytes(b"")
+    bad = ImageItem(
+        url="http://example.com/a.jpg",
+        page_number=1,
+        filename="../../victim",
+    )
+    errors, _ = verify_downloads([bad], dest)
+    assert errors[bad.filename] == "unsafe file name"
+    assert victim.exists()
 
 
 # ---------------------------------------------------------------------------

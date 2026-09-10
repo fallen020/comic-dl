@@ -258,6 +258,18 @@ def _tmp_root() -> Path:
     return _TMP_ROOT
 
 
+def _chapter_tmp_dir(series_title: str, chapter_label: str, idx: int) -> Path:
+    """Staging dir for a chapter, unique within a run even when titles collide.
+
+    Two chapters whose titles collapse under :func:`sanitize_filename` (e.g.
+    ``"Chapter  1"`` vs ``"Chapter 1"``) would otherwise land in the same
+    directory; the ``skip-if-present`` check in the downloader then merges
+    their page files.  Appending the chapter index ``idx`` breaks ties while
+    keeping the prefix useful for debugging.
+    """
+    return _tmp_root() / sanitize_filename(f"{series_title}_{chapter_label}_{idx}")
+
+
 def _prompt_chapter_selection(
     chapters: list[dict],
     series_title: str,
@@ -2342,9 +2354,7 @@ async def _process_series(
                     sink.stage("Preparing chapter...")
 
                     ch_slug = ch_title or ch["episode_no"]
-                    tmp_dir = _tmp_root() / sanitize_filename(
-                        f"{series_title}_{ch_slug}"
-                    )
+                    tmp_dir = _chapter_tmp_dir(series_title, ch_slug, idx)
                     tmp_dir.mkdir(parents=True, exist_ok=True)
 
                     # Brief randomized pause to keep requests spread out over time.
