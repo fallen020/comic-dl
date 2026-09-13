@@ -211,6 +211,9 @@ class MangadexScraper(BaseScraper):
     def matches_url(self, url: str) -> bool:
         return is_chapter_url(url) or is_series_url(url)
 
+    def matches_series_url(self, url: str) -> bool:
+        return is_series_url(url)
+
     async def scrape(self, url: str, client: AsyncSession) -> PostMetadata:
         chapter = await self._scrape_chapter(url, client)
         return chapter_to_post_metadata(chapter)

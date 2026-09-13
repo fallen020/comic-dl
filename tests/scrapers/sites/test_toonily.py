@@ -119,6 +119,12 @@ class TestUrlPatterns:
         assert scraper.matches_url(CHAPTER_URL)
         assert not scraper.matches_url("https://toonily.com/")
 
+    def test_matches_series_url(self):
+        scraper = ToonilyScraper()
+        assert scraper.matches_series_url(SERIES_URL)
+        assert not scraper.matches_series_url(CHAPTER_URL)
+        assert not scraper.matches_series_url("https://toonily.com/")
+
     def test_series_slug(self):
         assert _extract_series_slug(CHAPTER_URL) == SLUG
         assert _extract_series_slug(SERIES_URL) == SLUG

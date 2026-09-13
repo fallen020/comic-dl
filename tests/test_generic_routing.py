@@ -215,6 +215,77 @@ class TestProcessUrl:
         assert scrapers == [fake]
 
     @pytest.mark.asyncio
+    async def test_plugin_series_url_routes_via_matches_series_url(
+        self, monkeypatch, tmp_path
+    ):
+        """A plugin domain without a static checker still reaches series mode."""
+        class PluginScraper:
+            def matches_series_url(self, url):
+                return url.startswith("https://plugin.example/manga/")
+
+        calls: list[str] = []
+        scrapers: list[object] = []
+
+        async def fake_process_series(**kwargs):
+            calls.append(kwargs["url"])
+            scrapers.append(kwargs["scraper"])
+            return True
+
+        monkeypatch.setattr("comic_dl.cli._process_series", fake_process_series)
+        _patch_series_scraper(monkeypatch, {"plugin.example": PluginScraper()})
+        _patch_chapter_scraper(monkeypatch, {})
+
+        status, _ = await cli.process_url(
+            url="https://plugin.example/manga/foo",
+            output_dir=Path(tmp_path),
+            concurrency=1,
+            force=False,
+            quiet=True,
+        )
+        assert status == "downloaded"
+        assert calls == ["https://plugin.example/manga/foo"]
+        assert isinstance(scrapers[0], PluginScraper)
+
+    @pytest.mark.asyncio
+    async def test_plugin_chapter_url_stays_in_chapter_mode(
+        self, monkeypatch, tmp_path
+    ):
+        """The matches_series_url fallback must not swallow chapter URLs."""
+        class PluginScraper:
+            def matches_series_url(self, url):
+                return url.startswith("https://plugin.example/manga/")
+
+        class PluginChapterScraper:
+            async def scrape(self, _url, _client):
+                return PostMetadata(
+                    series_title="Plugin Series",
+                    chapter_title="Chapter 7",
+                    images=[ImageItem(url=IMAGE_URL, page_number=1, filename="01.jpg")],
+                    total_pages=1,
+                )
+
+        async def fake_download(images, dest_dir, *a, **kw):
+            dest_dir.mkdir(parents=True, exist_ok=True)
+            for img in images:
+                (dest_dir / img.filename).write_bytes(b"\xff\xd8\xff")
+            return set()
+
+        monkeypatch.setattr("comic_dl.downloader.download_httpx", fake_download)
+        _patch_series_scraper(monkeypatch, {"plugin.example": PluginScraper()})
+        _patch_chapter_scraper(
+            monkeypatch, {"plugin.example": PluginChapterScraper()}
+        )
+
+        status, _ = await cli.process_url(
+            url="https://plugin.example/chapter/7",
+            output_dir=Path(tmp_path),
+            concurrency=1,
+            force=False,
+            quiet=True,
+        )
+        assert status == "downloaded"
+
+    @pytest.mark.asyncio
     async def test_generic_disabled_restores_unsupported_url(self, monkeypatch, tmp_path):
         fake = _FakeGeneric("gallery")
         _patch_generic(monkeypatch, fake)
@@ -303,6 +374,33 @@ class TestPreviewUrl:
         assert entry["action"] == "error"
         assert "Unsupported URL" in entry["detail"]
         assert fake.detect_calls == []
+
+    @pytest.mark.asyncio
+    async def test_plugin_series_url_preview_via_matches_series_url(
+        self, monkeypatch, tmp_path
+    ):
+        """Dry-run preview routes plugin series URLs the same way process_url does."""
+
+        class PluginScraper:
+            def matches_series_url(self, url):
+                return url.startswith("https://plugin.example/manga/")
+
+            async def scrape_series(self, url, _client):
+                return SeriesMetadata(
+                    series_title="Plugin Series",
+                    chapters=[
+                        {"title": "Chapter 1", "url": GALLERY_URL, "episode_no": "1"},
+                        {"title": "Chapter 2", "url": GALLERY_URL, "episode_no": "2"},
+                    ],
+                )
+
+        _patch_series_scraper(monkeypatch, {"plugin.example": PluginScraper()})
+        _patch_chapter_scraper(monkeypatch, {})
+
+        entry = await cli._preview_url("https://plugin.example/manga/foo", index={}, force=False)
+        assert entry["kind"] == "series"
+        assert entry["title"] == "Plugin Series"
+        assert entry["detail"] == "2 chapters"
 
 
 class TestLibraryUpdate:

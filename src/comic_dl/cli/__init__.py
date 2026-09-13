@@ -1661,12 +1661,10 @@ async def process_url(
     trace(f"dispatch: host → {domain or '<none>'}")
 
     series_scraper = get_series_scraper(domain)
-    # The same checkers drive the dry-run preview path via _SERIES_URL_CHECKERS.
-    series_check = (
-        _SERIES_URL_CHECKERS.get(domain)
-        if series_scraper is not None
-        else None
-    )
+    # The same checkers drive the dry-run preview path via _SERIES_URL_CHECKERS,
+    # falling back to the source's own matches_series_url when the static map
+    # has no entry (plugins, mangadex, and the Madara family).
+    series_check = _series_url_checker(domain, series_scraper)
     if series_check is not None and series_check(url):
         trace(f"dispatch: {domain} → series mode ({type(series_scraper).__name__})")
         ok = await _process_series(
@@ -2824,6 +2822,23 @@ _SERIES_URL_CHECKERS = {
 }
 
 
+def _series_url_checker(
+    domain: str, series_scraper: object | None
+) -> Callable[[str], bool] | None:
+    """Series-URL predicate for ``domain``, static map then scraper's own.
+
+    The static map covers the handful of built-ins whose series grammar
+    predates the URL-aware sources. Every other series-capable source —
+    built-ins like mangadex and the Madara family, plus third-party plugins
+    — exposes ``matches_series_url`` on the instance, which is what makes
+    their series pages reachable at all.
+    """
+    checker = _SERIES_URL_CHECKERS.get(domain)
+    if checker is None and series_scraper is not None:
+        checker = getattr(series_scraper, "matches_series_url", None)
+    return checker
+
+
 def _classify_preview_entry(
     entry: dict, url: str, index: dict[str, Path], force: bool
 ) -> dict:
@@ -2873,7 +2888,7 @@ async def _preview_url(
 
     try:
         series_scraper = get_series_scraper(domain)
-        series_check = _SERIES_URL_CHECKERS.get(domain)
+        series_check = _series_url_checker(domain, series_scraper)
         if series_scraper is not None and series_check is not None and series_check(url):
             async with AsyncSession(**_with_referer(url)) as client:
                 info = await series_scraper.scrape_series(url, client)

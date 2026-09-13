@@ -144,6 +144,18 @@ class TestUrlPatterns:
         assert scraper.matches_url(f"https://mangadex.org/chapter/{CHAPTER_ID}")
         assert not scraper.matches_url("https://mangadex.org/")
 
+    def test_matches_series_url(self):
+        scraper = MangadexScraper()
+        assert scraper.matches_series_url(
+            f"https://mangadex.org/title/{MANGA_ID}"
+        )
+        assert scraper.matches_series_url(
+            f"https://mangadex.org/manga/{MANGA_ID}/"
+        )
+        assert not scraper.matches_series_url(
+            f"https://mangadex.org/chapter/{CHAPTER_ID}"
+        )
+
     def test_id_extraction(self):
         assert _extract_series_id(f"https://mangadex.org/title/{MANGA_ID}/") == MANGA_ID
         assert _extract_series_id(f"https://mangadex.org/manga/{MANGA_ID}") == MANGA_ID
