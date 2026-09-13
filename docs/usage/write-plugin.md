@@ -16,9 +16,10 @@ A plugin exports one or more `Source` classes. Each class implements:
 | :----- | :------- | :---------- |
 | `domain` | yes | Canonical host (e.g. `"mysite.example"`). One source owns one domain. |
 | `capabilities` | no | Set of `"chapter"` / `"series"`. Defaults to `{"chapter"}`. |
-| `name`, `version` | no | Shown by `--list-sources`. Default to class name / `"plugin"`. |
+| `name`, `version` | no | Shown by `comic-dl plugin list`. Default to class name / `"plugin"`. |
 | `priority` | no | `int`, default `0`. Set `> 0` to override a built-in for the same domain. |
 | `matches_url(url)` | no | Return `True` when this source handles `url`. Defaults to host matching. |
+| `matches_series_url(url)` | no | Return `True` when this source handles a *series* `url`. Defaults to host matching; only checked when the entry also advertises the `series` capability. |
 | `async scrape(url, client)` | if chapter | Fetch one gallery/chapter. Returns `PostMetadata`. |
 | `async scrape_series(url, client)` | if series | Fetch a series listing. Returns `SeriesMetadata`. |
 
@@ -91,6 +92,28 @@ class MySiteSource:
                 )
             ],
         )
+```
+
+For a series-capable plugin, add the `series` capability, a
+`matches_series_url`, and `scrape_series`:
+
+```python
+class MySiteSource:  # series variant
+    domain = "mysite.example"
+    capabilities = {"chapter", "series"}
+
+    def matches_series_url(self, url: str) -> bool:
+        return url.startswith("https://mysite.example/series/")
+
+    async def scrape_series(self, url, client) -> SeriesMetadata:
+        ...
+```
+
+The plugin manager validates this contract offline, so you can check a fresh
+plugin before installing it:
+
+```bash
+comic-dl plugin validate my_site/source.py
 ```
 
 A complete, installable reference plugin lives in

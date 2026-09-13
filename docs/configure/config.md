@@ -65,6 +65,8 @@ tmp-dir = ""                 # chapter staging dir; "" = system temp (set to a
 # Per-source overrides (host keys must be quoted)
 # [sources."kagane.to"]
 # rate = 0.8
+# mode = "auto"        # auto | impersonation | webview | off
+# impersonate = "chrome146"
 ```
 
 See [`examples/config.toml`](https://github.com/fallen020/comic-dl/blob/main/examples/config.toml)
@@ -88,8 +90,12 @@ for a fully documented example.
 Host-specific settings live in `[sources."<host>"]` tables. The host key
 **must be quoted** — unquoted `[sources.kagane.to]` would nest incorrectly.
 
-The supported per-host key is `rate`, which overrides both `[http] rate` and
-the built-in default for that host.
+The supported per-host keys are:
+- `rate` — requests/second, overrides both `[http] rate` and the built-in
+  default for that host.
+- `mode` — Cloudflare solver mode (`auto` | `impersonation` | `webview` | `off`),
+  overrides `[http] solver`.
+- `impersonate` — TLS/HTTP fingerprint profile, overrides `[http] impersonate`.
 
 ## Custom config path
 

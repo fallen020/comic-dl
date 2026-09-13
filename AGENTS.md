@@ -80,6 +80,9 @@ examples/                  # Sample config, plugin, URL list
   When editing code, only update comments if the behavior or rationale they
   describe has changed.
 - **Docs:** `docs/` is the single source of truth; `README.md` is a landing page.
+  When docs name a CLI surface (columns, flags, subcommands), verify the claim
+  against `src/` first. Never describe aspirational capabilities as present —
+  say the exact output (e.g. SOURCE · ORIGIN columns) or leave it out.
 - **Tests:** offline-only, must stay that way for deterministic CI.
 - **Tests:** assert on unwrapped content — Rich folds console output at 80
   cols on CI, splitting paths/phrases mid-token. Compare against

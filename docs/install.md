@@ -36,7 +36,7 @@ echo $env:PROCESSOR_ARCHITECTURE   # Windows PowerShell, prints AMD64 or ARM64
 
 | Your machine | What to get |
 | :----------- | :---------- |
-| Windows x86-64 | `comic-dl-<ver>-windows-amd64.zip` |
+| Windows x86-64 | `comic-dl-<ver>-windows-amd64.zip` (or the bare `.exe`) |
 | Debian / Ubuntu x86-64 | `comic-dl_<ver>_amd64.deb` |
 | Debian / Ubuntu ARM64 | `comic-dl_<ver>_arm64.deb` |
 | Fedora x86-64 / ARM64 | `comic-dl-<ver>-1.fcNN.x86_64.rpm` / `...aarch64.rpm` |
@@ -50,7 +50,8 @@ system.
 ## Windows
 
 Download the `comic-dl-<ver>-windows-amd64.zip` from the release page,
-unzip it, and run `comic-dl.exe` from a terminal:
+unzip it, and run `comic-dl.exe` from a terminal. A bare
+`comic-dl-<ver>-windows-amd64.exe` is also attached for direct use:
 
 ```powershell
 .\comic-dl.exe --version

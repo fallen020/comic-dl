@@ -54,8 +54,10 @@ Calibre, Komga, Kavita, and other comic readers.
 | Unknown | Element omitted |
 
 Japanese manga and doujinshi read right-to-left. Korean manhwa, Chinese
-manhua, WEBTOON, and western comics read left-to-right. When a site does not
-expose a direction, the element is omitted.
+manhua, WEBTOON, and western comics read left-to-right. comic-dl derives the
+direction only where a site's genre/tags make it reliable (e-hentai,
+FlameComics); the other built-ins hardcode left-to-right for their manhwa/
+webtoon catalogues. When no direction is known, the element is omitted.
 
 ## Comic status
 

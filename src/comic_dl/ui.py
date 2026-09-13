@@ -1925,8 +1925,8 @@ def render_sources_table(
 ) -> None:
     """Print the supported-sources table (non-interactive path).
 
-    Columns: SOURCE · CAPABILITIES · ORIGIN. Shared by ``--list-sources``
-    and the unsupported-URL error listing so the two never drift apart.
+    Columns: SOURCE · ORIGIN. Shared by ``--list-sources`` and the
+    unsupported-URL error listing so the two never drift apart.
     Defaults to stdout (``--list-sources`` is a result); error-path callers
     pass ``err_console``.
     """

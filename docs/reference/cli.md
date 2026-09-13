@@ -8,6 +8,7 @@ given a URL.
 ```
 comic-dl [OPTIONS]
 comic-dl -u <URL> [OPTIONS]
+comic-dl <URL> [OPTIONS]
 comic-dl -f <FILE> [OPTIONS]
 comic-dl <COMMAND> [ARGS]
 ```
@@ -19,6 +20,7 @@ comic-dl <COMMAND> [ARGS]
 | Command | Description |
 | :------ | :---------- |
 | `comic-dl -u <URL>` | Download a single gallery/series URL |
+| `comic-dl <URL>` | Same as `-u <URL>` (positional shorthand) |
 | `comic-dl -f <FILE>` | Download URLs from a text file (one per line) |
 | `comic-dl` (no args) | Interactive prompt (requires a TTY) |
 
@@ -59,6 +61,9 @@ comic-dl <COMMAND> [ARGS]
 | Command | Description |
 | :------ | :---------- |
 | `comic-dl --list-sources [--json] [--plugin] [QUERY]` | List/search supported sites |
+| `comic-dl plugin list [--json]` | List installed third-party sources (including broken ones) |
+| `comic-dl plugin validate <PATH>` | Shape-check a plugin's `Source` class offline |
+| `comic-dl plugin scaffold <NAME> [--domain HOST]` | Generate a plugin package skeleton |
 | `comic-dl completion bash\|zsh\|fish` | Print shell completion script |
 | `comic-dl help [COMMAND]` | Show help |
 | `comic-dl --version` | Show version and exit |
@@ -96,6 +101,7 @@ Series in parallel still pass through the per-host rate limiter, so raising
 | Flag | Default | Description |
 | :--- | :------ | :---------- |
 | `--force` | | Overwrite existing archives |
+| `--no-clobber` | | Never overwrite existing archives (default; conflicts with `--force`) |
 | `--max-image-size` | `100 MB` | Maximum size per image |
 | `--max-size` | `0` (unlimited) | Maximum total download size per run |
 | `--impersonate` | `chrome146` | TLS/HTTP impersonation profile |

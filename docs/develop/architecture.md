@@ -30,7 +30,6 @@ src/comic_dl/
   cache.py               scrape-response cache (TTL, ETag revalidation)
   rate.py                per-site request throttling (token bucket)
   cf.py                  Cloudflare challenge detection and solver routing
-  host_registry.py       known-protected hosts → recommended solver modes
   antibot.py             challenge classification + browser-driver fallback
   webview.py             system-webview Cloudflare solver (bundled pywebview)
   webview_solver.py      headless Cloudflare-challenge solver subprocess
@@ -56,6 +55,7 @@ src/comic_dl/
       manhwaz.py         Manhwaz scraper
       toonily.py         Toonily scraper
       kodokustudio.py    KodokuStudio scraper
+      weebcentral.py     WeebCentral scraper
 ```
 
 ## Data flow

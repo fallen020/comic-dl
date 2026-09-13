@@ -357,7 +357,7 @@
               compiles them into verified CBZ, ZIP, and CBT archives.
 
               ### What's in the box
-              - 12 built-in sources plus a plugin API (`comic-dl --list-sources`)
+              - 13 built-in sources plus a plugin API (`comic-dl --list-sources`)
               - Parallel downloads paced by a per-host rate limiter, with retry
                 and resume (`--concurrency`, SQLite library, `.partial` markers)
               - Verified archives: magic-byte checks, SHA-256 dedup, atomic

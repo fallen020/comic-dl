@@ -12,21 +12,40 @@ handles URLs matching its domain.
 ## Finding plugins
 
 ```bash
-comic-dl --list-sources
+comic-dl plugin list
 ```
 
-Lists every registered source, marking each as built-in or plugin and showing
-its capabilities (chapter / series).
+Lists every installed third-party source with its name, version, and
+capabilities (chapter / series). A plugin whose class fails to import is shown
+with the load error instead of silently disappearing.
+
+`comic-dl --list-sources` also lists every registered source (built-in and
+plugin) marked by origin, and `--list-sources --plugin` filters to plugins.
 
 ## Installing a plugin
 
-Install the plugin package into the same environment as comic-dl:
+Install the plugin package into the same environment as comic-dl (uv):
 
 ```bash
-pip install <plugin-package>
+uv pip install <plugin-package>
 ```
 
 Then restart the CLI — the new source is discovered automatically.
+
+## Validating and scaffolding a plugin
+
+```bash
+# Check a plugin's Source class shape before installing it
+comic-dl plugin validate path/to/source.py
+
+# Generate a package skeleton (pyproject.toml + source.py)
+comic-dl plugin scaffold my-site
+```
+
+`validate` inspects the file offline and reports contract violations (bad
+`domain`, unknown `capabilities`, missing `scrape`/`scrape_series`, ...).
+`scaffold` writes a ready-to-edit package, emits the correct entry point, and
+points you at the next steps.
 
 ## Plugin priority
 
