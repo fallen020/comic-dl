@@ -57,6 +57,15 @@ class SourceEntry:
 
 _sourcemap: dict[str, SourceEntry] = {}
 _loaded_plugins: set[str] = set()
+# Entry-point name -> reason, for plugins whose class failed to load. Kept
+# separate from _sourcemap so a broken plugin still shows up in `plugin list`
+# instead of vanishing silently.
+_plugin_load_errors: dict[str, str] = {}
+
+
+def _ep_key(ep: object) -> str:
+    """Stable identifier for an entry point (real ones expose ``name``)."""
+    return getattr(ep, "name", None) or getattr(ep, "value", None) or repr(ep)
 
 # The generic fallback scraper, stored apart from the domain map. It is
 # intentionally *not* a SourceEntry: domain-keyed lookups can never reach it,
@@ -194,6 +203,11 @@ def list_sources() -> list[SourceEntry]:
     return sorted(_sourcemap.values(), key=lambda e: e.domain)
 
 
+def plugin_load_errors() -> dict[str, str]:
+    """Copy of per-entry-point plugin load failures (``name -> reason``)."""
+    return dict(_plugin_load_errors)
+
+
 def _netloc_of(url: str) -> str:
     parsed = urlparse(url)
     host = parsed.hostname or parsed.netloc.split(":")[0]
@@ -244,9 +258,12 @@ def load_plugins(group: str = ENTRY_POINT_GROUP) -> list[SourceEntry]:
     for ep in eps:
         try:
             loaded = ep.load()
-        # A broken plugin must not sink the CLI.
-        except Exception:  # nosec B112
+        except Exception as exc:
+            # A broken plugin must not sink the CLI, but its failure is
+            # recorded so `plugin list` can point the author at it.
+            _plugin_load_errors[_ep_key(ep)] = f"{type(exc).__name__}: {exc}"
             continue
+        _plugin_load_errors.pop(_ep_key(ep), None)
         classes = loaded if isinstance(loaded, (list, tuple)) else [loaded]
         for cls in classes:
             if not isinstance(cls, type):

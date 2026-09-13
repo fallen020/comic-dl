@@ -208,6 +208,7 @@ from ..utils import (
 )
 from .library import COMMANDS as _LIBRARY_COMMANDS
 from .library import _resolve_series, run_library_command
+from .plugins import run_plugin_command
 from .selection import (
     ChapterSelection,
     ChapterSelectionQuit,
@@ -4032,7 +4033,8 @@ def _unknown_command(command: str) -> int:
         command,
         sorted(
             set(_LIBRARY_COMMANDS)
-            | {"update", "list-sources", "cookie", "cache", "config", "completion", "help"}
+            | {"update", "list-sources", "cookie", "cache", "config",
+               "plugin", "completion", "help"}
         ),
     )
     if hint and hint != command:
@@ -4319,7 +4321,8 @@ def _completion_commands() -> list[str]:
     """Top-level command names, for completion candidates."""
     return sorted(
         set(_LIBRARY_COMMANDS)
-        | {"update", "list-sources", "cookie", "cache", "config", "completion", "help"}
+        | {"update", "list-sources", "cookie", "cache", "config",
+           "plugin", "completion", "help"}
     )
 
 
@@ -4348,6 +4351,7 @@ _comic_dl_complete() {{
         cookie) COMPREPLY=($(compgen -W "ls set clear" -- "${{cur}}")); return ;;
         cache)  COMPREPLY=($(compgen -W "clear status" -- "${{cur}}")); return ;;
         config) COMPREPLY=($(compgen -W "path show init --force" -- "${{cur}}")); return ;;
+        plugin) COMPREPLY=($(compgen -W "list validate scaffold" -- "${{cur}}")); return ;;
         list-sources) COMPREPLY=($(compgen -W "--json --plugin" -- "${{cur}}")); return ;;
         help)   COMPREPLY=($(compgen -W "{commands}" -- "${{cur}}")); return ;;
     esac
@@ -4370,6 +4374,7 @@ _comic_dl() {{
         cookie) compadd -- ls set clear --json --expires -y --yes ;;
         cache)  compadd -- clear status ;;
         config) compadd -- path show init --force ;;
+        plugin) compadd -- list validate scaffold ;;
         list-sources) compadd -- --json --plugin ;;
         help)   compadd -- {commands} ;;
         *)      compadd -- ${{flags[@]}} ;;
@@ -4387,6 +4392,7 @@ complete -c comic-dl -n "__fish_seen_subcommand_from update" -a "{update_flags}"
 complete -c comic-dl -n "__fish_seen_subcommand_from cookie" -a "ls set clear"
 complete -c comic-dl -n "__fish_seen_subcommand_from cache" -a "clear status"
 complete -c comic-dl -n "__fish_seen_subcommand_from config" -a "path show init"
+complete -c comic-dl -n "__fish_seen_subcommand_from plugin" -a "list validate scaffold"
 complete -c comic-dl -n "__fish_seen_subcommand_from list-sources" -a "--json --plugin"
 complete -c comic-dl -n "__fish_seen_subcommand_from help" -a "{commands}"
 complete -c comic-dl -n "not __fish_use_subcommand" -a "{lib_flags}"
@@ -4439,6 +4445,8 @@ async def _run_help(argv: list[str]) -> int:
         return await asyncio.to_thread(_run_cache, ["--help"])
     if command == "config":
         return await asyncio.to_thread(_run_config, ["--help"])
+    if command == "plugin":
+        return await asyncio.to_thread(run_plugin_command, "list", ["--help"])
     if command == "completion":
         return await asyncio.to_thread(_run_completion, ["--help"])
     return _unknown_command(command)
@@ -4605,6 +4613,15 @@ async def main() -> int:
                 return await _run_help(argv[1:])
             if command == "config":
                 return await asyncio.to_thread(_run_config, argv[1:])
+            if command == "plugin":
+                sub = argv[1] if len(argv) > 1 else ""
+                if sub in ("list", "validate", "scaffold"):
+                    return await asyncio.to_thread(
+                        run_plugin_command, sub, argv[2:]
+                    )
+                return await asyncio.to_thread(
+                    run_plugin_command, "list", ["--help"]
+                )
             if command == "completion":
                 return await asyncio.to_thread(_run_completion, argv[1:])
             if command == "list-sources" or "--list-sources" in argv:
