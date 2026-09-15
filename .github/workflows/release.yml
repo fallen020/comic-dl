@@ -345,55 +345,31 @@
           run: |
             cd dist
             sha256sum * > SHA256SUMS
+        - name: Extract changelog entry
+          id: changelog
+          run: |
+            ver="${VER#v}"
+            # Grab the section for this version (from its heading to the next
+            # ## heading or EOF).  The heading format is: ## [vX.Y.Z] - DATE
+            entry=$(awk -v pat="## [v${ver}]" '
+              /^## \[/ {
+                if (found) exit
+                if (index($0, pat) == 1) found=1
+              }
+              found { print }
+            ' CHANGELOG.md)
+            if [[ -z "$entry" ]]; then
+              echo "warning: no changelog entry for $ver" >&2
+              entry="No changelog entry found for this version."
+            fi
+            # Write to file to avoid shell quoting issues in the multiline body.
+            echo "$entry" > /tmp/changelog-body.md
         - name: Publish GitHub Release
           uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
           with:
             tag_name: ${{ env.VER }}
             name: comic-dl ${{ env.VER }}
-            body: |
-              ## comic-dl ${{ env.VER }}
-
-              Downloads comic/manga galleries from supported websites and
-              compiles them into verified CBZ, ZIP, and CBT archives.
-
-              ### What's in the box
-              - 13 built-in sources plus a plugin API (`comic-dl --list-sources`)
-              - Parallel downloads paced by a per-host rate limiter, with retry
-                and resume (`--concurrency`, SQLite library, `.partial` markers)
-              - Verified archives: magic-byte checks, SHA-256 dedup, atomic
-                writes, `ComicInfo.xml` metadata at series and chapter level
-              - Cloudflare handling: TLS/HTTP impersonation and a system-webview
-                solver for managed challenges
-              - SSRF-hardened outbound traffic; retries back off politely
-              - Offline-safe automated test suite (no live network in CI)
-
-              ### Install
-              - Python package: download the wheel or sdist below and
-                `pip install <file>` (Python 3.11+). PyPI publishing is enabled
-                by a trusted publisher only when one is configured; the artifacts
-                on this release are always installable directly.
-              - Windows: `comic-dl-${{ env.VER }}-windows-amd64.zip` (standalone exe)
-              - Linux: `.deb` (Debian/Ubuntu, amd64+arm64), `.rpm`
-                (Fedora/RHEL, amd64+arm64, named with the Fedora build marker
-                like `-1.fc44.`), `.pkg.tar.zst` (Arch, amd64)
-              - See docs/ for per-platform commands
-
-              ### Known limitations
-              - Windows ARM64 and macOS binaries are not shipped yet — use `uvx`
-              - The Windows binary carries no Authenticode signature (SLSA
-                provenance below still applies to it)
-              - Early maturity — read the README status banner before use
-
-              All artifacts are checksummed in `SHA256SUMS` and carry SLSA
-              build-provenance attestations (Sigstore, keyless). Verify any
-              downloaded file with the [GitHub CLI](https://cli.github.com):
-
-              ```sh
-              gh attestation verify <file> --repo fallen020/comic-dl
-              ```
-
-              A passing check proves the file was built by this repository's
-              release workflow from the tagged source — no keys to manage.
+            body_path: /tmp/changelog-body.md
             files: dist/*
             generate_release_notes: true
 
