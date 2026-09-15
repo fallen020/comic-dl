@@ -27,3 +27,11 @@ updates:
     open-pull-requests-limit: 5
     labels:
       - "github-actions"
+
+  - package-ecosystem: "npm"
+    directory: "/website"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"

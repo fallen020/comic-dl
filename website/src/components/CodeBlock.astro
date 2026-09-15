@@ -1,0 +1,30 @@
+---
+import { codeToHtml } from 'shiki';
+
+interface Props {
+  code: string;
+  lang?: string;
+  filename?: string;
+}
+
+const { code, lang = 'bash', filename } = Astro.props;
+
+const html = await codeToHtml(code, {
+  lang,
+  themes: { light: 'github-light', dark: 'github-dark' },
+  defaultColor: false,
+  wrap: false,
+});
+---
+<div data-codeblock class="codeblock">
+  <div class="codeblock-header">
+    <span class="codeblock-lang">{filename ?? lang}</span>
+    <button
+      type="button"
+      class="code-copy"
+      aria-label="Copy to clipboard"
+      data-copy-hook
+    >Copy</button>
+  </div>
+  <Fragment set:html={html} />
+</div>

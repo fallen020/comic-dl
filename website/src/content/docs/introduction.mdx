@@ -1,0 +1,56 @@
+---
+title: Introduction
+description: What comic-dl is, what it does, and whether it fits your setup.
+order: 10
+section: Getting Started
+---
+
+comic-dl is a command-line downloader for comics and manga. It scrapes supported sites with built-in adapters, fetches galleries page by page under configurable concurrency, and packages the result into CBZ, ZIP, or CBT archives ready for your reader.
+
+## What it does
+
+Given the URL of a gallery, chapter, or series, comic-dl:
+
+1. resolves the URL to a scraper and reads the page metadata
+2. downloads each page image, `5` at a time by default
+3. verifies every response is an image
+4. packs the images into an archive with a `ComicInfo.xml`
+5. records the download so future runs can skip it
+
+```bash
+comic-dl -u "https://mangadex.org/title/<manga-uuid>"
+```
+
+The saved path is printed when a download completes.
+
+## Features
+
+- Built-in adapters plus a generic HTML fallback for unrecognized sites
+- Interactive chapter picker, or scriptable `--chapters 1-3,5` selection
+- Interrupted downloads resume from the intact pages already on disk
+- Per-site rate limiting and shared retry cooldown for polite scraping
+- `ComicInfo.xml` metadata embedded in generated archives
+- CBZ, ZIP, and CBT output formats
+- Linux and Windows support; no account required unless the source site requires one
+
+## When to use comic-dl
+
+Use it when you want to download content from a [supported site](../reference/supported-sites) in a repeatable, scriptable way — one-off galleries, whole series, or nightly updates run from cron.
+
+## A note on maturity
+
+<Warning title="Early release">
+
+comic-dl is an early release (`0.0.x`). Command-line options, configuration, and site support may change between releases. Reference this documentation for the version you have installed.
+
+</Warning>
+
+## Responsible use
+
+Use comic-dl only for content you are authorized to access. Respect terms of service, robots policies, copyright law, and the rights of content creators and publishers. comic-dl does not encourage bypassing authentication, paywalls, or other access controls.
+
+## Next
+
+- [Installation](../installation) — get comic-dl on your machine
+- [Quick Start](../quick-start) — first download in minutes
+- [Supported Sites](../reference/supported-sites) — what sources are available

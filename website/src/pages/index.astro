@@ -1,0 +1,105 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Header from '../components/Header.astro';
+import CodeBlock from '../components/CodeBlock.astro';
+import { ArrowRight, BookDown, Download, Rocket, Globe } from '@lucide/astro';
+import { pagePath } from '../utils/base';
+const heroCommand = `$ comic-dl -u "https://mangadex.org/title/<manga-uuid>"
+
+Resolved Mangadex series: <Series Title>
+Queued 12 chapters
+...
+
+Saved to ~/Downloads/comic-dl/<Series Title>/`;
+---
+<BaseLayout
+  title="comic-dl"
+  description="A command-line downloader for comics and manga. Download from supported sites and package into CBZ, ZIP, or CBT archives."
+>
+  <Header />
+
+  <main class="mx-auto flex w-full max-w-4xl flex-col items-center px-4 pb-24 pt-16 sm:px-6 sm:pt-24">
+    <a
+      href="https://github.com/fallen020/comic-dl/releases"
+      target="_blank"
+      rel="noopener noreferrer"
+      class="mb-6 inline-flex items-center gap-2 rounded-full border border-line bg-surface-1 px-3 py-1 text-xs text-fg-secondary no-underline transition-colors hover:border-accent hover:text-fg"
+    >
+      <span class="h-1.5 w-1.5 rounded-full bg-tip-border" aria-hidden="true"></span>
+      Early release — 0.0.x. CLI options may change.
+    </a>
+
+    <h1 class="text-center text-4xl font-bold tracking-tight text-fg sm:text-5xl">
+      A command-line downloader for comics and manga.
+    </h1>
+    <p class="mt-4 max-w-xl text-center text-lg text-fg-secondary">
+      comic-dl downloads galleries from supported sites, page by page, and packages them into CBZ,
+      ZIP, or CBT archives — ready for your reader.
+    </p>
+
+    <div class="mt-8 flex flex-wrap items-center justify-center gap-3">
+      <a
+        href={pagePath(`docs/quick-start`)}
+        class="inline-flex items-center gap-2 rounded-md bg-accent px-4 py-2 text-sm font-semibold text-surface no-underline transition-opacity hover:opacity-90"
+      >
+        <Rocket size={16} aria-hidden="true" />
+        Get Started
+      </a>
+      <a
+        href={pagePath(`docs/reference/cli`)}
+        class="inline-flex items-center gap-2 rounded-md border border-line bg-surface-1 px-4 py-2 text-sm font-medium text-fg no-underline transition-colors hover:border-accent hover:text-accent"
+      >
+        <BookDown size={16} aria-hidden="true" />
+        CLI Reference
+      </a>
+    </div>
+
+    <div class="mt-12 w-full">
+      <CodeBlock code={heroCommand} lang="bash" filename="terminal" />
+    </div>
+
+    <nav aria-label="Quick links" class="mt-10 grid w-full grid-cols-1 gap-3 sm:grid-cols-3">
+      <a
+        href={pagePath(`docs/installation`)}
+        class="group rounded-lg border border-line bg-surface-1 p-4 no-underline transition-colors hover:border-accent"
+      >
+        <Download size={18} class="text-accent" aria-hidden="true" />
+        <p class="mt-2 text-sm font-medium text-fg">Install</p>
+        <p class="mt-0.5 text-xs text-fg-secondary">Binaries or from source</p>
+      </a>
+      <a
+        href={pagePath(`docs/quick-start`)}
+        class="group rounded-lg border border-line bg-surface-1 p-4 no-underline transition-colors hover:border-accent"
+      >
+        <Rocket size={18} class="text-accent" aria-hidden="true" />
+        <p class="mt-2 text-sm font-medium text-fg">Quick Start</p>
+        <p class="mt-0.5 text-xs text-fg-secondary">First download in minutes</p>
+      </a>
+      <a
+        href={pagePath(`docs/reference/supported-sites`)}
+        class="group rounded-lg border border-line bg-surface-1 p-4 no-underline transition-colors hover:border-accent"
+      >
+        <Globe size={18} class="text-accent" aria-hidden="true" />
+        <p class="mt-2 text-sm font-medium text-fg">Supported Sites</p>
+        <p class="mt-0.5 text-xs text-fg-secondary">13 built-in scrapers</p>
+      </a>
+    </nav>
+  </main>
+
+  <footer class="border-t border-line">
+    <div class="mx-auto flex w-full max-w-4xl flex-col items-center justify-between gap-2 px-4 py-6 text-xs text-fg-muted sm:flex-row sm:px-6">
+      <p>comic-dl is MIT-licensed.</p>
+      <p class="flex items-center gap-4">
+        <a href={pagePath(`docs/introduction`)} class="hover:text-fg">Docs</a>
+        <a href="https://github.com/fallen020/comic-dl" target="_blank" rel="noopener noreferrer" class="hover:text-fg">
+          Source <ArrowRight size={12} class="inline" aria-hidden="true" />
+        </a>
+      </p>
+    </div>
+  </footer>
+
+  <script>
+    import { enhanceCodeBlocks } from '../scripts/copy';
+    enhanceCodeBlocks();
+  </script>
+</BaseLayout>

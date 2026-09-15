@@ -1,0 +1,27 @@
+---
+interface Heading {
+  depth: number;
+  slug: string;
+  text: string;
+}
+interface Props {
+  headings: Heading[];
+}
+const { headings } = Astro.props;
+const items = headings.filter((h) => h.depth >= 2 && h.depth <= 3);
+---
+{items.length > 0 && (
+  <nav aria-label="On this page">
+    <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-fg-muted">On this page</p>
+    <ul>
+      {items.map((h) => (
+        <li>
+          <a
+            href={`#${h.slug}`}
+            class={`toc-link ${h.depth === 3 ? 'ml-3' : ''}`}
+          >{h.text}</a>
+        </li>
+      ))}
+    </ul>
+  </nav>
+)}

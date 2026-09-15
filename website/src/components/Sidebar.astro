@@ -1,0 +1,66 @@
+---
+import { getCollection } from 'astro:content';
+import type { CollectionEntry } from 'astro:content';
+import { pagePath } from '../utils/base';
+
+interface Props {
+  currentId: string;
+}
+
+type Doc = CollectionEntry<'docs'>;
+
+const { currentId } = Astro.props;
+
+const entries = (await getCollection('docs')).sort((a, b) => a.data.order - b.data.order);
+
+interface Group {
+  label: string;
+  order: number;
+  items: Doc[];
+}
+
+const groups = new Map<string | null, Group>();
+for (const entry of entries) {
+  const label = entry.data.section ?? null;
+  if (!groups.has(label)) {
+    groups.set(label, { label: label ?? '', order: entry.data.order, items: [] });
+  }
+  const g = groups.get(label)!;
+  g.items.push(entry);
+  if (entry.data.order < g.order) g.order = entry.data.order;
+}
+
+const orderedGroups = Array.from(groups.values()).sort((a, b) => a.order - b.order);
+---
+<nav id="docs-nav" aria-label="Documentation" class="px-1">
+  {orderedGroups.map((group) => (
+    <div class="mb-6">
+      {group.label && (
+        <p class="mb-2 px-2 text-xs font-semibold uppercase tracking-wide text-fg-muted">
+          {group.label}
+        </p>
+      )}
+      <ul class="space-y-0.5">
+        {group.items.map((entry) => {
+          const active = entry.id === currentId;
+          const href = pagePath(`docs/${entry.id}`);
+          return (
+            <li>
+              <a
+                href={href}
+                aria-current={active ? 'page' : undefined}
+                class={`block rounded px-2 py-1.5 text-sm no-underline transition-colors ${
+                  active
+                    ? 'bg-accent-dim/15 text-accent font-medium'
+                    : 'text-fg-secondary hover:bg-surface-2 hover:text-fg'
+                }`}
+              >
+                {entry.data.title}
+              </a>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  ))}
+</nav>

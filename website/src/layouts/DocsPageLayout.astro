@@ -1,0 +1,37 @@
+---
+import BaseLayout from './BaseLayout.astro';
+import DocsLayout from '../components/DocsLayout.astro';
+import { getCollection } from 'astro:content';
+import type { CollectionEntry } from 'astro:content';
+
+interface Heading {
+  depth: number;
+  slug: string;
+  text: string;
+}
+interface Props {
+  entry: CollectionEntry<'docs'>;
+  headings: Heading[];
+}
+
+const { entry, headings } = Astro.props;
+
+const all = (await getCollection('docs')).sort((a, b) => a.data.order - b.data.order);
+const idx = all.findIndex((e) => e.id === entry.id);
+const prev = idx > 0 ? all[idx - 1] : undefined;
+const next = idx >= 0 && idx < all.length - 1 ? all[idx + 1] : undefined;
+const pageLink = (e?: CollectionEntry<'docs'>) =>
+  e ? { id: e.id, title: e.data.title } : undefined;
+---
+<BaseLayout title={entry.data.title} description={entry.data.description}>
+  <DocsLayout
+    title={entry.data.title}
+    description={entry.data.description}
+    headings={headings}
+    currentId={entry.id}
+    prev={pageLink(prev)}
+    next={pageLink(next)}
+  >
+    <slot />
+  </DocsLayout>
+</BaseLayout>

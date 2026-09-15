@@ -1,0 +1,35 @@
+---
+import { getCollection, render } from 'astro:content';
+import DocsPageLayout from '../../layouts/DocsPageLayout.astro';
+import Note from '../../components/Note.astro';
+import Warning from '../../components/Warning.astro';
+import Tip from '../../components/Tip.astro';
+import Steps from '../../components/Steps.astro';
+import Tabs from '../../components/Tabs.astro';
+import Badge from '../../components/Badge.astro';
+import CodeBlock from '../../components/CodeBlock.astro';
+
+export async function getStaticPaths() {
+  const entries = await getCollection('docs');
+  return entries.map((entry) => ({
+    params: { slug: entry.id },
+    props: { entry },
+  }));
+}
+
+const { entry } = Astro.props;
+const { Content, headings } = await render(entry);
+---
+<DocsPageLayout entry={entry} headings={headings}>
+  <Content
+    components={{
+      Note,
+      Warning,
+      Tip,
+      Steps,
+      Tabs,
+      Badge,
+      CodeBlock,
+    }}
+  />
+</DocsPageLayout>

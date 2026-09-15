@@ -1,0 +1,48 @@
+---
+import { Menu, ArrowUpRight, BookOpen } from '@lucide/astro';
+import Search from './Search.astro';
+import ThemeToggle from './ThemeToggle.astro';
+import { siteBase } from '../utils/base';
+
+interface Props {
+  showMenu?: boolean;
+}
+
+const { showMenu = false } = Astro.props;
+---
+<header class="sticky top-0 z-30 border-b border-line bg-surface/80 backdrop-blur">
+  <div class="mx-auto flex h-14 max-w-[1440px] items-center gap-2 px-4 sm:px-6">
+    {showMenu && (
+      <button
+        type="button"
+        data-sidebar-toggle
+        aria-label="Toggle navigation"
+        aria-expanded="false"
+        aria-controls="docs-nav"
+        class="inline-flex items-center rounded border border-line bg-surface-1 p-2 text-fg-secondary transition-colors hover:text-fg lg:hidden"
+      >
+        <Menu size={18} aria-hidden="true" />
+      </button>
+    )}
+    <a
+      href={siteBase}
+      class="flex items-center gap-2 font-mono text-lg font-semibold tracking-tight text-fg no-underline"
+    >
+      <BookOpen size={18} class="text-accent" aria-hidden="true" />
+      <span>comic-dl</span>
+    </a>
+    <div class="ml-auto flex items-center gap-2">
+      <Search />
+      <a
+        href="https://github.com/fallen020/comic-dl"
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="comic-dl on GitHub"
+        class="inline-flex items-center rounded border border-line bg-surface-1 p-1.5 text-fg-secondary transition-colors hover:text-fg"
+      >
+        <ArrowUpRight size={16} aria-hidden="true" />
+      </a>
+      <ThemeToggle />
+    </div>
+  </div>
+</header>

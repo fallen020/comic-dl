@@ -1,0 +1,29 @@
+---
+import { Sun, Moon } from '@lucide/astro';
+---
+<button
+  type="button"
+  data-theme-toggle
+  class="inline-flex items-center rounded border border-line bg-surface-1 p-1.5 text-fg-secondary transition-colors hover:text-fg"
+  aria-label="Switch to light theme"
+>
+  <span class="block dark:hidden"><Sun size={16} /></span>
+  <span class="hidden dark:block"><Moon size={16} /></span>
+</button>
+<script is:inline>
+(() => {
+  const btn = document.querySelector('[data-theme-toggle]');
+  if (!btn) return;
+  function updateLabel() {
+    const dark = document.documentElement.getAttribute('data-theme') === 'dark';
+    btn.setAttribute('aria-label', dark ? 'Switch to light theme' : 'Switch to dark theme');
+  }
+  btn.addEventListener('click', () => {
+    const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+    try { localStorage.setItem('theme', next); } catch {}
+    updateLabel();
+  });
+  updateLabel();
+})();
+</script>

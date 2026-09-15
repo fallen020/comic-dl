@@ -1,0 +1,116 @@
+---
+import Header from './Header.astro';
+import Sidebar from './Sidebar.astro';
+import TableOfContents from './TableOfContents.astro';
+import { ArrowLeft, ArrowRight } from '@lucide/astro';
+import { pagePath } from '../utils/base';
+
+interface PageLink {
+  id: string;
+  title: string;
+}
+interface Heading {
+  depth: number;
+  slug: string;
+  text: string;
+}
+interface Props {
+  title: string;
+  description?: string;
+  headings: Heading[];
+  currentId: string;
+  prev?: PageLink;
+  next?: PageLink;
+}
+
+const { title, description, headings, currentId, prev, next } = Astro.props;
+const docHref = (id: string) => pagePath(`docs/${id}`);
+---
+<div class="flex min-h-screen flex-col">
+  <Header showMenu />
+
+  <div class="lg:mx-auto lg:w-full lg:max-w-[1440px] lg:grid lg:grid-cols-[260px_minmax(0,1fr)] lg:gap-8 xl:grid-cols-[260px_minmax(0,1fr)_220px]">
+    <!-- Desktop sidebar -->
+    <div class="hidden lg:block">
+      <div class="sticky top-14 max-h-[calc(100vh-3.5rem)] overflow-y-auto py-8 lg:pl-4">
+        <Sidebar currentId={currentId} />
+      </div>
+    </div>
+
+    <!-- Mobile drawer -->
+    <div data-sidebar-backdrop class="fixed inset-0 z-40 hidden bg-black/60 lg:hidden" aria-hidden="true"></div>
+    <aside
+      data-sidebar-drawer
+      class="fixed inset-y-0 left-0 z-50 w-72 -translate-x-full overflow-y-auto border-r border-line bg-surface px-4 py-4 transition-transform duration-200 lg:hidden"
+      aria-label="Documentation navigation"
+    >
+      <Sidebar currentId={currentId} />
+    </aside>
+
+    <!-- Content -->
+    <div class="min-w-0 px-4 py-8 sm:px-8 lg:px-0 lg:py-10 xl:px-4">
+      <article class="prose prose-docs">
+        <h1 class="!mt-0">{title}</h1>
+        {description && <p class="not-prose -mt-2 mb-6 text-base text-fg-secondary">{description}</p>}
+        <slot />
+      </article>
+
+      {(prev || next) && (
+        <nav aria-label="Page navigation" class="mt-12 flex items-stretch justify-between gap-4 border-t border-line pt-6">
+          {prev ? (
+            <a href={docHref(prev.id)} class="group min-w-0 basis-1/2 rounded-lg border border-line p-4 no-underline transition-colors hover:border-accent">
+              <span class="flex items-center gap-1 text-xs uppercase tracking-wide text-fg-muted group-hover:text-accent">
+                <ArrowLeft size={14} aria-hidden="true" /> Previous
+              </span>
+              <span class="mt-1 block truncate text-sm font-medium text-fg">{prev.title}</span>
+            </a>
+          ) : <span class="basis-1/2"></span>}
+          {next ? (
+            <a href={docHref(next.id)} class="group min-w-0 basis-1/2 rounded-lg border border-line p-4 text-right no-underline transition-colors hover:border-accent">
+              <span class="flex items-center justify-end gap-1 text-xs uppercase tracking-wide text-fg-muted group-hover:text-accent">
+                Next <ArrowRight size={14} aria-hidden="true" />
+              </span>
+              <span class="mt-1 block truncate text-sm font-medium text-fg">{next.title}</span>
+            </a>
+          ) : <span class="basis-1/2"></span>}
+        </nav>
+      )}
+    </div>
+
+    <!-- TOC -->
+    <div class="hidden xl:block">
+      <div class="sticky top-14 max-h-[calc(100vh-3.5rem)] overflow-y-auto py-8 pl-2">
+        <TableOfContents headings={headings} />
+      </div>
+    </div>
+  </div>
+</div>
+
+<script is:inline>
+(() => {
+  const toggle = document.querySelector('[data-sidebar-toggle]');
+  const drawer = document.querySelector('[data-sidebar-drawer]');
+  const backdrop = document.querySelector('[data-sidebar-backdrop]');
+  if (!toggle || !drawer || !backdrop) return;
+
+  const setOpen = (open) => {
+    drawer.classList.toggle('-translate-x-full', !open);
+    drawer.classList.toggle('shadow-2xl', open);
+    backdrop.classList.toggle('hidden', !open);
+    toggle.setAttribute('aria-expanded', String(open));
+    document.body.style.overflow = open ? 'hidden' : '';
+  };
+
+  toggle.addEventListener('click', () => setOpen(drawer.classList.contains('-translate-x-full')));
+  backdrop.addEventListener('click', () => setOpen(false));
+  drawer.querySelectorAll('a').forEach((a) => a.addEventListener('click', () => setOpen(false)));
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !backdrop.classList.contains('hidden')) setOpen(false);
+  });
+})();
+</script>
+
+<script>
+  import { enhanceCodeBlocks } from '../scripts/copy';
+  enhanceCodeBlocks();
+</script>
