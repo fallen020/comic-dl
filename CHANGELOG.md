@@ -5,6 +5,43 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org).
 
+## [v0.0.2] - 2026-09-15
+
+### Added
+
+- WeebCentral as a built-in source.
+- Bare positional URL shorthand: `comic-dl <url>` instead of `comic-dl -u <url>`.
+- `--chapters` flag now accepts canonical chapter numbers (including `0`).
+- `comic-dl plugin list`, `validate`, and `scaffold` commands for plugin
+  management.
+- Typo-aware "Did you mean" suggestions when a flag is misspelled.
+- Plugin and Madara series URLs routed via `matches_series_url`.
+
+### Fixed
+
+- Cloudflare replay sessions re-use cookies on blocked downloads.
+- FlameComics: correct series metadata derivation, deduplication, and chapter
+  sort order.
+- E-Hentai: URL parsing hardened, throttle recovery improved, size estimates
+  use display images.
+- Dry-run mode: series previews point at the real series folder path.
+- Asura Scans: friendly 404s and CDN host hardening.
+- WebTOON: episode number read from `data` attribute; duplicate helpers removed.
+- Diagnostic output sanitized at the error boundary; unified error taxonomy
+  across scrapers.
+- PyInstaller binary now bundles `banner.txt`.
+- `asyncio.as_completed` replaced in dry-run overlay to fix hanging tasks.
+- Parse errors, summary, and progress styling polished.
+
+### Security
+
+- Probe redirects validated before dispatch.
+- Cookie jar rejects public-suffix cookies; Secure flag enforced on replay.
+- Identity hashes use SHA-256 (replaced MD5).
+- Solver URL validated before use.
+- Download-path deduplication prevents staging-directory collisions across
+  chapters.
+
 ## [v0.0.1] - 2026-09-06
 
 First public release. comic-dl downloads comic and manga galleries from
