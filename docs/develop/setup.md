@@ -78,6 +78,11 @@ docstrings current when changing public contracts.
 
 ## Branching
 
-- Development happens on feature branches merged to `main` via reviewed PRs.
+- **`dev`** (unstable) — all work lands here via squash-merged feature PRs.
+  Fork feature branches from `dev`.
+- **`staging`** (validation) — frozen preview of what will ship, cut from `dev`
+  when release-ready.
+- **`main`** (production) — releases only; a new `vX.Y.Z` ships every Monday
+  from the validated `staging` state. See `releasing.md`.
 - CI runs tests, ruff, mypy, bandit, and `pip-audit` on every push/PR.
 - Heavier packaging is reserved for tagged releases.

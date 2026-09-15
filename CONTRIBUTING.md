@@ -19,7 +19,8 @@ This repository uses GitHub's built-in project management to organise work:
     [Supported Sites](docs/reference/supported-sites.md):
     `site:pawchive`, `site:e-hentai`, `site:webtoon`, `site:flamecomics`,
     `site:fsicomics`, `site:gedecomix`, `site:asurascans`, `site:kagane`,
-    `site:mangadex`, `site:toonily`, `site:manhwaz`, `site:kodokustudio` — mark which source a
+    `site:mangadex`, `site:toonily`, `site:manhwaz`, `site:kodokustudio`,
+    `site:weebcentral` — mark which source a
     report/PR touches
 - **Projects** — a kanban board (`Backlog → In progress → In review → Done`)
   mirrors the issue queue. Maintainers move cards as work proceeds.
@@ -82,26 +83,31 @@ for presence by ruff (rules `D100`–`D104` and `D106` via `scripts/lint.sh`).
 ## Making changes
 
 1. Ping the issue you're addressing, or open one first for larger changes.
-2. Work on a feature branch (`git checkout -b fix/descriptive-name`).
+2. Fork from `dev` and work on a feature branch (`git checkout -b fix/descriptive-name dev`).
 3. Keep changes focused. When you add a new supported site, also update
    `docs/reference/supported-sites.md` and add a scraper under `src/comic_dl/`.
 4. Add or update tests. Bug fixes need a regression test; new features need
    coverage of the new code path.
 5. Run the checks in the Scripts section (tests + lint + type check) before
    pushing.
-6. Open a pull request using the template.
+6. Open a pull request against `dev` using the template.
 
 ## Branching & CI
 
-- Development happens on **feature branches** merged to `main` via reviewed
-  pull requests.
+- **`dev`** (unstable) is where development lands. Feature branches fork from
+  `dev` and merge back via reviewed, squash-merged pull requests.
+- **`staging`** (validation) is cut from `dev` when the work is release-ready.
+  It exists to prove exactly what will ship — green CI, packaging smoke,
+  release checks — without holding up further `dev` work.
+- **`main`** (production) is protected: signed commits, linear history, no
+  force pushes. A new version is released to `main` every Monday from the
+  validated `staging` state; see
+  [`docs/develop/releasing.md`](docs/develop/releasing.md).
 - CI (`.github/workflows/ci.yml`) runs tests, ruff, mypy, bandit, and a
   dependency audit on every push/PR across Linux, macOS, and Windows.
 - Packaging (`.github/workflows/packaging.yml`) validates the distro packages
   and Windows exe on PRs; tags trigger the full release
   (`.github/workflows/release.yml`).
-- Once the repository is hosted, maintainers should enable **branch
-  protection** on `main` requiring a green CI run and a review before merge.
 - Releases follow the runbook in [`docs/develop/releasing.md`](docs/develop/releasing.md).
 
 ## Pull request checklist

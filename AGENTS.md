@@ -10,6 +10,10 @@ Upstream: `https://github.com/fallen020/comic-dl`, default branch `main`.
 Remote uses SSH (`git@github.com:fallen020/comic-dl.git`); HTTPS needs a
 PAT via the credential helper (password auth is dead).
 
+Three long-lived branches: `dev` (unstable, work lands here), `staging`
+(validation, mirrors what will ship), `main` (production, releases only).
+Feature branches fork from `dev` and merge back via squash PRs.
+
 ## Stack
 
 - Python >=3.11, managed with `uv`; package name `comic-dl`.
@@ -95,8 +99,14 @@ examples/                  # Sample config, plugin, URL list
 ## Git workflow
 
 - Conventional Commits: `feat:` `fix:` `docs:` `chore:` `perf:` `refactor:` `test:`
+- **Branch flow:** feature branches fork from `dev` and land there via squash
+  PRs. `dev` is unstable — integration and experiments happen here. When work
+  is release-ready, `staging` is cut from `dev` and validated (CI, packaging,
+  release smoke). `staging` proves what will ship without blocking `dev`.
 - `main` is protected: signed commits required, linear history, no force
   pushes or deletions. Land work via squash-merges (one commit per PR).
+  Every Monday, the validated `staging` state is released to `main` as a new
+  `vX.Y.Z` (Monday cadence in `docs/develop/releasing.md`).
 - After `git pull --rebase`, re-sign if the signature was dropped, then push.
 - Tags are GPG-signed and must equal `version` in `pyproject.toml`
   exactly (PEP 440, e.g. `v0.0.1` — never `v0.0.1-beta`; hyphens break

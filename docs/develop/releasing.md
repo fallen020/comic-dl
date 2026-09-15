@@ -43,19 +43,47 @@ Never bump the version by editing `_version.py` by hand — run
 `uv run scripts/write-version.py` (or a build) and commit the regenerated file
 along with the `pyproject.toml` bump.
 
+## Branch flow
+
+Releases ride a three-branch pipeline. Work doesn't land directly on `main`:
+
+```
+dev (unstable)  →  staging (validation)  →  main (production release)
+```
+
+- **`dev`** receives all work via squash-merged feature PRs. It is deliberately
+  unstable; integration and experiments happen here.
+- **`staging`** is cut from `dev` (or fast-forwarded) when the accumulated work
+  is release-ready. It is a frozen preview of what will ship. Validate it: full
+  CI matrix, packaging smoke (`.github/workflows/packaging.yml`), release
+  guards. Fix anything broken by merging the fix into `dev` first and
+  re-syncing `staging`.
+- **`main`** is production. Every Monday, a validated `staging` state is
+  released to `main` as a new `vX.Y.Z`. `staging` proves the release before it
+  blocks `dev`; `main` only ever gets a validated, tagged state.
+
+The release steps below are run from the validated `staging` branch.
+
 ## Before a release
 
-1. Merge reviewed changes to `main`.
-2. Confirm CI is green across all runner OSes.
+1. Fast-forward `staging` to the validated `dev` commit you intend to ship
+   (`git checkout staging && git merge --ff-only dev`), or open a `staging ←
+   dev` PR and squash-merge it. Pushing to `staging` triggers the normal PR CI
+   + `packaging.yml` checks, which act as the release smoke test.
+2. Confirm CI is green across all runner OSes, and `packaging.yml` passed
+   (distro install + Windows exe smoke).
 3. Write human-curated release notes on the tag's GitHub Release.
 4. Bump `version` in `pyproject.toml` to `MAJOR.MINOR.PATCH`.
 5. Regenerate the version module: `uv run scripts/write-version.py`, then commit
    the regenerated `src/comic_dl/_version.py`.
-6. Commit with `git commit -S -m "chore: release v1.4.0"`.
+6. Commit with `git commit -S -m "chore: release vX.Y.Z"`.
+7. Merge `staging` into `main` via a squash PR (or fast-forward after review),
+   then cut the tag from `main`.
 
 ## Cut the tag
 
 ```bash
+git checkout main && git pull
 git tag -s v1.4.0 -m "Release 1.4.0"
 git push origin v1.4.0
 ```
@@ -137,8 +165,10 @@ is updated with each tag. For each release:
 
 1. Write the curated `CHANGELOG.md` entry (group by Added / Changed /
    Deprecated / Removed / Fixed / Security, link to relevant `docs/` pages).
-2. GitHub auto-generates a draft release from merged PR titles/labels.
-3. Edit the draft to match the `CHANGELOG.md` entry, drop trivial commits.
+   `release.yml` publishes this entry verbatim as the GitHub Release body.
+2. GitHub auto-generates a "What's Changed" section from merged PR titles
+   and appends it.
+3. Review the published release; drop trivial commits if needed.
 4. Publish the release once CI artifacts are attached.
 
 ## Code signing
