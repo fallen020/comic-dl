@@ -68,7 +68,7 @@
             path: dist/*
             if-no-files-found: error
         - name: Attest build provenance (Sigstore, keyless)
-          uses: actions/attest-build-provenance@96b4a1ef7235a096b17240c259729fdd70c83d45 # v2
+          uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2
           with:
             subject-path: "dist/*"
 
@@ -157,7 +157,7 @@
         # Attest after validation: only packages that installed and
         # smoke-tested cleanly carry build provenance into the release.
         - name: Attest build provenance (Sigstore, keyless)
-          uses: actions/attest-build-provenance@96b4a1ef7235a096b17240c259729fdd70c83d45 # v2
+          uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2
           with:
             subject-path: "${{ matrix.outdir }}/*"
 
@@ -215,7 +215,7 @@
             path: out/*
             if-no-files-found: error
         - name: Attest build provenance (Sigstore, keyless)
-          uses: actions/attest-build-provenance@96b4a1ef7235a096b17240c259729fdd70c83d45 # v2
+          uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2
           with:
             subject-path: "out/*"
 

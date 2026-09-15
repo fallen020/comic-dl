@@ -39,9 +39,9 @@ jobs:
       - run: npm ci
       # Pagefind indexes the static output post-build.
       - run: npm run build:search
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/configure-pages@v6
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: website/dist
-      - uses: actions/deploy-pages@v4
+      - uses: actions/deploy-pages@v5
         id: deployment
