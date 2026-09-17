@@ -1,0 +1,70 @@
+---
+title: Plugins
+order: 440
+section: Usage
+---
+
+comic-dl sources are plugins. The built-in scrapers ship with the package, but
+any third party can add a site as a separate Python package.
+
+## How plugins work
+
+A plugin registers a `Source` class through the `comic_dl.sources` entry-point
+group. After installation, the source appears in `comic-dl --list-sources` and
+handles URLs matching its domain.
+
+## Finding plugins
+
+```bash
+comic-dl plugin list
+```
+
+Lists every installed third-party source with its name, version, and
+capabilities (chapter / series). A plugin whose class fails to import is shown
+with the load error instead of silently disappearing.
+
+`comic-dl --list-sources` also lists every registered source (built-in and
+plugin) marked by origin, and `--list-sources --plugin` filters to plugins.
+
+## Installing a plugin
+
+Install the plugin package into the same environment as comic-dl (uv):
+
+```bash
+uv pip install <plugin-package>
+```
+
+Then restart the CLI — the new source is discovered automatically.
+
+## Validating and scaffolding a plugin
+
+```bash
+# Check a plugin's Source class shape before installing it
+comic-dl plugin validate path/to/source.py
+
+# Generate a package skeleton (pyproject.toml + source.py)
+comic-dl plugin scaffold my-site
+```
+
+`validate` inspects the file offline and reports contract violations (bad
+`domain`, unknown `capabilities`, missing `scrape`/`scrape_series`, ...).
+`scaffold` writes a ready-to-edit package, emits the correct entry point, and
+points you at the next steps.
+
+## Plugin priority
+
+A domain can be owned by only one source. Built-ins register at priority `0`.
+A plugin with `priority > 0` overrides a built-in for the same domain.
+
+## Security
+
+Plugins are arbitrary code. A scraper plugin runs with your user account's
+privileges on every scrape. Only install plugins you trust and can audit.
+
+comic-dl enforces outbound-fetch invariants (redirect validation, no
+loopback/private targets) on its own helpers, but a deliberately malicious
+plugin is not constrained by those helpers.
+
+## Writing a plugin
+
+See [Writing a Plugin](../write-plugin) for the full guide with code examples.
