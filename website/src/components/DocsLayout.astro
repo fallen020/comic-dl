@@ -134,7 +134,9 @@ const docHref = (id: string) => docsPath(id);
 
 <script>
   import { enhanceCodeBlocks } from '../scripts/copy';
+  import { initScrollSpy } from '../scripts/scroll-spy';
   enhanceCodeBlocks();
+  initScrollSpy();
   document.querySelectorAll<HTMLTableElement>('.prose-docs table').forEach((table) => {
     const region = document.createElement('div');
     region.className = 'docs-table-scroll';

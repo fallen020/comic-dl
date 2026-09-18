@@ -4,7 +4,7 @@ import Header from '../components/Header.astro';
 import CodeBlock from '../components/CodeBlock.astro';
 import { BookDown, Download, Rocket, Globe } from '@lucide/astro';
 import BrandIcon from '../components/icons/BrandIcon.astro';
-import { docsPath, pagePath } from '../utils/base';
+import { docsPath } from '../utils/base';
 const heroCommand = 'comic-dl -u "<gallery-or-series-url>"';
 ---
 <BaseLayout
@@ -21,7 +21,7 @@ const heroCommand = 'comic-dl -u "<gallery-or-series-url>"';
       class="mb-6 inline-flex items-center gap-2 rounded-full border border-line bg-surface-1 px-3 py-1 text-xs text-fg-secondary no-underline transition-colors hover:border-accent hover:text-fg"
     >
       <span class="h-1.5 w-1.5 rounded-full bg-tip-border" aria-hidden="true"></span>
-      Early release — 0.0.x. CLI options may change.
+      Early release — CLI options may change.
     </a>
 
     <h1 class="text-center text-4xl font-bold tracking-tight text-fg sm:text-5xl">

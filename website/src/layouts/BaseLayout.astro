@@ -17,6 +17,10 @@ const fullTitle = title === siteTitle ? siteTitle : `${title} — comic-dl`;
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{fullTitle}</title>
     {description && <meta name="description" content={description} />}
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={fullTitle} />
+    {description && <meta property="og:description" content={description} />}
+    <meta name="twitter:card" content="summary" />
     <link rel="icon" type="image/svg+xml" href={pagePath('favicon.svg')} />
     <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
     <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0d1117" />

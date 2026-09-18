@@ -361,3 +361,25 @@ code:not(pre code) {
   color: var(--fg) !important;
   border: 1px solid var(--line) !important;
 }
+
+/* ---- Print: light ink-on-paper, chrome hidden ---- */
+@media print {
+  [data-theme="dark"] {
+    --surface: #ffffff;
+    --surface-1: #f6f8fa;
+    --surface-2: #eef1f5;
+    --line: #d0d7de;
+    --fg: #1f2328;
+    --fg-secondary: #59636e;
+    --fg-muted: #626c78;
+    --accent: #0969da;
+    --accent-dim: #0550ae;
+    --note-border: #0969da;
+    --warn-border: #9a6700;
+    --tip-border: #1a7f37;
+  }
+  header, nav, details, .codeblock-header, [data-search] {
+    display: none !important;
+  }
+  .prose-docs a { color: var(--fg); }
+}

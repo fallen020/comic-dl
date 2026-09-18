@@ -9,6 +9,7 @@ import { siteBase } from '../utils/base';
     class="inline-flex w-full items-center gap-2 rounded border border-line bg-surface-1 px-2.5 py-1.5 text-sm text-fg-secondary transition-colors hover:text-fg sm:w-48"
     aria-label="Search documentation"
     aria-haspopup="dialog"
+    aria-expanded="false"
     aria-controls="search-modal"
   >
     <Search size={15} aria-hidden="true" />
@@ -55,6 +56,7 @@ import { siteBase } from '../utils/base';
 
   async function open() {
     if (!modal.open) modal.showModal();
+    trigger.setAttribute('aria-expanded', 'true');
     await ensureInit();
     if (modal.open) root.querySelector('input.pagefind-ui__search-input')?.focus();
   }
@@ -115,9 +117,14 @@ import { siteBase } from '../utils/base';
   modal.addEventListener('click', (e) => {
     if (e.target === modal) close();
   });
+  // Fires for every dismissal path: close button, backdrop, and native Escape.
+  modal.addEventListener('close', () => {
+    trigger.setAttribute('aria-expanded', 'false');
+  });
 
   document.addEventListener('keydown', (e) => {
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       e.preventDefault();
       if (modal.open) close();
       else open();
