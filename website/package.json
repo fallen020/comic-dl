@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@astrojs/mdx": "^8.0.0",
+    "@astrojs/sitemap": "^3.7.4",
     "@lucide/astro": "^1.46.0",
     "@tailwindcss/typography": "^0.5.16",
     "@tailwindcss/vite": "^4.3.0",

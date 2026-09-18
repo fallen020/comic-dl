@@ -5,10 +5,17 @@ import { pagePath } from '../utils/base';
 interface Props {
   title: string;
   description?: string;
+  schema?: Record<string, unknown>;
+  noindex?: boolean;
 }
-const { title, description } = Astro.props;
+const { title, description, schema, noindex } = Astro.props;
 const siteTitle = 'comic-dl';
 const fullTitle = title === siteTitle ? siteTitle : `${title} — comic-dl`;
+// Absolute production URLs: Astro.site is set in astro.config.mjs, so the
+// canonical survives dev/preview where Astro.url points at localhost.
+const siteRoot = (Astro.site ?? Astro.url).toString().replace(/\/$/, '');
+const canonical = new URL(Astro.url.pathname, siteRoot + '/').toString();
+const ogImage = new URL(pagePath('og-image.png'), siteRoot + '/').toString();
 ---
 <!doctype html>
 <html lang="en" data-theme="dark">
@@ -17,10 +24,18 @@ const fullTitle = title === siteTitle ? siteTitle : `${title} — comic-dl`;
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{fullTitle}</title>
     {description && <meta name="description" content={description} />}
+    <link rel="canonical" href={canonical} />
+    {noindex && <meta name="robots" content="noindex" />}
     <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="comic-dl" />
+    <meta property="og:url" content={canonical} />
     <meta property="og:title" content={fullTitle} />
     {description && <meta property="og:description" content={description} />}
-    <meta name="twitter:card" content="summary" />
+    <meta property="og:image" content={ogImage} />
+    <meta name="twitter:card" content="summary_large_image" />
+    {schema && (
+      <script type="application/ld+json" set:html={JSON.stringify(schema)} />
+    )}
     <link rel="icon" type="image/svg+xml" href={pagePath('favicon.svg')} />
     <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
     <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0d1117" />

@@ -8,7 +8,7 @@ import { docsPath } from '../utils/base';
 // site builds with `trailingSlash: 'always'`.
 const attempted = Astro.url.pathname;
 ---
-<BaseLayout title="Not found" description="This comic-dl docs page does not exist.">
+<BaseLayout title="Not found" description="This comic-dl docs page does not exist." noindex>
   <Header />
 
   <main id="main-content" tabindex="-1" class="mx-auto w-full max-w-2xl px-4 pb-24 pt-16 text-center sm:px-6">

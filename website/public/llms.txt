@@ -1,0 +1,46 @@
+# comic-dl
+
+> A command-line downloader for comics and manga. Download from supported
+> sites and package into CBZ, ZIP, or CBT archives.
+
+- Docs: https://fallen020.github.io/comic-dl/docs/
+- Source: https://github.com/fallen020/comic-dl
+- Releases (binaries, no Python needed): https://github.com/fallen020/comic-dl/releases
+
+## Getting Started
+
+- [Introduction](https://fallen020.github.io/comic-dl/docs/introduction/): What comic-dl is, what it does, and whether it fits your setup.
+- [Installation](https://fallen020.github.io/comic-dl/docs/installation/): Install comic-dl from a release binary or from source.
+- [Quick Start](https://fallen020.github.io/comic-dl/docs/quick-start/): Install comic-dl, download a gallery, and read the archive it produces.
+- [Frequently Asked Questions](https://fallen020.github.io/comic-dl/docs/faq/): Quick answers about reader compatibility, installation, chapter selection, resume, and configuration.
+- [API Reference](https://fallen020.github.io/comic-dl/docs/api-reference/): Find Python modules for data models, scraping, downloads, archives, configuration, and errors.
+
+## Configure
+
+- [Configuration File](https://fallen020.github.io/comic-dl/docs/configure/config/): Save download defaults in TOML, resolve option precedence, and manage per-host settings.
+- [Cookies & Anti-Bot Handling](https://fallen020.github.io/comic-dl/docs/configure/cookies/): Understand cookie storage, session lifetimes, and the available HTTP settings.
+- [Environment Variables](https://fallen020.github.io/comic-dl/docs/configure/environment/): Configure paths, terminal colors, diagnostics, and display settings through environment variables.
+- [Rate Limiting](https://fallen020.github.io/comic-dl/docs/configure/rate-limiting/): Set per-host request rates and understand how throttling interacts with concurrency and retries.
+
+## Usage
+
+- [Downloading](https://fallen020.github.io/comic-dl/docs/usage/basic/): Every way to download content with comic-dl — single URLs, URL files, chapter selection, and scripting.
+- [Library Management](https://fallen020.github.io/comic-dl/docs/usage/library/): List downloaded series, check recent chapters, update subscriptions, and remove or restore series.
+- [Output & Archives](https://fallen020.github.io/comic-dl/docs/usage/output/): Find downloaded files, choose an archive format, and understand metadata, deduplication, and resume.
+- [Metadata](https://fallen020.github.io/comic-dl/docs/usage/metadata/): See which ComicInfo.xml fields are written inside archives and beside them, with per-site mappings.
+- [Plugins](https://fallen020.github.io/comic-dl/docs/usage/plugins/): Install and inspect third-party sources, validate plugins, and understand priority and trust boundaries.
+- [Writing a Plugin](https://fallen020.github.io/comic-dl/docs/usage/write-plugin/): Implement a source, return chapter and series metadata, and register a plugin package.
+
+## Reference
+
+- [CLI Reference](https://fallen020.github.io/comic-dl/docs/reference/cli/): Every command and flag in comic-dl, plus JSON output and exit codes.
+- [Exit Codes](https://fallen020.github.io/comic-dl/docs/reference/exit-codes/): Interpret process exit codes, classify failures, and handle interruptions or mixed batch results in scripts.
+- [Supported Sites](https://fallen020.github.io/comic-dl/docs/reference/supported-sites/): The 13 built-in scrapers supported by comic-dl, their URL patterns, and per-site notes.
+- [Troubleshooting](https://fallen020.github.io/comic-dl/docs/troubleshooting/): Common comic-dl failures — blocked access, missing pages, rate limits — and how to fix them.
+
+## Develop
+
+- [Architecture](https://fallen020.github.io/comic-dl/docs/develop/architecture/): Follow the download pipeline, module boundaries, concurrency model, and extension points.
+- [Testing](https://fallen020.github.io/comic-dl/docs/develop/testing/): Run the offline test suite, find relevant tests, and check coverage when contributing.
+- [Error Style Guide](https://fallen020.github.io/comic-dl/docs/develop/error-style-guide/): Write actionable errors with consistent wording, output streams, exit codes, and diagnostics.
+- [Security Testing](https://fallen020.github.io/comic-dl/docs/develop/security-testing/): Run offline checks for network, filesystem, database, and parser safety, and review known limits.

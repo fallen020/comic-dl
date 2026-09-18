@@ -3,6 +3,7 @@ import BaseLayout from './BaseLayout.astro';
 import DocsLayout from '../components/DocsLayout.astro';
 import { getCollection } from 'astro:content';
 import type { CollectionEntry } from 'astro:content';
+import { siteBase } from '../utils/base';
 
 interface Heading {
   depth: number;
@@ -22,8 +23,30 @@ const prev = idx > 0 ? all[idx - 1] : undefined;
 const next = idx >= 0 && idx < all.length - 1 ? all[idx + 1] : undefined;
 const pageLink = (e?: CollectionEntry<'docs'>) =>
   e ? { id: e.id, title: e.data.title } : undefined;
+const root = (Astro.site ?? Astro.url).toString().replace(/\/$/, '');
+const crumbs = [
+  { name: 'comic-dl', url: `${root}${siteBase}` },
+  { name: 'Documentation', url: `${root}${siteBase}docs/` },
+  { name: entry.data.title, url: `${root}${siteBase}docs/${entry.id}/` },
+];
+const schema = {
+  '@context': 'https://schema.org',
+  '@type': 'TechArticle',
+  headline: entry.data.title,
+  description: entry.data.description,
+  mainEntityOfPage: crumbs[2].url,
+  breadcrumb: {
+    '@type': 'BreadcrumbList',
+    itemListElement: crumbs.map((c, i) => ({
+      '@type': 'ListItem',
+      position: i + 1,
+      name: c.name,
+      item: c.url,
+    })),
+  },
+};
 ---
-<BaseLayout title={entry.data.title} description={entry.data.description}>
+<BaseLayout title={entry.data.title} description={entry.data.description} schema={schema}>
   <DocsLayout
     title={entry.data.title}
     description={entry.data.description}

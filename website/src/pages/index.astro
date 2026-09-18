@@ -6,10 +6,23 @@ import { BookDown, Download, Rocket, Globe } from '@lucide/astro';
 import BrandIcon from '../components/icons/BrandIcon.astro';
 import { docsPath } from '../utils/base';
 const heroCommand = 'comic-dl -u "<gallery-or-series-url>"';
+const softwareSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'SoftwareApplication',
+  name: 'comic-dl',
+  applicationCategory: 'MultimediaApplication',
+  operatingSystem: ['Windows', 'Linux', 'macOS'],
+  description:
+    'A command-line downloader for comics and manga. Download from supported sites and package into CBZ, ZIP, or CBT archives.',
+  url: 'https://fallen020.github.io/comic-dl/',
+  license: 'https://github.com/fallen020/comic-dl/blob/main/LICENSE',
+  offers: { '@type': 'Offer', price: '0' },
+};
 ---
 <BaseLayout
   title="comic-dl"
   description="A command-line downloader for comics and manga. Download from supported sites and package into CBZ, ZIP, or CBT archives."
+  schema={softwareSchema}
 >
   <Header />
 

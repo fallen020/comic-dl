@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /comic-dl/pagefind/
+
+Sitemap: https://fallen020.github.io/comic-dl/sitemap-index.xml
