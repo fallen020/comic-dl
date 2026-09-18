@@ -13,6 +13,7 @@ from . import ehentai as ehentai
 from . import flamecomics as flamecomics
 from . import fsicomics as fsicomics
 from . import gedecomix as gedecomix
+from . import hivetoons as hivetoons
 from . import kagane as kagane
 from . import kingofshojo as kingofshojo
 from . import kodokustudio as kodokustudio
@@ -31,6 +32,7 @@ __all__ = [
     "flamecomics",
     "fsicomics",
     "gedecomix",
+    "hivetoons",
     "kagane",
     "kingofshojo",
     "kodokustudio",

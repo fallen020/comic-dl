@@ -102,6 +102,7 @@ class TestBuiltinRegistration:
             "kodokustudio.com": "kodokustudio",
             "toonily.com": "toonily",
             "manhwaz.com": "manhwaz",
+            "hivetoons.org": "hivetoons",
         }.items():
             assert domain in by_domain, f"{domain} not registered"
             assert by_domain[domain].name == name
