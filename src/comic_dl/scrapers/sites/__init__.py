@@ -24,6 +24,7 @@ from . import manhwatop as manhwatop
 from . import manhwaz as manhwaz
 from . import pawchive as pawchive
 from . import qimanga as qimanga
+from . import stonescape as stonescape
 from . import toonily as toonily
 from . import webtoon as webtoon
 from . import weebcentral as weebcentral
@@ -45,6 +46,7 @@ __all__ = [
     "manhwaz",
     "pawchive",
     "qimanga",
+    "stonescape",
     "toonily",
     "webtoon",
     "weebcentral",
