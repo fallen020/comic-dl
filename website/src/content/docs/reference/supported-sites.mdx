@@ -11,57 +11,56 @@ The 21 built-in scrapers shipped with comic-dl. The live registry — including 
 
 | Site | Domain | URL pattern | Chapters | Series |
 | :--- | :----- | :---------- | :------- | :----- |
-| **Pawchive** | `pawchive.pw` | `/{service}/user/{id}/post/{id}/` | <Badge status="supported" /> | — |
+| **Asura Scans** | `asurascans.com` | `/comics/{series}/` | — | <Badge status="supported" /> |
+| **Asura Scans** | `asurascans.com` | `/comics/{series}/chapter/{n}` | <Badge status="supported" /> | — |
 | **E-Hentai** | `e-hentai.org` | `/g/{gid}/{token}/` | <Badge status="supported" /> | — |
-| **WEBTOON** | `www.webtoons.com` | `/{lang}/{category}/{title}/list?title_no={id}` | — | <Badge status="supported" /> |
-| **WEBTOON** | `www.webtoons.com` | `/{lang}/{category}/{title}/ep-{n}/viewer?title_no={id}&episode_no={n}` | <Badge status="supported" /> | — |
+| **Thunderscans** | `en-thunderscans.com` | `/comics/{slug}/` | — | <Badge status="supported" /> |
+| **Thunderscans** | `en-thunderscans.com` | `/{slug}-chapter-{n}/` | <Badge status="supported" /> | — |
 | **FlameComics** | `flamecomics.xyz` | `/series/{id}/` | — | <Badge status="supported" /> |
 | **FlameComics** | `flamecomics.xyz` | `/series/{id}/{token}/` | <Badge status="supported" /> | — |
-| **FSIComics** | `fsicomics.com` | `/{comic-slug}/` | <Badge status="supported" /> | — |
 | **FSIComics** | `fsicomics.com` | `/all-porn-comics/...` | — | <Badge status="supported" /> |
-| **GEDE Comix** | `gedecomix.com` | `/porncomic/{series}/{chapter}/` | <Badge status="supported" /> | — |
+| **FSIComics** | `fsicomics.com` | `/{comic-slug}/` | <Badge status="supported" /> | — |
 | **GEDE Comix** | `gedecomix.com` | `/porncomic/{series}/` | — | <Badge status="supported" /> |
-| **Asura Scans** | `asurascans.com` | `/comics/{series}/chapter/{n}` | <Badge status="supported" /> | — |
-| **Asura Scans** | `asurascans.com` | `/comics/{series}/` | — | <Badge status="supported" /> |
-| **Kagane** | `kagane.to` | `/series/{id}/reader/{book}` | <Badge status="supported" /> | — |
-| **Kagane** | `kagane.to` | `/series/{id}/` | — | <Badge status="supported" /> |
-| **MangaDex** | `mangadex.org` | `/chapter/{chapter-uuid}` | <Badge status="supported" /> | — |
-| **MangaDex** | `mangadex.org` | `/title/{manga-uuid}` or `/manga/{manga-uuid}` | — | <Badge status="supported" /> |
-| **Toonily** | `toonily.com` | `/serie/{slug}/chapter-{n}/` | <Badge status="supported" /> | — |
-| **Toonily** | `toonily.com` | `/serie/{slug}/` | — | <Badge status="supported" /> |
-| **Manhwaz** | `manhwaz.com` | `/webtoon/{slug}/chapter-{n}` | <Badge status="supported" /> | — |
-| **Manhwaz** | `manhwaz.com` | `/webtoon/{slug}` | — | <Badge status="supported" /> |
-| **KodokuStudio** | `kodokustudio.com` | `/manhua/{slug}/capitulo-{n}/` | <Badge status="supported" /> | — |
-| **KodokuStudio** | `kodokustudio.com` | `/manhua/{slug}/` | — | <Badge status="supported" /> |
-| **WeebCentral** | `weebcentral.com` | `/chapters/{id}` | <Badge status="supported" /> | — |
-| **WeebCentral** | `weebcentral.com` | `/series/{id}/{slug}` | — | <Badge status="supported" /> |
-| **LGBTics** | `lgbtics.com` | `/comic/{slug}/` | — | <Badge status="supported" /> |
-| **LGBTics** | `lgbtics.com` | `/comic/{slug}/{chapter}/` | <Badge status="supported" /> | — |
-| **Kingofshojo** | `kingofshojo.com` | `/manga/{slug}/` | — | <Badge status="supported" /> |
-| **Kingofshojo** | `kingofshojo.com` | `/{slug}-chapter-{n}/` | <Badge status="supported" /> | — |
-| **ManhwaTop** | `manhwatop.com` | `/manga/{slug}/` | — | <Badge status="supported" /> |
-| **ManhwaTop** | `manhwatop.com` | `/manga/{slug}/chapter-{n}/` | <Badge status="supported" /> | — |
-| **HiveToons** | `hivetoons.org` | `/series/{slug}/` | — | <Badge status="supported" /> |
-| **HiveToons** | `hivetoons.org` | `/series/{slug}/chapter-{n}/` | <Badge status="supported" /> | — |
+| **GEDE Comix** | `gedecomix.com` | `/porncomic/{series}/{chapter}/` | <Badge status="supported" /> | — |
 | **GenzToons** | `genztoons.org` | `/series/{slug}/` | — | <Badge status="supported" /> |
 | **GenzToons** | `genztoons.org` | `/chapter/{uid}/` | <Badge status="supported" /> | — |
+| **HiveToons** | `hivetoons.org` | `/series/{slug}/` | — | <Badge status="supported" /> |
+| **HiveToons** | `hivetoons.org` | `/series/{slug}/chapter-{n}/` | <Badge status="supported" /> | — |
+| **Kagane** | `kagane.to` | `/series/{id}/` | — | <Badge status="supported" /> |
+| **Kagane** | `kagane.to` | `/series/{id}/reader/{book}` | <Badge status="supported" /> | — |
+| **Kingofshojo** | `kingofshojo.com` | `/{slug}-chapter-{n}/` | <Badge status="supported" /> | — |
+| **KodokuStudio** | `kodokustudio.com` | `/manhua/{slug}/` | — | <Badge status="supported" /> |
+| **KodokuStudio** | `kodokustudio.com` | `/manhua/{slug}/capitulo-{n}/` | <Badge status="supported" /> | — |
+| **LGBTics** | `lgbtics.com` | `/comic/{slug}/` | — | <Badge status="supported" /> |
+| **LGBTics** | `lgbtics.com` | `/comic/{slug}/{chapter}/` | <Badge status="supported" /> | — |
+| **MangaDex** | `mangadex.org` | `/title/{manga-uuid} or /manga/{manga-uuid}` | — | <Badge status="supported" /> |
+| **MangaDex** | `mangadex.org` | `/chapter/{chapter-uuid}` | <Badge status="supported" /> | — |
+| **ManhwaTop** | `manhwatop.com` | `/manga/{slug}/` | — | <Badge status="supported" /> |
+| **ManhwaTop** | `manhwatop.com` | `/manga/{slug}/chapter-{n}/` | <Badge status="supported" /> | — |
+| **Manhwaz** | `manhwaz.com` | `/webtoon/{slug}` | — | <Badge status="supported" /> |
+| **Manhwaz** | `manhwaz.com` | `/webtoon/{slug}/chapter-{n}` | <Badge status="supported" /> | — |
+| **Pawchive** | `pawchive.pw` | `/{service}/user/{id}/post/{id}/` | <Badge status="supported" /> | — |
 | **QiScans** | `qimanga.com` | `/series/{slug}` | — | <Badge status="supported" /> |
 | **QiScans** | `qimanga.com` | `/series/{slug}/chapter-{n}` | <Badge status="supported" /> | — |
 | **StoneScape** | `stonescape.xyz` | `/series/{slug}` | — | <Badge status="supported" /> |
 | **StoneScape** | `stonescape.xyz` | `/series/{slug}/ch-{n}` | <Badge status="supported" /> | — |
-| **Thunderscans** | `en-thunderscans.com` | `/comics/{slug}/` | — | <Badge status="supported" /> |
-| **Thunderscans** | `en-thunderscans.com` | `/{slug}-chapter-{n}/` | <Badge status="supported" /> | — |
+| **Toonily** | `toonily.com` | `/serie/{slug}/` | — | <Badge status="supported" /> |
+| **Toonily** | `toonily.com` | `/serie/{slug}/chapter-{n}/` | <Badge status="supported" /> | — |
+| **WEBTOON** | `webtoons.com` | `/{lang}/{category}/{title}/list?title_no={id}` | — | <Badge status="supported" /> |
+| **WEBTOON** | `webtoons.com` | `/{lang}/{category}/{title}/ep-{n}/viewer?title_no={id}&episode_no={n}` | <Badge status="supported" /> | — |
+| **WeebCentral** | `weebcentral.com` | `/series/{id}/{slug}` | — | <Badge status="supported" /> |
+| **WeebCentral** | `weebcentral.com` | `/chapters/{id}` | <Badge status="supported" /> | — |
 
 ## Per-site features
 
-| Feature | Pawchive | E-Hentai | WEBTOON | FlameComics | FSIComics | GEDE Comix | Asura Scans | Kagane | MangaDex | Toonily | Manhwaz | KodokuStudio | WeebCentral | LGBTics | Kingofshojo | ManhwaTop | HiveToons | GenzToons | QiScans | StoneScape | Thunderscans |
-| :------ | :------- | :------ | :---------- | :-------- | :-------- | :--------- | :---------- | :----- | :------- | :------ | :------ | :---------- | :---------- | :------ | :---------- | :-------- | :-------- | :-------- | :------ | :--------- | :----------- |
+| Feature | Asura Scans | E-Hentai | Thunderscans | FlameComics | FSIComics | GEDE Comix | GenzToons | HiveToons | Kagane | Kingofshojo | KodokuStudio | LGBTics | MangaDex | ManhwaTop | Manhwaz | Pawchive | QiScans | StoneScape | Toonily | WEBTOON | WeebCentral |
+| :------ | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- |
 | Individual posts/chapters | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| Series chapter listing | — | — | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Series chapter listing | Yes | — | Yes | Yes | Yes | Yes | Yes | Yes | Yes | — | Yes | Yes | Yes | Yes | Yes | — | Yes | Yes | Yes | Yes | Yes |
 | Image dedup (SHA-256) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
 | Download resume | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
 | Concurrent downloads | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| Chapter title from tags | — | Yes | Yes | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — |
+| Chapter title from tags | — | <Badge status="supported" /> | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | <Badge status="supported" /> | — |
 
 ## Site notes
 
