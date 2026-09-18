@@ -7,7 +7,7 @@ verifying file integrity, and packaging everything with ComicInfo.xml metadata.
 
 ## Key features
 
-- **13 built-in sources** — e-hentai, WEBTOON, MangaDex, Kagane, and more
+- **16 built-in sources** — e-hentai, WEBTOON, MangaDex, Kagane, and more
 - **Plugin system** — add any site as a Python plugin, no fork required
 - **Concurrent downloads** — parallel page images, batch URLs, and multi-chapter downloads
 - **Resumable** — interrupted downloads resume via Range requests; partial files are never lost

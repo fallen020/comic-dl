@@ -1,6 +1,6 @@
 # Supported Sites
 
-The 13 built-in scrapers shipped with comic-dl. The live registry — including
+The 16 built-in scrapers shipped with comic-dl. The live registry — including
 any third-party plugins — is shown by `comic-dl --list-sources`.
 
 ## Sites

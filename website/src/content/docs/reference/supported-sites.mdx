@@ -1,11 +1,11 @@
 ---
 title: Supported Sites
-description: The 13 built-in scrapers supported by comic-dl, their URL patterns, and per-site notes.
+description: The 16 built-in scrapers supported by comic-dl, their URL patterns, and per-site notes.
 order: 520
 section: Reference
 ---
 
-The 13 built-in scrapers shipped with comic-dl. The live registry — including any third-party plugins — is shown by `comic-dl --list-sources`.
+The 16 built-in scrapers shipped with comic-dl. The live registry — including any third-party plugins — is shown by `comic-dl --list-sources`.
 
 ## Sites
 
@@ -35,17 +35,23 @@ The 13 built-in scrapers shipped with comic-dl. The live registry — including 
 | **KodokuStudio** | `kodokustudio.com` | `/manhua/{slug}/` | — | <Badge status="supported" /> |
 | **WeebCentral** | `weebcentral.com` | `/chapters/{id}` | <Badge status="supported" /> | — |
 | **WeebCentral** | `weebcentral.com` | `/series/{id}/{slug}` | — | <Badge status="supported" /> |
+| **LGBTics** | `lgbtics.com` | `/comic/{slug}/` | — | <Badge status="supported" /> |
+| **LGBTics** | `lgbtics.com` | `/comic/{slug}/{chapter}/` | <Badge status="supported" /> | — |
+| **Kingofshojo** | `kingofshojo.com` | `/manga/{slug}/` | — | <Badge status="supported" /> |
+| **Kingofshojo** | `kingofshojo.com` | `/{slug}-chapter-{n}/` | <Badge status="supported" /> | — |
+| **ManhwaTop** | `manhwatop.com` | `/manga/{slug}/` | — | <Badge status="supported" /> |
+| **ManhwaTop** | `manhwatop.com` | `/manga/{slug}/chapter-{n}/` | <Badge status="supported" /> | — |
 
 ## Per-site features
 
-| Feature | Pawchive | E-Hentai | WEBTOON | FlameComics | FSIComics | GEDE Comix | Asura Scans | Kagane | MangaDex | Toonily | Manhwaz | KodokuStudio | WeebCentral |
-| :------ | :------- | :------ | :---------- | :-------- | :-------- | :--------- | :---------- | :----- | :------- | :------ | :------ | :---------- | :---------- |
-| Individual posts/chapters | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| Series chapter listing | — | — | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| Image dedup (SHA-256) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| Download resume | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| Concurrent downloads | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| Chapter title from tags | — | Yes | Yes | — | — | — | — | — | — | — | — | — | — |
+| Feature | Pawchive | E-Hentai | WEBTOON | FlameComics | FSIComics | GEDE Comix | Asura Scans | Kagane | MangaDex | Toonily | Manhwaz | KodokuStudio | WeebCentral | LGBTics | Kingofshojo | ManhwaTop |
+| :------ | :------- | :------ | :---------- | :-------- | :-------- | :--------- | :---------- | :----- | :------- | :------ | :------ | :---------- | :---------- | :------ | :---------- | :-------- |
+| Individual posts/chapters | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Series chapter listing | — | — | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Image dedup (SHA-256) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Download resume | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Concurrent downloads | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Chapter title from tags | — | Yes | Yes | — | — | — | — | — | — | — | — | — | — | — | — | — |
 
 ## Site notes
 
@@ -62,6 +68,9 @@ The 13 built-in scrapers shipped with comic-dl. The live registry — including 
 - **Manhwaz** — A Madara-style manhwa site. Chapter pages expose pages inside `.reading-content`. Images served from `cdn.manhwaz.com`.
 - **KodokuStudio** — A Madara/WordPress site using Portuguese `capitulo-{n}` chapter URLs. Series pages render only the first/last chapter links, so the chapter list is loaded from the theme's `ajax/chapters` endpoint. Chapter images are served from WordPress's `i*.wp.com` CDN proxy. Series pages carry no cover or blurb, so those metadata fields stay empty rather than falling back to the site logo.
 - **WeebCentral** — Server-rendered pages with HTMX image fragments. Chapter pages list no images inline; pages come from the chapter's `/images` endpoint (`reading_style=long_strip`). Chapter labels read `"<Type> <Number>"` (e.g. `Navigation 67.5`). Images are hotlink-protected and need the chapter page as `Referer`, supplied by comic-dl's per-download headers.
+- **LGBTics** — A Madara/WordPress site. Series pages list chapters in `.version-chap .wp-manga-chapter`. Chapter images are lazy-loaded via `data-src` on the same domain. No AJAX pagination for chapters; all links render server-side. Images use WebP format.
+- **Kingofshojo** — A Madara-style shoujo/romance site. Series pages render full chapter lists server-side under `.listing-chapters_wrap`. Chapters use a flat URL structure (`/{slug}-chapter-{n}/`) rather than nesting under the series path. Chapter images are plain `<img src>` inside `#readerarea`, served from `cdn.kingofshojo.com` and WordPress CDN (`i*.wp.com`).
+- **ManhwaTop** — A large Madara/WordPress manhwa/manhua site (Solo Leveling, Nano Machine, Martial Peak). Standard Madara URL grammar. Chapter pages use lazy-loaded `data-src` on `c*.manhwatop.com` subdomains. The series page sits behind a Cloudflare challenge; the solver (`--solver auto`) or a `cf_clearance` cookie may be required for series scraping.
 
 ## Adding more sites
 
