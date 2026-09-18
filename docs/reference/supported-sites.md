@@ -31,17 +31,19 @@ any third-party plugins — is shown by `comic-dl --list-sources`.
 | **KodokuStudio** | `kodokustudio.com` | `/manhua/{slug}/` | — | Yes |
 | **WeebCentral** | `weebcentral.com` | `/chapters/{id}` | Yes | — |
 | **WeebCentral** | `weebcentral.com` | `/series/{id}/{slug}` | — | Yes |
+| **LGBTics** | `lgbtics.com` | `/comic/{slug}/` | — | Yes |
+| **LGBTics** | `lgbtics.com` | `/comic/{slug}/{chapter}/` | Yes | — |
 
 ## Per-site features
 
-| Feature | Pawchive | E-Hentai | WEBTOON | FlameComics | FSIComics | GEDE Comix | Asura Scans | Kagane | MangaDex | Toonily | Manhwaz | KodokuStudio | WeebCentral |
-| :------ | :------- | :------ | :---------- | :-------- | :-------- | :--------- | :---------- | :----- | :------- | :------ | :------ | :---------- | :---------- |
-| Individual posts/chapters | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| Series chapter listing | — | — | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| Image dedup (SHA-256) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| Download resume | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| Concurrent downloads | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| Chapter title from tags | — | Yes | Yes | — | — | — | — | — | — | — | — | — | — |
+| Feature | Pawchive | E-Hentai | WEBTOON | FlameComics | FSIComics | GEDE Comix | Asura Scans | Kagane | MangaDex | Toonily | Manhwaz | KodokuStudio | WeebCentral | LGBTics |
+| :------ | :------- | :------ | :---------- | :-------- | :-------- | :--------- | :---------- | :----- | :------- | :------ | :------ | :---------- | :---------- | :------ |
+| Individual posts/chapters | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Series chapter listing | — | — | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Image dedup (SHA-256) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Download resume | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Concurrent downloads | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Chapter title from tags | — | Yes | Yes | — | — | — | — | — | — | — | — | — | — | — |
 
 ## Site notes
 
@@ -100,6 +102,11 @@ any third-party plugins — is shown by `comic-dl --list-sources`.
   `"<Type> <Number>"` (e.g. `Navigation 67.5`). Images are hotlink-protected
   and need the chapter page as `Referer`, supplied by comic-dl's per-download
   headers.
+
+- **LGBTics** — A Madara/WordPress site. Series pages list chapters in
+  `.version-chap .wp-manga-chapter`. Chapter images are lazy-loaded via
+  `data-src` on the same domain. No AJAX pagination for chapters; all links
+  render server-side. Images use WebP format.
 
 ## Adding more sites
 

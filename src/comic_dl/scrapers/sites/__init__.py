@@ -15,6 +15,7 @@ from . import fsicomics as fsicomics
 from . import gedecomix as gedecomix
 from . import kagane as kagane
 from . import kodokustudio as kodokustudio
+from . import lgbtics as lgbtics
 from . import mangadex as mangadex
 from . import manhwaz as manhwaz
 from . import pawchive as pawchive
@@ -30,6 +31,7 @@ __all__ = [
     "gedecomix",
     "kagane",
     "kodokustudio",
+    "lgbtics",
     "mangadex",
     "manhwaz",
     "pawchive",
