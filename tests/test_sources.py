@@ -123,6 +123,41 @@ class TestBuiltinRegistration:
         assert by_domain["manhwaz.com"].has_series
         assert not by_domain["pawchive.pw"].has_series
 
+    def test_every_site_module_registers(self):
+        """Drop-in site modules must register, or they silently vanish.
+
+        Auto-discovery in ``comic_dl.scrapers.sites`` imports every non-
+        underscore module and fails startup if one does not register (the
+        hivetoons-shaped bug) or two register the same domain. That invariant
+        is checked in a fresh interpreter so this test is immune to the fake
+        registrations other tests make in this process.
+        """
+        import subprocess
+        import sys
+
+        code = (
+            "import pkgutil\n"
+            "import comic_dl.scrapers.sites as s\n"
+            "from comic_dl.scrapers import list_sources\n"
+            "mods = {m.name for m in pkgutil.iter_modules(s.__path__) "
+            "if not m.name.startswith('_')}\n"
+            "doms = {e.domain for e in list_sources() if e.builtin}\n"
+            "assert mods, 'no site modules discovered'\n"
+            "assert len(mods) == len(doms), (\n"
+            "    f'{len(mods)} modules discovered but {len(doms)} built-in '\n"
+            "    'domains registered'\n"
+            ")\n"
+        )
+        result = subprocess.run(
+            [sys.executable, "-c", code],
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        assert result.returncode == 0, (
+            f"site-module registration invariant failed:\n{result.stderr}"
+        )
+
 
 class TestResolution:
     def test_get_source_for_url_matches_host(self):

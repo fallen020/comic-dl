@@ -114,3 +114,17 @@ class LibraryError(ComicError):
 
     kind = "library"
     _default_message = "Library error."
+
+
+class SiteRegistryError(ComicError):
+    """A built-in site module could not be imported at startup.
+
+    Raised by ``comic_dl.scrapers.sites`` when auto-discovery cannot load one
+    of the built-in scraper modules. Fail-fast is deliberate: a built-in that
+    fails to load must stop the CLI loudly rather than silently disappear from
+    ``--list-sources`` — that is the drift this registry was introduced to
+    remove.
+    """
+
+    kind = "sitereg"
+    _default_message = "A built-in site scraper could not be loaded."

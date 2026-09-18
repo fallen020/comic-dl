@@ -15,10 +15,18 @@
 # copyright/permission notices. Expected at _MEIPASS/third_party_licenses/ in
 # one-file mode.
 import os
+import sys
 
-from PyInstaller.utils.hooks import collect_dynamic_libs
+from PyInstaller.utils.hooks import collect_dynamic_libs, collect_submodules
 
 ROOT = os.path.abspath(os.path.join(SPECPATH, ".."))
+
+# collect_submodules() imports the package to enumerate it, using the live
+# sys.path — `pathex` below only affects Analysis. Without this, the site
+# package is unimportable at spec-build time and the scan silently returns []
+# (a binary that drops every scraper). Site modules are then dispatched
+# dynamically by comic_dl.scrapers.sites, so they must all be listed.
+sys.path.insert(0, os.path.join(ROOT, "src"))
 
 # Native libcurl-impersonate shared objects that curl_cffi loads dynamically.
 curl_libs = collect_dynamic_libs("curl_cffi")
@@ -33,27 +41,18 @@ a = Analysis(
         (os.path.join(ROOT, "src", "comic_dl", "banner.txt"), "comic_dl"),
     ],
     hiddenimports=[
-        # Keep in sync with src/comic_dl/scrapers/sites/__init__.py
         "comic_dl.config",
         "comic_dl.library",
         "comic_dl.cli.library",
         "comic_dl.scrapers.registry",
         "comic_dl.scrapers.sites",
-        "comic_dl.scrapers.sites.asurascans",
-        "comic_dl.scrapers.sites.ehentai",
-        "comic_dl.scrapers.sites.flamecomics",
-        "comic_dl.scrapers.sites.fsicomics",
-        "comic_dl.scrapers.sites.gedecomix",
+        # Every site module is imported dynamically by the auto-discovering
+        # sites package, so collect them wholesale instead of maintaining a
+        # per-site list that silently goes stale (the hivetoons-shaped bug).
         "comic_dl.scrapers.generic",
-        "comic_dl.scrapers.sites.kagane",
-        "comic_dl.scrapers.sites.kodokustudio",
         "comic_dl.scrapers.madara",
-        "comic_dl.scrapers.sites.mangadex",
-        "comic_dl.scrapers.sites.manhwaz",
-        "comic_dl.scrapers.sites.pawchive",
         "comic_dl.scrapers.refresh",
-        "comic_dl.scrapers.sites.toonily",
-        "comic_dl.scrapers.sites.webtoon",
+        *collect_submodules("comic_dl.scrapers.sites"),
     ],
     hookspath=[],
     hooksconfig={},
