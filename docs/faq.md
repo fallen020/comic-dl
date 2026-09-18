@@ -70,8 +70,12 @@ everything:
 comic-dl -u <series-url> --chapters all
 ```
 
-`--chapters` also accepts ranges and lists (`"1-3,7"`; `0` selects a
-prologue/promo episode).
+`--chapters` also accepts ranges and lists:
+
+- `"1-3,7"` — chapters 1, 2, 3, and 7
+- `"1-3,7,10-"` — chapters 1, 2, 3, 7, and 10 through the end
+- `"all"` — all chapters
+- `"0"` — prologue/promo only
 
 ### Downloading several series at once
 
@@ -97,6 +101,19 @@ re-fetch and replace it anyway:
 ```bash
 comic-dl -u <series-url> --chapters all --force
 ```
+
+### Machine-readable output (`--json`)
+
+`--json` prints a structured JSON payload on **stdout only**. All human-facing
+messages (progress, warnings, errors, summaries) go to **stderr**. This keeps
+the JSON stream clean for scripting — pipe stdout to `jq` or a parser while
+stderr still shows live progress.
+
+```bash
+comic-dl -u <URL> --json | jq .
+```
+
+The schema version is included in every response (`"schema_version": 1`).
 
 ### Previewing before you commit
 

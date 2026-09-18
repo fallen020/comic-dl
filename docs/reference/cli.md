@@ -77,7 +77,7 @@ comic-dl <COMMAND> [ARGS]
 | `--url` | `-u` | — | Single URL to download |
 | `--file` | `-f` | — | Text file with one URL per line |
 | `--output` | `-o` | `~/Downloads/comic-dl` | Output directory |
-| `--chapters` | | | Chapter subset by chapter number: `all` or ranges like `1-3,5` (`0` selects a prologue/promo) |
+| `--chapters` | | | Chapter subset by chapter number. Examples: `1-3,7` (1,2,3,7), `1-3,7,10-` (1,2,3,7,10+), `all` (all chapters), `0` (prologue/promo). Omit for interactive checkbox picker. |
 
 ### Performance
 
@@ -105,7 +105,7 @@ Series in parallel still pass through the per-host rate limiter, so raising
 | `--max-image-size` | `100 MB` | Maximum size per image |
 | `--max-size` | `0` (unlimited) | Maximum total download size per run |
 | `--impersonate` | `chrome146` | TLS/HTTP impersonation profile |
-| `--solver` | `auto` | Cloudflare solver: `auto`, `impersonation`, `webview`, `off` |
+| `--solver` | `auto` | Cloudflare challenge solver. Modes: `auto` (impersonation first, webview if needed), `impersonation` (TLS/HTTP fingerprint only; fast, no deps), `webview` (system WebView/GTK; needs display + GTK libs), `off` (disable solver; challenged sites fail) |
 
 ### Behavior toggles
 

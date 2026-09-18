@@ -955,8 +955,12 @@ def _build_first_stage_parser() -> ComicArgumentParser:
         choices=["auto", "impersonation", "webview", "off"],
         default=None,
         help=(
-            "Cloudflare challenge solver (auto/impersonation/webview/off); "
-            "overrides [http] solver"
+            "Cloudflare challenge solver:\n"
+            "  auto          try impersonation first, then webview if needed\n"
+            "  impersonation TLS/HTTP fingerprint only (chrome146); fast, no deps\n"
+            "  webview       system WebView (GTK/WebKit); needs display, GTK libs\n"
+            "  off           disable solver; sites with challenges will fail\n"
+            "Overrides [http] solver"
         ),
     )
     parser.add_argument(
@@ -1100,8 +1104,14 @@ def _build_first_stage_parser() -> ComicArgumentParser:
     parser.add_argument(
         "--chapters",
         default=None,
-        help="Chapter selection by number, e.g. '1-3,7' or 'all' "
-        "(0 selects a prologue/promo; interactive picker if omitted)",
+        help=(
+            "Chapter selection by number. Examples:\n"
+            "  1-3,7        chapters 1,2,3 and 7\n"
+            "  1-3,7,10-    chapters 1,2,3,7, and 10 through end\n"
+            "  all          all chapters\n"
+            "  0            prologue/promo only\n"
+            "  (omitted)    interactive checkbox picker for series"
+        ),
     )
 
     return parser

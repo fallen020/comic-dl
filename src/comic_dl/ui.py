@@ -977,7 +977,8 @@ def print_success(message: str) -> None:
 
 def print_skipped(message: str) -> None:
     """Print a skipped message line."""
-    _active_console().print(f"  [{MUTED}]{glyphs().skip}[/] {esc(_redact_text(message))}")
+    target = err_console if JSON_MODE else _active_console()
+    target.print(f"  [{MUTED}]{glyphs().skip}[/] {esc(_redact_text(message))}")
 
 
 def print_error(message: str | SafeURL) -> None:
@@ -1058,11 +1059,14 @@ def print_interrupt(
 
 def print_url(url: str | SafeURL) -> None:
     """Print a URL line."""
-    _active_console().print(f"  [{INFO}]{esc(_redact_text(str(url)))}[/]")
+    target = err_console if JSON_MODE else _active_console()
+    target.print(f"  [{INFO}]{esc(_redact_text(str(url)))}[/]")
 
 
 def print_dim(message: str, *, console_obj: Console | None = None) -> None:
     """Print a muted helper line."""
+    if JSON_MODE and console_obj is None:
+        console_obj = err_console
     (console_obj or _active_console()).print(f"  [{MUTED}]{esc(_redact_text(message))}[/]")
 
 
@@ -1193,7 +1197,7 @@ def print_batch_summary(
             for url in failures:
                 print_error(url)
     if chapters or total_bytes:
-        _console = _active_console()
+        _console = err_console if JSON_MODE else _active_console()
         url_word = "URL" if total == 1 else "URLs"
         chapter_word = "chapter" if chapters == 1 else "chapters"
         parts: list[str] = [
@@ -2790,7 +2794,8 @@ def print_chapter_preview(
         )
     new_count = n - have_count
 
-    _active_console().print()
+    _console = err_console if JSON_MODE else _active_console()
+    _console.print()
     chapters_word = "chapter" if total == 1 else "chapters"
     header = (
         f"  [bold]Series:[/] [white]{esc(series_title)}[/]  "
@@ -2803,13 +2808,13 @@ def print_chapter_preview(
                 f"[{MUTED}]{glyphs().bullet}[/]"
             )
         header += f"  [bold {INFO}]{new_count} new[/]"
-    _active_console().print(header)
+    _console.print(header)
 
     if marks_enabled and new_count == 0:
         err_console.print(
             f"  [bold {SUCCESS}]{glyphs().success}[/] [bold]Series up to date.[/]"
         )
-        _active_console().print()
+        _console.print()
         return
 
     table = Table(show_header=False, box=None, padding=(0, 2))
@@ -2839,8 +2844,8 @@ def print_chapter_preview(
         else:
             table.add_row(str(i + 1), label)
         prev = i
-    _active_console().print(table)
-    _active_console().print()
+    _console.print(table)
+    _console.print()
 
 
 def _group_by_reason(pairs: list[tuple[str, str]]) -> dict[str, list[str]]:
@@ -2863,7 +2868,7 @@ def print_failure_recap(failures: list[tuple[str, str]]) -> None:
     """
     if not failures:
         return
-    _console = _active_console()
+    _console = err_console if JSON_MODE else _active_console()
     _console.print(f"  [bold {ERROR}]{glyphs().err}[/] [bold]Failed:[/]")
     grouped = _group_by_reason(failures)
     for reason, labels in grouped.items():
@@ -2885,7 +2890,7 @@ def print_partial_recap(partials: list[tuple[str, str]]) -> None:
     """
     if not partials:
         return
-    _console = _active_console()
+    _console = err_console if JSON_MODE else _active_console()
     _console.print(f"  [bold {WARNING}]{glyphs().warn}[/] [bold]Incomplete:[/]")
     grouped = _group_by_reason(partials)
     for reason, labels in grouped.items():
