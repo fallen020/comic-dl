@@ -23,6 +23,7 @@ from . import mangadex as mangadex
 from . import manhwatop as manhwatop
 from . import manhwaz as manhwaz
 from . import pawchive as pawchive
+from . import qimanga as qimanga
 from . import toonily as toonily
 from . import webtoon as webtoon
 from . import weebcentral as weebcentral
@@ -43,6 +44,7 @@ __all__ = [
     "manhwatop",
     "manhwaz",
     "pawchive",
+    "qimanga",
     "toonily",
     "webtoon",
     "weebcentral",
