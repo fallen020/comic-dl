@@ -69,7 +69,7 @@ const docHref = (id: string) => docsPath(id);
       {(prev || next) && (
         <nav aria-label="Page navigation" class="mt-12 flex items-stretch justify-between gap-4 border-t border-line pt-6">
           {prev ? (
-            <a href={docHref(prev.id)} class="group min-w-0 basis-1/2 rounded-lg border border-line p-4 no-underline transition-colors hover:border-accent">
+            <a href={docHref(prev.id)} data-astro-prefetch="hover" class="group min-w-0 basis-1/2 rounded-lg border border-line p-4 no-underline transition-colors hover:border-accent">
               <span class="flex items-center gap-1 text-xs uppercase tracking-wide text-fg-muted group-hover:text-accent">
                 <ArrowLeft size={14} aria-hidden="true" /> Previous
               </span>
@@ -77,7 +77,7 @@ const docHref = (id: string) => docsPath(id);
             </a>
           ) : <span class="basis-1/2"></span>}
           {next ? (
-            <a href={docHref(next.id)} class="group min-w-0 basis-1/2 rounded-lg border border-line p-4 text-right no-underline transition-colors hover:border-accent">
+            <a href={docHref(next.id)} data-astro-prefetch="hover" class="group min-w-0 basis-1/2 rounded-lg border border-line p-4 text-right no-underline transition-colors hover:border-accent">
               <span class="flex items-center justify-end gap-1 text-xs uppercase tracking-wide text-fg-muted group-hover:text-accent">
                 Next <ArrowRight size={14} aria-hidden="true" />
               </span>

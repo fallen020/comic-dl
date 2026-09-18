@@ -37,8 +37,8 @@ const orderedGroups = Array.from(groups.values()).sort(
     <h1 class="text-3xl font-bold tracking-tight text-fg">Documentation</h1>
     <p class="mt-2 max-w-xl text-fg-secondary">
       Everything comic-dl can do, grouped by task. Start with
-      <a href={docsPath('installation')}>Installation</a> or
-      <a href={docsPath('quick-start')}>Quick Start</a>.
+      <a href={docsPath('installation')} data-astro-prefetch="hover">Installation</a> or
+      <a href={docsPath('quick-start')} data-astro-prefetch="hover">Quick Start</a>.
     </p>
 
     {orderedGroups.map((group) => (
@@ -52,7 +52,7 @@ const orderedGroups = Array.from(groups.values()).sort(
           {group.items.map((entry) => (
             <li>
               <a
-                href={docsPath(entry.id)}
+                href={docsPath(entry.id)} data-astro-prefetch="hover"
                 class="block h-full rounded-lg border border-line bg-surface-1 p-4 no-underline transition-colors hover:border-accent"
               >
                 <p class="text-sm font-medium text-fg">{entry.data.title}</p>

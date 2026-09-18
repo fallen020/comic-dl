@@ -48,6 +48,7 @@ const orderedGroups = Array.from(groups.values()).sort((a, b) => a.order - b.ord
             <li>
               <a
                 href={href}
+                data-astro-prefetch="hover"
                 aria-current={active ? 'page' : undefined}
                 class={`block rounded px-2 py-1.5 text-sm no-underline transition-colors ${
                   active
