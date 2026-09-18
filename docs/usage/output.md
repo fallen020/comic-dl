@@ -47,8 +47,9 @@ the archive. The default is deliberately `stored`; compression is opt-in.
 - **ComicInfo.xml** — chapter-level metadata: series, chapter title, number,
   volume, page count, source URL.
 
-Series-level metadata (description, creators, genres, rating) lives in the
-folder-level `ComicInfo.xml` beside the archives, not inside them.
+Shared series metadata (description, creators, genres, rating) is included in
+each archive's `ComicInfo.xml` when available, as well as in the folder-level
+`ComicInfo.xml` beside the archives.
 
 See [Metadata](metadata.md) for the full field mapping.
 

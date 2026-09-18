@@ -13,7 +13,7 @@ every run.
 
 ## Precedence
 
-Options are resolved in this order (later wins):
+Options are resolved by priority (highest first):
 
 1. CLI flag
 2. Config file
@@ -39,7 +39,7 @@ max_size = 0                 # per run (0 = unlimited)
 [http]
 impersonate = "chrome146"    # TLS/HTTP fingerprint profile
 solver = "auto"              # auto | impersonation | webview | off
-cookie-jar = true            # persist session cookies across runs
+cookie-jar = true            # enable the persistent cookie store
 cache = true                 # on-disk scrape response cache
 cache-ttl = 6                # hours a cached response stays fresh
 cache-max-bytes = "50MB"     # total cache size budget (100MB, 2GB, 512KB, or bytes);

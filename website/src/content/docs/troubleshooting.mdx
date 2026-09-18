@@ -5,7 +5,8 @@ order: 530
 section: Reference
 ---
 
-A download failed. Work the error below in order — each one says what comic-dl already tried, what to do first, what success looks like, and when to stop.
+Find the section matching your error message or HTTP status. Follow its checks
+in order, stopping when the issue is resolved or the site denies access.
 
 If no section matches, capture a [debug log](#capturing-a-debug-log) and attach it to an issue.
 
@@ -52,7 +53,7 @@ The host is refusing the content based on where you connect from — most sites 
 
 The chapter page loaded but contained no images: the page may require login, be region-locked, or have been removed. Site-specific causes:
 
-- **e-hentai** — the gallery is missing or expunged, or is behind a login. For a login-gated gallery, run once with `--solver webview`, complete the login in the window that opens, and comic-dl keeps the session cookies for the next run.
+- **e-hentai** — the gallery is missing or expunged, or is behind a login. Cookie persistence depends on the storage path and expiry; it does not guarantee access on the next run.
 - **Pawchive** — a "Previews only" post downloads thumbnail resolution with a warning, and a post with no visible file attachments yields no images at all.
 - **MangaDex** — the at-home server reporting no pages is a transient server state; rerun once after a minute.
 - **Asura Scans** — pages marked `Premium` are locked and raise this error; nothing to fix.
@@ -136,7 +137,8 @@ macOS binaries are not published yet — build from source with `git clone` plus
 
 ## Getting help
 
-Start from a debug log using the [command above](#capturing-a-debug-log) — reports without one cannot be diagnosed.
+Include a [debug log](#capturing-a-debug-log), the command you ran, and your
+comic-dl version when reporting a failure.
 
 - **Questions** — [Discussions](https://github.com/fallen020/comic-dl/discussions)
 - **Bugs** — [Issues](https://github.com/fallen020/comic-dl/issues/new?template=bug_report.yml)

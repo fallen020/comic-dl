@@ -1,9 +1,12 @@
 ---
 title: Frequently Asked Questions
-description: Answers to common questions about installing, downloading, configuring, and troubleshooting comic-dl.
+description: Quick answers about reader compatibility, installation, chapter selection, resume, and configuration.
 order: 210
 section: Getting Started
 ---
+
+Find short answers below, with links to the detailed guides.
+For a specific error message, go to [Troubleshooting](../troubleshooting).
 
 ## What is comic-dl?
 
@@ -103,10 +106,10 @@ re-fetch and replace it anyway:
 comic-dl -u <series-url> --chapters all --force
 ```
 
-### Previewing before you commit
+### Can I preview a download?
 
-`--dry-run` walks the URLs, lists what would download, and stops before
-any bytes move:
+`--dry-run` fetches metadata and may probe image sizes to list what would
+download, without creating chapter archives:
 
 ```bash
 comic-dl -f urls.txt --dry-run
@@ -139,7 +142,7 @@ Per-chapter page downloads run at concurrency 5 by default. If a host starts
 throttling you, `-c`/`--concurrency` lower it per run. comic-dl also paces
 requests per host (on by default) with limits you can tune — see
 [Rate limiting](../configure/rate-limiting). Defaults are documented in
-[config.md](../configure/config).
+[Configuration File](../configure/config).
 
 ### Images come out corrupt, or don't download at all
 

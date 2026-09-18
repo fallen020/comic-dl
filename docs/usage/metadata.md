@@ -8,10 +8,8 @@ comic-dl writes `ComicInfo.xml` in two places:
 - **Beside the archives** (`<Series Title>/ComicInfo.xml`) — the same shared
   series metadata, written from the most recently scraped chapter.
 
-Writing the series facts into every archive keeps a single-archive copy or an
-archive re-upload consistent with the folder-level file. Comic readers that
-support ComicInfo.xml read the folder-level file when present and fall back to
-the first archive's copy.
+Each archive carries its own copy of the available series facts, so those
+fields stay with it when copied without the series folder.
 
 `ComicInfo.xml` is the standard metadata format used by
 Calibre, Komga, Kavita, and other comic readers.

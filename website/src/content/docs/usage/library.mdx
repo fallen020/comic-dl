@@ -1,5 +1,6 @@
 ---
 title: Library Management
+description: List downloaded series, check recent chapters, update subscriptions, and remove or restore series.
 order: 410
 section: Usage
 ---
@@ -15,7 +16,7 @@ comic-dl list --json
 comic-dl list --source e-hentai.org    # filter by source domain
 ```
 
-## Show series info
+## Inspect chapters and file status
 
 ```bash
 comic-dl info "My Favorite Series"
@@ -103,7 +104,8 @@ comic-dl latest --json
 ```
 
 Error messages still go to stderr. The `schema_version` field enables scripts
-to detect breaking changes.
+to detect breaking changes. See the [JSON output reference](../../reference/cli#json-output)
+for payload shapes.
 
 ## Bad output path
 

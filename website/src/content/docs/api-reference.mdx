@@ -1,14 +1,13 @@
 ---
 title: API Reference
-description: Manually maintained index of comic_dl's public modules.
+description: Find Python modules for data models, scraping, downloads, archives, configuration, and errors.
 order: 220
 section: Getting Started
 ---
 
-Manually maintained index of `comic_dl`'s public modules. Keep docstrings
-in `src/comic_dl/` current — they are the ground truth for each module's
-public surface. For a tour of how the pieces fit together, see
-[Architecture](../develop/architecture) first.
+Use this index to locate `comic_dl`'s public modules. Function signatures and
+behavior are documented in the docstrings under `src/comic_dl/`.
+For the end-to-end flow, start with [Architecture](../develop/architecture).
 
 ## Data contracts
 
@@ -24,9 +23,8 @@ public surface. For a tour of how the pieces fit together, see
 
 ## Scraper contract and registry
 
-The built-in scrapers and the plugin registry. Plugin authors should start
-with [Writing a plugin](../usage/write-plugin) — this section documents the
-helpers a plugin builds on.
+Plugin authors should start with [Writing a Plugin](../usage/write-plugin).
+These modules provide the scraper contract and source discovery:
 
 - `comic_dl.scrapers.base` — `BaseScraper` contract.
 - `comic_dl.scrapers.registry` — plugin loader.

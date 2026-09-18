@@ -1,12 +1,14 @@
 ---
 title: Environment Variables
+description: Configure paths, terminal colors, diagnostics, and display settings through environment variables.
 order: 330
 section: Configure
 ---
 
-comic-dl reads the following environment variables.
+Use environment variables for config discovery, terminal output, and diagnostics.
+For persistent download options, use the [configuration file](../config).
 
-## Config
+## Config file path
 
 | Variable | Description |
 | :------- | :---------- |
@@ -32,7 +34,7 @@ These are checked in precedence order. Explicit `--color` flags always win.
 | `COMIC_DL_TRACE_HTTP` | Any non-empty/non-false value enables header-level HTTP traces |
 | `COMIC_DL_ASCII` | `1` forces ASCII glyphs (no Unicode) |
 
-## Display
+## Display and editor
 
 | Variable | Effect |
 | :------- | :----- |

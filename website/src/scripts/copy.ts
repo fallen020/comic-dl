@@ -29,6 +29,7 @@ export function createCopyButton(getText: () => string): HTMLButtonElement {
   btn.className = 'code-copy';
   btn.textContent = 'Copy';
   btn.setAttribute('aria-label', 'Copy to clipboard');
+  btn.setAttribute('aria-live', 'polite');
   btn.addEventListener('click', async () => {
     const ok = await copyText(getText());
     btn.textContent = ok ? 'Copied' : 'Failed';
@@ -79,12 +80,12 @@ export function enhanceCodeBlocks(root: ParentNode = document): void {
   }
 
   // Wire up copy hooks on pre-rendered <CodeBlock /> components.
-  root.querySelectorAll<HTMLPreElement>('pre.astro-code[data-codeblock]').forEach((pre) => {
-    const wrap = pre.closest<HTMLElement>('[data-codeblock]');
-    if (!wrap) return;
+  root.querySelectorAll<HTMLElement>('[data-codeblock]').forEach((wrap) => {
+    const pre = wrap.querySelector('pre');
     const hook = wrap.querySelector<HTMLButtonElement>('[data-copy-hook]');
-    if (!hook || hook.dataset.wired) return;
+    if (!pre || !hook || hook.dataset.wired) return;
     hook.dataset.wired = 'true';
+    hook.setAttribute('aria-live', 'polite');
     hook.addEventListener('click', async () => {
       const ok = await copyText(pre.textContent ?? '');
       hook.textContent = ok ? 'Copied' : 'Failed';

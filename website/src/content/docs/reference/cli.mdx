@@ -5,7 +5,9 @@ order: 500
 section: Reference
 ---
 
-comic-dl's command-line interface. The default command downloads content when given a URL.
+Look up commands, flags, defaults, and JSON output shapes. The default command
+downloads content when given a URL; see [Downloading](../../usage/basic) for
+worked examples.
 
 ## Synopsis
 
@@ -176,7 +178,8 @@ Every `--json` payload includes a `schema_version` field (currently `1`).
 | `2` | Invalid CLI usage (bad flag, bad value) |
 | `130` | Interrupted (Ctrl-C / SIGTERM) |
 
-## Next
+## Related reference
 
-- [Supported Sites](../supported-sites) — the built-in scrapers
+- [Exit Codes](../exit-codes) — failure categories, interrupts, and batch results
+- [Supported Sites](../supported-sites) — URL patterns and per-site notes
 - [Troubleshooting](../../troubleshooting) — common failures and how to fix them

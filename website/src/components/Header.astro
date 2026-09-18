@@ -1,5 +1,6 @@
 ---
-import { Menu, ArrowUpRight, BookOpen } from '@lucide/astro';
+import { Menu, BookOpen } from '@lucide/astro';
+import BrandIcon from './icons/BrandIcon.astro';
 import Search from './Search.astro';
 import ThemeToggle from './ThemeToggle.astro';
 import { siteBase } from '../utils/base';
@@ -40,7 +41,7 @@ const { showMenu = false } = Astro.props;
         aria-label="comic-dl on GitHub"
         class="inline-flex items-center rounded border border-line bg-surface-1 p-1.5 text-fg-secondary transition-colors hover:text-fg"
       >
-        <ArrowUpRight size={16} aria-hidden="true" />
+        <BrandIcon name="github" size={16} />
       </a>
       <ThemeToggle />
     </div>

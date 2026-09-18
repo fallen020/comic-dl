@@ -1,5 +1,6 @@
 ---
 title: Error Style Guide
+description: Write actionable errors with consistent wording, output streams, exit codes, and diagnostics.
 order: 630
 section: Develop
 ---
@@ -7,7 +8,7 @@ section: Develop
 Conventions for the messages users see when comic-dl fails. A user should
 always know **what** went wrong, **why**, and **what to do next**.
 
-## Hard rules
+## Message wording
 
 - **Start lowercase, end with a period.** Messages read mid-sentence.
 - **Sentence case** — not Title Case.
@@ -27,7 +28,7 @@ always know **what** went wrong, **why**, and **what to do next**.
 
 This strict split lets scripts pipe stdout without progress noise.
 
-## Building blocks
+## Message helpers
 
 | Helper | Stream | Use for |
 | :----- | :----- | :------ |
@@ -60,7 +61,8 @@ Each is: *what/where*, then colon, then *why*, with a fix when helpful.
 | 130 | `EXIT_INTERRUPTED` | Ctrl-C / SIGTERM |
 
 Use named constants (`EXIT_OK`, `EXIT_ERROR`, `EXIT_USAGE`,
-`EXIT_INTERRUPTED`) — never bare integers.
+`EXIT_INTERRUPTED`) — never bare integers. See [Exit Codes](../../reference/exit-codes)
+for failure categories and interrupt behavior.
 
 ## Verbosity and diagnostics
 

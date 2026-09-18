@@ -1,5 +1,6 @@
 ---
 title: Plugins
+description: Install and inspect third-party sources, validate plugins, and understand priority and trust boundaries.
 order: 440
 section: Usage
 ---
@@ -13,7 +14,7 @@ A plugin registers a `Source` class through the `comic_dl.sources` entry-point
 group. After installation, the source appears in `comic-dl --list-sources` and
 handles URLs matching its domain.
 
-## Finding plugins
+## List installed plugins
 
 ```bash
 comic-dl plugin list
@@ -67,4 +68,5 @@ plugin is not constrained by those helpers.
 
 ## Writing a plugin
 
-See [Writing a Plugin](../write-plugin) for the full guide with code examples.
+Follow [Writing a Plugin](../write-plugin) for the source contract, result types,
+and entry-point registration.

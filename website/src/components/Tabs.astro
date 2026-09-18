@@ -1,7 +1,15 @@
 ---
+import { Terminal } from '@lucide/astro';
+import BrandIcon from './icons/BrandIcon.astro';
 interface Tab { label: string; value: string }
 interface Props { tabs: Tab[]; label?: string }
 const { tabs, label = 'Platform' } = Astro.props;
+const brandFor: Record<string, 'windows' | 'debian' | 'fedora' | 'archlinux' | undefined> = {
+  windows: 'windows',
+  debian: 'debian',
+  fedora: 'fedora',
+  arch: 'archlinux',
+};
 ---
 <div class="tabs" data-tabs>
   <div class="tabs-tablist" role="tablist" aria-label={label}>
@@ -15,7 +23,7 @@ const { tabs, label = 'Platform' } = Astro.props;
         data-tab-button={t.value}
         class="tabs-tab"
         tabindex={i === 0 ? 0 : -1}
-      >{t.label}</button>
+      >{brandFor[t.value] ? <BrandIcon name={brandFor[t.value]!} size={14} /> : t.value === 'source' ? <Terminal size={14} aria-hidden="true" /> : null}{t.label}</button>
     ))}
   </div>
   <div data-tab-panels>
@@ -24,8 +32,8 @@ const { tabs, label = 'Platform' } = Astro.props;
 </div>
 <script is:inline>
 (() => {
-  const root = document.currentScript?.closest('[data-tabs]');
-  if (!root) return;
+  const root = document.currentScript?.previousElementSibling;
+  if (!root?.matches('[data-tabs]')) return;
   const buttons = root.querySelectorAll('[data-tab-button]');
   const panels = root.querySelectorAll('[data-panel]');
 
@@ -48,6 +56,8 @@ const { tabs, label = 'Platform' } = Astro.props;
       let next = -1;
       if (e.key === 'ArrowRight') next = (idx + 1) % arr.length;
       if (e.key === 'ArrowLeft')  next = (idx - 1 + arr.length) % arr.length;
+      if (e.key === 'Home') next = 0;
+      if (e.key === 'End') next = arr.length - 1;
       if (next >= 0) {
         arr[next].focus();
         activate(arr[next].getAttribute('data-tab-button'));
@@ -56,6 +66,6 @@ const { tabs, label = 'Platform' } = Astro.props;
     });
   });
 
-  if (panels.length) activate(panels[0].getAttribute('data-panel'));
+  if (buttons.length) activate(buttons[0].getAttribute('data-tab-button'));
 })();
 </script>

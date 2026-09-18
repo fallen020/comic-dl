@@ -1,5 +1,6 @@
 ---
 title: Writing a Plugin
+description: Implement a source, return chapter and series metadata, and register a plugin package.
 order: 450
 section: Usage
 ---
@@ -124,7 +125,7 @@ comic-dl plugin validate my_site/source.py
 ```
 
 A complete, installable reference plugin lives in
-[`examples/plugin-example/`](https://github.com/fallen020/comic-dl/blob/main/examples/plugin-example/pyproject.toml).
+the [example plugin package](https://github.com/fallen020/comic-dl/blob/main/examples/plugin-example/pyproject.toml).
 
 ## Registering the entry point
 
@@ -151,3 +152,4 @@ plugin replacing a built-in must set `priority > 0`.
 
 The registry functions in `comic_dl.scrapers.registry` are unit-testable
 without a network. Register a fake source, resolve a URL, and assert the state.
+See [Testing](../../develop/testing) for test commands and fixture conventions.

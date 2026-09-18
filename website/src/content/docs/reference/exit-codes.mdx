@@ -1,6 +1,6 @@
 ---
 title: Exit Codes
-description: Process exit codes, error kinds, and interrupt behavior for scripting and CI.
+description: Interpret process exit codes, classify failures, and handle interruptions or mixed batch results in scripts.
 order: 510
 section: Reference
 ---
@@ -8,7 +8,7 @@ section: Reference
 comic-dl uses standard process exit codes to communicate results to scripts
 and CI systems.
 
-## Codes
+## Exit code reference
 
 | Code | Constant | Meaning |
 | :--- | :------- | :------ |
@@ -91,4 +91,5 @@ A second press after the 2-second grace window resets the timer.
 
 When downloading from a file (`-f`), each URL is processed independently. If
 some fail and some succeed, the exit code is `1`. A summary is printed at the
-end showing succeeded, skipped, and failed counts.
+end showing succeeded, skipped, and failed counts. For structured results,
+see [JSON output](../cli#json-output).

@@ -1,8 +1,8 @@
 # Rate Limiting
 
-comic-dl spaces out requests to each host using a per-host token bucket
-limiter. This prevents aggressive fetching from getting your IP throttled or
-banned.
+comic-dl uses a per-host token bucket limiter to space out requests to hosts
+with configured rates. This reduces request pressure but cannot guarantee
+that a site will not throttle or block a run.
 
 ## Default rates
 

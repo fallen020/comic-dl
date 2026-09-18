@@ -7,6 +7,7 @@ import { siteBase } from '../utils/base';
     type="button"
     data-search-trigger
     class="inline-flex w-full items-center gap-2 rounded border border-line bg-surface-1 px-2.5 py-1.5 text-sm text-fg-secondary transition-colors hover:text-fg sm:w-48"
+    aria-label="Search documentation"
     aria-haspopup="dialog"
     aria-controls="search-modal"
   >
@@ -17,64 +18,58 @@ import { siteBase } from '../utils/base';
     </span>
   </button>
 
-  <div
+  <dialog
     id="search-modal"
-    class="fixed inset-0 z-50 hidden p-4 sm:p-6"
+    class="fixed inset-0 m-0 h-full max-h-none w-full max-w-none bg-transparent p-4 text-fg backdrop:bg-black/60 sm:p-6"
     data-search-modal
-    role="dialog"
-    aria-modal="true"
     aria-label="Search documentation"
   >
-    <div class="absolute inset-0 bg-black/60" data-search-backdrop></div>
     <div class="relative mx-auto mt-[8vh] max-h-[80vh] w-full max-w-2xl overflow-y-auto rounded-lg border border-line bg-surface shadow-2xl">
-      <div id="search-ui" class="p-4" data-search-ui>
-        <p class="py-8 text-center text-sm text-fg-secondary" data-search-status>Loading search…</p>
+      <div class="flex justify-end px-4 pt-4">
+        <button type="button" data-search-close class="rounded border border-line bg-surface-1 px-3 py-1.5 text-sm text-fg-secondary hover:text-fg">Close search</button>
+      </div>
+      <div class="p-4">
+        <p class="py-8 text-center text-sm text-fg-secondary" data-search-status role="status">Loading search…</p>
+        <button type="button" data-search-retry hidden class="rounded border border-line bg-surface-1 px-3 py-1.5 text-sm text-fg-secondary hover:text-fg">Retry search</button>
+        <div id="search-ui" data-search-ui></div>
       </div>
     </div>
-  </div>
+  </dialog>
 </div>
 <script is:inline>
 (() => {
-  const root = document.currentScript?.closest('[data-search]');
-  if (!root) return;
+  const root = document.currentScript?.previousElementSibling;
+  if (!root?.matches('[data-search]')) return;
   const trigger = root.querySelector('[data-search-trigger]');
   const modal = root.querySelector('[data-search-modal]');
-  const backdrop = root.querySelector('[data-search-backdrop]');
+  const closeButton = root.querySelector('[data-search-close]');
+  const retry = root.querySelector('[data-search-retry]');
   const status = root.querySelector('[data-search-status]');
   const base = root.getAttribute('data-base') || '/';
-  let ui = null;
   let initPromise = null;
+  let cssLoaded = false;
 
   function close() {
-    modal.classList.add('hidden');
-    trigger.focus();
+    modal.close();
   }
 
-  function open() {
-    modal.classList.remove('hidden');
-    ensureInit();
-  }
-
-  function loadCss(url) {
-    const link = document.createElement('link');
-    link.rel = 'stylesheet';
-    link.href = url;
-    document.head.appendChild(link);
+  async function open() {
+    if (!modal.open) modal.showModal();
+    await ensureInit();
+    if (modal.open) root.querySelector('input.pagefind-ui__search-input')?.focus();
   }
 
   async function loadUi() {
-    const url = `${base}pagefind/pagefind-ui.js`;
     if (globalThis.PagefindUI) return globalThis.PagefindUI;
-    try {
-      const mod = await import(/* @vite-ignore */ url);
-      if (mod?.default) return mod.default;
-    } catch { /* fall through to script injection */ }
     await new Promise((resolve, reject) => {
-      const s = document.createElement('script');
-      s.src = url;
-      s.onload = () => resolve();
-      s.onerror = () => reject(new Error('load-failed'));
-      document.head.appendChild(s);
+      const script = document.createElement('script');
+      script.src = `${base}pagefind/pagefind-ui.js`;
+      script.onload = () => resolve();
+      script.onerror = () => {
+        script.remove();
+        reject(new Error('load-failed'));
+      };
+      document.head.appendChild(script);
     });
     if (globalThis.PagefindUI) return globalThis.PagefindUI;
     throw new Error('not-found');
@@ -82,48 +77,50 @@ import { siteBase } from '../utils/base';
 
   function ensureInit() {
     if (!initPromise) {
+      status.hidden = false;
+      status.textContent = 'Loading search…';
+      retry.hidden = true;
       initPromise = (async () => {
         try {
-          loadCss(`${base}pagefind/pagefind-ui.css`);
+          if (!cssLoaded) {
+            const link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = `${base}pagefind/pagefind-ui.css`;
+            document.head.appendChild(link);
+            cssLoaded = true;
+          }
           const PagefindUI = await loadUi();
-          if (!ui) {
-            ui = new PagefindUI({
-              element: '#search-ui',
-              showSubResults: true,
-              highlightParam: 'highlight',
-              pageSize: 8,
-              showImages: false,
-              bundlePath: base,
-            });
-          }
-          status?.remove();
-          const input = root.querySelector('input.pagefind-ui__search-input');
-          if (input) input.focus();
-        } catch (e) {
-          if (status) {
-            status.textContent =
-              'Search is not available yet. Run `npm run build:search` to generate the index.';
-          }
+          new PagefindUI({
+            element: '#search-ui',
+            showSubResults: true,
+            highlightParam: 'highlight',
+            pageSize: 8,
+            showImages: false,
+            bundlePath: `${base}pagefind/`,
+          });
+          status.hidden = true;
+        } catch {
+          status.textContent = 'Search could not load. Please check your connection and try again.';
+          retry.hidden = false;
+          initPromise = null;
         }
       })();
     }
+    return initPromise;
   }
 
-  trigger.addEventListener('click', () => {
-    if (modal.classList.contains('hidden')) open();
-    else close();
+  trigger.addEventListener('click', open);
+  closeButton.addEventListener('click', close);
+  retry.addEventListener('click', open);
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) close();
   });
-
-  backdrop.addEventListener('click', close);
 
   document.addEventListener('keydown', (e) => {
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
       e.preventDefault();
-      if (modal.classList.contains('hidden')) open();
-      else close();
-    }
-    if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
-      close();
+      if (modal.open) close();
+      else open();
     }
   });
 })();

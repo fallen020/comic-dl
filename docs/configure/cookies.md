@@ -2,8 +2,9 @@
 
 ## Persistent cookie jar
 
-comic-dl persists an RFC-compliant cookie jar across runs so session cookies
-(such as Cloudflare's `cf_clearance`) survive for hours.
+comic-dl uses a SQLite cookie store with a subset of RFC 6265 behavior.
+Whether a cookie survives a restart depends on how it enters the store and
+whether it has an expiry.
 
 | Platform | Location |
 | :------- | :------- |
@@ -11,8 +12,11 @@ comic-dl persists an RFC-compliant cookie jar across runs so session cookies
 | macOS | `~/Library/Application Support/comic-dl/cookies.db` |
 | Windows | `%APPDATA%\comic-dl\cookies.db` |
 
-The jar is stored in SQLite (WAL mode). Session cookies (no expiry) are kept
-in-memory for the current process only and never persisted.
+The jar uses SQLite in WAL mode. Cookies imported from an HTTP session are
+persisted only when they have an unexpired expiry; cookies without an expiry
+stay in memory for that process. Explicit storage through `CookieJar.set`
+writes to disk even without an expiry, so “session cookies are never persisted”
+is not a guarantee of the store.
 
 ## Managing cookies
 

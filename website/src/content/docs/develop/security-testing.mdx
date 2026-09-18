@@ -1,5 +1,6 @@
 ---
 title: Security Testing
+description: Run offline checks for network, filesystem, database, and parser safety, and review known limits.
 order: 640
 section: Develop
 ---
@@ -7,7 +8,9 @@ section: Develop
 The security test suite exercises network safety, filesystem hardening, and
 parser resilience. Every test is **offline** — no live network calls.
 
-## Running the suite
+For general test commands and contribution guidelines, see [Testing](../testing).
+
+## Run the security suite
 
 ```bash
 # Full security suite
@@ -72,7 +75,7 @@ this would require pinning resolved IPs into the connection itself.
   mimics `AsyncSession.stream()` so the downloader's guarded code paths are
   exercised end to end.
 
-## Related hardening
+## Implementation locations
 
 - SSRF guard: `comic_dl/utils.py` (`validate_request_url`, `resolve_redirect_url`)
 - Downloader integration: `comic_dl/downloader.py` (`_open_stream`, `_try_resume`)

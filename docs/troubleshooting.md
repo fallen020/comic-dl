@@ -89,9 +89,8 @@ The chapter page loaded but contained no images: the page may require
 login, be region-locked, or have been removed. Site-specific causes:
 
 - **e-hentai** — the gallery is missing or expunged, or is behind a login.
-  For a login-gated gallery, run once with `--solver webview`, complete
-  the login in the window that opens, and comic-dl keeps the session
-  cookies for the next run.
+  Cookie persistence depends on the storage path and expiry; it does not
+  guarantee access on the next run.
 - **Pawchive** — a "Previews only" post downloads thumbnail resolution
   with a warning, and a post with no visible file attachments yields no
   images at all.

@@ -1,12 +1,13 @@
 ---
 title: Rate Limiting
+description: Set per-host request rates and understand how throttling interacts with concurrency and retries.
 order: 340
 section: Configure
 ---
 
-comic-dl spaces out requests to each host using a per-host token bucket
-limiter. This prevents aggressive fetching from getting your IP throttled or
-banned.
+comic-dl uses a per-host token bucket limiter to space out requests to hosts
+with configured rates. This reduces request pressure but cannot guarantee
+that a site will not throttle or block a run.
 
 ## Default rates
 
@@ -19,6 +20,8 @@ banned.
 Fractional rates are honored precisely: `1.5` means one request every ~0.67s.
 
 ## Configuring rates
+
+Add these settings to your [configuration file](../config).
 
 ### Global defaults
 
@@ -69,7 +72,7 @@ When any download hits a retryable error, all in-flight downloads pause for up
 to 2 seconds (shared cooldown). This prevents ramping up under throttling
 instead of backing off.
 
-## Concurrency interaction
+## Request rate vs. download concurrency
 
 With rate limiting **on**, your `--concurrency` value is honored (capped at
 32). With rate limiting **off**, page concurrency is clamped to 5 regardless

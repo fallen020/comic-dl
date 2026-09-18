@@ -5,7 +5,9 @@ order: 400
 section: Usage
 ---
 
-This page covers every way to download content with comic-dl.
+Download a single URL, queue a file of URLs, or select chapters from a series.
+For a first run, start with [Quick Start](../../quick-start); use this guide for
+batch downloads, size limits, and scripting.
 
 ## Download a single URL
 
@@ -135,7 +137,7 @@ $ comic-dl latest --json
 
 `--json` implies non-interactive mode. All human output goes to stderr; stdout receives only the JSON payload. Every payload includes a `schema_version` field (currently `1`).
 
-See [CLI Reference](../../reference/cli#json-output) for the full JSON schema.
+See [JSON output shapes](../../reference/cli#json-output) for the command-by-command reference.
 
 ## Verbosity
 

@@ -29,7 +29,7 @@
   --line: #30363d;
   --fg: #e6edf3;
   --fg-secondary: #9da7b3;
-  --fg-muted: #6e7681;
+  --fg-muted: #919ba7;
   --accent: #58a6ff;
   --accent-dim: #1f6feb;
   --note-border: #1f6feb;
@@ -45,7 +45,7 @@
   --line: #d0d7de;
   --fg: #1f2328;
   --fg-secondary: #59636e;
-  --fg-muted: #818b98;
+  --fg-muted: #626c78;
   --accent: #0969da;
   --accent-dim: #0550ae;
   --note-border: #0969da;
@@ -71,6 +71,28 @@ body {
 ::selection {
   background-color: var(--accent-dim);
   color: var(--fg);
+}
+
+.skip-link {
+  position: fixed;
+  top: 0.5rem;
+  left: 0.5rem;
+  z-index: 100;
+  transform: translateY(calc(-100% - 1rem));
+  border-radius: 0.375rem;
+  padding: 0.75rem 1rem;
+  background-color: var(--surface);
+  color: var(--fg);
+}
+.skip-link:focus { transform: translateY(0); }
+#main-content { scroll-margin-top: 4rem; }
+[data-sidebar-drawer]::backdrop { background-color: rgb(0 0 0 / 60%); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* ---- Focus ring ---- */
@@ -199,6 +221,12 @@ code:not(pre code) {
   scroll-margin-top: 4rem;
 }
 .prose-docs :where(th) { color: var(--fg); }
+.docs-table-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  margin: 1.25rem 0;
+}
+.docs-table-scroll > table { margin: 0; }
 
 /* ---- Callouts ---- */
 .callout {
@@ -273,10 +301,17 @@ code:not(pre code) {
 .tabs-tablist {
   display: flex;
   gap: 0.25rem;
+  overflow-x: auto;
+  padding: 0.25rem;
   border-bottom: 1px solid var(--line);
   margin-bottom: 0.75rem;
 }
 .tabs-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  flex-shrink: 0;
+  white-space: nowrap;
   padding: 0.5rem 0.875rem;
   font-size: 0.875rem;
   color: var(--fg-secondary);

@@ -1,11 +1,13 @@
 ---
 title: Configuration File
+description: Save download defaults in TOML, resolve option precedence, and manage per-host settings.
 order: 310
 section: Configure
 ---
 
-comic-dl can persist options in a TOML config file instead of passing flags
-every run.
+Save recurring options in a TOML config file instead of repeating flags.
+Start with `comic-dl config init`, then use `comic-dl config show` to inspect
+the resolved settings.
 
 ## Config file location
 
@@ -17,7 +19,7 @@ every run.
 
 ## Precedence
 
-Options are resolved in this order (later wins):
+Options are resolved by priority (highest first):
 
 1. CLI flag
 2. Config file
@@ -43,7 +45,7 @@ max_size = 0                 # per run (0 = unlimited)
 [http]
 impersonate = "chrome146"    # TLS/HTTP fingerprint profile
 solver = "auto"              # auto | impersonation | webview | off
-cookie-jar = true            # persist session cookies across runs
+cookie-jar = true            # enable the persistent cookie store
 cache = true                 # on-disk scrape response cache
 cache-ttl = 6                # hours a cached response stays fresh
 cache-max-bytes = "50MB"     # total cache size budget (100MB, 2GB, 512KB, or bytes);
@@ -73,8 +75,8 @@ tmp-dir = ""                 # chapter staging dir; "" = system temp (set to a
 # impersonate = "chrome146"
 ```
 
-See [`examples/config.toml`](https://github.com/fallen020/comic-dl/blob/main/examples/config.toml)
-for a fully documented example.
+See the [annotated config example](https://github.com/fallen020/comic-dl/blob/main/examples/config.toml)
+for all settings, or [Rate Limiting](../rate-limiting) for request pacing.
 
 ## Config management commands
 

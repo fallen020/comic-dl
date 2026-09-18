@@ -100,8 +100,8 @@ comic-dl -u <series-url> --chapters all --force
 
 ### Previewing before you commit
 
-`--dry-run` walks the URLs, lists what would download, and stops before
-any bytes move:
+`--dry-run` fetches metadata and may probe image sizes to list what would
+download, without creating chapter archives:
 
 ```bash
 comic-dl -f urls.txt --dry-run

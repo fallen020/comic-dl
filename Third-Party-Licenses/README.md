@@ -44,3 +44,16 @@ are included alongside the license where present.
 Platform-specific runtime dependencies of `pywebview` are included even
 though they are not installed on every platform: `pyobjc-*` (macOS),
 `pythonnet` and `clr-loader` (Windows), and `qtpy` (OpenBSD).
+
+## Website assets
+
+The docs site (`website/`) vendors or bundles these third-party assets.
+They ship only in the built site, never in the Python artifacts above.
+
+| Name | License | Notes |
+|:-----|:--------|:------|
+| [Lucide](https://lucide.dev) (`@lucide/astro`) | ISC | UI icons, inlined as SVG at build time |
+| [Simple Icons](https://simple-icons.org) brand paths | CC0-1.0 | GitHub/Windows/Debian/Fedora/Arch Linux marks vendored in `website/src/components/icons/BrandIcon.astro` (v16.31.0) |
+| [Pagefind](https://pagefind.app) | MIT | Client-side search, lazy-loaded on first use |
+| [Shiki](https://shiki.style) | MIT | Build-time syntax highlighting |
+| [Astro](https://astro.build) (+ `@astrojs/mdx`) | MIT | Static site build |

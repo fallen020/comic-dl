@@ -18,6 +18,8 @@ const fullTitle = title === siteTitle ? siteTitle : `${title} — comic-dl`;
     <title>{fullTitle}</title>
     {description && <meta name="description" content={description} />}
     <link rel="icon" type="image/svg+xml" href={pagePath('favicon.svg')} />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0d1117" />
     <script is:inline>
       (() => {
         let theme = null;
@@ -32,6 +34,7 @@ const fullTitle = title === siteTitle ? siteTitle : `${title} — comic-dl`;
     </script>
   </head>
   <body class="text-fg">
+    <a href="#main-content" class="skip-link">Skip to main content</a>
     <slot />
   </body>
 </html>

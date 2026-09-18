@@ -6,6 +6,7 @@ export default defineConfig({
   site: 'https://fallen020.github.io',
   base: '/comic-dl',
   output: 'static',
+  trailingSlash: 'always',
   markdown: {
     shikiConfig: {
       themes: {
