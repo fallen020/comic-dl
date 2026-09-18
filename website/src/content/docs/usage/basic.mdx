@@ -6,7 +6,7 @@ section: Usage
 ---
 
 Download a single URL, queue a file of URLs, or select chapters from a series.
-For a first run, start with [Quick Start](../../quick-start); use this guide for
+For a first run, start with [Quick Start](../../quick-start/); use this guide for
 batch downloads, size limits, and scripting.
 
 ## Download a single URL
@@ -15,7 +15,7 @@ batch downloads, size limits, and scripting.
 $ comic-dl -u https://e-hentai.org/g/3161202/e7a26f9e16/
 ```
 
-The `-u` / `--url` flag accepts any URL from a [supported site](../../reference/supported-sites).
+The `-u` / `--url` flag accepts any URL from a [supported site](../../reference/supported-sites/).
 
 ## Download from a file
 
@@ -137,7 +137,7 @@ $ comic-dl latest --json
 
 `--json` implies non-interactive mode. All human output goes to stderr; stdout receives only the JSON payload. Every payload includes a `schema_version` field (currently `1`).
 
-See [JSON output shapes](../../reference/cli#json-output) for the command-by-command reference.
+See [JSON output shapes](../../reference/cli/#json-output) for the command-by-command reference.
 
 ## Verbosity
 
@@ -166,4 +166,4 @@ SIGTERM behaves identically to SIGINT.
 
 - **Windows:** use Windows Terminal for Unicode support. In classic `cmd.exe`, run `chcp 65001` first.
 - **Windows long paths:** deep series trees can exceed `MAX_PATH`. Enable the system long-path policy or keep the output directory short.
-- **macOS:** no binaries are distributed yet — build from source (`git clone` + `uv sync`). See [Installation](../../installation).
+- **macOS:** no binaries are distributed yet — build from source (`git clone` + `uv sync`). See [Installation](../../installation/).

@@ -6,7 +6,7 @@ section: Getting Started
 ---
 
 Find short answers below, with links to the detailed guides.
-For a specific error message, go to [Troubleshooting](../troubleshooting).
+For a specific error message, go to [Troubleshooting](../troubleshooting/).
 
 ## What is comic-dl?
 
@@ -37,7 +37,7 @@ source requires Python 3.11+ and `uv`. macOS ships no binary, so source is
 the only route there.
 
 The full per-platform table — exact filenames, webview prerequisites, and how
-to update each install — is in [Installation](../installation).
+to update each install — is in [Installation](../installation/).
 
 ### Which Python version is required?
 
@@ -57,7 +57,7 @@ git pull
 uv sync
 ```
 
-See [Update and uninstall](../installation#update-and-uninstall) for the
+See [Update and uninstall](../installation/#update-and-uninstall) for the
 binary-by-binary instructions.
 
 ## Downloading
@@ -133,7 +133,7 @@ tells you which file it read.
 No scraper matches, or the fallback couldn't extract anything. comic-dl
 attempts a generic scraper on unknown hosts unless you pass `--no-generic`
 (or set `[download] generic = false`), so this error means the fallback ran
-and came up empty. Check the [supported sites](../reference/supported-sites)
+and came up empty. Check the [supported sites](../reference/supported-sites/)
 list first, then consider a plugin.
 
 ### Downloads are slow
@@ -141,15 +141,15 @@ list first, then consider a plugin.
 Per-chapter page downloads run at concurrency 5 by default. If a host starts
 throttling you, `-c`/`--concurrency` lower it per run. comic-dl also paces
 requests per host (on by default) with limits you can tune — see
-[Rate limiting](../configure/rate-limiting). Defaults are documented in
-[Configuration File](../configure/config).
+[Rate limiting](../configure/rate-limiting/). Defaults are documented in
+[Configuration File](../configure/config/).
 
 ### Images come out corrupt, or don't download at all
 
 Sites behind Cloudflare may need a challenge solver; `--solver auto` is the
 default and tries the system webview, falling back to TLS impersonation. On
 Linux the webview path needs PyGObject and WebKitGTK installed system-wide —
-the [webview requirements](../configure/cookies#webview-requirements) section
+the [webview requirements](../configure/cookies/#webview-requirements) section
 lists exact packages. On a headless box, skip the webview entirely with
 `--solver impersonation`.
 
@@ -173,6 +173,6 @@ Contributing instructions — setup, tests, PR workflow — live in
 [CONTRIBUTING.md](https://github.com/fallen020/comic-dl/blob/main/CONTRIBUTING.md).
 
 To support a new site, write a scraper plugin. The
-[Writing a Plugin](../usage/write-plugin) guide walks through the class, the
-registration, and the tests; [Plugins](../usage/plugins) covers loading and
+[Writing a Plugin](../usage/write-plugin/) guide walks through the class, the
+registration, and the tests; [Plugins](../usage/plugins/) covers loading and
 installing third-party ones.

@@ -1,0 +1,47 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Header from '../components/Header.astro';
+import { docsPath } from '../utils/base';
+
+// Rendered for every unmatched path (dev and `404.html` on static hosts).
+// A short inline script repairs slash-less docs URLs client-side, since this
+// site builds with `trailingSlash: 'always'`.
+const attempted = Astro.url.pathname;
+---
+<BaseLayout title="Not found" description="This comic-dl docs page does not exist.">
+  <Header />
+
+  <main id="main-content" tabindex="-1" class="mx-auto w-full max-w-2xl px-4 pb-24 pt-16 text-center sm:px-6">
+    <p class="font-mono text-sm text-fg-muted">404</p>
+    <h1 class="mt-2 text-3xl font-bold tracking-tight text-fg">Page not found</h1>
+    <p class="mt-3 text-fg-secondary">
+      No docs page lives at <code>{attempted}</code>. If you trimmed a trailing
+      slash, you are being sent to the right address — otherwise start from the
+      docs home.
+    </p>
+    <p class="mt-8 flex flex-wrap items-center justify-center gap-3">
+      <a
+        href={docsPath('')}
+        class="inline-flex items-center gap-2 rounded-md bg-accent px-4 py-2 text-sm font-semibold text-surface no-underline transition-opacity hover:opacity-90"
+      >
+        Documentation home
+      </a>
+      <a
+        href={docsPath('installation')}
+        class="inline-flex items-center gap-2 rounded-md border border-line bg-surface-1 px-4 py-2 text-sm font-medium text-fg no-underline transition-colors hover:border-accent hover:text-accent"
+      >
+        Installation
+      </a>
+    </p>
+  </main>
+
+  <script is:inline>
+    (() => {
+      const { pathname, search, hash } = window.location;
+      const last = pathname.split('/').pop() || '';
+      if (!pathname.endsWith('/') && last && !last.includes('.')) {
+        window.location.replace(pathname + '/' + search + hash);
+      }
+    })();
+  </script>
+</BaseLayout>

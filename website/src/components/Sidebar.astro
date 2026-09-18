@@ -1,7 +1,7 @@
 ---
 import { getCollection } from 'astro:content';
 import type { CollectionEntry } from 'astro:content';
-import { pagePath } from '../utils/base';
+import { docsPath } from '../utils/base';
 
 interface Props {
   currentId: string;
@@ -43,7 +43,7 @@ const orderedGroups = Array.from(groups.values()).sort((a, b) => a.order - b.ord
       <ul class="space-y-0.5">
         {group.items.map((entry) => {
           const active = entry.id === currentId;
-          const href = pagePath(`docs/${entry.id}`);
+          const href = docsPath(entry.id);
           return (
             <li>
               <a

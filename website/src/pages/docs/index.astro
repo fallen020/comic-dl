@@ -1,0 +1,69 @@
+---
+import { getCollection } from 'astro:content';
+import type { CollectionEntry } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Header from '../../components/Header.astro';
+import { docsPath } from '../../utils/base';
+
+type Doc = CollectionEntry<'docs'>;
+
+const entries = (await getCollection('docs')).sort((a, b) => a.data.order - b.data.order);
+
+interface Group {
+  label: string;
+  items: Doc[];
+}
+
+const groups = new Map<string | null, Group>();
+for (const entry of entries) {
+  const label = entry.data.section ?? null;
+  if (!groups.has(label)) {
+    groups.set(label, { label: label ?? '', items: [] });
+  }
+  groups.get(label)!.items.push(entry);
+}
+
+const orderedGroups = Array.from(groups.values()).sort(
+  (a, b) => (a.items[0]?.data.order ?? 0) - (b.items[0]?.data.order ?? 0),
+);
+---
+<BaseLayout
+  title="Documentation"
+  description="Guides, configuration, and reference for comic-dl."
+>
+  <Header />
+
+  <main id="main-content" tabindex="-1" class="mx-auto w-full max-w-4xl px-4 pb-24 pt-12 sm:px-6">
+    <h1 class="text-3xl font-bold tracking-tight text-fg">Documentation</h1>
+    <p class="mt-2 max-w-xl text-fg-secondary">
+      Everything comic-dl can do, grouped by task. Start with
+      <a href={docsPath('installation')}>Installation</a> or
+      <a href={docsPath('quick-start')}>Quick Start</a>.
+    </p>
+
+    {orderedGroups.map((group) => (
+      <section class="mt-10" aria-label={group.label || 'Guides'}>
+        {group.label && (
+          <h2 class="text-xs font-semibold uppercase tracking-wide text-fg-muted">
+            {group.label}
+          </h2>
+        )}
+        <ul class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {group.items.map((entry) => (
+            <li>
+              <a
+                href={docsPath(entry.id)}
+                class="block h-full rounded-lg border border-line bg-surface-1 p-4 no-underline transition-colors hover:border-accent"
+              >
+                <p class="text-sm font-medium text-fg">{entry.data.title}</p>
+                {entry.data.description && (
+                  <p class="mt-0.5 text-xs text-fg-secondary">{entry.data.description}</p>
+                )}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </section>
+    ))}
+  </main>
+</BaseLayout>

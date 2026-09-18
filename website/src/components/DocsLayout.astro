@@ -3,7 +3,7 @@ import Header from './Header.astro';
 import Sidebar from './Sidebar.astro';
 import TableOfContents from './TableOfContents.astro';
 import { ArrowLeft, ArrowRight } from '@lucide/astro';
-import { pagePath } from '../utils/base';
+import { docsPath } from '../utils/base';
 
 interface PageLink {
   id: string;
@@ -24,7 +24,7 @@ interface Props {
 }
 
 const { title, description, headings, currentId, prev, next } = Astro.props;
-const docHref = (id: string) => pagePath(`docs/${id}`);
+const docHref = (id: string) => docsPath(id);
 ---
 <div class="flex min-h-screen flex-col">
   <Header showMenu />
