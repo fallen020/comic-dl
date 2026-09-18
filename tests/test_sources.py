@@ -103,6 +103,7 @@ class TestBuiltinRegistration:
             "toonily.com": "toonily",
             "manhwaz.com": "manhwaz",
             "hivetoons.org": "hivetoons",
+            "genztoons.org": "genztoons",
         }.items():
             assert domain in by_domain, f"{domain} not registered"
             assert by_domain[domain].name == name
