@@ -2054,7 +2054,9 @@ class TestStaleLinkRefresh:
 class TestHostBreaker:
     """Transport failures park a node; app-level replies never do (C)."""
 
-    def test_parks_after_threshold_consecutive_failures(self):
+    pytestmark = pytest.mark.asyncio
+
+    async def test_parks_after_threshold_consecutive_failures(self):
         from comic_dl.downloader import (
             HOST_PARK_SECONDS,
             host_parked,
@@ -2068,7 +2070,7 @@ class TestHostBreaker:
         # Window expires.
         assert host_parked("dead.hath.network", now + HOST_PARK_SECONDS + 1) is False
 
-    def test_success_resets_consecutive_count(self):
+    async def test_success_resets_consecutive_count(self):
         from comic_dl.downloader import (
             HOST_PARK_THRESHOLD,
             host_parked,
@@ -2083,7 +2085,7 @@ class TestHostBreaker:
         record_transport_failure("flaky.test", now)
         assert host_parked("flaky.test", now) is False
 
-    def test_not_image_response_is_application_level(self, tmp_path, monkeypatch):
+    async def test_not_image_response_is_application_level(self, tmp_path, monkeypatch):
         """A 200 HTML stub is stale-link territory; it must not park."""
         from comic_dl.downloader import NotImageResponseError, _is_retryable, _is_transport_failure
 
@@ -2242,6 +2244,8 @@ class TestTotalSizeBudget:
 class TestFailureLabels:
     """Each failing page records a human label describing why it failed, so
     the final report can say "HTTP 530 x34" instead of a bare "missing"."""
+
+    pytestmark = pytest.mark.asyncio
 
     @pytest.mark.asyncio
     async def test_transport_failure_records_http_status(self, tmp_path):
