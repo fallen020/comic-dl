@@ -3,6 +3,10 @@ name: Deploy docs site
 # Builds the Astro docs site in website/ and publishes it to GitHub Pages.
 # Only runs when the site or its workflow changed; the Plain-Markdown docs/
 # tree is the content source of truth and needs no deploy.
+#
+# Least privilege: the build job (npm ci + Astro + Pagefind + gates) runs
+# with contents:read only. Deployment permissions live solely on the
+# deploy job, so compromised build-time code never sees Pages credentials.
 
 on:
   push:
@@ -13,35 +17,46 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: pages
   cancel-in-progress: true
 
 jobs:
-  build-and-deploy:
+  build:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      contents: read
     defaults:
       run:
         working-directory: website
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: website/package-lock.json
       - run: npm ci
+      - run: npm audit --omit=dev
       # Pagefind indexes the static output post-build.
       - run: npm run build:search
-      - uses: actions/configure-pages@v6
-      - uses: actions/upload-pages-artifact@v5
+      # Published files, SEO/AI surfaces, and internal link integrity.
+      - run: python3 scripts/check-site.py
+      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5
         with:
           path: website/dist
-      - uses: actions/deploy-pages@v5
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5
         id: deployment
