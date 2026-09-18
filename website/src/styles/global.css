@@ -147,6 +147,12 @@ code:not(pre code) {
   border-radius: 0.25rem;
   font-size: 0.875em;
 }
+/* The typography plugin wraps inline code in decorative backticks; the
+   pill background above already marks code, so drop the extra quotes. */
+.prose-docs :where(code):not(:where(pre code))::before,
+.prose-docs :where(code):not(:where(pre code))::after {
+  content: none;
+}
 
 /* ---- Code block wrapper ---- */
 .codeblock {
