@@ -1,6 +1,6 @@
 # Supported Sites
 
-The 16 built-in scrapers shipped with comic-dl. The live registry — including
+The 21 built-in scrapers shipped with comic-dl. The live registry — including
 any third-party plugins — is shown by `comic-dl --list-sources`.
 
 ## Sites
@@ -36,17 +36,27 @@ any third-party plugins — is shown by `comic-dl --list-sources`.
 | **Kingofshojo** | `kingofshojo.com` | `/{slug}-chapter-{n}/` | Yes | — |
 | **ManhwaTop** | `manhwatop.com` | `/manga/{slug}/` | — | Yes |
 | **ManhwaTop** | `manhwatop.com` | `/manga/{slug}/chapter-{n}/` | Yes | — |
+| **HiveToons** | `hivetoons.org` | `/series/{slug}/` | — | Yes |
+| **HiveToons** | `hivetoons.org` | `/series/{slug}/chapter-{n}/` | Yes | — |
+| **GenzToons** | `genztoons.org` | `/series/{slug}/` | — | Yes |
+| **GenzToons** | `genztoons.org` | `/chapter/{uid}/` | Yes | — |
+| **QiScans** | `qimanga.com` | `/series/{slug}` | — | Yes |
+| **QiScans** | `qimanga.com` | `/series/{slug}/chapter-{n}` | Yes | — |
+| **StoneScape** | `stonescape.xyz` | `/series/{slug}` | — | Yes |
+| **StoneScape** | `stonescape.xyz` | `/series/{slug}/ch-{n}` | Yes | — |
+| **Thunderscans** | `en-thunderscans.com` | `/comics/{slug}/` | — | Yes |
+| **Thunderscans** | `en-thunderscans.com` | `/{slug}-chapter-{n}/` | Yes | — |
 
 ## Per-site features
 
-| Feature | Pawchive | E-Hentai | WEBTOON | FlameComics | FSIComics | GEDE Comix | Asura Scans | Kagane | MangaDex | Toonily | Manhwaz | KodokuStudio | WeebCentral | LGBTics | Kingofshojo | ManhwaTop |
-| :------ | :------- | :------ | :---------- | :-------- | :-------- | :--------- | :---------- | :----- | :------- | :------ | :------ | :---------- | :---------- | :------ | :---------- | :-------- |
-| Individual posts/chapters | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| Series chapter listing | — | — | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | — | Yes |
-| Image dedup (SHA-256) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| Download resume | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| Concurrent downloads | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| Chapter title from tags | — | Yes | Yes | — | — | — | — | — | — | — | — | — | — | — | — | — |
+| Feature | Pawchive | E-Hentai | WEBTOON | FlameComics | FSIComics | GEDE Comix | Asura Scans | Kagane | MangaDex | Toonily | Manhwaz | KodokuStudio | WeebCentral | LGBTics | Kingofshojo | ManhwaTop | HiveToons | GenzToons | QiScans | StoneScape | Thunderscans |
+| :------ | :------- | :------ | :---------- | :-------- | :-------- | :--------- | :---------- | :----- | :------- | :------ | :------ | :---------- | :---------- | :------ | :---------- | :-------- | :-------- | :-------- | :------ | :--------- | :----------- |
+| Individual posts/chapters | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Series chapter listing | — | — | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | — | Yes | Yes | Yes | Yes | Yes | Yes |
+| Image dedup (SHA-256) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Download resume | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Concurrent downloads | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Chapter title from tags | — | Yes | Yes | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — |
 
 ## Site notes
 
@@ -122,6 +132,35 @@ any third-party plugins — is shown by `comic-dl --list-sources`.
   lazy-loaded `data-src` on `c*.manhwatop.com` subdomains. The series page
   sits behind a Cloudflare challenge; the solver (`--solver auto`) or a
   `cf_clearance` cookie may be required for series scraping.
+
+- **HiveToons** — An Astro manhwa site. Series pages server-render the full
+  chapter list. Chapter titles come from the page's `Article` headline and
+  page images live in `.comic-images-wrapper` on `storage.hivetoon.com`.
+  The host serves slowly and drops parallel connections; interrupted runs
+  resume where they left off, so rerun to complete them.
+
+- **GenzToons** — A custom scanlation platform. Series pages statically render
+  the chapter list in `#chapters` and the reader ships placeholder `img` tags
+  whose `uid` attribute indexes real files on `cdn.meowing.org`. The mirror
+  host `genztoons.net` is accepted. Plain HTTP passes Cloudflare, so no
+  webview solver is needed.
+
+- **QiScans** — An Angular SSR manga site. Series pages server-render the
+  newest 30 chapters (`Showing 30 of N`); series scrapes cover that published
+  subset, and older chapters remain reachable by direct URL. Reader images
+  come from the `media.qimanhwa.com` host.
+
+- **StoneScape** — A Vue SPA with no server-side HTML; all data comes from a
+  plain JSON API (`/api/series/by-slug/{slug}`, `/…/chapters`,
+  `/api/chapters/{id}/pages`). Public pages are served under `/pub/` on the
+  same origin. Chapters marked locked (coins/subscription) or images served in
+  the `protected` delivery mode raise an error.
+
+- **Thunderscans** — A WordPress "mangareader"-theme site. Series pages
+  statically render the full chapter list in `#chapterlist`. Chapter pages'
+  `#readerarea` is JS-filled; page images are read from the page's
+  `ts_reader.run({...})` JSON blob. Locked chapters have no blob and raise an
+  error.
 
 ## Adding more sites
 

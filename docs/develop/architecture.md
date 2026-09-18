@@ -56,6 +56,11 @@ src/comic_dl/
       toonily.py         Toonily scraper
       kodokustudio.py    KodokuStudio scraper
       weebcentral.py     WeebCentral scraper
+      hivetoons.py       HiveToons scraper
+      genztoons.py       GenzToons scraper
+      qimanga.py         QiScans scraper
+      stonescape.py      StoneScape scraper
+      thunderscans.py    Thunderscans scraper
 ```
 
 ## Data flow

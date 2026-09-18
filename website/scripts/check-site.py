@@ -31,6 +31,11 @@ REQUIRED_HEAD_RES = [
 
 
 def resolve(url: str) -> Path | None:
+    """Map a site-relative `/comic-dl/...` URL to a file under `dist/`.
+
+    Directories are resolved to their `index.html`. Returns ``None`` when the
+    target does not exist as a file.
+    """
     path = url[len("/comic-dl/") :].lstrip("/")
     target = DIST / path
     if target.is_dir():
@@ -39,6 +44,11 @@ def resolve(url: str) -> Path | None:
 
 
 def main() -> int:
+    """Run the post-build integrity checks.
+
+    Returns 0 when all required files exist, all HTML pages have canonical/og
+    tags, and all internal links resolve. Returns 1 on any failure.
+    """
     errors: list[str] = []
     for name in REQUIRED_FILES:
         if not (DIST / name).is_file():

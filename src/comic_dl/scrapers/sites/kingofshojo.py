@@ -164,7 +164,7 @@ class KingofshojoScraper(BaseScraper):
         h1 = soup.select_one("h1")
         chapter_title = h1.get_text(strip=True) if h1 else "Chapter"
 
-        info = {
+        info = {  # type: ignore[var-annotated]
             "series_title": sanitize_filename(series_title) or "Untitled",
             "chapter_title": sanitize_filename(chapter_title) or "Chapter",
             "chapter_number": _chapter_number_from_url(url),
@@ -178,7 +178,7 @@ class KingofshojoScraper(BaseScraper):
         }
 
         return ScrapedChapter(
-            info=ChapterInfo(**info),
+            info=ChapterInfo(**info),  # type: ignore[arg-type]
             source=SourceInfo(url=url, service=DOMAIN, post_id=""),
             images=images,
             cover_url="",
