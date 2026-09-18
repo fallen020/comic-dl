@@ -14,9 +14,11 @@ from . import flamecomics as flamecomics
 from . import fsicomics as fsicomics
 from . import gedecomix as gedecomix
 from . import kagane as kagane
+from . import kingofshojo as kingofshojo
 from . import kodokustudio as kodokustudio
 from . import lgbtics as lgbtics
 from . import mangadex as mangadex
+from . import manhwatop as manhwatop
 from . import manhwaz as manhwaz
 from . import pawchive as pawchive
 from . import toonily as toonily
@@ -30,9 +32,11 @@ __all__ = [
     "fsicomics",
     "gedecomix",
     "kagane",
+    "kingofshojo",
     "kodokustudio",
     "lgbtics",
     "mangadex",
+    "manhwatop",
     "manhwaz",
     "pawchive",
     "toonily",

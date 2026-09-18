@@ -33,17 +33,20 @@ any third-party plugins — is shown by `comic-dl --list-sources`.
 | **WeebCentral** | `weebcentral.com` | `/series/{id}/{slug}` | — | Yes |
 | **LGBTics** | `lgbtics.com` | `/comic/{slug}/` | — | Yes |
 | **LGBTics** | `lgbtics.com` | `/comic/{slug}/{chapter}/` | Yes | — |
+| **Kingofshojo** | `kingofshojo.com` | `/{slug}-chapter-{n}/` | Yes | — |
+| **ManhwaTop** | `manhwatop.com` | `/manga/{slug}/` | — | Yes |
+| **ManhwaTop** | `manhwatop.com` | `/manga/{slug}/chapter-{n}/` | Yes | — |
 
 ## Per-site features
 
-| Feature | Pawchive | E-Hentai | WEBTOON | FlameComics | FSIComics | GEDE Comix | Asura Scans | Kagane | MangaDex | Toonily | Manhwaz | KodokuStudio | WeebCentral | LGBTics |
-| :------ | :------- | :------ | :---------- | :-------- | :-------- | :--------- | :---------- | :----- | :------- | :------ | :------ | :---------- | :---------- | :------ |
-| Individual posts/chapters | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| Series chapter listing | — | — | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| Image dedup (SHA-256) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| Download resume | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| Concurrent downloads | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| Chapter title from tags | — | Yes | Yes | — | — | — | — | — | — | — | — | — | — | — |
+| Feature | Pawchive | E-Hentai | WEBTOON | FlameComics | FSIComics | GEDE Comix | Asura Scans | Kagane | MangaDex | Toonily | Manhwaz | KodokuStudio | WeebCentral | LGBTics | Kingofshojo | ManhwaTop |
+| :------ | :------- | :------ | :---------- | :-------- | :-------- | :--------- | :---------- | :----- | :------- | :------ | :------ | :---------- | :---------- | :------ | :---------- | :-------- |
+| Individual posts/chapters | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Series chapter listing | — | — | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | — | Yes |
+| Image dedup (SHA-256) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Download resume | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Concurrent downloads | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Chapter title from tags | — | Yes | Yes | — | — | — | — | — | — | — | — | — | — | — | — | — |
 
 ## Site notes
 
@@ -107,6 +110,18 @@ any third-party plugins — is shown by `comic-dl --list-sources`.
   `.version-chap .wp-manga-chapter`. Chapter images are lazy-loaded via
   `data-src` on the same domain. No AJAX pagination for chapters; all links
   render server-side. Images use WebP format.
+
+- **Kingofshojo** — A Madara-style shoujo/romance site. Series pages load
+  chapter lists dynamically via JavaScript and cannot be scraped for series
+  metadata or chapter listings. Chapter pages work normally with plain
+  `<img src>` inside `#readerarea`, served from `cdn.kingofshojo.com` and
+  WordPress CDN (`i*.wp.com`). Chapter-only support.
+
+- **ManhwaTop** — A large Madara/WordPress manhwa/manhua site (Solo Leveling,
+  Nano Machine, Martial Peak). Standard Madara URL grammar. Chapter pages use
+  lazy-loaded `data-src` on `c*.manhwatop.com` subdomains. The series page
+  sits behind a Cloudflare challenge; the solver (`--solver auto`) or a
+  `cf_clearance` cookie may be required for series scraping.
 
 ## Adding more sites
 
