@@ -56,6 +56,19 @@ comic-dl <COMMAND> [ARGS]
 | `comic-dl cookie set <HOST> <NAME> <VALUE>` | Store a cookie |
 | `comic-dl cookie clear [HOST] [-y]` | Clear cookies |
 
+### Self
+
+| Command | Description |
+| :------ | :---------- |
+| `comic-dl self version` | Print the installed version |
+| `comic-dl self update [--check] [-y] [--channel beta]` | Check for and install updates through the tool that installed comic-dl |
+
+`self update` refuses to guess: package-manager installs are updated by the
+owning package manager, pip/uv installs by the tool that created them, and a
+source checkout or unknown installation is reported with manual
+instructions. See [Self-Management](../usage/self-update.md) for the
+per-installation behaviour.
+
 ### Other
 
 | Command | Description |
@@ -66,7 +79,6 @@ comic-dl <COMMAND> [ARGS]
 | `comic-dl plugin scaffold <NAME> [--domain HOST]` | Generate a plugin package skeleton |
 | `comic-dl completion bash\|zsh\|fish` | Print shell completion script |
 | `comic-dl help [COMMAND]` | Show help |
-| `comic-dl --version` | Show version and exit |
 
 ## Global flags
 
@@ -143,7 +155,6 @@ Series in parallel still pass through the per-host rate limiter, so raising
 | `--config` | Path to a custom `config.toml` |
 | `--no-config` | Ignore `config.toml` for this run |
 | `--list-sources` | List registered sources and exit |
-| `--version` | Show version and exit |
 | `--help` / `-h` / `-?` | Show help |
 
 `--quiet` and `--verbose` are mutually exclusive.

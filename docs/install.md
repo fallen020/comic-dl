@@ -54,7 +54,7 @@ unzip it, and run `comic-dl.exe` from a terminal. A bare
 `comic-dl-<ver>-windows-amd64.exe` is also attached for direct use:
 
 ```powershell
-.\comic-dl.exe --version
+.\comic-dl.exe self version
 ```
 
 Use **Windows Terminal** — the CLI output uses Unicode glyphs. In classic
@@ -125,7 +125,7 @@ Run it with `uv run`, which works on every platform including Windows
 PowerShell:
 
 ```bash
-uv run comic-dl --version
+uv run comic-dl self version
 ```
 
 For the development environment (extra test/lint tooling), use
@@ -189,6 +189,6 @@ files stay in place.
 ## Verify
 
 ```bash
-comic-dl --version          # binary install
-uv run comic-dl --version   # source checkout
+comic-dl self version           # binary install
+uv run comic-dl self version    # source checkout
 ```

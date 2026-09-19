@@ -157,7 +157,7 @@ via:
   wired under `[tool.hatch.build.hooks.custom]`) for every wheel/sdist/editable
   build, and
 - `scripts/write-version.py` (also has `--check`) for PyInstaller binaries that
-  never build a wheel — so `comic-dl --version` in the standalone exe reports
+  never build a wheel — so `comic-dl self version` in the standalone exe reports
   the real version instead of falling back to `importlib.metadata` (absent in a
   PyInstaller bundle).
 

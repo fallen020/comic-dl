@@ -100,11 +100,11 @@ Pushing a `v*` tag triggers `release.yml`:
    publisher is configured).
 2. **linux-packages** — builds `.deb`, `.rpm`, `.pkg.tar.zst` in containers for
    amd64 (plus arm64 for `.deb`/`.rpm`), then **installs each package into a
-   fresh container and smoke-tests it** (`--version`, `--list-sources`, `config
+   fresh container and smoke-tests it** (`self version`, `--list-sources`, `config
    path`, `help`) plus a version-match check and a clean uninstall. A package
    that cannot install blocks the release.
 3. **windows-build** — builds `comic-dl.exe` with PyInstaller on a Windows
-   runner, runs `--version` (asserted against the tag) and `--help`, and stages
+   runner, runs `self version` (asserted against the tag) and `--help`, and stages
    `comic-dl-<ver>-windows-amd64.{exe,zip}`.
 4. **release** — downloads all artifacts, writes `SHA256SUMS`, attaches every
    file to the tag's GitHub Release.

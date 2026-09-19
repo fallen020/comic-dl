@@ -131,6 +131,7 @@ from ..scrapers.sites.weebcentral import (
 from ..scrapers.sites.weebcentral import (
     is_series_url as is_weebcentral_series_url,
 )
+from ..self_update import run_update_command
 from ..ui import (
     DIAGNOSTIC,
     ERROR,
@@ -3530,6 +3531,74 @@ async def _run_urls(urls: list[str], args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+async def _run_self(argv: list[str]) -> int:
+    """``comic-dl self`` — installation-aware self-management commands."""
+    if not argv:
+        print_error("missing command.")
+        print_dim("Run 'comic-dl self --help' for usage.")
+        return EXIT_USAGE
+    first = argv[0]
+    if first in ("-h", "--help", "-?"):
+        pass  # fall through; parse_args prints help and exits 0
+    elif first.startswith("-"):
+        canonical = {"--version": "comic-dl self version",
+                     "--update": "comic-dl self update"}.get(first)
+        print_error(f"unexpected option '{first}'.")
+        if canonical:
+            print_dim(f"Hint: use '{canonical}'.")
+        else:
+            hint = suggest(
+                first,
+                ["--help", "-h", "--check", "-y", "--yes", "--channel",
+                 "--version", "--update"],
+            )
+            if hint is not None and hint != first:
+                print_dim(f"Did you mean: {hint}?")
+            print_dim("Run 'comic-dl self --help' for usage.")
+        return EXIT_USAGE
+    elif first not in ("version", "update"):
+        print_error(f"unknown command '{first}'.")
+        hint = suggest(first, ["version", "update"])
+        if hint is not None and hint != first:
+            print_dim(f"Did you mean: {hint}?")
+        print_dim("Run 'comic-dl self --help' for usage.")
+        return EXIT_USAGE
+
+    parser = ComicArgumentParser(
+        prog="comic-dl self",
+        usage="comic-dl self <COMMAND>",
+        description="Check the installation source and update comic-dl through its owner.",
+    )
+    sub = parser.add_subparsers(
+        dest="action", required=True, parser_class=ComicArgumentParser,
+    )
+    sub.add_parser("version", help="print the installed version")
+    update = sub.add_parser(
+        "update", help="check for updates and install them through the package manager",
+    )
+    update.add_argument(
+        "--check", action="store_true",
+        help="check only; install or change nothing",
+    )
+    update.add_argument(
+        "-y", "--yes", action="store_true",
+        help="skip the confirmation prompt",
+    )
+    update.add_argument(
+        "--channel", default="beta", choices=("beta",),
+        help="release channel (only 'beta' is available today)",
+    )
+    try:
+        args = parser.parse_args(argv)
+    except SystemExit as exc:
+        return exc.code if isinstance(exc.code, int) else 0
+
+    if args.action == "version":
+        console.print(f"comic-dl {_version}")
+        return EXIT_OK
+    return await run_update_command(check=args.check, yes=args.yes)
+
+
 async def _run_update(argv: list[str]) -> int:
     """Re-scrape tracked series and download only newly-released chapters.
 
@@ -4039,14 +4108,7 @@ def _install_signal_handlers() -> None:
 
 def _unknown_command(command: str) -> int:
     err_console.print(f"  [bold {ERROR}]{glyphs().err}[/] error: unknown command '{command}'.")
-    hint = suggest(
-        command,
-        sorted(
-            set(_LIBRARY_COMMANDS)
-            | {"update", "list-sources", "cookie", "cache", "config",
-               "plugin", "completion", "help"}
-        ),
-    )
+    hint = suggest(command, _completion_commands())
     if hint and hint != command:
         err_console.print(f"  [{MUTED}]Did you mean:[/] {hint}?")
     return EXIT_USAGE
@@ -4331,8 +4393,8 @@ def _completion_commands() -> list[str]:
     """Top-level command names, for completion candidates."""
     return sorted(
         set(_LIBRARY_COMMANDS)
-        | {"update", "list-sources", "cookie", "cache", "config",
-           "plugin", "completion", "help"}
+        | {"update", "self", "list-sources", "cookie", "cache",
+           "config", "plugin", "completion", "help"}
     )
 
 
@@ -4345,6 +4407,7 @@ def _completion_script(shell: str) -> str:
         "-o --output -c --concurrency --chapter-parallel -q --quiet "
         "--compress --format --json"
     )
+    self_flags = "version update --check -y --yes --channel"
     lib_flags = "--json --dry-run -o --output"
 
     if shell == "bash":
@@ -4358,6 +4421,7 @@ _comic_dl_complete() {{
     fi
     case "${{COMP_WORDS[1]}}" in
         update) COMPREPLY=($(compgen -W "{update_flags}" -- "${{cur}}")); return ;;
+        self)   COMPREPLY=($(compgen -W "{self_flags}" -- "${{cur}}")); return ;;
         cookie) COMPREPLY=($(compgen -W "ls set clear" -- "${{cur}}")); return ;;
         cache)  COMPREPLY=($(compgen -W "clear status" -- "${{cur}}")); return ;;
         config) COMPREPLY=($(compgen -W "path show init --force" -- "${{cur}}")); return ;;
@@ -4381,6 +4445,7 @@ _comic_dl() {{
     fi
     case "${{words[2]}}" in
         update) compadd -- {update_flags} ;;
+        self)   compadd -- {self_flags} ;;
         cookie) compadd -- ls set clear --json --expires -y --yes ;;
         cache)  compadd -- clear status ;;
         config) compadd -- path show init --force ;;
@@ -4399,6 +4464,7 @@ complete -c comic-dl -f
 complete -c comic-dl -n "__fish_use_subcommand" -a "{commands}"
 complete -c comic-dl -n "__fish_use_subcommand" -a "{flags}"
 complete -c comic-dl -n "__fish_seen_subcommand_from update" -a "{update_flags}"
+complete -c comic-dl -n "__fish_seen_subcommand_from self" -a "{self_flags}"
 complete -c comic-dl -n "__fish_seen_subcommand_from cookie" -a "ls set clear"
 complete -c comic-dl -n "__fish_seen_subcommand_from cache" -a "clear status"
 complete -c comic-dl -n "__fish_seen_subcommand_from config" -a "path show init"
@@ -4445,6 +4511,8 @@ async def _run_help(argv: list[str]) -> int:
     command = argv[0]
     if command == "update":
         return await _run_update(["--help"])
+    if command == "self":
+        return await _run_self(["--help"])
     if command in _LIBRARY_COMMANDS:
         return await asyncio.to_thread(run_library_command, command, ["--help"])
     if command == "list-sources":
@@ -4619,6 +4687,8 @@ async def main() -> int:
                 command = command[2:]
             if command == "update":
                 return await _run_update(argv[1:])
+            if command == "self":
+                return await _run_self(argv[1:])
             if command == "help":
                 return await _run_help(argv[1:])
             if command == "config":

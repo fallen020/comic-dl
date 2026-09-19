@@ -3022,7 +3022,8 @@ def print_parser_help(parser: argparse.ArgumentParser) -> None:
     """
     console.print()
 
-    _help_usage([f"{esc(parser.prog)} [OPTIONS]"])
+    usage = getattr(parser, "usage", None) or f"{parser.prog} [OPTIONS]"
+    _help_usage([esc(usage)])
 
     if parser.description:
         console.print(parser.description)

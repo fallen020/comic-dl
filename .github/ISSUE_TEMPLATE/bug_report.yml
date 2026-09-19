@@ -23,7 +23,7 @@ body:
       label: Steps to reproduce
       description: Provide the exact command(s) and input you used.
       value: |
-        1. Install/version: `comic-dl --version`
+        1. Install/version: `comic-dl self version`
         2. Command: e.g. `comic-dl --url <url> --output ~/Comics`
         3. Expected: ...
         4. Actual: ...

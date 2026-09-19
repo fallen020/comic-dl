@@ -18,7 +18,7 @@ always know **what** went wrong, **why**, and **what to do next**.
 
 | Stream | Contains |
 | :----- | :------- |
-| **stdout** | Final results: "Saved" lines, summaries, tables, JSON, `--help`, `--version` |
+| **stdout** | Final results: "Saved" lines, summaries, tables, JSON, `--help`, `self version` |
 | **stderr** | Everything else: banners, progress, warnings, errors, retries, prompts |
 
 This strict split lets scripts pipe stdout without progress noise.

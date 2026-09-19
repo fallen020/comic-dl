@@ -12,7 +12,7 @@ No PGP key is used; all reports go through the private advisory.
 
 When you file an advisory, please include:
 
-- The version or commit you found the issue in (from `--version` or `uv lock`)
+- The version or commit you found the issue in (from `comic-dl self version` or `uv lock`)
 - The steps to reproduce, including the affected site / URL if applicable
 - The impact you believe the issue has
 

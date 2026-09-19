@@ -64,7 +64,7 @@ or through the installed script `.venv/bin/comic-dl`.
 Either way, verify the installation:
 
 ```bash
-comic-dl --version
+comic-dl self version
 ```
 
 ```text
