@@ -77,14 +77,16 @@ class TestVersionCompare:
 
 
 class TestSelectAsset:
-    def test_apt_amd64(self):
+    def test_apt_amd64(self, monkeypatch):
+        monkeypatch.setattr("comic_dl.self_update.platform.machine", lambda: "x86_64")
         rel = _rel("v0.0.3", "comic-dl_0.0.3_amd64.deb", "other.txt")
         assert select_asset(rel, InstallKind.APT) == (
             "comic-dl_0.0.3_amd64.deb",
             "https://example.invalid/comic-dl_0.0.3_amd64.deb",
         )
 
-    def test_rpm_x86_64(self):
+    def test_rpm_x86_64(self, monkeypatch):
+        monkeypatch.setattr("comic_dl.self_update.platform.machine", lambda: "x86_64")
         rel = _rel("v0.0.3", "comic-dl-0.0.3-1.x86_64.rpm")
         assert select_asset(rel, InstallKind.RPM) == (
             "comic-dl-0.0.3-1.x86_64.rpm",
@@ -104,7 +106,8 @@ class TestSelectAsset:
         rel = _rel("v0.0.3", "comic-dl-0.0.3-1-x86_64.pkg.tar.zst")
         assert select_asset(rel, InstallKind.PACMAN) is None
 
-    def test_apt_ignores_other_arch(self):
+    def test_apt_ignores_other_arch(self, monkeypatch):
+        monkeypatch.setattr("comic_dl.self_update.platform.machine", lambda: "x86_64")
         rel = _rel("v0.0.3", "comic-dl_0.0.3_arm64.deb")
         assert select_asset(rel, InstallKind.APT) is None
 
