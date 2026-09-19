@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from importlib.metadata import entry_points
@@ -31,6 +32,9 @@ class SourceEntry:
     version: str
     builtin: bool
     priority: int = 0
+    site_id: str | None = None
+    minimum_core_version: str | None = None
+    test_url: str | None = None
 
     @property
     def has_chapter(self) -> bool:
@@ -83,6 +87,9 @@ def register(
     version: str,
     builtin: bool,
     priority: int = 0,
+    site_id: str | None = None,
+    minimum_core_version: str | None = None,
+    test_url: str | None = None,
 ) -> SourceEntry:
     """Register ``instance`` for ``domain`` with deterministic conflict handling.
 
@@ -90,10 +97,16 @@ def register(
     ``priority`` wins; on a tie the first registration is kept, so built-ins
     (registered at startup, priority 0) win unless a plugin opts in with a
     strictly higher priority.
+
+    ``site_id``/``minimum_core_version`` are part of the public site-support
+    contract (see ``comic_dl.site_update``); they are optional for plugins and
+    mandatory for built-ins, which the manifest generator enforces.
     """
     existing = _sourcemap.get(domain)
     if existing is not None and priority <= existing.priority:
         return existing
+    if builtin and site_id is not None:
+        _check_builtin_id_unique(domain, site_id)
     entry = SourceEntry(
         instance=instance,
         domain=domain,
@@ -102,9 +115,43 @@ def register(
         version=version,
         builtin=builtin,
         priority=priority,
+        site_id=site_id,
+        minimum_core_version=minimum_core_version,
+        test_url=test_url,
     )
     _sourcemap[domain] = entry
     return entry
+
+
+#: Built-in site id -> registering domain, for duplicate-id fail-fast.
+_builtin_ids: dict[str, str] = {}
+
+_SITE_ID_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
+_VERSION_RE = re.compile(r"^\d+\.\d+\.\d+$")
+
+
+def _check_builtin_id_unique(domain: str, site_id: str) -> None:
+    """Reject a built-in whose declared ``id`` breaks the site-support model.
+
+    Site ids are the stable public key per adapter: they must be unique across
+    built-ins and stay lowercase-slug so a manifest id is never ambiguous.
+    """
+    from ..errors import SiteRegistryError
+
+    if not _SITE_ID_RE.match(site_id):
+        raise SiteRegistryError(
+            f"Built-in scraper for {domain!r} declares an invalid site id "
+            f"{site_id!r}.",
+            hint="Use a stable lowercase-slug id (e.g. 'manga-example').",
+        )
+    prior = _builtin_ids.get(site_id)
+    if prior is not None and prior != domain:
+        raise SiteRegistryError(
+            f"Built-in scrapers {prior!r} and {domain!r} both declare site id "
+            f"{site_id!r}.",
+            hint="Every site adapter needs its own stable id.",
+        )
+    _builtin_ids[site_id] = domain
 
 
 def register_builtin(
@@ -114,6 +161,9 @@ def register_builtin(
     capabilities: set[str] | frozenset[str],
     name: str,
     version: str,
+    site_id: str | None = None,
+    minimum_core_version: str | None = None,
+    test_url: str | None = None,
 ) -> SourceEntry:
     """Register a built-in source with the default priority.
 
@@ -128,6 +178,9 @@ def register_builtin(
         version=version,
         builtin=True,
         priority=0,
+        site_id=site_id,
+        minimum_core_version=minimum_core_version,
+        test_url=test_url,
     )
 
 
@@ -136,16 +189,42 @@ def register_scraper(
     domain: str,
     capabilities: set[str] | None = None,
 ) -> Callable[[type], type]:
-    """Decorator registering a built-in scraper class for ``domain``."""
+    """Decorator registering a built-in scraper class for ``domain``.
+
+    The decorated class may declare ``site_id``, ``version``, and
+    ``minimum_core_version`` attributes; they flow into the registry and feed
+    the site-support manifest (see ``comic_dl.site_update``).
+    """
 
     def decorator(cls: type) -> type:
+        version = str(getattr(cls, "version", "") or "builtin")
+        site_id = getattr(cls, "site_id", None)
+        min_core = getattr(cls, "minimum_core_version", None)
+        test_url = getattr(cls, "test_url", None)
+        if isinstance(site_id, str) and not site_id.strip():
+            site_id = None
+        if isinstance(min_core, str) and not min_core.strip():
+            min_core = None
+        if version != "builtin" and not _VERSION_RE.match(version):
+            raise ValueError(
+                f"{domain!r} declares an invalid site version {version!r}; "
+                "use MAJOR.MINOR.PATCH."
+            )
+        if min_core is not None and not _VERSION_RE.match(str(min_core)):
+            raise ValueError(
+                f"{domain!r} declares an invalid minimum_core_version "
+                f"{min_core!r}; use MAJOR.MINOR.PATCH."
+            )
         instance = cls()
         register_builtin(
             instance,
             domain=domain,
             capabilities=set(capabilities or {"chapter"}),
             name=str(getattr(cls, "name", "") or cls.__name__),
-            version=str(getattr(cls, "version", "") or "builtin"),
+            version=version,
+            site_id=site_id,
+            minimum_core_version=min_core,
+            test_url=test_url,
         )
         return cls
 

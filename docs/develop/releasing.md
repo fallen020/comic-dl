@@ -76,8 +76,15 @@ The release steps below are run from the validated `staging` branch.
 4. Bump `version` in `pyproject.toml` to `MAJOR.MINOR.PATCH`.
 5. Regenerate the version module: `uv run scripts/write-version.py`, then commit
    the regenerated `src/comic_dl/_version.py`.
-6. Commit with `git commit -S -m "chore: release vX.Y.Z"`.
-7. Merge `staging` into `main` via a squash PR (or fast-forward after review),
+6. **Site adapters:** bump the `version` attribute of any built-in adapter
+   whose parsing code changed since the last release (see
+   [Site Support](../usage/site-support.md) for the semver rules), then
+   regenerate the site-support manifest with
+   `uv run python scripts/update-site-manifest.py`. `scripts/docs.sh` (CI's
+   `docs` job) fails if the committed `site-support.json` drifts from the
+   registry.
+7. Commit with `git commit -S -m "chore: release vX.Y.Z"`.
+8. Merge `staging` into `main` via a squash PR (or fast-forward after review),
    then cut the tag from `main`.
 
 ## Cut the tag

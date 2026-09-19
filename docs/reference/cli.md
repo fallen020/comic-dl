@@ -62,12 +62,15 @@ comic-dl <COMMAND> [ARGS]
 | :------ | :---------- |
 | `comic-dl self version` | Print the installed version |
 | `comic-dl self update [--check] [-y] [--channel beta]` | Check for and install updates through the tool that installed comic-dl |
+| `comic-dl self site list [--json]` | List installed site adapters, their versions, and cached status |
+| `comic-dl self site check [SITE] [--live] [--json]` | Compare installed adapter versions against the latest release manifest; `--live` runs a live check for one site |
+| `comic-dl self site update SITE` / `--all` | Update site support (bundled adapters update with the core) |
 
 `self update` refuses to guess: package-manager installs are updated by the
 owning package manager, pip/uv installs by the tool that created them, and a
 source checkout or unknown installation is reported with manual
-instructions. See [Self-Management](../usage/self-update.md) for the
-per-installation behaviour.
+instructions. See [Self-Management](../usage/self-update.md) and
+[Site Support](../usage/site-support.md) for the per-installation behaviour.
 
 ### Other
 

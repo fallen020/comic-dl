@@ -126,6 +126,9 @@ class LgbticsScraper(MadaraSeriesSiteScraper):
 
     domain = DOMAIN
     name = "lgbtics"
+    site_id = "lgbtics"
+    version = "1.0.0"
+    minimum_core_version = "0.0.2"
     base_url = BASE
     series_segment = "comic"
     # lgbtics chapter URLs don't use a consistent "chapter-" prefix

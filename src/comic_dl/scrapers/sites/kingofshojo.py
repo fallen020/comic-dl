@@ -136,6 +136,9 @@ class KingofshojoScraper(BaseScraper):
 
     domain = DOMAIN
     name = "kingofshojo"
+    site_id = "kingofshojo"
+    version = "1.0.0"
+    minimum_core_version = "0.0.2"
     base_url = BASE
 
     chapter_url_re = _CHAPTER_PATH_RE

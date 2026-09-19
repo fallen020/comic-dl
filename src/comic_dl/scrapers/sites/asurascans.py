@@ -275,6 +275,9 @@ class AsurascansScraper(BaseScraper):
 
     domain = DOMAIN
     name = "asurascans"
+    site_id = "asurascans"
+    version = "1.0.0"
+    minimum_core_version = "0.0.2"
 
     def __init__(self) -> None:
         super().__init__()

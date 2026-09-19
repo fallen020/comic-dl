@@ -132,6 +132,11 @@ from ..scrapers.sites.weebcentral import (
     is_series_url as is_weebcentral_series_url,
 )
 from ..self_update import run_update_command
+from ..site_update import (
+    run_site_check_command,
+    run_site_list_command,
+    run_site_update_command,
+)
 from ..ui import (
     DIAGNOSTIC,
     ERROR,
@@ -1363,6 +1368,19 @@ def _extract_domain(url: str) -> str:
     return hostname
 
 
+def _maybe_site_update_hint(url: str) -> None:
+    """Print a cached-manifest update recommendation after a site failure.
+
+    Network-free by construction: it reads only the manifest a previous
+    ``self site check`` persisted, so a broken scrape never triggers a fetch.
+    """
+    from ..site_update import site_update_hint
+
+    hint = site_update_hint(_extract_domain(url or ""))
+    if hint:
+        print_dim(hint)
+
+
 def _source_id_for(domain: str) -> str:
     """Stable source identifier for ``domain`` from the sources registry.
 
@@ -2176,6 +2194,7 @@ async def _process_series(
                     else:
                         reason = default
                     print_error_detail("Failed to fetch series metadata", reason)
+                    _maybe_site_update_hint(url)
                     return False
 
                 main.stage("Parsing series info...")
@@ -2430,6 +2449,7 @@ async def _process_series(
                         if meta is None:
                             fail_reason = scrape_error or "failed to fetch metadata"
                             act.finish_row(row_key, ok=False, message=fail_reason)
+                            _maybe_site_update_hint(ch_url)
                             return "failed", 1, (ch_label, fail_reason)
 
                         sink.set_label(ch_label)
@@ -2440,6 +2460,7 @@ async def _process_series(
                             print_error_detail(
                                 f"[{idx}/{total_chapters}] {ch_label}", "no images found"
                             )
+                            _maybe_site_update_hint(ch_url)
                             return "failed", 1, (ch_label, "no images found")
 
                         cbz_path = _resolve_archive_path(
@@ -3556,13 +3577,16 @@ async def _run_self(argv: list[str]) -> int:
                 print_dim(f"Did you mean: {hint}?")
             print_dim("Run 'comic-dl self --help' for usage.")
         return EXIT_USAGE
-    elif first not in ("version", "update"):
+    elif first not in ("version", "update", "site"):
         print_error(f"unknown command '{first}'.")
-        hint = suggest(first, ["version", "update"])
+        hint = suggest(first, ["version", "update", "site"])
         if hint is not None and hint != first:
             print_dim(f"Did you mean: {hint}?")
         print_dim("Run 'comic-dl self --help' for usage.")
         return EXIT_USAGE
+
+    if first == "site":
+        return await _run_self_site(argv[1:])
 
     parser = ComicArgumentParser(
         prog="comic-dl self",
@@ -3573,6 +3597,7 @@ async def _run_self(argv: list[str]) -> int:
         dest="action", required=True, parser_class=ComicArgumentParser,
     )
     sub.add_parser("version", help="print the installed version")
+    sub.add_parser("site", help="inspect and update per-site adapter support")
     update = sub.add_parser(
         "update", help="check for updates and install them through the package manager",
     )
@@ -3596,7 +3621,53 @@ async def _run_self(argv: list[str]) -> int:
     if args.action == "version":
         console.print(f"comic-dl {_version}")
         return EXIT_OK
+    if args.action == "site":
+        return await _run_self_site(argv[1:])
     return await run_update_command(check=args.check, yes=args.yes)
+
+
+async def _run_self_site(argv: list[str]) -> int:
+    """``comic-dl self site`` — per-site adapter support: list/check/update."""
+    if not argv:
+        print_error("missing command.")
+        print_dim("Run 'comic-dl self site --help' for usage.")
+        return EXIT_USAGE
+    parser = ComicArgumentParser(
+        prog="comic-dl self site",
+        usage="comic-dl self site <COMMAND>",
+        description="Inspect and update per-site adapter support.",
+    )
+    sub = parser.add_subparsers(
+        dest="action", required=True, parser_class=ComicArgumentParser,
+    )
+    lst = sub.add_parser("list", help="list installed site adapters and their versions")
+    lst.add_argument("--json", action="store_true", help="emit machine-readable JSON")
+    chk = sub.add_parser(
+        "check", help="compare installed adapters against the latest release manifest",
+    )
+    chk.add_argument("site", nargs="?", help="site id (all sites when omitted)")
+    chk.add_argument("--live", action="store_true", help="run a live check for one site")
+    chk.add_argument("--json", action="store_true", help="emit machine-readable JSON")
+    upd = sub.add_parser(
+        "update", help="update site support (bundled adapters update with the core)",
+    )
+    upd.add_argument("site", nargs="?", help="site id (with --all when omitted)")
+    upd.add_argument("--all", action="store_true", help="update every outdated site")
+    upd.add_argument("-y", "--yes", action="store_true", help="skip the confirmation prompt")
+    try:
+        args = parser.parse_args(argv)
+    except SystemExit as exc:
+        return exc.code if isinstance(exc.code, int) else 0
+
+    if args.action == "list":
+        return await run_site_list_command(json_mode=args.json)
+    if args.action == "check":
+        return await run_site_check_command(
+            target=args.site, live=args.live, json_mode=args.json
+        )
+    return await run_site_update_command(
+        target=args.site, all_sites=args.all, yes=args.yes
+    )
 
 
 async def _run_update(argv: list[str]) -> int:
@@ -4407,7 +4478,8 @@ def _completion_script(shell: str) -> str:
         "-o --output -c --concurrency --chapter-parallel -q --quiet "
         "--compress --format --json"
     )
-    self_flags = "version update --check -y --yes --channel"
+    self_flags = "version update site --check -y --yes --channel"
+    self_site_flags = "list check update --live --json --all -y --yes"
     lib_flags = "--json --dry-run -o --output"
 
     if shell == "bash":
@@ -4422,6 +4494,7 @@ _comic_dl_complete() {{
     case "${{COMP_WORDS[1]}}" in
         update) COMPREPLY=($(compgen -W "{update_flags}" -- "${{cur}}")); return ;;
         self)   COMPREPLY=($(compgen -W "{self_flags}" -- "${{cur}}")); return ;;
+        site)   COMPREPLY=($(compgen -W "{self_site_flags}" -- "${{cur}}")); return ;;
         cookie) COMPREPLY=($(compgen -W "ls set clear" -- "${{cur}}")); return ;;
         cache)  COMPREPLY=($(compgen -W "clear status" -- "${{cur}}")); return ;;
         config) COMPREPLY=($(compgen -W "path show init --force" -- "${{cur}}")); return ;;
@@ -4446,6 +4519,7 @@ _comic_dl() {{
     case "${{words[2]}}" in
         update) compadd -- {update_flags} ;;
         self)   compadd -- {self_flags} ;;
+        site)   compadd -- {self_site_flags} ;;
         cookie) compadd -- ls set clear --json --expires -y --yes ;;
         cache)  compadd -- clear status ;;
         config) compadd -- path show init --force ;;
@@ -4465,6 +4539,7 @@ complete -c comic-dl -n "__fish_use_subcommand" -a "{commands}"
 complete -c comic-dl -n "__fish_use_subcommand" -a "{flags}"
 complete -c comic-dl -n "__fish_seen_subcommand_from update" -a "{update_flags}"
 complete -c comic-dl -n "__fish_seen_subcommand_from self" -a "{self_flags}"
+complete -c comic-dl -n "__fish_seen_subcommand_from site" -a "{self_site_flags}"
 complete -c comic-dl -n "__fish_seen_subcommand_from cookie" -a "ls set clear"
 complete -c comic-dl -n "__fish_seen_subcommand_from cache" -a "clear status"
 complete -c comic-dl -n "__fish_seen_subcommand_from config" -a "path show init"

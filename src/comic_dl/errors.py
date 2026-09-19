@@ -87,10 +87,32 @@ class ScrapeError(ComicError, ValueError):
     and ``hint`` surfaced without touching those catch sites. The ``hint``
     is an actionable next step, shown by callers that understand
     :class:`ScrapeError` and ignored as plain text everywhere else.
+
+    ``site_error_code`` is a stable machine-readable classification
+    (see the ``SITE_*`` constants below) assigned by the raising code or the
+    site checker; it is never part of the user-facing message.
     """
 
     kind = "scrape"
     _default_message = "Scraping failed."
+
+    site_error_code: str | None = None
+
+
+# Stable site-support error codes (element of ``ScrapeError.site_error_code``).
+SITE_NOT_RECOGNIZED = "SITE_NOT_RECOGNIZED"
+SITE_REQUEST_FAILED = "SITE_REQUEST_FAILED"
+SITE_TIMEOUT = "SITE_TIMEOUT"
+SITE_RATE_LIMITED = "SITE_RATE_LIMITED"
+SITE_BLOCKED = "SITE_BLOCKED"
+SITE_AUTH_REQUIRED = "SITE_AUTH_REQUIRED"
+SITE_LAYOUT_CHANGED = "SITE_LAYOUT_CHANGED"
+SITE_NO_SERIES = "SITE_NO_SERIES"
+SITE_NO_CHAPTERS = "SITE_NO_CHAPTERS"
+SITE_NO_PAGES = "SITE_NO_PAGES"
+SITE_INVALID_RESPONSE = "SITE_INVALID_RESPONSE"
+SITE_DEPENDENCY_MISSING = "SITE_DEPENDENCY_MISSING"
+SITE_UNSUPPORTED = "SITE_UNSUPPORTED"
 
 
 class DownloadTimeout(DownloadError):

@@ -316,6 +316,9 @@ class FsicomixScraper(BaseScraper):
 
     domain = DOMAIN
     name = "fsicomics"
+    site_id = "fsicomics"
+    version = "1.0.0"
+    minimum_core_version = "0.0.2"
 
     def matches_url(self, url: str) -> bool:
         return is_chapter_url(url) or is_series_url(url)

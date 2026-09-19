@@ -243,6 +243,9 @@ class GedecomixScraper(MadaraScraper):
 
     domain = DOMAIN
     name = "gedecomix"
+    site_id = "gedecomix"
+    version = "1.0.0"
+    minimum_core_version = "0.0.2"
     base_url = BASE
     series_segment = "porncomic"
 

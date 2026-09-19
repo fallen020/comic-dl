@@ -122,6 +122,9 @@ class ManhwazScraper(MadaraSeriesSiteScraper):
 
     domain = DOMAIN
     name = "manhwaz"
+    site_id = "manhwaz"
+    version = "1.0.0"
+    minimum_core_version = "0.0.2"
     base_url = BASE
     series_segment = "webtoon"
 

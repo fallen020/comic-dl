@@ -54,6 +54,7 @@ src/comic_dl/
   webview.py, webview_solver.py, webview_constants.py  # System-webview solver
   library.py               # SQLite download history (library CLI + update)
   self_update.py           # `self` — install-source detection + update strategies
+  site_update.py           # `self site` — per-site versions, checks, live-check
   ui.py                    # Rich progress/rendering (large)
   models.py, errors.py, utils.py, platform.py
 tests/                     # Offline-safe suite (no live network)
@@ -143,6 +144,7 @@ both `docs/reference/` and `website/src/content/docs/reference/`. Run
 | Usage, flags, config | `docs/reference/cli.md`, `docs/usage/download.md`, `docs/configure/config.md` |
 | Library CLI | `docs/usage/library.md` |
 | Self-update | `docs/usage/self-update.md` |
+| Site support | `docs/usage/site-support.md` |
 | Supported sites | `docs/reference/supported-sites.md` |
 | Writing a scraper | `docs/usage/write-plugin.md`, `examples/plugin-example/` |
 | Architecture | `docs/develop/architecture.md` |

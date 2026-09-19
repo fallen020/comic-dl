@@ -101,6 +101,9 @@ class KodokuStudioScraper(MadaraSeriesSiteScraper):
 
     domain = DOMAIN
     name = "kodokustudio"
+    site_id = "kodokustudio"
+    version = "1.0.0"
+    minimum_core_version = "0.0.2"
     base_url = BASE
     series_segment = "manhua"
     chapter_path_marker = "capitulo-"

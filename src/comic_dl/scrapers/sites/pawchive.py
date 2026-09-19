@@ -127,6 +127,9 @@ class PawchiveScraper(BaseScraper):
 
     domain = "pawchive.pw"
     name = "pawchive"
+    site_id = "pawchive"
+    version = "1.0.0"
+    minimum_core_version = "0.0.2"
 
     async def scrape(self, url: str, client: AsyncSession) -> PostMetadata:
         chapter = await self._scrape_chapter(url, client)

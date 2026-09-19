@@ -1,0 +1,110 @@
+---
+title: Site Support
+description: Per-site adapter versions, update checks, and live checks through comic-dl self site.
+order: 435
+section: Usage
+---
+
+Every built-in site adapter has a stable id and its own semantic version,
+independent of the comic-dl core version. `comic-dl self site` reports those
+versions, compares them against the latest release's site-support manifest,
+optionally live-checks a site, and routes updates through the core update
+path (adapters are bundled, so updating a site updates comic-dl).
+
+## List installed adapters
+
+```bash
+comic-dl self site list
+comic-dl self site list --json
+```
+
+Shows SITE · VERSION · DOMAINS · STATUS. Status comes from the last manifest a
+`site check` persisted (a manifest `check` downloaded), so it reads
+`unable to check` until a check has run.
+
+## Check for site-support updates
+
+```bash
+comic-dl self site check
+comic-dl self site check manga-example
+comic-dl self site check manga-example --live
+comic-dl self site check --json
+```
+
+`check` downloads the latest release manifest and reports per site:
+
+```text
+Site support check (21)
+SITE           VERSION   AVAILABLE   STATUS
+manga-example  1.2.0     1.3.0       update available
+comic-example  2.0.1     2.0.1       up to date
+```
+
+Statuses: `up to date`, `update available`, `incompatible` (the adapter needs
+a newer core than is installed), `unpublished` (installed newer than the
+manifest — a local dev build), and `unable to check` (no manifest reached).
+
+`--live` runs the real adapter against the site's declared test URL,
+reusing its normal extraction (never a separate parser) and validating that a
+series/chapter with content came back. Sites without a declared test URL are
+reported `live: skipped`. A non-`healthy` live result makes the command exit
+nonzero, so it can gate scheduled checks.
+
+A network or manifest failure is reported as `unable to check` — it is never
+treated as evidence that a site is broken — and only affects this command.
+
+## Update site support
+
+```bash
+comic-dl self site update manga-example
+comic-dl self site update --all [--yes]
+```
+
+Bundled adapters update with the core release that carries them. The command
+lists the required core update and then delegates to the normal `self update`
+strategy for this installation (pip/uv upgrade when writable, printed
+package-manager instructions for `apt`/`dnf`/`pacman` installs, `git pull` +
+`uv sync` for a source checkout). OS-managed installs are never modified
+automatically, and no adapter is ever replaced by downloading a lone Python
+file.
+
+If the installed core is already the latest release yet the manifest lists
+newer adapters (an inconsistent release), comic-dl refuses and tells you to
+reinstall.
+
+## After a failed download
+
+When a built-in adapter fails during a download, comic-dl keeps the original
+error and, if the cached manifest shows a newer adapter version, prints a
+hint:
+
+```text
+A newer site-support version (1.3.0) is available and may fix this.
+Run: comic-dl self site update manga-example
+```
+
+The message says "may fix" unless the manifest proves otherwise, updates are
+never triggered automatically, and no network request happens at download
+time — only the last saved manifest is consulted.
+
+## The site-support manifest
+
+Each release publishes `site-support.json` (generated from the registered
+adapters by `scripts/update-site-manifest.py`, so it cannot drift from the
+code). `self site check` reads it as a release asset; older releases without
+a manifest simply report `unable to check`.
+
+Site-versioning rules:
+
+- `PATCH` — selector fixes, parser corrections, small compatibility fixes.
+- `MINOR` — new extraction capabilities or supported site variants.
+- `MAJOR` — incompatible adapter-interface or configuration changes.
+
+Bump the adapter version whenever its parsing code changes, and never reuse a
+version. The release runbook covers regenerating the manifest.
+
+## Exit codes
+
+Unchanged from the rest of the CLI: `0` success, `1` runtime error (a broken
+or unavailable site, or a failed update), `2` invalid usage, `130`
+interrupted. Machine-readable statuses are available through `--json`.
