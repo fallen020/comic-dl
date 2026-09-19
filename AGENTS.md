@@ -3,7 +3,7 @@
 ## Project
 
 `comic-dl` downloads comic/manga galleries from supported sites and compiles
-them into CBZ, ZIP, and CBT archives. First public release (`v0.0.1`).
+them into CBZ, ZIP, and CBT archives. Latest release (`v0.0.2`).
 See `docs/develop/releasing.md` for the runbook.
 
 Upstream: `https://github.com/fallen020/comic-dl`, default branch `main`.
@@ -26,7 +26,8 @@ Feature branches fork from `dev` and merge back via squash PRs.
 | Lint | `./scripts/lint.sh` |
 | Test | `./scripts/test.sh` — single file: `uv run pytest tests/test_X.py -q` |
 | Build | `./scripts/build.sh` |
-| Docs | `./scripts/docs.sh` (when `docs/` or `README.md` change) |
+| Docs | `./scripts/docs.sh` — runs `update-sites-docs.py --check`, then Markdown lint |
+| Docs tables | `uv run python scripts/update-sites-docs.py` (after adding a site) |
 
 ## Repository map
 
@@ -34,14 +35,14 @@ Feature branches fork from `dev` and merge back via squash PRs.
 src/comic_dl/
   __init__.py, __main__.py, _version.py
   cli/__init__.py          # CLI orchestration (large — read surrounding context first)
-  cli/library.py, selection.py, sizing.py
+  cli/library.py, plugins.py, selection.py, sizing.py
   scrapers/
     base.py                # BaseScraper contract
     generic.py             # Fallback HTML scraper
     madara.py              # Madara-theme framework scraper
     registry.py            # Plugin loader
     refresh.py             # Chapter re-fetch logic
-    sites/                 # Per-site parsers (12 built-in)
+    sites/                 # Per-site parsers (21 built-in, auto-discovered)
   archiver.py              # CBZ/ZIP/CBT packing
   downloader.py            # Async download engine
   comicinfo.py             # ComicInfo.xml generation
@@ -51,16 +52,23 @@ src/comic_dl/
   http.py, cookies.py      # HTTP client, cookie jar
   cf.py, antibot.py        # Cloudflare detection, WAF fingerprints
   webview.py, webview_solver.py, webview_constants.py  # System-webview solver
+  library.py               # SQLite download history (library CLI + update)
   ui.py                    # Rich progress/rendering (large)
   models.py, errors.py, utils.py, platform.py
 tests/                     # Offline-safe suite (no live network)
   security/                # SSRF and filesystem safety tests
   scrapers/sites/          # Per-site parser tests
-docs/                      # Plain Markdown docs (no site build; source of truth)
-scripts/                   # CI gate scripts (lint.sh, test.sh, build.sh, docs.sh)
+docs/                      # Plain Markdown docs, source of truth (author here,
+                           # then mirror published pages into website/ as .mdx)
+scripts/                   # CI gate scripts + docs generator (update-sites-docs.py)
 packaging/                 # Distro packaging (deb/rpm/arch), versioning, PyInstaller
 examples/                  # Sample config, plugin, URL list
+website/                   # Astro docs site (GitHub Pages); mirrors docs/ subset
 ```
+
+Note: `scripts/update-sites-docs.py` regenerates the supported-sites tables in
+both `docs/reference/` and `website/src/content/docs/reference/`. Run
+`docs.sh` (via `update-sites-docs.py --check`) after adding or changing a site.
 
 ## Non-obvious conventions
 
@@ -131,7 +139,8 @@ examples/                  # Sample config, plugin, URL list
 
 | Topic | Read |
 | :---- | :--- |
-| Usage, flags, config | `docs/usage/download.md`, `docs/configure/config.md` |
+| Usage, flags, config | `docs/reference/cli.md`, `docs/usage/download.md`, `docs/configure/config.md` |
+| Library CLI | `docs/usage/library.md` |
 | Supported sites | `docs/reference/supported-sites.md` |
 | Writing a scraper | `docs/usage/write-plugin.md`, `examples/plugin-example/` |
 | Architecture | `docs/develop/architecture.md` |

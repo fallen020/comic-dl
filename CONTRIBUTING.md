@@ -14,14 +14,7 @@ This repository uses GitHub's built-in project management to organise work:
 - **Labels** — a fixed vocabulary is used to triage issues:
   - `bug`, `enhancement`, `documentation`
   - `good first issue`, `help wanted`
-  - `needs-triage`, `needs-repro`, `priority`
-  - Site labels — one per supported source, matching the order in
-    [Supported Sites](docs/reference/supported-sites.md):
-    `site:pawchive`, `site:e-hentai`, `site:webtoon`, `site:flamecomics`,
-    `site:fsicomics`, `site:gedecomix`, `site:asurascans`, `site:kagane`,
-    `site:mangadex`, `site:toonily`, `site:manhwaz`, `site:kodokustudio`,
-    `site:weebcentral` — mark which source a
-    report/PR touches
+  - `duplicate`, `invalid`, `question`, `wontfix`, `accessibility`
 - **Projects** — a kanban board (`Backlog → In progress → In review → Done`)
   mirrors the issue queue. Maintainers move cards as work proceeds.
 
@@ -58,6 +51,13 @@ beyond installation, a minimal example, and project overview belongs in
   it running in 60 seconds, and links into `docs/`.
 - `docs/` is the source of truth. It stays plain Markdown so pages read fine on
   GitHub. Validate with `uv run --extra docs pymarkdown scan docs README.md`.
+- `website/` is an Astro site serving a subset of the docs on GitHub Pages
+  (`.github/workflows/docs-deploy.yml`). Its `.mdx` pages under
+  `website/src/content/docs/` mirror `docs/` by hand — keep the two in sync
+  when you change a page that is also published there.
+- `scripts/update-sites-docs.py` regenerates the supported-sites tables in both
+  `docs/reference/` and `website/src/content/docs/reference/`. Run it and
+  commit the result when you add or change a site.
 - The [API reference](docs/api-reference.md) is maintained by hand — keep
   docstrings current when you change a public contract.
 
@@ -84,8 +84,10 @@ for presence by ruff (rules `D100`–`D104` and `D106` via `scripts/lint.sh`).
 
 1. Ping the issue you're addressing, or open one first for larger changes.
 2. Fork from `dev` and work on a feature branch (`git checkout -b fix/descriptive-name dev`).
-3. Keep changes focused. When you add a new supported site, also update
-   `docs/reference/supported-sites.md` and add a scraper under `src/comic_dl/`.
+3. Keep changes focused. When you add a new supported site, add a scraper under
+   `src/comic_dl/scrapers/sites/`, then run
+   `uv run python scripts/update-sites-docs.py` to refresh the source tables in
+   `docs/` and the docs site.
 4. Add or update tests. Bug fixes need a regression test; new features need
    coverage of the new code path.
 5. Run the checks in the Scripts section (tests + lint + type check) before

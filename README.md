@@ -19,13 +19,16 @@ support may change between releases.
 ## Features
 
 - Built-in adapters and a generic HTML fallback for unrecognized sites
+- Plugin system — add support for any site as a Python plugin, no fork required
 - Interactive chapter picker, or scriptable `--chapters 1-3,5` selection
 - Interrupted downloads resume from the intact pages already on disk
 - Per-site rate limiting and shared retry cooldown for polite scraping
 - ComicInfo.xml metadata embedded in generated archives
 - CBZ, ZIP, and CBT output formats
-- Linux and Windows support (macOS planned); no account required unless the
-  source site requires one
+- Library tracking — `list`, `info`, `latest`, `remove`, and `update`
+  subcommands manage downloaded series
+- Linux, macOS, and Windows support; no account required unless the source
+  site requires one
 
 ## Installation
 
@@ -65,7 +68,7 @@ comic-dl --version
 ```
 
 ```text
-comic-dl 0.0.1
+comic-dl 0.0.2
 ```
 
 See [docs/install.md](docs/install.md) for the full instructions.
@@ -113,8 +116,9 @@ naming, and more. See [docs/configure/config.md](docs/configure/config.md) and
 
 | Status | Platforms |
 | :----- | :-------- |
-| Supported | Debian-, Fedora-, and Arch-based Linux (amd64), Windows |
-| Planned | macOS, Android |
+| Supported | Linux, macOS, and Windows (from source) |
+| Prebuilt packages | Debian-, Fedora-, and Arch-based Linux (amd64), Windows |
+| Planned | macOS packages, Android |
 
 ## Troubleshooting
 
