@@ -5,6 +5,39 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org).
 
+## [v0.0.3] - 2026-09-20
+
+### Added
+
+- `comic-dl self version` and `comic-dl self update` — detects whether comic-dl
+  was installed by apt, dnf, pacman, pip, uv, a source checkout, or a standalone
+  binary and updates it through the owning package manager (with `--yes`,
+  sudo-when-needed). Never touches a source checkout or unwritable environment;
+  it reports and instructs instead.
+- `comic-dl self site list` / `check` / `update` — per-site support versioning:
+  every built-in adapter ships with a semantic version and minimum core version,
+  checked against the `site-support.json` manifest attached to each release.
+- Eight new built-in sources: HiveToons, GenzToons, Qimanga, StoneScapes,
+  EN-ThunderScans, KingOfShojo, ManhwaTop, and LGBTics (taking built-in support
+  from 13 to 21 sites).
+- Built-in scrapers are auto-discovered from the registry; a broken adapter
+  module fails fast instead of silently disappearing from `--list-sources`.
+
+### Changed
+
+- Adapter versioning rules and update flow documented in
+  `docs/usage/site-support.md`; self-update strategies in
+  `docs/usage/self-update.md`.
+- Docs and website refreshed for v0.0.3 (SEO/AI discoverability, accessibility,
+  brand icons, regenerated supported-sites tables).
+
+### Fixed
+
+- `self update` asset selection and `--yes` paths race-free and arch-correct on
+  Apple Silicon CI runners.
+- Update checks no longer mis-report a dev snapshot as "up to date" against the
+  published release with the same number.
+
 ## [v0.0.2] - 2026-09-15
 
 ### Added
