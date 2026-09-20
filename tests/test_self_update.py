@@ -11,6 +11,7 @@ from pathlib import Path
 
 import pytest
 
+from comic_dl import __version__ as _CORE_VERSION
 from comic_dl.errors import EXIT_USAGE
 from comic_dl.self_update import (
     EXIT_ERROR,
@@ -30,6 +31,19 @@ from comic_dl.self_update import (
 
 # Functional install fixture location; never touches disk.
 _MOCK_EXE = Path("/mock/comic-dl")
+
+# Update-path fixtures need a release strictly newer than what's installed;
+# deriving it keeps the tests independent of the current version number.
+
+
+def _bump_patch(v: str) -> str:
+    parts = [int(p) for p in v.split(".")]
+    parts[-1] += 1
+    return ".".join(str(p) for p in parts)
+
+
+_FUTURE = _bump_patch(_CORE_VERSION)
+_FUTURE_TAG = f"v{_FUTURE}"
 
 
 def _rel(tag: str, *assets: str) -> ReleaseInfo:
@@ -132,7 +146,7 @@ class TestSelfVersion:
 
         rc = await _run_self(["version"])
         assert rc == EXIT_OK
-        assert "comic-dl 0.0.2" in _text(capsys)
+        assert f"comic-dl {_CORE_VERSION}" in _text(capsys)
 
     async def test_bare_self_is_usage_error(self, monkeypatch):
         monkeypatch.setattr("sys.argv", ["prog", "self"])
@@ -147,7 +161,7 @@ class TestSelfVersion:
         with pytest.raises(SystemExit) as exc:
             await main()
         assert exc.value.code == EXIT_OK
-        assert "comic-dl 0.0.2" in _text(capsys)
+        assert f"comic-dl {_CORE_VERSION}" in _text(capsys)
 
 
 class TestSelfErrors:
@@ -229,7 +243,7 @@ class TestUpdateCheck:
 
     async def test_update_available_check_only(self, monkeypatch, capsys):
         async def newer():
-            return _rel("v0.0.3")
+            return _rel(_FUTURE_TAG)
 
         monkeypatch.setattr("comic_dl.self_update.fetch_latest_release", newer)
         monkeypatch.setattr(
@@ -246,7 +260,7 @@ class TestUpdateCheck:
 class TestUpdateRefusal:
     async def test_source_checkout(self, monkeypatch, capsys):
         async def newer():
-            return _rel("v0.0.3")
+            return _rel(_FUTURE_TAG)
 
         monkeypatch.setattr("comic_dl.self_update.fetch_latest_release", newer)
         monkeypatch.setattr(
@@ -260,7 +274,7 @@ class TestUpdateRefusal:
 
     async def test_unknown_installation(self, monkeypatch):
         async def newer():
-            return _rel("v0.0.3")
+            return _rel(_FUTURE_TAG)
 
         monkeypatch.setattr("comic_dl.self_update.fetch_latest_release", newer)
         monkeypatch.setattr(
@@ -272,7 +286,7 @@ class TestUpdateRefusal:
 
     async def test_binary_reports_only(self, monkeypatch, capsys):
         async def newer():
-            return _rel("v0.0.3")
+            return _rel(_FUTURE_TAG)
 
         monkeypatch.setattr("comic_dl.self_update.fetch_latest_release", newer)
         monkeypatch.setattr(
@@ -287,7 +301,7 @@ class TestUpdateRefusal:
 class TestPipUpdate:
     async def test_not_writable(self, monkeypatch, capsys):
         async def newer():
-            return _rel("v0.0.3")
+            return _rel(_FUTURE_TAG)
 
         monkeypatch.setattr("comic_dl.self_update.fetch_latest_release", newer)
         monkeypatch.setattr(
@@ -302,7 +316,7 @@ class TestPipUpdate:
         import sys as _sys
 
         async def newer():
-            return _rel("v0.0.3")
+            return _rel(_FUTURE_TAG)
 
         calls: list[list[str]] = []
 
@@ -322,7 +336,7 @@ class TestPipUpdate:
 
     async def test_pip_failure(self, monkeypatch, capsys):
         async def newer():
-            return _rel("v0.0.3")
+            return _rel(_FUTURE_TAG)
 
         monkeypatch.setattr("comic_dl.self_update.fetch_latest_release", newer)
         monkeypatch.setattr(
@@ -341,7 +355,7 @@ class TestPipUpdate:
 class TestUvUpdate:
     async def test_uv_command(self, monkeypatch):
         async def newer():
-            return _rel("v0.0.3")
+            return _rel(_FUTURE_TAG)
 
         calls: list[list[str]] = []
 
@@ -363,7 +377,7 @@ class TestUvUpdate:
 class TestPackageManagerUpdate:
     async def test_sudo_apt_install(self, monkeypatch):
         async def newer():
-            return _rel("v0.0.3", "comic-dl_0.0.3_amd64.deb")
+            return _rel(_FUTURE_TAG, f"comic-dl_{_FUTURE}_amd64.deb")
 
         async def fake_download(url, dest):
             dest.write_bytes(b"pkg")
@@ -395,7 +409,7 @@ class TestPackageManagerUpdate:
 
     async def test_sudo_absent_instructs(self, monkeypatch):
         async def newer():
-            return _rel("v0.0.3", "comic-dl_0.0.3_amd64.deb")
+            return _rel(_FUTURE_TAG, f"comic-dl_{_FUTURE}_amd64.deb")
 
         async def fake_download(url, dest):
             dest.write_bytes(b"pkg")
@@ -415,7 +429,7 @@ class TestPackageManagerUpdate:
 
     async def test_package_install_failure_instructs(self, monkeypatch):
         async def newer():
-            return _rel("v0.0.3", "comic-dl_0.0.3_amd64.deb")
+            return _rel(_FUTURE_TAG, f"comic-dl_{_FUTURE}_amd64.deb")
 
         async def fake_download(url, dest):
             dest.write_bytes(b"pkg")
@@ -442,7 +456,7 @@ class TestPackageManagerUpdate:
 
     async def test_no_asset_for_arch(self, monkeypatch, capsys):
         async def newer():
-            return _rel("v0.0.3", "comic-dl_0.0.3_amd64.deb")
+            return _rel(_FUTURE_TAG, f"comic-dl_{_FUTURE}_amd64.deb")
 
         monkeypatch.setattr("comic_dl.self_update.fetch_latest_release", newer)
         monkeypatch.setattr(

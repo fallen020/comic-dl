@@ -10,6 +10,7 @@ from dataclasses import replace
 
 import pytest
 
+from comic_dl import __version__ as _CORE_VERSION
 from comic_dl.errors import (
     EXIT_ERROR,
     EXIT_OK,
@@ -33,6 +34,16 @@ from comic_dl.site_update import (
 def _text(capsys) -> str:
     cap = capsys.readouterr()
     return (cap.out + cap.err).replace("\n", "")
+
+
+def _bump_patch(v: str) -> str:
+    parts = [int(p) for p in v.split(".")]
+    parts[-1] += 1
+    return ".".join(str(p) for p in parts)
+
+
+# A mocked future manifest must outrank the installed core version.
+_FUTURE = _bump_patch(_CORE_VERSION)
 
 
 # -------------------------------------------------------------------------
@@ -355,7 +366,7 @@ class TestSiteUpdate:
         assert "up to date" in _text(capsys)
 
     async def test_delegates_core_update(self, monkeypatch, capsys):
-        m = _manifest({"webtoon": ("1.1.0", "0.0.3")}, core="0.0.3")
+        m = _manifest({"webtoon": ("1.1.0", "0.0.3")}, core=_FUTURE)
         calls: list[dict] = []
 
         async def fake_fetch():
@@ -375,7 +386,7 @@ class TestSiteUpdate:
         assert "1.1.0" in out
 
     async def test_all_aggregates_outdated(self, monkeypatch, capsys):
-        m = _manifest({"webtoon": ("1.1.0", "0.0.3"), "e-hentai": ("1.2.0", "0.0.3")})
+        m = _manifest({"webtoon": ("1.1.0", "0.0.3"), "e-hentai": ("1.2.0", "0.0.3")}, core=_FUTURE)
 
         async def fake_fetch():
             return m

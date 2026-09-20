@@ -1,6 +1,6 @@
 [project]
 name = "comic-dl"
-version = "0.0.2"
+version = "0.0.3"
 description = "Download comic and manga galleries from supported websites and compile them into CBZ, ZIP, and CBT archives."
 readme = "README.md"
 license = "MIT"

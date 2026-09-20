@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "core_version": "0.0.2",
+  "core_version": "0.0.3",
   "sites": {
     "asurascans": {
       "version": "1.0.0",
