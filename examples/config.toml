@@ -68,6 +68,16 @@ download-timeout = 60
 # Lower to fail faster on flaky hosts; the shared backoff still paces retries.
 download-retries = 2
 
+# Second, low-rate retry sweep: after pass 1's per-image retries are spent,
+# pages that still failed get one more pass at low concurrency so a transient
+# site-wide blip costs an extra slow sweep instead of a whole rerun.
+pass2-enabled = true
+pass2-concurrency = 1      # pages in flight during the sweep
+pass2-retries = 2          # retries per page after the sweep's first attempt
+pass2-timeout = 120        # per-image timeout (s) for the sweep
+# pass2-impersonate = ""   # uncomment with a profile (e.g. "firefox136") to
+                           # swap TLS/HTTP fingerprints for the sweep only
+
 # Generic fallback scraper: when a URL's host has no dedicated/plugin scraper,
 # extract a direct image, a gallery, or a chapter-list series straight from the
 # page (static HTML + embedded JSON only). --no-generic disables for one run.

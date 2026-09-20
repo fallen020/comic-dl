@@ -25,6 +25,7 @@ from curl_cffi.requests import AsyncSession
 from .config import http_setting
 from .errors import DownloadTimeout
 from .http import absorb_response_cookies, jar_cookies_kwargs
+from .manifest import MANIFEST_NAME, ChapterManifest
 from .models import ImageItem, PostMetadata
 from .rate import await_ratelimit, rate_limiting_enabled
 from .ui import (
@@ -56,6 +57,14 @@ MAX_DOWNLOAD_RETRIES = 3
 DOWNLOAD_TIMEOUT = 60
 # One chance to re-mint a stale image link from its source page per retry.
 REFRESH_TIMEOUT = 30
+
+# Pass 2 (batch retry) defaults: after pass 1's per-image retries are spent,
+# pages that still failed get one low-concurrency sweep at a longer per-image
+# timeout, so a transient site-wide blip costs an extra slow pass instead of a
+# whole rerun. Tunable under ``[http] pass2-*``.
+PASS2_CONCURRENCY = 1
+PASS2_RETRIES = 2
+PASS2_TIMEOUT = 120.0
 
 # Per-host circuit breaker for image transport. After this many consecutive
 # transport-level failures (timeouts, connection resets, TLS aborts) a host
@@ -820,22 +829,26 @@ async def _try_resume(
                     _mark_partial(part_path)
             fmt = verify_image_file(part_path)
             return True if fmt is not None else None
-        elif resp.status_code == 416:
+        if resp.status_code == 416:
             # The server has no bytes from our offset — the partial is stale
             # or corrupted (delete the partial and restart).
             part_path.unlink(missing_ok=True)
             _clear_partial(part_path)
             return None
-        part_path.unlink(missing_ok=True)
-        _clear_partial(part_path)
-        return None
-    except Exception:
+        # A non-206, non-416 reply (e.g. a 200 full re-send because the server
+        # ignored Range) cannot be appended to the partial: discard it.
         part_path.unlink(missing_ok=True)
         _clear_partial(part_path)
         return None
     finally:
         if resp is not None:
             await _close_response(resp)
+    # Transport-level faults (connection reset, timeout) are deliberately NOT
+    # caught: they propagate to the caller's retry loop, which backs off and
+    # re-enters this resume with the partial still on disk, so a disconnect
+    # mid-resume continues from the current byte offset instead of destroying
+    # the accumulated bytes. That is exactly the case Range continuation exists
+    # for; only a stale/corrupt partial merits a delete-and-restart.
 
 
 async def _stream_to_disk(
@@ -935,6 +948,7 @@ async def download_httpx(
     download_timeout: float = DOWNLOAD_TIMEOUT,
     max_attempts: int = MAX_DOWNLOAD_RETRIES,
     failure_labels: dict[str, str] | None = None,
+    on_state: Callable[[str, str, str, int], None] | None = None,
 ) -> set[str]:
     """Download every image in ``images`` to ``dest_dir`` with a concurrency cap.
 
@@ -942,7 +956,9 @@ async def download_httpx(
     When ``client`` is omitted a short-lived session is created and closed.
     ``stream_formats``, when given, is filled with ``{filename: format}`` for
     pages whose magic bytes were already sniffed during streaming so the
-    caller can skip re-verifying them.
+    caller can skip re-verifying them. ``on_state``, when given, is called
+    with ``(filename, status, error, size)`` as each page reaches a terminal
+    state so a caller can persist a live manifest.
     """
     sem = asyncio.Semaphore(concurrency)
 
@@ -961,7 +977,7 @@ async def download_httpx(
                 total_pages=len(images), activity_cb=activity_cb,
                 stream_formats=stream_formats,
                 download_timeout=download_timeout, max_attempts=max_attempts,
-                failure_labels=failure_labels,
+                failure_labels=failure_labels, on_state=on_state,
             )
             return failed
     else:
@@ -971,7 +987,7 @@ async def download_httpx(
             total_pages=len(images), activity_cb=activity_cb,
             stream_formats=stream_formats,
             download_timeout=download_timeout, max_attempts=max_attempts,
-            failure_labels=failure_labels,
+            failure_labels=failure_labels, on_state=on_state,
         )
         return failed
 
@@ -991,6 +1007,7 @@ async def download_httpx_iter(
     download_timeout: float = DOWNLOAD_TIMEOUT,
     max_attempts: int = MAX_DOWNLOAD_RETRIES,
     failure_labels: dict[str, str] | None = None,
+    on_state: Callable[[str, str, str, int], None] | None = None,
 ) -> tuple[set[str], list[ImageItem]]:
     """Stream downloads from ``images``, returning ``(failed, resolved)``.
 
@@ -1009,14 +1026,14 @@ async def download_httpx_iter(
                 max_image_size, max_total_size, bytes_cb, activity_cb=activity_cb,
                 stream_formats=stream_formats,
                 download_timeout=download_timeout, max_attempts=max_attempts,
-                failure_labels=failure_labels,
+                failure_labels=failure_labels, on_state=on_state,
             )
     return await _run_downloads(
         images, dest_dir, sem, progress_cb, client,
         max_image_size, max_total_size, bytes_cb, activity_cb=activity_cb,
         stream_formats=stream_formats,
         download_timeout=download_timeout, max_attempts=max_attempts,
-        failure_labels=failure_labels,
+        failure_labels=failure_labels, on_state=on_state,
     )
 
 
@@ -1037,6 +1054,7 @@ async def _run_downloads(
     *,
     download_timeout: float = DOWNLOAD_TIMEOUT,
     max_attempts: int = MAX_DOWNLOAD_RETRIES,
+    on_state: Callable[[str, str, str, int], None] | None = None,
 ) -> tuple[set[str], list[ImageItem]]:
     # Shared adaptive throttle: when any download hits a retryable failure,
     # all in-flight downloads pause until the backoff window elapses, so the
@@ -1065,6 +1083,16 @@ async def _run_downloads(
         stream_formats: dict[str, str] | None = None,
     ) -> None:
         nonlocal completed, cooldown_until
+
+        def _record_state(status: str, error: str = "", size: int = 0) -> None:
+            """Persist one page's terminal state to the caller's manifest.
+
+            Fires as each page reaches a terminal outcome so a killed process
+            still leaves an accurate ``.comic-dl-state.json`` behind.
+            """
+            if on_state is not None:
+                on_state(item.filename, status, error, size)
+
         dest = (dest_dir / item.filename).resolve()
         part_path = (dest_dir / f"{item.filename}.part").resolve()
         dest_dir_resolved = dest_dir.resolve()
@@ -1074,6 +1102,7 @@ async def _run_downloads(
         except ValueError:
             failed.add(item.filename)
             failure_labels[item.filename] = "unsafe file name"
+            _record_state("failed", "unsafe file name")
             reasons["budget"] = reasons.get("budget", 0) + 1
             completed += 1
             if progress_cb:
@@ -1085,6 +1114,7 @@ async def _run_downloads(
         if _budget_exhausted():
             failed.add(item.filename)
             failure_labels[item.filename] = "exceeds max total size"
+            _record_state("failed", "exceeds max total size")
             reasons["budget"] = reasons.get("budget", 0) + 1
             completed += 1
             if progress_cb:
@@ -1095,6 +1125,7 @@ async def _run_downloads(
         if dest.exists() and dest.stat().st_size > 0:
             fmt = verify_image_file(dest)
             if fmt is not None:
+                _record_state("done", size=dest.stat().st_size)
                 completed += 1
                 if progress_cb:
                     progress_cb(completed)
@@ -1110,6 +1141,7 @@ async def _run_downloads(
             if _budget_exhausted():
                 failed.add(item.filename)
                 failure_labels[item.filename] = "exceeds max total size"
+                _record_state("failed", "exceeds max total size")
                 reasons["budget"] = reasons.get("budget", 0) + 1
                 completed += 1
                 if progress_cb:
@@ -1132,6 +1164,7 @@ async def _run_downloads(
                     _clear_partial(part_path)
                     failed.add(item.filename)
                     failure_labels[item.filename] = "host parked (cooldown)"
+                    _record_state("failed", "host parked (cooldown)")
                     reasons["parked"] = reasons.get("parked", 0) + 1
                     completed += 1
                     if progress_cb:
@@ -1148,9 +1181,11 @@ async def _run_downloads(
                         # Resume from the partial's byte offset regardless of
                         # whether it already forms a complete image: a dropped
                         # transfer is precisely the case Range continuation
-                        # exists for. _try_resume validates the finished bytes,
-                        # and a stale/corrupt partial (416, non-206 reply, or
-                        # bad tail) falls through to a fresh full download.
+                        # exists for. _try_resume validates the finished bytes.
+                        # A transport failure propagates (partial preserved, so
+                        # the next attempt resumes again); a stale/corrupt
+                        # partial (416, non-206 reply, or bad tail) is deleted
+                        # here and falls through to a fresh full download.
                         _mark_partial(part_path)
                         trace(
                             f"resume: {item.filename} — {part_path.stat().st_size} "
@@ -1167,6 +1202,7 @@ async def _run_downloads(
                             _clear_partial(part_path)
                             part_path.rename(dest)
                             record_transport_success(host)
+                            _record_state("done", size=size)
                             completed += 1
                             if progress_cb:
                                 progress_cb(completed)
@@ -1195,6 +1231,7 @@ async def _run_downloads(
                 record_transport_success(host)
                 if fmt is not None and stream_formats is not None:
                     stream_formats[item.filename] = fmt
+                _record_state("done", size=size)
                 completed += 1
                 if progress_cb:
                     progress_cb(completed)
@@ -1208,6 +1245,7 @@ async def _run_downloads(
                 # tracked so an interrupt still reports resumable data.
                 failed.add(item.filename)
                 failure_labels[item.filename] = "no disk space"
+                _record_state("failed", "no disk space")
                 reasons["disk"] = reasons.get("disk", 0) + 1
                 completed += 1
                 if progress_cb:
@@ -1218,6 +1256,7 @@ async def _run_downloads(
                 _clear_partial(part_path)
                 failed.add(item.filename)
                 failure_labels[item.filename] = "invalid image data"
+                _record_state("failed", "invalid image data")
                 reasons["value"] = reasons.get("value", 0) + 1
                 completed += 1
                 if progress_cb:
@@ -1232,7 +1271,9 @@ async def _run_downloads(
                     part_path.unlink(missing_ok=True)
                     _clear_partial(part_path)
                     failed.add(item.filename)
-                    failure_labels[item.filename] = _download_failure_label(exc)
+                    label = _download_failure_label(exc)
+                    failure_labels[item.filename] = label
+                    _record_state("failed", label)
                     reasons["transport"] = reasons.get("transport", 0) + 1
                     completed += 1
                     if progress_cb:
@@ -1521,6 +1562,28 @@ def _engine_tuning() -> tuple[float, int]:
     return timeout, retries + 1
 
 
+def _pass2_tuning() -> tuple[bool, int, int, float, str]:
+    """Pass-2 knobs from ``[http] pass2-*``: enabled, pages, attempts, timeout.
+
+    A second pass retries only the failures of pass 1 at a lower concurrency
+    and a longer per-image timeout, so a transient site-wide blip costs one
+    extra low-rate sweep instead of a whole rerun. ``pass2-impersonate``
+    swaps the TLS/HTTP profile for the sweep (empty = reuse the run's profile;
+    honored only when the run does not supply its own client session). Values
+    are clamped like :func:`_engine_tuning`'s so a bad value can neither hang
+    nor zero the sweep.
+    """
+    enabled = bool(http_setting("pass2-enabled", True))
+    concurrency = int(http_setting("pass2-concurrency", PASS2_CONCURRENCY))
+    retries = int(http_setting("pass2-retries", PASS2_RETRIES))
+    timeout = float(http_setting("pass2-timeout", PASS2_TIMEOUT))
+    impersonate = str(http_setting("pass2-impersonate", "") or "")
+    concurrency = min(max(concurrency, 1), MAX_PIPELINE_CONCURRENCY)
+    retries = min(max(retries, 0), 10)
+    timeout = min(max(timeout, 1.0), 600.0)
+    return enabled, concurrency, retries + 1, timeout, impersonate
+
+
 class StatusSink(Protocol):
     """Consumer that renders a live status row for one download pipeline.
 
@@ -1645,6 +1708,14 @@ class DownloadPipeline:
         self._bytes_cb: Callable[[int], None] | None = None
         self._compression = compression
         self._download_timeout, self._max_attempts = _engine_tuning()
+        (
+            self._pass2_enabled,
+            self._pass2_concurrency,
+            self._pass2_attempts,
+            self._pass2_timeout,
+            self._pass2_impersonate,
+        ) = _pass2_tuning()
+        self._manifest: ChapterManifest | None = None
 
     # ── public API ──────────────────────────────────────────────
 
@@ -1725,6 +1796,12 @@ class DownloadPipeline:
 
             client_kwargs = http_client_args(referer_url=self._referer_url)
 
+            # Phase 1 of the manifest pipeline: mark every known page pending
+            # before any bytes move, so a killed run's manifest names the full
+            # expected set (streaming mode seeds as items resolve instead).
+            if self._images_iter is None and self._images:
+                self._get_manifest().seed(self._images)
+
             self._bytes_cb = report_bytes
             try:
                 failed = await self._download(
@@ -1785,6 +1862,13 @@ class DownloadPipeline:
                     ),
                     tag=TAG_DOWNLOAD,
                 )
+
+            # Settle the manifest: every known page now has a terminal state
+            # (done or failed+reason), one atomic write. Streaming mode seeds
+            # from the resolved items here rather than up-front.
+            if self._images_iter is not None:
+                self._get_manifest().seed(images)
+            self._get_manifest().settle(images, failed, self._failure_labels, self._tmp_dir)
 
             if not verified_formats:
                 # Zero valid pages: fail the chapter outright instead of
@@ -1869,6 +1953,89 @@ class DownloadPipeline:
 
     # ── internal: download step ─────────────────────────────────
 
+    def _get_manifest(self) -> ChapterManifest:
+        """The chapter's on-disk state manifest (created on first use)."""
+        if self._manifest is None:
+            self._manifest = ChapterManifest(
+                self._tmp_dir / MANIFEST_NAME, chapter_id=self._url
+            )
+        return self._manifest
+
+    def _manifest_recorder(
+        self,
+    ) -> Callable[[str, str, str, int], None] | None:
+        """Bound recorder flushing each page's terminal state to the manifest.
+
+        No-op for the download engine's own callers only when the pipeline
+        never reaches a manifest-bearing state; downloading always records.
+        """
+
+        def _record(filename: str, status: str, error: str, size: int) -> None:
+            self._get_manifest().record(filename, status, error, size)
+
+        return _record
+
+    async def _retry_pass2(
+        self,
+        failed: set[str],
+        images: list[ImageItem],
+        client_kwargs: dict,
+        bytes_cb: Callable[[int], None] | None,
+        activity_cb: Callable[[str], None] | None,
+        stream_formats: dict[str, str] | None,
+        on_state: Callable[[str, str, str, int], None] | None,
+        client: AsyncSession | None = None,
+    ) -> set[str]:
+        """Second, low-concurrency sweep over pages pass 1 still failed.
+
+        Runs only after pass 1's per-image retries are spent. Budget-rejected
+        pages are skipped — they cannot succeed on a retry. ``on_state`` is
+        shared with pass 1 so the manifest keeps its real-time statuses. Any
+        wholesale pass-2 failure is swallowed: an already-partial run must keep
+        its pass-1 results rather than crash.
+        """
+        if not failed or not self._pass2_enabled:
+            return failed
+        items = [
+            im for im in images
+            if im.filename in failed
+            and self._failure_labels.get(im.filename) != "exceeds max total size"
+        ]
+        if not items:
+            return failed
+        if activity_cb is not None:
+            activity_cb(
+                f"Retrying {len(items)} failed page(s) at low concurrency..."
+            )
+        # Pass 2 reuse of the pass-1 session is deliberate: same cookies and
+        # TLS fingerprint, so a WAF that threw pass-1 out stays challenged.
+        try:
+            if client is not None:
+                return await download_httpx(
+                    items, self._tmp_dir, self._pass2_concurrency,
+                    None, client=client, max_image_size=self._max_image_size,
+                    max_total_size=self._max_total_size, bytes_cb=bytes_cb,
+                    activity_cb=activity_cb, stream_formats=stream_formats,
+                    download_timeout=self._pass2_timeout,
+                    max_attempts=self._pass2_attempts,
+                    failure_labels=self._failure_labels, on_state=on_state,
+                )
+            if self._pass2_impersonate:
+                client_kwargs = {**client_kwargs, "impersonate": self._pass2_impersonate}
+            session_kwargs = {**client_kwargs, "max_clients": self._pass2_concurrency * 2}
+            async with AsyncSession(**session_kwargs) as c:
+                return await download_httpx(
+                    items, self._tmp_dir, self._pass2_concurrency,
+                    None, client=c, max_image_size=self._max_image_size,
+                    max_total_size=self._max_total_size, bytes_cb=bytes_cb,
+                    activity_cb=activity_cb, stream_formats=stream_formats,
+                    download_timeout=self._pass2_timeout,
+                    max_attempts=self._pass2_attempts,
+                    failure_labels=self._failure_labels, on_state=on_state,
+                )
+        except Exception:
+            return failed
+
     async def _download(
         self,
         client_kwargs: dict,
@@ -1878,10 +2045,15 @@ class DownloadPipeline:
         bytes_cb = self._bytes_cb
         stream_formats: dict[str, str] = {}
         self._failure_labels = {}
+        on_state = self._manifest_recorder()
         if self._images_iter is not None:
             failed = await self._download_stream(
                 client_kwargs, progress_cb, bytes_cb, activity_cb,
-                stream_formats=stream_formats,
+                stream_formats=stream_formats, on_state=on_state,
+            )
+            failed = await self._retry_pass2(
+                failed, self._resolved_images, client_kwargs,
+                bytes_cb, activity_cb, stream_formats, on_state,
             )
         elif self._client is not None:
             failed = await download_httpx(
@@ -1891,7 +2063,12 @@ class DownloadPipeline:
                 activity_cb=activity_cb, stream_formats=stream_formats,
                 download_timeout=self._download_timeout,
                 max_attempts=self._max_attempts,
-                failure_labels=self._failure_labels,
+                failure_labels=self._failure_labels, on_state=on_state,
+            )
+            failed = await self._retry_pass2(
+                failed, self._images, client_kwargs,
+                bytes_cb, activity_cb, stream_formats, on_state,
+                client=self._client,
             )
         else:
             session_kwargs = {**client_kwargs, "max_clients": self._concurrency * 2}
@@ -1903,8 +2080,12 @@ class DownloadPipeline:
                     activity_cb=activity_cb, stream_formats=stream_formats,
                     download_timeout=self._download_timeout,
                     max_attempts=self._max_attempts,
-                    failure_labels=self._failure_labels,
+                    failure_labels=self._failure_labels, on_state=on_state,
                 )
+            failed = await self._retry_pass2(
+                failed, self._images, client_kwargs,
+                bytes_cb, activity_cb, stream_formats, on_state,
+            )
         self._stream_formats = stream_formats
         return failed
 
@@ -1915,6 +2096,7 @@ class DownloadPipeline:
         bytes_cb: Callable[[int], None] | None = None,
         activity_cb: Callable[[str], None] | None = None,
         stream_formats: dict[str, str] | None = None,
+        on_state: Callable[[str, str, str, int], None] | None = None,
     ) -> set[str]:
         if self._images_iter is None:
             raise RuntimeError("_download_stream called without an images iterator")
@@ -1926,7 +2108,7 @@ class DownloadPipeline:
                 activity_cb=activity_cb, stream_formats=stream_formats,
                 download_timeout=self._download_timeout,
                 max_attempts=self._max_attempts,
-                failure_labels=self._failure_labels,
+                failure_labels=self._failure_labels, on_state=on_state,
             )
         else:
             session_kwargs = {**client_kwargs, "max_clients": self._concurrency * 2}
@@ -1938,7 +2120,7 @@ class DownloadPipeline:
                     activity_cb=activity_cb, stream_formats=stream_formats,
                     download_timeout=self._download_timeout,
                     max_attempts=self._max_attempts,
-                    failure_labels=self._failure_labels,
+                    failure_labels=self._failure_labels, on_state=on_state,
                 )
         self._resolved_images = resolved
         return failed

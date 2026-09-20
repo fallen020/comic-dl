@@ -40,6 +40,7 @@ from comic_dl.downloader import (
     reset_host_breaker,
     verify_downloads,
 )
+from comic_dl.manifest import MANIFEST_NAME, ChapterManifest, PageState
 from comic_dl.models import ImageItem
 from comic_dl.utils import image_source_name, verify_image_file
 from comic_dl.webview import SessionTransportError
@@ -2336,3 +2337,233 @@ class TestFailureLabels:
         assert labels["b.jpg"] == "exceeds max total size"
         assert labels.get("a.jpg") is None
         assert [r.filename for r in resolved] == ["a.jpg", "b.jpg"]
+
+
+class TestTryResumeTransportPreserve:
+    """A transport fault mid-resume must propagate and keep the partial: the
+    next attempt resumes from the current byte offset instead of discarding
+    the accumulated bytes (feature B)."""
+
+    pytestmark = pytest.mark.asyncio
+
+    async def test_transport_error_propagates_and_keeps_partial(self, tmp_path, monkeypatch):
+        async def raising_open_stream(client, url, headers=None, log_level=None, note=""):
+            raise CurlTimeout("reset mid-resume")
+
+        monkeypatch.setattr("comic_dl.downloader._open_stream", raising_open_stream)
+        part = tmp_path / "test.jpg"
+        part.write_bytes(MAGIC_JPEG)
+        with pytest.raises(CurlTimeout):
+            await _try_resume(
+                ImageItem(url="http://x.com/img", page_number=1, filename="test.jpg"),
+                part, None,  # type: ignore[arg-type]
+            )
+        assert part.exists()
+
+    async def test_resume_transient_retry_keeps_partial(self, tmp_path, monkeypatch):
+        """download_httpx retries a resume that drops mid-transfer; the partial
+        survives the disconnect and round-trips through a second Range request."""
+        range_calls = [0]
+
+        class ResumeResp:
+            status_code = 206
+            headers = {}
+
+            async def aiter_content(self, chunk_size=None):
+                yield b"\x00\x00\x10JFIF\x00"
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *args):
+                return False
+
+        class MockClient:
+            def stream(self, method, url, **kwargs):
+                if "Range" not in kwargs.get("headers", {}):
+                    raise AssertionError("full download should not happen")
+                range_calls[0] += 1
+                if range_calls[0] == 1:
+                    raise CurlTimeout("reset mid-resume")
+                return ResumeResp()
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *args):
+                return False
+
+        monkeypatch.setattr("comic_dl.downloader._backoff_delay", lambda *a, **k: 0.01)
+        monkeypatch.setattr("comic_dl.downloader.SHARED_COOLDOWN_CAP", 0.05)
+        part = tmp_path / "test.jpg.part"
+        part.write_bytes(MAGIC_JPEG)
+        failed = await download_httpx(
+            [ImageItem(url="http://x.com/img", page_number=1, filename="test.jpg")],
+            tmp_path, concurrency=1, client=MockClient(),  # type: ignore[arg-type]
+        )
+        assert failed == set()
+        assert (tmp_path / "test.jpg").exists()
+        assert not part.exists()
+        assert range_calls[0] == 2
+
+
+class TestPass2Retry:
+    """Automatic in-run pass 2: failed pages get one low-concurrency sweep at
+    pass-2 knobs instead of needing a whole rerun."""
+
+    pytestmark = pytest.mark.asyncio
+
+    async def test_retries_failed_pages_only_with_pass2_knobs(
+        self, tmp_path, monkeypatch
+    ):
+        from comic_dl import config as cfgmodule
+
+        cfgmodule.set_runtime_http(
+            **{
+                "pass2-enabled": True,
+                "pass2-concurrency": 3,
+                "pass2-retries": 5,
+                "pass2-timeout": 30,
+            }
+        )
+        try:
+            call_log = []
+
+            async def fake_download_httpx(images, dest_dir, concurrency, progress_cb, **kw):
+                names = [im.filename for im in images]
+                call_log.append(
+                    (names, concurrency, kw.get("download_timeout"), kw.get("max_attempts"))
+                )
+                if len(call_log) == 1:
+                    return {"a.jpg"}
+                assert names == ["a.jpg"]
+                (dest_dir / "a.jpg").write_bytes(MAGIC_JPEG)
+                return set()
+
+            monkeypatch.setattr("comic_dl.downloader.download_httpx", fake_download_httpx)
+            tmp_dir = tmp_path / "tmp"
+            pipe = DownloadPipeline(
+                images=[ImageItem(url="http://x.com/1", page_number=1, filename="a.jpg")],
+                tmp_dir=tmp_dir,
+                cbz_path=tmp_path / "out.cbz",
+                series_title="S",
+                chapter_title="C",
+                quiet=True,
+                client=object(),  # triggers the caller-client branch; ignored by the fake
+            )
+            result = await pipe.run()
+            assert result.ok is True
+            assert result.failed_images == set()
+            assert len(call_log) == 2
+            assert call_log[1][1] == 3  # pass2-concurrency
+            assert call_log[1][2] == 30.0  # pass2-timeout
+            assert call_log[1][3] == 6  # pass2-retries(5) + first attempt
+        finally:
+            for key in ("pass2-enabled", "pass2-concurrency", "pass2-retries", "pass2-timeout"):
+                cfgmodule._RUNTIME_HTTP.pop(key, None)
+
+    async def test_disabled_pass2_single_sweep(self, tmp_path, monkeypatch):
+        from comic_dl import config as cfgmodule
+
+        cfgmodule.set_runtime_http(**{"pass2-enabled": False})
+        try:
+            call_log = []
+
+            async def fake_download_httpx(images, dest_dir, concurrency, progress_cb, **kw):
+                call_log.append([im.filename for im in images])
+                for im in images:
+                    (dest_dir / im.filename).write_bytes(MAGIC_JPEG)
+                return set()
+
+            monkeypatch.setattr("comic_dl.downloader.download_httpx", fake_download_httpx)
+            tmp_dir = tmp_path / "tmp"
+            pipe = DownloadPipeline(
+                images=[ImageItem(url="http://x.com/1", page_number=1, filename="a.jpg")],
+                tmp_dir=tmp_dir,
+                cbz_path=tmp_path / "out.cbz",
+                series_title="S",
+                chapter_title="C",
+                quiet=True,
+                client=object(),
+            )
+            result = await pipe.run()
+            assert result.ok is True
+            assert len(call_log) == 1
+        finally:
+            cfgmodule._RUNTIME_HTTP.pop("pass2-enabled", None)
+
+    async def test_budget_failures_excluded_from_pass2(self, tmp_path, monkeypatch):
+        """A page rejected by the total-size budget cannot succeed on a retry,
+        so pass 2 must not waste the sweep on it."""
+        call_log = []
+
+        async def fake_download_httpx(images, dest_dir, concurrency, progress_cb, **kw):
+            names = [im.filename for im in images]
+            call_log.append((names, kw.get("failure_labels")))
+            if len(call_log) == 1:
+                kw["failure_labels"]["a.jpg"] = "exceeds max total size"
+                kw["failure_labels"]["b.jpg"] = "timed out"
+                return {"a.jpg", "b.jpg"}
+            assert names == ["b.jpg"]
+            (dest_dir / "b.jpg").write_bytes(MAGIC_JPEG)
+            return set()
+
+        monkeypatch.setattr("comic_dl.downloader.download_httpx", fake_download_httpx)
+        tmp_dir = tmp_path / "tmp"
+        pipe = DownloadPipeline(
+            images=[
+                ImageItem(url="http://x.com/1", page_number=1, filename="a.jpg"),
+                ImageItem(url="http://x.com/2", page_number=2, filename="b.jpg"),
+            ],
+            tmp_dir=tmp_dir,
+            cbz_path=tmp_path / "out.cbz",
+            series_title="S",
+            chapter_title="C",
+            quiet=True,
+            client=object(),
+        )
+        result = await pipe.run()
+        assert result.ok is True
+        assert result.failed_images == {"a.jpg"}
+        assert len(call_log) == 2
+        assert call_log[1][0] == ["b.jpg"]
+
+
+class TestPipelineManifest:
+    """A partial run leaves an accurate per-page state manifest in the chapter
+    temp dir, from which the CLI copies a rerun's failure reasons."""
+
+    pytestmark = pytest.mark.asyncio
+
+    @staticmethod
+    def _page(m: ChapterManifest, name: str) -> PageState:
+        state = m.get(name)
+        assert state is not None
+        return state
+
+    async def test_partial_run_records_done_and_failed(self, tmp_path, monkeypatch):
+        from comic_dl.manifest import STATE_DONE, STATE_FAILED
+
+        images = [
+            ImageItem(url="http://x.com/1", page_number=1, filename="p1.jpg"),
+            ImageItem(url="http://x.com/2", page_number=2, filename="p2.jpg"),
+        ]
+        tmp_dir = tmp_path / "tmp"
+        pipe = DownloadPipeline(
+            images=images, tmp_dir=tmp_dir, cbz_path=tmp_path / "out.cbz",
+            series_title="S", chapter_title="C", quiet=True,
+        )
+
+        async def fake_download(client_kwargs, progress_cb, activity_cb=None):
+            tmp_dir.mkdir(parents=True, exist_ok=True)
+            (tmp_dir / "p1.jpg").write_bytes(MAGIC_JPEG)
+            progress_cb(len(images))
+            return {"p2.jpg"}
+
+        monkeypatch.setattr(pipe, "_download", fake_download)
+        result = await pipe.run()
+        assert result.ok is True
+        manifest = ChapterManifest.load(tmp_dir / MANIFEST_NAME)
+        assert manifest is not None
+        assert self._page(manifest, "p1.jpg").status == STATE_DONE
+        assert self._page(manifest, "p2.jpg").status == STATE_FAILED

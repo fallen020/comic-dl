@@ -77,6 +77,7 @@ from ..errors import (
     ValidationError,
 )
 from ..library import Library, library_path, source_id
+from ..manifest import MANIFEST_NAME
 from ..models import PostMetadata
 from ..platform import default_editor as _default_editor
 from ..rate import rate_limiting_enabled
@@ -540,6 +541,24 @@ def _partial_marker(cbz_path: Path) -> Path:
     marker is removed once the chapter finishes completely.
     """
     return cbz_path.with_name(f"{cbz_path.name}.partial")
+
+
+def _state_manifest_path(cbz_path: Path) -> Path:
+    """Path of the persisted per-page state manifest for a chapter.
+
+    A sibling of the ``.partial`` marker: copied out of the chapter temp dir
+    when a run ends partial (so a rerun knows exactly which pages failed and
+    why without scanning the archive) and removed on a full download.
+    """
+    return cbz_path.with_name(f"{cbz_path.name}.state.json")
+
+
+def _save_state_manifest(tmp_dir: Path, cbz_path: Path) -> None:
+    """Persist the chapter's state manifest beside the CBZ, if one exists."""
+    src = tmp_dir / MANIFEST_NAME
+    if src.is_file():
+        with contextlib.suppress(OSError):
+            os.replace(src, _state_manifest_path(cbz_path))
 
 
 def _is_partial(cbz_path: Path) -> bool:
@@ -2050,10 +2069,13 @@ async def process_url(
         )
 
         if result.ok:
-            shutil.rmtree(tmp_dir, ignore_errors=True)
             if result.failed_images:
                 # Partial chapter: keep the CBZ but mark it incomplete so a
-                # rerun retries the missing pages instead of skipping it.
+                # rerun retries the missing pages instead of skipping it. The
+                # state manifest is preserved beside the CBZ for the same
+                # rerun's per-page failure reasons.
+                _save_state_manifest(tmp_dir, cbz_path)
+                shutil.rmtree(tmp_dir, ignore_errors=True)
                 _partial_marker(cbz_path).touch(exist_ok=True)
                 vlog(
                     DIAGNOSTIC,
@@ -2068,6 +2090,8 @@ async def process_url(
                     stats.missing_pages = len(result.failed_images)
                     stats.total_pages = total
                 return "partial", cbz_path.name
+            _state_manifest_path(cbz_path).unlink(missing_ok=True)
+            shutil.rmtree(tmp_dir, ignore_errors=True)
             _partial_marker(cbz_path).unlink(missing_ok=True)
             if library is not None:
                 with contextlib.suppress(ValueError):
@@ -2526,7 +2550,9 @@ async def _process_series(
                             if result.failed_images:
                                 # Partial chapter: keep the CBZ but mark it
                                 # incomplete so a rerun retries the missing
-                                # pages instead of skipping it.
+                                # pages instead of skipping it. Preserve the
+                                # state manifest beside the CBZ too.
+                                _save_state_manifest(tmp_dir, cbz_path)
                                 shutil.rmtree(tmp_dir, ignore_errors=True)
                                 _partial_marker(cbz_path).touch(exist_ok=True)
                                 library.upsert_chapter(
@@ -2545,6 +2571,7 @@ async def _process_series(
                                 )
                                 return "partial", result.cbz_size, (ch_label, message)
                             last_meta_by_idx[idx] = meta
+                            _state_manifest_path(cbz_path).unlink(missing_ok=True)
                             shutil.rmtree(tmp_dir, ignore_errors=True)
                             _partial_marker(cbz_path).unlink(missing_ok=True)
                             library.upsert_chapter(
