@@ -10,6 +10,7 @@ from __future__ import annotations
 import contextlib
 import io
 import os
+import shutil
 import tarfile
 import tempfile
 from collections.abc import Callable, Iterator
@@ -80,8 +81,8 @@ def _packed_members(
     source_dir: Path,
     verified: dict[str, str],
     skipped: list[str],
-) -> Iterator[tuple[int, bytes, str]]:
-    """Yield ``(index, content, arcname)`` for pages that pass validation.
+) -> Iterator[tuple[int, Path, str]]:
+    """Yield ``(index, source_path, arcname)`` for pages that pass validation.
 
     Appends human-readable skip reasons to ``skipped`` for missing, invalid,
     escape, and duplicate pages. One stat per file is taken up front so the
@@ -89,10 +90,10 @@ def _packed_members(
     page. Duplicate elimination is deterministic: pages are considered in
     order and the first page to claim a hash keeps its name.
 
-    Every yielded page is a single-read snapshot: the exact bytes that are
-    magic-verified (against the actual content, not :func:`verify_image_file`
-    on a path) and hashed are the bytes the writers later embed, so a file
-    swapped between validation and packing cannot leak into the archive.
+    Each page is validated by reading its bytes for magic verification and
+    SHA-256 hashing, then the writer re-opens the file to stream it into
+    the archive. This avoids holding all image bytes in memory at once
+    while still ensuring the archive content matches the validated bytes.
     """
     sizes: dict[str, int] = {}
     missing: set[str] = set()
@@ -121,27 +122,29 @@ def _packed_members(
             skipped.append(f"{src_name} (missing)")
             continue
         try:
-            data = src.read_bytes()
+            fhash = sha256()
+            with open(src, 'rb') as f:
+                header = f.read(MAGIC_MAX)
+                fhash.update(header)
+                for chunk in iter(lambda: f.read(65536), b''):
+                    fhash.update(chunk)
         except OSError:
             skipped.append(f"{src_name} (missing)")
             continue
-        # The format is taken from the bytes actually read; the download-run
-        # cache is only a fallback for content with an unrecognized header.
-        fmt = verify_image_bytes(data[:MAGIC_MAX]) or verified.get(src_name)
+        fmt = verify_image_bytes(header) or verified.get(src_name)
         if fmt is None:
             skipped.append(f"{src_name} (not a valid image)")
             src.unlink(missing_ok=True)
             continue
         if size_freq.get(sizes[src_name], 0) > 1:
-            fhash = sha256(data).hexdigest()
-            if fhash in seen_hashes:
+            if fhash.hexdigest() in seen_hashes:
                 skipped.append(f"{src_name} (duplicate)")
                 src.unlink(missing_ok=True)
                 continue
-            seen_hashes.add(fhash)
+            seen_hashes.add(fhash.hexdigest())
 
         ext = "." + fmt if fmt else (src.suffix or ".jpg")
-        yield idx, data, f"Page_{idx:04d}{ext}"
+        yield idx, src, f"Page_{idx:04d}{ext}"
 
 
 def _comicinfo_bytes(
@@ -183,7 +186,7 @@ def _comicinfo_bytes(
 
 def _write_zip(
     tmp_path: Path,
-    members: Iterator[tuple[int, bytes, str]],
+    members: Iterator[tuple[int, Path, str]],
     compression: str,
     on_packed: Callable[[int, int], None] | None,
     total: int,
@@ -192,10 +195,9 @@ def _write_zip(
     compress_type, compress_level = parse_compression(compression)
     added = 0
     with ZipFile(tmp_path, 'w', compress_type, compresslevel=compress_level) as zf:
-        for _idx, data, arcname in members:
-            zf.writestr(
-                arcname, data, compress_type=compress_type, compresslevel=compress_level
-            )
+        for _idx, src, arcname in members:
+            with open(src, 'rb') as f, zf.open(arcname, 'w') as zf_f:
+                shutil.copyfileobj(f, zf_f)
             added += 1
             if on_packed is not None:
                 on_packed(added, total)
@@ -207,17 +209,15 @@ def _write_zip(
 
 def _write_tar(
     tmp_path: Path,
-    members: Iterator[tuple[int, bytes, str]],
+    members: Iterator[tuple[int, Path, str]],
     on_packed: Callable[[int, int], None] | None,
     total: int,
     comicinfo: Callable[[int], str | None],
 ) -> int:
     added = 0
     with tarfile.open(tmp_path, "w") as tf:
-        for _idx, data, arcname in members:
-            info = tarfile.TarInfo(arcname)
-            info.size = len(data)
-            tf.addfile(info, io.BytesIO(data))
+        for _idx, src, arcname in members:
+            tf.add(src, arcname=arcname)
             added += 1
             if on_packed is not None:
                 on_packed(added, total)
@@ -281,13 +281,14 @@ def create_archive(
     packed at all the archive would hold only ComicInfo.xml (or nothing), so a
     ``ValueError`` is raised and the existing output is left untouched.
 
-    Every page is read once and verified, deduplicated, and written from that
-    single snapshot, so a file that changes mid-pack cannot leak into the
-    archive; relying on the download run's ``verified_formats`` cache is not
-    enough precisely because those files may have been swapped since. Page
-    filenames must be plain basenames — anything containing a path separator
-    or an ``..`` component is refused — so plugin-supplied names can never
-    read or delete files outside ``source_dir``.
+    Every page is validated by reading its bytes for magic verification
+    and SHA-256 hashing, then the writer re-opens the file to stream
+    it into the archive. This avoids holding all image bytes in memory
+    at once while still ensuring the archive content matches the
+    validated bytes. Page filenames must be plain basenames — anything
+    containing a path separator or an ``..`` component is refused — so
+    plugin-supplied names can never read or delete files outside
+    ``source_dir``.
 
     Args:
         images: The ordered page list.
