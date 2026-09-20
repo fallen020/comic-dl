@@ -128,6 +128,121 @@ class TestCookieJarList:
         assert jar.cookies_for("other.github.io") == {}
         assert jar.cookies_for("kagane.to") == {"ok": "fine"}
 
+    def test_psl_blocks_unlisted_co_tenant_suffixes(self, tmp_path):
+        """Full-PSL coverage: co-tenant suffixes absent from any curated short
+        list (workers.dev, s3.amazonaws.com) can no longer be cookie namespaces."""
+        import time
+
+        jar = CookieJar(tmp_path / "cookies.db")
+        jar.store_cookiejar(
+            [
+                _FakeCookie(
+                    "leak", "v", ".workers.dev",
+                    expires=int(time.time()) + 3600,
+                ),
+                _FakeCookie(
+                    "bucket", "v", ".s3.amazonaws.com",
+                    expires=int(time.time()) + 3600,
+                ),
+                _FakeCookie(
+                    "ok", "fine", ".example.com",
+                    expires=int(time.time()) + 3600,
+                ),
+            ]
+        )
+        assert jar.cookies_for("other.workers.dev") == {}
+        assert jar.cookies_for("other.s3.amazonaws.com") == {}
+        assert jar.cookies_for("example.com") == {"ok": "fine"}
+
+    def test_single_label_intranet_host_storable(self, tmp_path):
+        """A bare non-TLD intranet hostname is not a public suffix: it is safe
+        to store cookies for (a real TLD like ``com`` still is not)."""
+        import time
+
+        jar = CookieJar(tmp_path / "cookies.db")
+        jar.store_cookiejar(
+            [
+                _FakeCookie(
+                    "si", "v", ".intranet",
+                    expires=int(time.time()) + 3600,
+                ),
+                _FakeCookie(
+                    "tld", "v", ".com",
+                    expires=int(time.time()) + 3600,
+                ),
+                _FakeCookie(
+                    "local", "v", ".localhost",
+                    expires=int(time.time()) + 3600,
+                ),
+            ]
+        )
+        assert jar.cookies_for("intranet") == {"si": "v"}
+        assert jar.cookies_for("com") == {}
+        assert jar.cookies_for("localhost") == {"local": "v"}
+
+    def test_most_specific_cookie_wins_on_name_collision(self, tmp_path):
+        """RFC 6265 §5.4 ordering: the longest matching domain wins when two
+        scopes share a cookie name. api.kagane.to's token must beat kagane.to's,
+        not the other way around."""
+        import time
+
+        jar = CookieJar(tmp_path / "cookies.db")
+        jar.store_cookiejar(
+            [
+                _FakeCookie(
+                    "sk", "suffix", ".kagane.to",
+                    expires=int(time.time()) + 3600,
+                ),
+                _FakeCookie(
+                    "sk", "specific", ".api.kagane.to",
+                    expires=int(time.time()) + 3600,
+                ),
+            ]
+        )
+        assert jar.cookies_for("api.kagane.to")["sk"] == "specific"
+        assert jar.cookies_for("www.kagane.to")["sk"] == "suffix"
+        assert jar.cookies_for("unrelated.test") == {}
+
+    def test_past_expiry_deletes_stored_cookie(self, tmp_path):
+        """A server invalidation (``Expires``/``Max-Age`` in the past) must
+        remove the previously-stored token, not just stop the new one from
+        overwriting it — otherwise the logged-out cookie keeps being re-sent."""
+        import time
+
+        jar = CookieJar(tmp_path / "cookies.db")
+        jar.store_cookiejar(
+            [_FakeCookie("sk", "token", ".kagane.to", expires=int(time.time()) + 3600)]
+        )
+        assert "sk" in jar.cookies_for("kagane.to")
+        jar.store_cookiejar(
+            [_FakeCookie("sk", "", ".kagane.to", expires=int(time.time()) - 10)]
+        )
+        assert "sk" not in jar.cookies_for("kagane.to")
+        assert len(jar) == 0
+        assert jar.list() == []
+
+    def test_expired_rows_swept_on_store(self, tmp_path):
+        """An expired row left by an older run is purged the next time the jar
+        writes, keeping the store honest without a separate flush call."""
+        import time
+
+        jar = CookieJar(tmp_path / "cookies.db")
+        jar.store_cookiejar(
+            [_FakeCookie("old", "v", ".kagane.to", expires=int(time.time()) + 3600)]
+        )
+        # Age the row past its expiry directly (as a pre-fix store would leave).
+        with jar._connect() as conn:
+            conn.execute(
+                "UPDATE cookies SET expires = ? WHERE name = ?",
+                (int(time.time()) - 10, "old"),
+            )
+        assert len(jar) == 1
+        jar.store_cookiejar(
+            [_FakeCookie("fresh", "v", ".kagane.to", expires=int(time.time()) + 3600)]
+        )
+        assert len(jar) == 1  # "old" swept inside the store transaction
+        assert "old" not in jar.cookies_for("kagane.to")
+
     def test_set_rejects_public_suffix_host(self, tmp_path):
         jar = CookieJar(tmp_path / "cookies.db")
         jar.set("com", "sid", "poison")

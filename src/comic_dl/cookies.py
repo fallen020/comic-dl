@@ -9,6 +9,8 @@ import time
 from pathlib import Path
 from typing import Any
 
+from publicsuffix2 import PublicSuffixList  # type: ignore[import-untyped]  # third-party, no stubs
+
 from .config import config_dir
 
 _CREATE_COOKIES = """
@@ -28,34 +30,41 @@ _DB_NAME = "cookies.db"
 
 # A cookie stored for a *public suffix* is replayed to every subdomain of it,
 # so a malicious site can plant a value every co-tenant then receives (a
-# hostile *.github.io page can poison the jar for all *.github.io visits via
-# ``Domain=.github.io``).  Single-label hosts (bare TLDs) are always public
-# suffixes and are rejected outright.  For two-label hosts the precise test
-# needs the Mozilla Public Suffix List, which is not in the stdlib and not a
-# dependency here; this curated subset covers the suffixes most relevant to
-# scraping contexts.
-# ponytail: curated, not the full PSL — swap in a PSL-backed check
-# (publicsuffix2) if co-tenant leakage on unlisted two-label suffixes matters.
-_TWO_LABEL_PUBLIC_SUFFIXES = frozenset({
-    "github.io",
-    "co.uk", "org.uk", "ac.uk",
-    "com.au", "net.au", "org.au",
-    "com.br", "net.br", "org.br",
-    "co.nz", "net.nz", "org.nz",
-    "com.mx", "com.ar",
-    "co.jp", "co.kr", "com.cn",
-    "co.in", "net.in", "org.in",
-    "co.id", "com.tw", "com.hk", "com.sg", "com.my", "com.ph",
-})
+# hostile *.github.io page cannot poison the jar for all *.github.io visits,
+# because ``Domain=.github.io`` is refused). The decision is backed by the
+# Mozilla Public Suffix List (publicsuffix2), not a hand-sized subset: any
+# host the PSL declares a public suffix is rejected. Single labels that are
+# not declared suffixes (``intranet``), and ``localhost``, stay storable.
+_psl_cache: PublicSuffixList | None = None
+
+
+def _psl() -> PublicSuffixList:
+    """Lazily-built PSL parser (parsing the embedded list costs a few ms)."""
+    global _psl_cache
+    if _psl_cache is None:
+        # publicsuffix2 reads its bundled list with the deprecated
+        # ``codecs.open``; the warning is theirs, fires once, and is not
+        # actionable here.
+        import warnings
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            _psl_cache = PublicSuffixList()
+    return _psl_cache
 
 
 def _is_public_suffix_host(host: str) -> bool:
     """True when ``host`` is a public-suffix label anyone can set cookies for."""
     host = host.lstrip(".").lower()
-    labels = host.split(".")
-    if len(labels) < 2:
-        return host != "localhost"
-    return host in _TWO_LABEL_PUBLIC_SUFFIXES
+    if "." not in host:
+        # A bare label is a TLD (reject) or a scoped intranet host (allow).
+        return host != "localhost" and host in _psl().tlds
+    try:
+        return _psl().get_tld(host) == host
+    except Exception:
+        # Fail closed: an unparseable multi-label host is not a registrable
+        # domain, so it must not be usable as a cookie namespace.
+        return True
 
 
 class CookieJar:
@@ -71,29 +80,53 @@ class CookieJar:
     from RFC 6265. Failures are silent — a broken or unwritable store never
     breaks downloads.
 
-    Writes are serialized with a lock; each operation opens its own short
-    connection so concurrent async tasks (and ``asyncio.to_thread`` callers)
-    can share one instance safely.
+    All access is serialized with a lock around one lazily-opened persistent
+    SQLite connection, so concurrent async tasks (and ``asyncio.to_thread``
+    callers) can share one instance safely without paying per-request
+    ``sqlite3.connect`` churn.
     """
 
     def __init__(self, path: Path | None = None) -> None:
         self._path = path or (config_dir() / _DB_NAME)
         self._lock = threading.Lock()
+        self._conn: sqlite3.Connection | None = None
         self._session_only: dict[tuple[str, str, str], str] = {}
 
     def _connect(self) -> sqlite3.Connection:
+        """Persistent per-instance connection (caller must hold ``_lock``).
+
+        One connection is opened lazily and reused: the previous design opened
+        a fresh ``sqlite3.connect`` plus the WAL/table setup per operation,
+        which every outbound request paid for. WAL allows concurrent access;
+        holding ``_lock`` serializes use of this single connection.
+        """
         self._path.parent.mkdir(parents=True, exist_ok=True)
-        conn = sqlite3.connect(self._path, timeout=5)
-        self._restrict_perms()
-        try:
-            conn.execute("PRAGMA journal_mode=WAL")
-            conn.execute("PRAGMA busy_timeout=5000")
-            conn.execute("PRAGMA synchronous=NORMAL")
-            conn.execute(_CREATE_COOKIES)
-        except sqlite3.Error:
-            conn.close()
-            raise
-        return conn
+        if self._conn is None:
+            self._conn = sqlite3.connect(self._path, timeout=5, check_same_thread=False)
+            self._restrict_perms()
+            try:
+                self._conn.execute("PRAGMA journal_mode=WAL")
+                self._conn.execute("PRAGMA busy_timeout=5000")
+                self._conn.execute("PRAGMA synchronous=NORMAL")
+                self._conn.execute(_CREATE_COOKIES)
+            except sqlite3.Error:
+                with contextlib.suppress(sqlite3.Error):
+                    self._conn.close()
+                self._conn = None
+                raise
+        return self._conn
+
+    def _reset_conn(self) -> None:
+        """Drop a broken persistent connection; the next operation rebuilds it.
+
+        A short-lived connection previously recovered on its own from a
+        transient error (next op made a fresh one); a shared connection would
+        otherwise stay poisoned for the rest of the process.
+        """
+        if self._conn is not None:
+            with contextlib.suppress(sqlite3.Error):
+                self._conn.close()
+            self._conn = None
 
     def _restrict_perms(self) -> None:
         """Owner-only (0600) perms on the store and its WAL sidecars.
@@ -124,30 +157,47 @@ class CookieJar:
         if not host:
             return out
         now = int(time.time())
+        candidates: list[tuple[str, str, str, str, int, int]] = []
         try:
-            with self._connect() as conn:
-                rows = conn.execute(
-                    "SELECT path, name, value, expires, secure "
+            with self._lock:
+                conn = self._connect()
+                candidates = conn.execute(
+                    "SELECT host, path, name, value, expires, secure "
                     "FROM cookies WHERE host = ?",
                     (host,),
                 ).fetchall()
-                rows += conn.execute(
-                    "SELECT path, name, value, expires, secure "
+                candidates += conn.execute(
+                    "SELECT host, path, name, value, expires, secure "
                     "FROM cookies WHERE host != ? AND (? LIKE '%.' || host)",
                     (host, host),
                 ).fetchall()
         except sqlite3.Error:
+            self._reset_conn()
             return out
-        for _path, name, value, expires, secure in rows:
+        # Most-specific domain wins on name collisions (RFC 6265 §5.4): longer
+        # hosts first, longer paths as the tie-break, and first-wins per name.
+        # Without this ordering a suffix cookie would overwrite the more
+        # specific exact-host value, since both can share one name.
+        for _host, _path, name, value, expires, secure in sorted(
+            candidates, key=lambda r: (-len(r[0]), -len(r[1]), r[2])
+        ):
             if expires is not None and expires <= now:
                 continue
             if secure and not https:
                 continue
-            out[name] = value
+            out.setdefault(name, value)
+        # Session-only (this-process) cookies are fresher than anything
+        # persisted, so they override the tier above; within that tier the same
+        # specificity rule applies.
         with self._lock:
-            for (h, _p, name), value in self._session_only.items():
+            session_winner: dict[str, str] = {}
+            for (h, _p, name), value in sorted(
+                self._session_only.items(),
+                key=lambda kv: (-len(kv[0][0]), -len(kv[0][1]), kv[0][2]),
+            ):
                 if h == host or (host.endswith(f".{h}") if h else False):
-                    out[name] = value
+                    session_winner.setdefault(name, value)
+            out.update(session_winner)
         return out
 
     def list(self, host: str | None = None) -> list[dict]:
@@ -159,7 +209,8 @@ class CookieJar:
         rows: list[dict] = []
         now = int(time.time())
         try:
-            with self._connect() as conn:
+            with self._lock:
+                conn = self._connect()
                 if host:
                     cur = conn.execute(
                         "SELECT host, path, name, expires FROM cookies WHERE host = ?",
@@ -180,13 +231,13 @@ class CookieJar:
                             "expires": expires,
                         }
                     )
+                for (h, p, name), _value in self._session_only.items():
+                    if host and h != host.lower():
+                        continue
+                    rows.append({"host": h, "path": p, "name": name, "expires": None})
         except sqlite3.Error:
+            self._reset_conn()
             pass
-        with self._lock:
-            for (h, p, name), _value in self._session_only.items():
-                if host and h != host.lower():
-                    continue
-                rows.append({"host": h, "path": p, "name": name, "expires": None})
         rows.sort(key=lambda r: (r["host"], r["name"], r["path"]))
         return rows
 
@@ -203,6 +254,7 @@ class CookieJar:
         now = int(time.time())
         rows: list[tuple[str, str, str, str, int, int, int]] = []
         session: list[tuple[str, str, str, str]] = []
+        to_delete: set[tuple[str, str, str]] = set()
         for c in cookiejar:
             if c.name is None or c.value is None:
                 continue
@@ -214,32 +266,56 @@ class CookieJar:
                 session.append((host, path, c.name, c.value))
                 continue
             if c.expires <= now:
+                # A past expiry is the server's way of deleting a cookie
+                # (``Expires``/``Max-Age`` in the past). Silently skipping
+                # would leave the prior value stored, so the deleted token
+                # keeps being re-sent; remove it instead.
+                to_delete.add((host, path, c.name))
                 continue
             http_only = 1 if _has_nonstandard_attr(c, "HttpOnly") else 0
             rows.append(
                 (host, path, c.name, c.value, int(c.expires), 1 if c.secure else 0, http_only)
             )
-        if rows:
+        if rows or to_delete:
             try:
-                with self._lock, self._connect() as conn:
-                    conn.executemany(
-                        """
-                        INSERT INTO cookies (host, path, name, value, expires, secure, http_only)
-                        VALUES (?, ?, ?, ?, ?, ?, ?)
-                        ON CONFLICT(host, path, name) DO UPDATE SET
-                            value = excluded.value,
-                            expires = excluded.expires,
-                            secure = excluded.secure,
-                            http_only = excluded.http_only
-                        """,
-                        rows,
-                    )
+                with self._lock:
+                    conn = self._connect()
+                    with conn:
+                        if to_delete:
+                            conn.executemany(
+                                "DELETE FROM cookies WHERE host = ? AND path = ? AND name = ?",
+                                [(h, p, n) for h, p, n in sorted(to_delete)],
+                            )
+                        if rows:
+                            conn.executemany(
+                                (
+                                    "INSERT INTO cookies "
+                                    "(host, path, name, value, expires, secure, http_only) "
+                                    "VALUES (?, ?, ?, ?, ?, ?, ?) "
+                                    "ON CONFLICT(host, path, name) DO UPDATE SET "
+                                    "value = excluded.value, "
+                                    "expires = excluded.expires, "
+                                    "secure = excluded.secure, "
+                                    "http_only = excluded.http_only"
+                                ),
+                                rows,
+                            )
+                        # Sweep other expired rows while the write transaction is
+                        # already open (best-effort hygiene; the read path filters
+                        # them anyway, this just keeps the store honest and small).
+                        conn.execute(
+                            "DELETE FROM cookies WHERE expires IS NOT NULL AND expires <= ?",
+                            (now,),
+                        )
             except sqlite3.Error:
+                self._reset_conn()
                 pass
-        if session:
+        if session or to_delete:
             with self._lock:
                 for host, path, name, value in session:
                     self._session_only[(host, path, name)] = value
+                for h, p, n in to_delete:
+                    self._session_only.pop((h, p, n), None)
 
     def set(
         self,
@@ -257,58 +333,72 @@ class CookieJar:
             self.delete(host, name, path)
             return
         try:
-            with self._lock, self._connect() as conn:
-                conn.execute(
-                    """
-                    INSERT INTO cookies (host, path, name, value, expires, secure, http_only)
-                    VALUES (?, ?, ?, ?, ?, 0, 0)
-                    ON CONFLICT(host, path, name) DO UPDATE SET
-                        value = excluded.value,
-                        expires = excluded.expires
-                    """,
-                    (host.lower(), path, name, value, expires),
-                )
+            with self._lock:
+                conn = self._connect()
+                with conn:
+                    conn.execute(
+                        """
+                        INSERT INTO cookies (host, path, name, value, expires, secure, http_only)
+                        VALUES (?, ?, ?, ?, ?, 0, 0)
+                        ON CONFLICT(host, path, name) DO UPDATE SET
+                            value = excluded.value,
+                            expires = excluded.expires
+                        """,
+                        (host.lower(), path, name, value, expires),
+                    )
         except sqlite3.Error:
+            self._reset_conn()
             pass
 
     def delete(self, host: str, name: str, path: str = "/") -> None:
         try:
-            with self._lock, self._connect() as conn:
-                conn.execute(
-                    "DELETE FROM cookies WHERE host = ? AND name = ? AND path = ?",
-                    (host.lower(), name, path),
-                )
+            with self._lock:
+                conn = self._connect()
+                with conn:
+                    conn.execute(
+                        "DELETE FROM cookies WHERE host = ? AND name = ? AND path = ?",
+                        (host.lower(), name, path),
+                    )
         except sqlite3.Error:
+            self._reset_conn()
             pass
 
     def clear(self, host: str | None = None) -> None:
         """Drop all cookies, or just one host's."""
         try:
-            with self._lock, self._connect() as conn:
-                if host:
-                    conn.execute("DELETE FROM cookies WHERE host = ?", (host.lower(),))
-                else:
-                    conn.execute("DELETE FROM cookies")
+            with self._lock:
+                conn = self._connect()
+                with conn:
+                    if host:
+                        conn.execute("DELETE FROM cookies WHERE host = ?", (host.lower(),))
+                    else:
+                        conn.execute("DELETE FROM cookies")
                 self._session_only.clear()
         except sqlite3.Error:
+            self._reset_conn()
             pass
 
     def flush(self) -> None:
         """Remove expired rows (best-effort)."""
         try:
-            with self._lock, self._connect() as conn:
-                conn.execute(
-                    "DELETE FROM cookies WHERE expires IS NOT NULL AND expires <= ?",
-                    (int(time.time()),),
-                )
+            with self._lock:
+                conn = self._connect()
+                with conn:
+                    conn.execute(
+                        "DELETE FROM cookies WHERE expires IS NOT NULL AND expires <= ?",
+                        (int(time.time()),),
+                    )
         except sqlite3.Error:
+            self._reset_conn()
             pass
 
     def __len__(self) -> int:
         try:
-            with self._connect() as conn:
+            with self._lock:
+                conn = self._connect()
                 return int(conn.execute("SELECT COUNT(*) FROM cookies").fetchone()[0])
         except sqlite3.Error:
+            self._reset_conn()
             return 0
 
 

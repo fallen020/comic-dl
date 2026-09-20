@@ -31,6 +31,7 @@ dependencies = [
     "platformdirs>=4.11.8",
     "defusedxml>=0.7.1",
     "pywebview>=6.2.1",
+    "publicsuffix2>=2.20191221",
 ]
 
 [project.urls]
