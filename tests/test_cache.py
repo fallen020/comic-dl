@@ -157,6 +157,94 @@ def test_store_refuses_non_2xx():
     assert resp is None and stale is None
 
 
+def test_text_decodes_with_stored_charset():
+    """A non-UTF-8 page must round-trip through the cache with its charset, not
+    as U+FFFD mojibake (the historical UTF-8-replace always-decode)."""
+    body = "你好".encode("gbk")
+    _store(body=body, headers={"Content-Type": "text/html; charset=gbk"})
+    resp, _ = cache.lookup(URL, PROFILE, {})
+    assert resp is not None
+    assert resp.text == "你好"
+    assert resp.content == body
+
+
+def test_text_charset_with_quotes():
+    """CharSet with surrounding quotes (``charset="gbk"``) is parsed too."""
+    body = "标题".encode("gbk")
+    _store(body=body, headers={"Content-Type": 'text/html; charset="gbk"'})
+    resp, _ = cache.lookup(URL, PROFILE, {})
+    assert resp is not None
+    assert resp.text == "标题"
+
+
+def test_text_falls_back_when_charset_unknown():
+    """An unrecognized charset name degrades to UTF-8 replacement, never raises."""
+    _store(body=b"hi", headers={"Content-Type": "text/html; charset=no-such-codec"})
+    resp, _ = cache.lookup(URL, PROFILE, {})
+    assert resp is not None
+    assert resp.text == "hi"
+
+
+def test_text_utf8_replacement_when_bytes_are_invalid():
+    """UTF-8 bytes that do not decode keep the replacement-fallback decode."""
+    _store(
+        body=b"<html>\xff\xfe broken</html>",
+        headers={"Content-Type": "text/html; charset=utf-8"},
+    )
+    resp, _ = cache.lookup(URL, PROFILE, {})
+    assert resp is not None
+    assert "\ufffd" in resp.text
+
+
+def test_text_decoded_lazily():
+    """``.text`` is a lazy decode: json()-only consumers never pay for it."""
+    _store()
+    resp, _ = cache.lookup(URL, PROFILE, {})
+    assert resp is not None
+    assert resp._text is None
+    assert resp.text == '{"title": "hi"}'
+    assert resp._text is not None
+
+
+def test_store_rejects_oversized_body(monkeypatch):
+    """The per-entry cap is enforced at write time; an over-cap body never
+    lands on disk to be dropped by a later read or sweep."""
+    monkeypatch.setattr(cache, "_MAX_ENTRY_BYTES", 8)
+    _store(body=b"x" * 100)
+    resp, stale = cache.lookup(URL, PROFILE, {})
+    assert resp is None and stale is None
+
+
+def test_store_invalid_status_silent():
+    """A non-numeric (or boolean/None) status must be a silent no-op, honoring
+    store()'s non-throwing contract."""
+    for bad in ("abc", None, True):
+        cache.store(
+            URL,
+            profile=PROFILE,
+            extra_headers={},
+            status=bad,
+            headers={},
+            body=b"x",
+        )
+    resp, stale = cache.lookup(URL, PROFILE, {})
+    assert resp is None and stale is None
+
+
+def test_store_string_body_silent():
+    """A non-bytes body (a caller bug) is a silent no-op, not a TypeError."""
+    cache.store(
+        URL,
+        profile=PROFILE,
+        extra_headers={},
+        status=200,
+        headers={},
+        body="not bytes",
+    )
+    resp, stale = cache.lookup(URL, PROFILE, {})
+    assert resp is None and stale is None
+
+
 def test_store_normalizes_list_headers():
     cache.store(
         URL,

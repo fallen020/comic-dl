@@ -43,13 +43,16 @@ redundant refetch, never data loss (entries are re-fetchable).
 
 from __future__ import annotations
 
+import codecs
 import contextlib
 import hashlib
 import json
 import os
+import re
 import struct
 import tempfile
 import time
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
@@ -84,20 +87,27 @@ class CachedResponse:
         self.headers = entry.get("headers") or {}
         body = entry["body"]
         self.content = body
-        self.text = body.decode("utf-8", errors="replace")
+        self._text: str | None = None
         self._entry = entry
 
+    @property
+    def text(self) -> str:
+        """The body decoded with the persisted ``Content-Type`` charset.
+
+        Charset-aware like the live client: a named encoding is honored when
+        valid, with UTF-8 replacement as the fallback (see :func:`_decode_body`).
+        """
+        if self._text is None:
+            self._text = _decode_body(self.content, self.headers)
+        return self._text
+
     def raise_for_status(self) -> None:
-        # Matches httpx/curl semantics. Only 2xx bodies are ever stored, so a
-        # raise here only reflects an entry constructed outside this module.
         if 400 <= self.status_code < 600:
             from curl_cffi.requests.exceptions import HTTPError
 
             raise HTTPError(f"HTTP Error {self.status_code}", response=self)
 
     def json(self) -> Any:
-        # Parse the raw bytes rather than ``self.text`` so a UTF-8 BOM or
-        # another JSON-detectable encoding decodes like a live response.
         return json.loads(self.content)
 
     async def aclose(self) -> None:
@@ -148,6 +158,48 @@ def _header_str(value: Any) -> str:
     if isinstance(value, list):
         return ", ".join(str(v) for v in value)
     return str(value)
+
+
+_CHARSET_RE = re.compile(r"""charset\s*=\s*["']?([^"';\s]+)["']?""", re.IGNORECASE)
+
+
+def _response_charset(headers: Mapping[str, Any]) -> str | None:
+    """The ``charset`` parameter of the persisted ``Content-Type``, or ``None``.
+
+    Matches the live client's charset pick: a response that names an encoding
+    should decode with it. Unknown/missing/flag values yield ``None`` so the
+    caller falls back to UTF-8 with replacement, mirroring the pre-cache
+    behavior of curl_cffi's ``.text``.
+    """
+    for key, value in headers.items():
+        if key.lower() != "content-type" or not isinstance(value, str):
+            continue
+        m = _CHARSET_RE.search(value)
+        if m:
+            try:
+                codecs.lookup(m.group(1))
+            except (LookupError, TypeError):
+                return None
+            return m.group(1)
+    return None
+
+
+def _decode_body(body: bytes, headers: Mapping[str, Any]) -> str:
+    """Decode ``body`` like the live client would (charset-aware, never raising).
+
+    A persisted ``Content-Type`` charset wins when valid; otherwise the body is
+    decoded as UTF-8 with replacement (the historical drop-in). A charset that
+    lies about the bytes is as bad as a mojibake page, so the replacement mode
+    is kept for the named codec too — a cache hit must not crash the loader or
+    beat a live response with different bytes.
+    """
+    charset = _response_charset(headers)
+    if charset is not None:
+        try:
+            return body.decode(charset, errors="replace")
+        except (UnicodeDecodeError, LookupError):
+            pass
+    return body.decode("utf-8", errors="replace")
 
 
 def _cache_root() -> Path:
@@ -272,8 +324,7 @@ def _read_entry(path: Path) -> dict[str, Any] | None:
     except (ValueError, TypeError, struct.error, UnicodeDecodeError):
         _unlink_best_effort(path)
         return None
-    # Malformed metadata can't be served, and keeping it around would shadow
-    # every future fetch; remove it so the next run rebuilds fresh.
+
     if not isinstance(entry, dict):
         _unlink_best_effort(path)
         return None
@@ -294,10 +345,6 @@ def _write_entry(path: Path, entry: dict[str, Any]) -> None:
     fd: int | None = None
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
-        # A unique temp name per writer (rather than ``path.with_suffix``) so
-        # concurrent writers for one key cannot truncate each other's temp
-        # file; the rename to ``path`` is atomic, so readers only ever see a
-        # full entry.
         fd, tmp_path = tempfile.mkstemp(
             dir=path.parent, prefix=f".{path.name}.", suffix=".tmp"
         )
@@ -324,10 +371,6 @@ def _is_fresh(entry: dict[str, Any]) -> bool:
         return False
     age = time.time() - created
     if age < 0:
-        # A ``created`` ahead of the local clock (an NTP jump-back, or a
-        # planted entry) would otherwise stay "fresh" until the clock caught
-        # up. Treat it as instantly stale so the next run revalidates and, on
-        # success, rewrites ``created`` to now.
         return False
     return age < cache_ttl_hours() * 3600
 
@@ -335,7 +378,6 @@ def _is_fresh(entry: dict[str, Any]) -> bool:
 def _entry_age_hours(entry: dict[str, Any]) -> float:
     created = entry.get("created")
     if isinstance(created, bool) or not isinstance(created, (int, float)):
-        # Unknown age must not survive the over-age check.
         return _MAX_ENTRY_AGE_HOURS + 1.0
     return (time.time() - created) / 3600
 
@@ -401,11 +443,18 @@ def store(
     """
     if not cache_enabled() or method.upper() != "GET":
         return
-    if body is None or not 200 <= int(status) < 300:
+    if body is None or not isinstance(body, bytes):
         return
-    # Finding Set-Cookie among the raw response headers is a documented
-    # approximation (curl_cffi may combine repeats); the privacy guarantee is
-    # "no session cookies land on disk", not an exhaustive header audit.
+
+    try:
+        status = int(status)
+    except (TypeError, ValueError):
+        return
+    if not 200 <= status < 300:
+        return
+    if len(body) > _MAX_ENTRY_BYTES:
+        return
+
     if any(k.lower() == "set-cookie" for k in headers):
         return
     etag = next((v for k, v in headers.items() if k.lower() == "etag"), None)
@@ -413,7 +462,7 @@ def store(
         (v for k, v in headers.items() if k.lower() == "last-modified"), None
     )
     entry = {
-        "status": int(status),
+        "status": status,
         "headers": {k: _header_str(v) for k, v in headers.items()},
         "body": body,
         "created": (
