@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 import pytest
 
 from comic_dl.cli import _unknown_command, parse_urls
@@ -23,6 +25,13 @@ from comic_dl.ui import (
     set_verbosity,
     suggest,
 )
+
+_ANSI_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
+
+
+def _plain(text: str) -> str:
+    """Strip ANSI style codes a Rich-enabled runner may interleave in text."""
+    return _ANSI_RE.sub("", text)
 
 
 @pytest.fixture(autouse=True)
@@ -244,7 +253,7 @@ class TestReportError:
             context="Failed: https://x",
             hint="Try again.",
         )
-        err = capsys.readouterr().err
+        err = _plain(capsys.readouterr().err)
         assert code == EXIT_ERROR
         assert "Failed: https://x" in err
         assert "Try again." in err
@@ -294,7 +303,7 @@ class TestParserSuggestion:
         with pytest.raises(SystemExit) as exc_info:
             parser.parse_args(["--list-sourec"])
         assert exc_info.value.code == EXIT_USAGE
-        assert "Did you mean: --list-sources" in capsys.readouterr().err
+        assert "Did you mean: --list-sources" in _plain(capsys.readouterr().err)
 
     def test_no_suggestion_for_far_typo(self, capsys):
         parser = ComicArgumentParser(prog="prog")
