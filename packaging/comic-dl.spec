@@ -5,19 +5,32 @@
 # Build (platform-native; PyInstaller cannot cross-compile):
 #   pyinstaller --clean --noconfirm packaging/comic-dl.spec
 #
+# Tested with pyinstaller 6.22.3 (see the [dev] extra in pyproject.toml).
+#
 # curl_cffi ships prebuilt libcurl-impersonate native libraries that are loaded
 # at runtime, so they are collected explicitly. lxml is handled by PyInstaller's
-# built-in hook. Submodules are listed as hidden imports so PyInstaller's static
-# analysis keeps them even though they are dispatched dynamically.
+# built-in hook.
 #
-# The binary redistributes third-party code (curl_cffi, lxml, ...), so the
-# license texts are bundled under third_party_licenses/ to satisfy their
-# copyright/permission notices. Expected at _MEIPASS/third_party_licenses/ in
-# one-file mode.
+# hiddenimports lists only modules reached through dynamic dispatch; the rest of
+# the app (cli → downloader, webview, manifest, self_update, site_update, ...)
+# is statically imported and resolved by Analysis on its own. Every site module
+# is imported dynamically by the auto-discovering sites package, so they are
+# collected wholesale instead of maintaining a per-site list that silently goes
+# stale (the hivetoons-shaped bug).
+#
+# Package runtime data (banner.txt — see ui.BANNER_PATH) is collected with
+# collect_data_files so new data files need no spec edit. The binary
+# redistributes third-party code (curl_cffi, lxml, ...), so their license texts
+# are bundled under third_party_licenses/ to satisfy copyright/permission
+# notices. Expected at _MEIPASS/third_party_licenses/ in one-file mode.
 import os
 import sys
 
-from PyInstaller.utils.hooks import collect_dynamic_libs, collect_submodules
+from PyInstaller.utils.hooks import (
+    collect_data_files,
+    collect_dynamic_libs,
+    collect_submodules,
+)
 
 ROOT = os.path.abspath(os.path.join(SPECPATH, ".."))
 
@@ -37,8 +50,7 @@ a = Analysis(
     binaries=curl_libs,
     datas=[
         (os.path.join(ROOT, "Third-Party-Licenses"), "third_party_licenses"),
-        # Runtime data files read via Path(__file__) (see ui.BANNER_PATH).
-        (os.path.join(ROOT, "src", "comic_dl", "banner.txt"), "comic_dl"),
+        *collect_data_files("comic_dl"),
     ],
     hiddenimports=[
         "comic_dl.config",
