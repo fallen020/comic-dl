@@ -1200,7 +1200,7 @@ async def _run_downloads(
                             if bytes_cb:
                                 bytes_cb(size)
                             _clear_partial(part_path)
-                            part_path.rename(dest)
+                            os.replace(part_path, dest)
                             record_transport_success(host)
                             _record_state("done", size=size)
                             completed += 1
@@ -1227,7 +1227,7 @@ async def _run_downloads(
                 size = part_path.stat().st_size
                 consumed_bytes[0] += size
                 _clear_partial(part_path)
-                part_path.rename(dest)
+                os.replace(part_path, dest)
                 record_transport_success(host)
                 if fmt is not None and stream_formats is not None:
                     stream_formats[item.filename] = fmt

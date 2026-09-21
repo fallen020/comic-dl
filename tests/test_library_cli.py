@@ -263,7 +263,7 @@ class TestInfo:
         root = tmp_path / "dl"
         _seed(tmp_path, root)
         assert run_library_command("info", ["-o", str(root), "gedecomix.com"]) == 2
-        err = capsys.readouterr().err
+        err = capsys.readouterr().err.replace("\n", "")
         assert "source domain" in err
         assert "not a series title" in err
 

@@ -22,6 +22,7 @@ class TestDownloadsDir:
 
     def test_falls_back_to_home(self, monkeypatch):
         monkeypatch.delenv("XDG_DOWNLOAD_DIR", raising=False)
+        monkeypatch.setattr(platform, "_windows_known_folder", lambda _guid: None)
         monkeypatch.setattr(Path, "home", lambda: Path("/home/tester"))
         assert downloads_dir() == Path("/home/tester/Downloads")
 
@@ -64,6 +65,7 @@ class TestDownloadsDir:
 
 
 class TestDefaultEditor:
+    @pytest.mark.skipif(sys.platform == "win32", reason="vi is the POSIX default")
     def test_posix_default_editor(self):
         assert default_editor() == "vi"
 

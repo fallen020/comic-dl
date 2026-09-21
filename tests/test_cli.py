@@ -221,8 +221,8 @@ class TestTmpRootAllocation:
             assert root.name.startswith("comic-dl-")
             assert root != Path(tempfile.gettempdir()) / "comic-dl"
             # Owner-only permissions (mkdtemp guarantees 0700).
-            mode = stat.S_IMODE(root.stat().st_mode)
-            assert mode == 0o700
+            if os.name != "nt":  # mkdtemp does not chmod on Windows
+                assert stat.S_IMODE(root.stat().st_mode) == 0o700
         finally:
             shutil.rmtree(root, ignore_errors=True)
             monkeypatch.setattr("comic_dl.cli._TMP_ROOT", None)
@@ -664,7 +664,7 @@ class TestParseUrls:
             ["prog", "--url", "https://e-hentai.org/g/1/a/", "--debug-file", "/tmp/x.log"],
         )
         _, args = parse_urls()
-        assert str(args.debug_file) == "/tmp/x.log"
+        assert str(args.debug_file) == os.path.normpath("/tmp/x.log")
 
     def test_verbose_counter(self, monkeypatch):
         monkeypatch.setattr("sys.argv", ["prog", "--url", "https://e-hentai.org/g/1/a/", "-vv"])
@@ -2164,7 +2164,8 @@ class TestDryRun:
         from comic_dl.cli import main
         assert await main() == 0
         err = capsys.readouterr().err
-        assert "chapter 'Chapter 1' · 20 pages" in err
+        from comic_dl.ui import glyphs
+        assert f"chapter 'Chapter 1' {glyphs().dot} 20 pages" in err
 
     async def test_force_previews_redownload(self, monkeypatch, capsys):
         index = {normalize_url("https://a.com/"): Path("a.cbz")}
@@ -2173,8 +2174,9 @@ class TestDryRun:
         from comic_dl.cli import main
         assert await main() == 0
         err = capsys.readouterr().err
+        from comic_dl.ui import glyphs
         assert "would redownload" in err and "https://a.com/" in err
-        assert "series 'Series A' · 12 chapters" in err
+        assert f"series 'Series A' {glyphs().dot} 12 chapters" in err
         assert "1 would redownload" in err
 
     async def test_json_output(self, monkeypatch, capsys):
@@ -2242,7 +2244,7 @@ class TestDryRun:
         # Rich wraps long lines at the console width; strip newlines so the
         # assertions are not sensitive to where a wrap boundary lands.
         err = capsys.readouterr().err.replace("\n", "")
-        assert "-> Series A/Chapter 1.zip [deflate]" in err
+        assert f"-> {os.path.join('Series A', 'Chapter 1.zip')} [deflate]" in err
         assert "[01/2]" in err and "[02/2]" in err
         assert "Concurrency: 5 URLs in parallel" in err
         assert "20 pages" in err and "~10 MB" in err
@@ -2270,7 +2272,7 @@ class TestDryRun:
                 argparse.Namespace(format=fmt, **base_args), {},
             )
             err = capsys.readouterr().err.replace("\n", "")
-            assert f"-> Series A/Chapter 1{ext}" in err
+            assert f"-> {os.path.join('Series A', f'Chapter 1{ext}')}" in err
 
     async def test_error_entry_reported_without_crash(self, monkeypatch, capsys):
         async def fail_preview(url, index, force):
@@ -2746,7 +2748,7 @@ class TestBuildDownloadedIndex:
         """Record a synthetic library (2 series x 3 chapters + downloads)."""
         lib = Library(library_path(tmp_path))
         lib.open()
-        for sid in ("webtoons.com:a", "webtoons.com:b"):
+        for sid in ("webtoons.com-a", "webtoons.com-b"):
             lib.upsert_series(
                 sid, title=sid, source=f"https://webtoons.com/s/{sid}/list",
                 source_site="webtoons.com", relative_path=sid,
@@ -3070,6 +3072,9 @@ class TestSigintHandling:
         yield
         reset_stop()
 
+    @pytest.mark.skipif(
+        sys.platform == "win32", reason="add_signal_handler is POSIX-only"
+    )
     def test_single_sigint_exits_130(self):
         proc = subprocess.Popen(
             [sys.executable, "-c", _SIGINT_SCRIPT],
@@ -3082,6 +3087,9 @@ class TestSigintHandling:
         assert "Interrupted." in err
         assert "Traceback" not in err
 
+    @pytest.mark.skipif(
+        sys.platform == "win32", reason="add_signal_handler is POSIX-only"
+    )
     def test_single_sigint_exits_without_second_press(self):
         env = {**os.environ, "GRACE_SLEEP": "30"}
         proc = subprocess.Popen(
@@ -3729,7 +3737,7 @@ class TestColorModeFlag:
 class TestConfigFlag:
     def test_parsed_and_applied(self, monkeypatch, tmp_path):
         cfg = tmp_path / "conf.toml"
-        cfg.write_text(f'output = "{tmp_path}"\n', encoding="utf-8")
+        cfg.write_text(f'output = "{str(tmp_path).replace(os.sep, "/")}"\n', encoding="utf-8")
         monkeypatch.setattr(
             "sys.argv",
             ["prog", "--url", "https://e-hentai.org/g/1/a/", "--config", str(cfg)],
@@ -4020,10 +4028,14 @@ class TestConfigVerb:
         from comic_dl.cli import main
 
         cfg = tmp_path / "c.toml"
-        editor = tmp_path / "fake-editor.sh"
         marker = tmp_path / "ran.txt"
-        editor.write_text("#!/bin/sh\necho ran > \"$MARK\"\n", encoding="utf-8")
-        editor.chmod(0o755)
+        if os.name == "nt":
+            editor = tmp_path / "fake-editor.cmd"
+            editor.write_text('@echo ran> "%MARK%"\n', encoding="utf-8")
+        else:
+            editor = tmp_path / "fake-editor.sh"
+            editor.write_text("#!/bin/sh\necho ran > \"$MARK\"\n", encoding="utf-8")
+            editor.chmod(0o755)
         monkeypatch.setenv("EDITOR", str(editor))
         monkeypatch.setenv("MARK", str(marker))
         monkeypatch.setattr("sys.argv", ["prog", "config", "edit", "--config", str(cfg)])

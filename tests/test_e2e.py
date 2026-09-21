@@ -1310,6 +1310,7 @@ class TestMakeDownloadProgress:
             task_id = p.add_task("test", total=10)
             p.update(task_id, completed=10)
             task = p._tasks[task_id]
+            task.start_time = p.get_time() - 60  # deterministic clock
             result = column.render(task)
             assert result.plain == ""
 

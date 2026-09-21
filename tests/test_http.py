@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import contextlib
+import sys
 from unittest.mock import Mock
 
 import pytest
@@ -253,6 +254,9 @@ class TestCookieJarList:
         jar.set("kagane.to", "sk", "v")
         assert {r["host"] for r in jar.list()} == {"localhost", "kagane.to"}
 
+    @pytest.mark.skipif(
+        sys.platform == "win32", reason="owner-only mode bits are POSIX-only"
+    )
     def test_store_created_owner_only(self, tmp_path):
         import stat
         db = tmp_path / "cookies.db"
@@ -262,6 +266,9 @@ class TestCookieJarList:
         mode = stat.S_IMODE(db.stat().st_mode)
         assert mode == 0o600
 
+    @pytest.mark.skipif(
+        sys.platform == "win32", reason="owner-only mode bits are POSIX-only"
+    )
     def test_restrict_perms_repairs_loose_file(self, tmp_path):
         import os
         import stat

@@ -214,7 +214,8 @@ class TestHttpEventRedaction:
             headers={"location": "https://s/" + "a" * 500},
         )
         err = capsys.readouterr().err
-        assert "…" in err
+        from comic_dl.ui import glyphs
+        assert glyphs().ellipsis in err
         assert "a" * 201 not in err
 
     def test_token_query_param_redacted_on_line(self, capsys, monkeypatch):
@@ -507,12 +508,13 @@ class TestETA:
             task_id = progress.add_task("test", total=10)
             progress.update(task_id, completed=10)
             task = progress._tasks[task_id]
+            # Pin a deterministic elapsed so the wall clock cannot race to
+            # zero (falls back to the "--:--" placeholder on coarse timers).
+            task.start_time = progress.get_time() - 60
             result = column.render(task)
             assert result.plain == ""
 
     def test_partial_shows_wall_clock_countdown(self):
-        import time
-
         from rich.progress import Progress
 
         progress = Progress()
@@ -520,8 +522,8 @@ class TestETA:
         with progress:
             task_id = progress.add_task("test", total=100)
             progress.update(task_id, completed=10)
-            time.sleep(0.005)  # ensure elapsed > 0 so an ETA can be computed
             task = progress._tasks[task_id]
+            task.start_time = progress.get_time() - 60  # deterministic clock
             result = column.render(task)
             # Wall-clock estimate means it renders a countdown, never a
             # frozen placeholder or empty cell while work is incomplete.
@@ -2269,8 +2271,10 @@ class TestDebugFile:
         set_debug_file(str(path))
         set_debug_file(None)
         assert path.exists()
-        # The file must not be group/other readable (0600).
-        assert S_IMODE(os.stat(path).st_mode) & 0o077 == 0
+        # The file must not be group/other readable (0600). Windows ignores
+        # the mode bits, so the guarantee only holds on POSIX.
+        if os.name != "nt":
+            assert S_IMODE(os.stat(path).st_mode) & 0o077 == 0
 
 
 class TestSinkDurability:

@@ -933,7 +933,7 @@ def print_banner() -> None:
     """Print the application banner."""
     _active_console().print()
     try:
-        raw_lines = BANNER_PATH.read_text().splitlines()
+        raw_lines = BANNER_PATH.read_text(encoding="utf-8").splitlines()
     except (OSError, PermissionError):
         raw_lines = []
 

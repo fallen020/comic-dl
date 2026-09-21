@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 import comic_dl.config as cfgmodule
+from comic_dl import platform
 from comic_dl.cli import parse_urls
 from comic_dl.errors import EXIT_USAGE
 
@@ -44,6 +45,7 @@ class TestConfigFile:
 
 class TestDefaultOutputDir:
     def test_points_to_home_downloads(self, monkeypatch):
+        monkeypatch.setattr(platform, "_windows_known_folder", lambda _guid: None)
         monkeypatch.setattr(Path, "home", lambda: Path("/home/me"))
         assert cfgmodule.default_output_dir() == Path("/home/me/Downloads/comic-dl")
 
