@@ -2243,7 +2243,8 @@ class TestDryRun:
         _report_dry_run(entries, [e["url"] for e in entries], args, {})
         # Rich wraps long lines at the console width; strip newlines so the
         # assertions are not sensitive to where a wrap boundary lands.
-        err = capsys.readouterr().err.replace("\n", "")
+        # Windows pipes translate to \r\n, so strip both line endings.
+        err = capsys.readouterr().err.replace("\n", "").replace("\r", "")
         assert f"-> {os.path.join('Series A', 'Chapter 1.zip')} [deflate]" in err
         assert "[01/2]" in err and "[02/2]" in err
         assert "Concurrency: 5 URLs in parallel" in err
@@ -2271,7 +2272,7 @@ class TestDryRun:
                 [entry], [entry["url"]],
                 argparse.Namespace(format=fmt, **base_args), {},
             )
-            err = capsys.readouterr().err.replace("\n", "")
+            err = capsys.readouterr().err.replace("\n", "").replace("\r", "")
             assert f"-> {os.path.join('Series A', f'Chapter 1{ext}')}" in err
 
     async def test_error_entry_reported_without_crash(self, monkeypatch, capsys):

@@ -460,7 +460,10 @@ class TestConfigSnapshot:
         path = tmp_path / "config.toml"
         path.write_text('concurrency = 5\n', encoding="utf-8")
         assert cfgmodule.load_config()["concurrency"] == 5
-        path.write_text('concurrency = 7\n', encoding="utf-8")
+        # Different length, not just a different digit: the snapshot cache
+        # keys on (mtime_ns, size), and coarse-timestamp filesystems can
+        # report an unchanged mtime for two writes in the same tick.
+        path.write_text('concurrency = 7  # raised\n', encoding="utf-8")
         assert cfgmodule.load_config()["concurrency"] == 7
 
     def test_reload_config_forces_reparse(self, monkeypatch, tmp_path):
