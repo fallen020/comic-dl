@@ -47,6 +47,7 @@ jobs:
         run: uv sync --extra dev --locked
 
       - name: Run tests with coverage
+        shell: bash
         run: ./scripts/test.sh --cov=comic_dl --cov-report=xml --cov-report=term
 
       # One artifact from the fixed cell only; all 12 cells would collide.
