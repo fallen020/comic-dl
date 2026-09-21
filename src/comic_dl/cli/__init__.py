@@ -575,8 +575,17 @@ def _restore_pages_from_archive(archive_path: Path, dest_dir: Path) -> int:
     or nested paths). Returns the number of pages restored; a corrupt or
     unreadable archive restores nothing and the rerun falls back to a full
     download.
+
+    Members are renamed back to the downloader's on-disk scheme
+    (``page_NNNN.ext``, see :func:`image_source_name`) before extraction;
+    the archiver stores them capitalized as ``Page_NNNN.ext`` and a rerun
+    on a case-sensitive filesystem would otherwise never match the restored
+    files and re-download the whole gallery.
     """
     count = 0
+
+    def _on_disk_name(info_name: str) -> str:
+        return "page_" + info_name[len("Page_"):]
 
     def _acceptable(info_name: str, size: int | None) -> bool:
         if not _PAGE_NAME_RE.match(info_name):
@@ -595,14 +604,16 @@ def _restore_pages_from_archive(archive_path: Path, dest_dir: Path) -> int:
                     src = tf.extractfile(info)
                     if src is None:
                         continue
-                    (dest_dir / info.name).write_bytes(src.read())
+                    (dest_dir / _on_disk_name(info.name)).write_bytes(src.read())
                     count += 1
         else:
             with ZipFile(archive_path) as zf:
                 for zinfo in zf.infolist():
                     if not _acceptable(zinfo.filename, zinfo.file_size):
                         continue
-                    (dest_dir / zinfo.filename).write_bytes(zf.read(zinfo))
+                    (dest_dir / _on_disk_name(zinfo.filename)).write_bytes(
+                        zf.read(zinfo)
+                    )
                     count += 1
     except (BadZipFile, tarfile.TarError, OSError) as exc:
         trace(f"resume: could not restore from {archive_path.name}: {exc}")

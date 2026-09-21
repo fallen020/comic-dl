@@ -4413,8 +4413,8 @@ class TestRestorePagesFromArchive:
         dest.mkdir()
         n = cli._restore_pages_from_archive(cbz, dest)
         assert n == 2
-        assert (dest / "Page_0001.webp").read_bytes() == b"a"
-        assert (dest / "Page_0003.jpg").read_bytes() == b"b"
+        assert (dest / "page_0001.webp").read_bytes() == b"a"
+        assert (dest / "page_0003.jpg").read_bytes() == b"b"
         assert not (dest / "ComicInfo.xml").exists()
 
     def test_rejects_nested_and_non_page_names(self, tmp_path):
@@ -4432,7 +4432,7 @@ class TestRestorePagesFromArchive:
         dest = tmp_path / "tmp"
         dest.mkdir()
         assert cli._restore_pages_from_archive(cbz, dest) == 1
-        assert (dest / "Page_0005.png").exists()
+        assert (dest / "page_0005.png").exists()
 
     def test_corrupt_zip_restores_nothing(self, tmp_path):
         cbz = tmp_path / "Ch.cbz"
