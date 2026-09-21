@@ -68,7 +68,7 @@ comic-dl self version
 ```
 
 ```text
-comic-dl 0.0.2
+comic-dl 0.0.3
 ```
 
 See [docs/install.md](docs/install.md) for the full instructions.

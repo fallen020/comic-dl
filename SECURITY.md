@@ -8,8 +8,6 @@ opening a private security advisory rather than a public issue:
 **[Report a vulnerability](https://github.com/fallen020/comic-dl/security/advisories/new)**
 (GitHub → Security → Report a vulnerability)
 
-No PGP key is used; all reports go through the private advisory.
-
 When you file an advisory, please include:
 
 - The version or commit you found the issue in (from `comic-dl self version` or `uv lock`)
@@ -34,7 +32,7 @@ release notes and, if you wish, as a co-author of the fix.
 | Version | Supported |
 | :------ | :-------- |
 | Latest release (`0.x`) | Yes |
-| Older releases | No — please upgrade |
+| Older releases | No, please upgrade |
 
 Security fixes are released against the latest tagged version. Prebuilt
 binaries attached to the GitHub Release and the Python package are covered by
