@@ -2241,11 +2241,13 @@ class TestDryRun:
             },
         ]
         _report_dry_run(entries, [e["url"] for e in entries], args, {})
-        # Rich wraps long lines at the console width; strip newlines so the
-        # assertions are not sensitive to where a wrap boundary lands.
-        # Windows pipes translate to \r\n, so strip both line endings.
+        # Rich wraps long lines at the console width and drops the space at
+        # the fold boundary, so ``-> Series A\Chapter 1.zip [deflate]`` may
+        # come back as ``->Series A\Chapter 1.zip[deflate]``. Assert on
+        # fragments that never sit at a fold; Windows pipes also translate
+        # \n to \r\n, so strip both line endings.
         err = capsys.readouterr().err.replace("\n", "").replace("\r", "")
-        assert f"-> {os.path.join('Series A', 'Chapter 1.zip')} [deflate]" in err
+        assert "Chapter 1.zip" in err and "[deflate]" in err
         assert "[01/2]" in err and "[02/2]" in err
         assert "Concurrency: 5 URLs in parallel" in err
         assert "20 pages" in err and "~10 MB" in err
@@ -2273,7 +2275,10 @@ class TestDryRun:
                 argparse.Namespace(format=fmt, **base_args), {},
             )
             err = capsys.readouterr().err.replace("\n", "").replace("\r", "")
-            assert f"-> {os.path.join('Series A', f'Chapter 1{ext}')}" in err
+            # ``Chapter 1.cbz`` is never split by the 80-col wrap (the fold
+            # lands near ``->``/``Series``); the title ``'Chapter 1'`` has no
+            # extension, so this ties the render to the destination.
+            assert f"Chapter 1{ext}" in err
 
     async def test_error_entry_reported_without_crash(self, monkeypatch, capsys):
         async def fail_preview(url, index, force):

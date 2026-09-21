@@ -748,6 +748,10 @@ class TestThreadedAccess:
             t.start()
         for t in threads:
             t.join(timeout=30)
+            # ``join(timeout=...)`` returns even when the thread is still
+            # alive; a reader that outlives its 30s budget would let the
+            # count below race a writer's last commit and read mid-write.
+            assert not t.is_alive(), "thread still running after 30s join"
 
         assert errors == []
         # Every write from every writer thread landed.
