@@ -243,11 +243,15 @@ def _is_ip_unsafe(ip: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
 
 def _resolve_host_unsafe(host: str) -> bool:
     """Blocking resolution+vetting of ``host``. Callers should prefer the
-    cached wrappers (:func:`_host_unsafe` / :func:`_host_unsafe_async`)."""
+    cached wrappers (:func:`_host_unsafe` / :func:`_host_unsafe_async`).
+
+    Returns ``True`` (unsafe) if the host resolves to a local/private
+    address, or if the host cannot be resolved (fail-closed).
+    """
     try:
         infos = socket.getaddrinfo(host, None)
     except OSError:
-        return False
+        return True
     for info in infos:
         try:
             addr = ipaddress.ip_address(info[4][0])
@@ -258,7 +262,7 @@ def _resolve_host_unsafe(host: str) -> bool:
     return False
 
 
-_DNS_CACHE_TTL = 60.0
+_DNS_CACHE_TTL = 5.0  # seconds — short to narrow the DNS rebinding window
 _dns_cache: dict[str, tuple[float, bool]] = {}
 _dns_lock = threading.Lock()
 

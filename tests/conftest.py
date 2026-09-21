@@ -1,6 +1,55 @@
 from __future__ import annotations
 
+import socket
+
 import pytest
+
+
+@pytest.fixture(autouse=True)
+def _stub_unresolvable_test_dns(monkeypatch):
+    """Resolve fake test-only hosts to a public documentation IP.
+
+    The suite is offline-safe and uses mock HTTP clients with fake
+    domains (``*.example``, ``*.hath.network``, ``manhwaz.com``, ...).
+    SSRF validation is fail-closed on DNS errors, so those hosts would
+    otherwise be blocked before the mock client is reached. Stub only
+    hosts that fail real resolution and look like test fixtures; real
+    DNS failures (e.g. ``unresolvable.test``) still propagate so the
+    fail-closed behavior stays covered.
+    """
+    real_getaddrinfo = socket.getaddrinfo
+    fake_hosts = frozenset(
+        {
+            "x.com",
+            "example.com",
+            "www.site",
+            "cdn.site",
+            "manhwaz.com",
+            "cdn.manhwaz.com",
+        }
+    )
+    fake_suffixes = (".example", ".hath.network", ".invalid")
+    test_suffixes = (".test",)
+    passthrough_failures = frozenset({"unresolvable.test"})
+    fake_result = [(2, 1, 6, "", ("93.184.216.34", 0))]
+
+    def _fake_getaddrinfo(host, *args, **kwargs):
+        try:
+            return real_getaddrinfo(host, *args, **kwargs)
+        except OSError:
+            name = host.lower().rstrip(".") if isinstance(host, str) else ""
+            if name in passthrough_failures:
+                raise
+            if (
+                name in fake_hosts
+                or name.endswith(fake_suffixes)
+                or (name.endswith(test_suffixes) and name != "unresolvable.test")
+            ):
+                return fake_result
+            raise
+
+    monkeypatch.setattr(socket, "getaddrinfo", _fake_getaddrinfo)
+    yield
 
 
 @pytest.fixture(autouse=True)

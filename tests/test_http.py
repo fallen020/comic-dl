@@ -693,3 +693,38 @@ class TestAsyncDnsValidation:
         )
         with pytest.raises(RequestBlockedError):
             await u.validate_request_url_async("https://evil.test/x")
+
+    async def test_unresolvable_host_is_blocked(self, monkeypatch):
+        """Fail-closed: a host that cannot be resolved is treated as
+        unsafe, not allowed through."""
+        import socket as socket_module
+
+        import comic_dl.utils as u
+        from comic_dl.utils import RequestBlockedError
+
+        def boom(*args, **kwargs):
+            raise OSError("Name or service not known")
+
+        monkeypatch.setattr(socket_module, "getaddrinfo", boom)
+        with pytest.raises(RequestBlockedError):
+            await u.validate_request_url_async("https://unresolvable.test/x")
+
+    async def test_dns_cache_ttl_short(self, monkeypatch):
+        """DNS verdicts expire quickly to narrow the rebinding window."""
+        import socket as socket_module
+
+        from comic_dl.utils import _DNS_CACHE_TTL
+
+        assert _DNS_CACHE_TTL <= 5.0
+
+        calls = []
+
+        def counting(host, *args, **kwargs):
+            calls.append(host)
+            return [(2, 1, 6, "", ("93.184.216.34", 0))]
+
+        monkeypatch.setattr(socket_module, "getaddrinfo", counting)
+        import comic_dl.utils as u
+
+        await u.validate_request_url_async("https://cached.test/a")
+        assert len(calls) == 1
