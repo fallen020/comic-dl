@@ -143,25 +143,25 @@ class TestDeriveSeriesTitle:
         assert _derive_series_title(
             "https://fsicomics.com/family-debt-chapter-1-traplust/",
             "Family Debt Chapter 1 \u2013 TRAPLust",
-        ) == "Family Debt \u2013 TRAPLust"
+        ) == "Family Debt - TRAPLust"
 
     def test_artist_casing_from_title(self):
         assert _derive_series_title(
             "https://fsicomics.com/the-elven-prince-chapter-2-traplust",
             "The Elven Prince Chapter 2 \u2013 TRAPLust",
-        ) == "The Elven Prince \u2013 TRAPLust"
+        ) == "The Elven Prince - TRAPLust"
 
     def test_artist_from_slug_when_title_has_no_dash(self):
         assert _derive_series_title(
             "https://fsicomics.com/deal-with-devil-chapter-3-traplust/",
             "Deal With Devil Chapter 3",
-        ) == "Deal With Devil \u2013 Traplust"
+        ) == "Deal With Devil - Traplust"
 
     def test_artist_from_title_when_slug_has_no_number_tail(self):
         assert _derive_series_title(
             "https://fsicomics.com/friends-with-benefits-chapter-1-traplust/",
             "Friends With Benefits \u2013 TRAPLust",
-        ) == "Friends With Benefits \u2013 TRAPLust"
+        ) == "Friends With Benefits - TRAPLust"
 
     def test_no_marker_returns_empty(self):
         assert _derive_series_title(
@@ -172,13 +172,13 @@ class TestDeriveSeriesTitle:
         assert _derive_series_title(
             "https://fsicomics.com/family-debt-CHAPTER-2-traplust/",
             "Family Debt Chapter 2",
-        ) == "Family Debt \u2013 Traplust"
+        ) == "Family Debt - Traplust"
 
     def test_multi_digit_chapter_number(self):
         assert _derive_series_title(
             "https://fsicomics.com/family-debt-chapter-10-traplust/",
             "Family Debt Chapter 10 \u2013 TRAPLust",
-        ) == "Family Debt \u2013 TRAPLust"
+        ) == "Family Debt - TRAPLust"
 
     def test_series_only_when_no_artist(self):
         assert _derive_series_title(
@@ -487,7 +487,7 @@ class TestFsicomixScraper:
         )
 
         assert chapter.info.series_title == "Cool Artist"
-        assert chapter.info.chapter_title == "My Comic Chapter 3"
+        assert chapter.info.chapter_title == "Chapter 3"
         assert chapter.info.chapter_number == "3"
         assert chapter.info.artists == ["Cool Artist"]
         assert chapter.info.genres == ["3D", "Parody"]
@@ -614,5 +614,5 @@ class TestFsicomixScraper:
             "https://fsicomics.com/family-debt-chapter-1-traplust/", session,
         )
 
-        assert chapter.info.series_title == "Family Debt \u2013 TRAPLust"
-        assert chapter.info.chapter_title == "Family Debt Chapter 1 \u2013 TRAPLust"
+        assert chapter.info.series_title == "Family Debt-TRAPLust"
+        assert chapter.info.chapter_title == "Chapter 1"

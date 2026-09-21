@@ -2477,7 +2477,7 @@ class TestRunUrlsPreSkip:
         assert await main() == 0
         assert calls == ["https://b.com/"]
         captured = capsys.readouterr()
-        assert "a.cbz already exists. Skipping." in captured.err
+        assert "Already exists: a.cbz — skipping." in captured.err
         assert "Skipped: https://a.com/" not in captured.out
         assert "All 2 URLs completed successfully (1 skipped)." in captured.out
 

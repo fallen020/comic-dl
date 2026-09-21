@@ -163,6 +163,7 @@ from ..ui import (
     err_console,
     flush_debug_file,
     format_bytes,
+    format_bytes_fixed,
     get_ui_gate,
     glyphs,
     is_interactive,
@@ -500,7 +501,8 @@ def _resolve_archive_path(
         if not force and post_id and f"{base_stem} ({post_id})" in existing:
             if not quiet:
                 print_skipped(
-                    f"{existing[f'{base_stem} ({post_id})'].name} already exists. Skipping."
+                    f"Already exists: "
+                    f"{existing[f'{base_stem} ({post_id})'].name} — skipping."
                 )
             return None
         return base
@@ -515,7 +517,7 @@ def _resolve_archive_path(
 
     if _cbz_source_url(picked).rstrip("/") == url.rstrip("/"):
         if not quiet:
-            print_skipped(f"{picked.name} already exists. Skipping.")
+            print_skipped(f"Already exists: {picked.name} — skipping.")
         return None
 
     if post_id:
@@ -523,13 +525,14 @@ def _resolve_archive_path(
         if disambig_stem in existing:
             if not quiet:
                 print_skipped(
-                    f"{existing[disambig_stem].name} already exists. Skipping."
+                    f"Already exists: "
+                    f"{existing[disambig_stem].name} — skipping."
                 )
             return None
         return series_dir / f"{disambig_stem}{ext}"
 
     if not quiet:
-        print_skipped(f"{picked.name} already exists. Skipping.")
+        print_skipped(f"Already exists: {picked.name} — skipping.")
     return None
 
 
@@ -1866,11 +1869,6 @@ async def process_url(
             if last_error is not None or meta is None:
                 return _fail("Failed to fetch metadata after retries.")
 
-            if activity is None:
-                # Standalone runs would otherwise render an unlabeled spinner;
-                # attribute the row to the chapter once its title is known.
-                main.set_label(meta.chapter_title)
-
         main.stage("Parsing chapter info...")
 
         text_content = getattr(meta, "text_content", None)
@@ -2034,6 +2032,7 @@ async def process_url(
                         status_sink=main,
                         client=stream_client,
                         compression=compression,
+                        announce_saved=activity is not None,
                     ).run()
 
                 result = await _run_with_network_retry(_run_stream_once, quiet=quiet)
@@ -2055,6 +2054,7 @@ async def process_url(
                 quiet=quiet,
                 status_sink=main,
                 compression=compression,
+                announce_saved=activity is not None,
             ).run()
         vlog(
             DIAGNOSTIC,
@@ -3380,7 +3380,7 @@ async def _run_urls(urls: list[str], args: argparse.Namespace) -> int:
                         batch_act.finish_row(row_key, ok=True, message="already downloaded")
                     if not args.quiet:
                         print_skipped(
-                            f"{existing.name} already exists. Skipping."
+                            f"Already exists: {existing.name} — skipping."
                             f"{_url_origin(args, url)}"
                         )
                     ordered_results[idx] = _url_result(
@@ -3527,14 +3527,19 @@ async def _run_urls(urls: list[str], args: argparse.Namespace) -> int:
             print_failure_recap(failed_details)
         elif total == 1 and not args.quiet:
             # Symmetry: partial and failed runs end with their own verdict
-            # block, so a clean download must too — "Saved:" alone scrolls
-            # past mid-live and reads as "did it actually finish?".
+            # block, so a clean single-URL download must too (the pipeline's
+            # "Saved:" line is suppressed in this flow).
             done = ordered_results.get(0) or {}
             if done.get("status") == "success":
                 out = done.get("output_path") or ""
                 name = Path(out).name if out else "archive"
                 where = f" {glyphs().dash} {args.output}" if args.output else ""
-                print_success(f"Downloaded: {name}{where}")
+                suffix = (
+                    f" ({format_bytes_fixed(done.get('bytes', 0))})"
+                    if done.get("bytes")
+                    else ""
+                )
+                print_success(f"Downloaded: {name}{suffix}{where}")
         json_results = [ordered_results[i] for i in range(len(urls)) if i in ordered_results]
     finally:
         library.close()

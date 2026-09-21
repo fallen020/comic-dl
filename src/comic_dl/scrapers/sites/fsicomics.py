@@ -88,7 +88,7 @@ def _derive_series_title(url: str, chapter_title: str) -> str:
 
     if not artist:
         return series
-    return f"{series} {_EN_DASH} {artist}"
+    return f"{series} - {artist}"
 
 
 def is_series_url(url: str) -> bool:
@@ -361,6 +361,8 @@ class FsicomixScraper(BaseScraper):
             page_title = soup.select_one("title")
             if page_title:
                 chapter_number = _extract_chapter_number(unescape(page_title.get_text(strip=True)))
+        if chapter_number and not chapter_title.startswith("Chapter"):
+            chapter_title = f"Chapter {chapter_number}"
 
         lang = ""
         html_tag = soup.select_one("html")

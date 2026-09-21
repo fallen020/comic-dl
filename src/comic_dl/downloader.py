@@ -1664,6 +1664,7 @@ class DownloadPipeline:
         images_iter: AsyncIterator[ImageItem] | None = None,
         total_pages: int | None = None,
         compression: str = "stored",
+        announce_saved: bool = True,
     ):
         self._images = images
         # Streaming mode: images arrive from ``images_iter`` as URLs resolve,
@@ -1707,6 +1708,7 @@ class DownloadPipeline:
         self._status_sink = status_sink
         self._bytes_cb: Callable[[int], None] | None = None
         self._compression = compression
+        self._announce_saved = announce_saved
         self._download_timeout, self._max_attempts = _engine_tuning()
         (
             self._pass2_enabled,
@@ -1940,7 +1942,8 @@ class DownloadPipeline:
                 pass
 
             label = series_prefix or ""
-            await ok_message(f"{label}Saved: {self._cbz_path.name}{suffix}")
+            if self._announce_saved:
+                await ok_message(f"{label}Saved: {self._cbz_path.name}{suffix}")
 
             return PipelineResult(
                 ok=True,
