@@ -1061,8 +1061,12 @@ class TestDownloadHttpxIter:
 class TestRetryPreservesPart:
     pytestmark = pytest.mark.asyncio
 
-    async def test_retry_does_not_delete_part(self):
+    async def test_retry_does_not_delete_part(self, monkeypatch):
         """Retryable error should not delete .part; next attempt can resume."""
+        monkeypatch.setattr(
+            "comic_dl.downloader._backoff_delay",
+            lambda attempt, **kwargs: 0.001,
+        )
         call_count = [0]
 
         class FailingThenResumingResponse:
@@ -1126,8 +1130,13 @@ class TestRetryPreservesPart:
             assert (Path(td) / "test.jpg").exists()
             assert (Path(td) / "test.jpg").stat().st_size >= len(MAGIC_JPEG)
 
-    async def test_permanent_error_removes_part(self):
+    async def test_permanent_error_removes_part(self, monkeypatch):
         """Non-retryable HTTP error should delete .part and report failure."""
+        monkeypatch.setattr(
+            "comic_dl.downloader._backoff_delay",
+            lambda attempt, **kwargs: 0.001,
+        )
+
         class NotFoundResponse:
             status_code = 404
             headers = {}
@@ -1163,8 +1172,12 @@ class TestRetryPreservesPart:
             assert not (Path(td) / "fail.jpg").exists()
             assert not (Path(td) / "fail.jpg.part").exists()
 
-    async def test_retry_all_attempts_exhausted_removes_part(self):
+    async def test_retry_all_attempts_exhausted_removes_part(self, monkeypatch):
         """After exhausting all retries, .part should be cleaned up."""
+        monkeypatch.setattr(
+            "comic_dl.downloader._backoff_delay",
+            lambda attempt, **kwargs: 0.001,
+        )
         attempt_count = [0]
 
         class AlwaysFailsResponse:
@@ -1737,7 +1750,13 @@ class TestDownloadCoverTo:
             assert dest.read_bytes() == MAGIC_JPEG
             assert "If-Modified-Since" not in reqs[0]
 
-    async def test_http_error_is_graceful(self):
+    async def test_http_error_is_graceful(self, monkeypatch):
+        # The 500 is retried as a generic block before failing gracefully;
+        # shrink the humane backoff so the test doesn't sleep ~7s.
+        monkeypatch.setattr(
+            "comic_dl.downloader._humane_backoff_delay",
+            lambda attempt, **kwargs: 0.001,
+        )
         resp = self._make_response(500)
         client = self._make_client(resp)
         with tempfile.TemporaryDirectory() as td:
@@ -1994,6 +2013,10 @@ class TestStaleLinkRefresh:
 
         monkeypatch.setattr("comic_dl.downloader._refresh_stale_link", fake_refresh)
         monkeypatch.setattr("comic_dl.downloader.SHARED_COOLDOWN_CAP", 0.01)
+        monkeypatch.setattr(
+            "comic_dl.downloader._backoff_delay",
+            lambda attempt, **kwargs: 0.001,
+        )
 
         failed, resolved = await _run_downloads(
             self._aiter([item]), tmp_path, asyncio.Semaphore(2), None,
@@ -2041,6 +2064,10 @@ class TestStaleLinkRefresh:
 
         monkeypatch.setattr("comic_dl.downloader._refresh_stale_link", spy_refresh)
         monkeypatch.setattr("comic_dl.downloader.SHARED_COOLDOWN_CAP", 0.01)
+        monkeypatch.setattr(
+            "comic_dl.downloader._backoff_delay",
+            lambda attempt, **kwargs: 0.001,
+        )
 
         item = ImageItem(url="http://x.com/a.jpg", page_number=1, filename="a.jpg")
         failed, _ = await _run_downloads(
@@ -2148,6 +2175,10 @@ class TestHostBreaker:
 
         monkeypatch.setattr("comic_dl.downloader._refresh_stale_link", no_refresh)
         monkeypatch.setattr("comic_dl.downloader.SHARED_COOLDOWN_CAP", 0.01)
+        monkeypatch.setattr(
+            "comic_dl.downloader._backoff_delay",
+            lambda attempt, **kwargs: 0.001,
+        )
 
         failed, _ = await _run_downloads(
             TestStaleLinkRefresh._aiter(items), tmp_path,

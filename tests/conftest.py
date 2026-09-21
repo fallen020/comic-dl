@@ -26,6 +26,7 @@ def _stub_unresolvable_test_dns(monkeypatch):
             "cdn.site",
             "manhwaz.com",
             "cdn.manhwaz.com",
+            "www.webtoons.com",
         }
     )
     fake_suffixes = (".example", ".hath.network", ".invalid")
@@ -34,19 +35,16 @@ def _stub_unresolvable_test_dns(monkeypatch):
     fake_result = [(2, 1, 6, "", ("93.184.216.34", 0))]
 
     def _fake_getaddrinfo(host, *args, **kwargs):
-        try:
+        name = host.lower().rstrip(".") if isinstance(host, str) else ""
+        if name in passthrough_failures:
             return real_getaddrinfo(host, *args, **kwargs)
-        except OSError:
-            name = host.lower().rstrip(".") if isinstance(host, str) else ""
-            if name in passthrough_failures:
-                raise
-            if (
-                name in fake_hosts
-                or name.endswith(fake_suffixes)
-                or (name.endswith(test_suffixes) and name != "unresolvable.test")
-            ):
-                return fake_result
-            raise
+        if (
+            name in fake_hosts
+            or name.endswith(fake_suffixes)
+            or name.endswith(test_suffixes)
+        ):
+            return fake_result
+        return real_getaddrinfo(host, *args, **kwargs)
 
     monkeypatch.setattr(socket, "getaddrinfo", _fake_getaddrinfo)
     yield
