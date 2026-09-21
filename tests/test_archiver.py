@@ -20,16 +20,18 @@ def _src_name(page_number: int, url: str = "") -> str:
     return image_source_name(page_number, url or f"http://x.com/{page_number}")
 
 
-def _make_image(dest: Path, page_number: int, fmt: str = "jpeg", content: bytes | None = None, url: str = "") -> Path:
+def _make_image(
+    dest: Path, page_number: int, fmt: str = "jpeg", content: bytes | None = None, url: str = ""
+) -> Path:
     magic = {
-        "jpeg": b'\xff\xd8\xff\xe0\x00\x10JFIF\x00',
-        "png": b'\x89PNG\r\n\x1a\n',
-        "webp": b'RIFF\x00\x00\x00\x00WEBP',
-        "gif": b'GIF89a',
+        "jpeg": b"\xff\xd8\xff\xe0\x00\x10JFIF\x00",
+        "png": b"\x89PNG\r\n\x1a\n",
+        "webp": b"RIFF\x00\x00\x00\x00WEBP",
+        "gif": b"GIF89a",
     }
     name = _src_name(page_number, url)
     p = dest / name
-    data = magic.get(fmt, b'\xff\xd8\xff')
+    data = magic.get(fmt, b"\xff\xd8\xff")
     if content is not None:
         data = data + content
     p.write_bytes(data)
@@ -43,8 +45,8 @@ class TestCreateCbz:
             out = Path(td) / "out"
             src.mkdir()
             out.mkdir()
-            _make_image(src, 1, content=b'\x01')
-            _make_image(src, 2, content=b'\x02')
+            _make_image(src, 1, content=b"\x01")
+            _make_image(src, 2, content=b"\x02")
             images = [
                 ImageItem(url="http://x.com/1", page_number=1, filename=_src_name(1)),
                 ImageItem(url="http://x.com/2", page_number=2, filename=_src_name(2)),
@@ -54,7 +56,7 @@ class TestCreateCbz:
             assert added == 2
             assert skipped == []
 
-            with zipfile.ZipFile(cbz, 'r') as zf:
+            with zipfile.ZipFile(cbz, "r") as zf:
                 names = zf.namelist()
                 assert "ComicInfo.xml" not in names
                 assert names == sorted(names)
@@ -85,16 +87,18 @@ class TestCreateCbz:
             out = Path(td) / "out"
             src.mkdir()
             out.mkdir()
-            _make_image(src, 1, content=b'\x01')
+            _make_image(src, 1, content=b"\x01")
             (src / _src_name(2)).write_bytes(b"not an image")
-            _make_image(src, 3, content=b'\x03')
+            _make_image(src, 3, content=b"\x03")
             images = [
                 ImageItem(url=f"http://x.com/{n}", page_number=n, filename=_src_name(n))
                 for n in (1, 2, 3)
             ]
             seen: list[tuple[int, int]] = []
             cbz = out / "test.cbz"
-            added, skipped = create_archive(images, src, cbz, on_packed=lambda n, t: seen.append((n, t)))
+            added, skipped = create_archive(
+                images, src, cbz, on_packed=lambda n, t: seen.append((n, t))
+            )
             assert added == 2
             assert any("not a valid image" in s for s in skipped)
             assert seen == [(1, 3), (2, 3)]
@@ -107,11 +111,17 @@ class TestCreateCbz:
             out.mkdir()
             _make_image(src, 1, url="http://x.com/img.jpg")
             images = [
-                ImageItem(url="http://x.com/img.jpg", page_number=1, filename=_src_name(1, "http://x.com/img.jpg")),
+                ImageItem(
+                    url="http://x.com/img.jpg",
+                    page_number=1,
+                    filename=_src_name(1, "http://x.com/img.jpg"),
+                ),
             ]
             cbz = out / "test.cbz"
             added, skipped = create_archive(
-                images, src, cbz,
+                images,
+                src,
+                cbz,
                 series_title="My Series",
                 chapter_title="Chapter 1",
                 source_url="https://example.com/g/1",
@@ -127,7 +137,7 @@ class TestCreateCbz:
             )
             assert added == 1
             assert skipped == []
-            with zipfile.ZipFile(cbz, 'r') as zf:
+            with zipfile.ZipFile(cbz, "r") as zf:
                 assert "ComicInfo.xml" in zf.namelist()
                 data = zf.read("ComicInfo.xml").decode("utf-8")
                 assert "<Series>My Series</Series>" in data
@@ -149,15 +159,23 @@ class TestCreateCbz:
             out.mkdir()
             _make_image(src, 1, url="http://x.com/img.jpg")
             images = [
-                ImageItem(url="http://x.com/img.jpg", page_number=1, filename=_src_name(1, "http://x.com/img.jpg")),
+                ImageItem(
+                    url="http://x.com/img.jpg",
+                    page_number=1,
+                    filename=_src_name(1, "http://x.com/img.jpg"),
+                ),
             ]
             cbz = out / "test.cbz"
             added, skipped = create_archive(
-                images, src, cbz, series_title="S", chapter_title="C",
+                images,
+                src,
+                cbz,
+                series_title="S",
+                chapter_title="C",
             )
             assert added == 1
             assert skipped == []
-            with zipfile.ZipFile(cbz, 'r') as zf:
+            with zipfile.ZipFile(cbz, "r") as zf:
                 data = zf.read("ComicInfo.xml").decode("utf-8")
                 assert "Summary" not in data
                 assert "Genre" not in data
@@ -173,15 +191,22 @@ class TestCreateCbz:
             p.write_bytes(b"\xff\xd8\xff")
             _make_image(src, 1, url="http://x.com/img.jpg")
             images = [
-                ImageItem(url="http://x.com/img.jpg", page_number=1, filename=_src_name(1, "http://x.com/img.jpg")),
+                ImageItem(
+                    url="http://x.com/img.jpg",
+                    page_number=1,
+                    filename=_src_name(1, "http://x.com/img.jpg"),
+                ),
             ]
             cbz = out / "test.cbz"
             added, _skipped = create_archive(
-                images, src, cbz,
-                series_title="S", chapter_title="C",
+                images,
+                src,
+                cbz,
+                series_title="S",
+                chapter_title="C",
             )
             assert added == 1
-            with zipfile.ZipFile(cbz, 'r') as zf:
+            with zipfile.ZipFile(cbz, "r") as zf:
                 assert "cover.jpg" not in zf.namelist()
                 assert not any(n.startswith("cover") for n in zf.namelist())
 
@@ -217,11 +242,14 @@ class TestCreateCbz:
             ]
             cbz = out / "test.cbz"
             added, _ = create_archive(
-                images, src, cbz,
-                series_title="S", chapter_title="C",
+                images,
+                src,
+                cbz,
+                series_title="S",
+                chapter_title="C",
             )
             assert added == 1
-            with zipfile.ZipFile(cbz, 'r') as zf:
+            with zipfile.ZipFile(cbz, "r") as zf:
                 data = zf.read("ComicInfo.xml").decode("utf-8")
                 assert "<PageCount>1</PageCount>" in data
                 pages = [n for n in zf.namelist() if n.startswith("Page_")]
@@ -274,7 +302,7 @@ class TestCreateCbz:
             out = Path(td) / "out"
             src.mkdir()
             out.mkdir()
-            content = b'\xff\xd8\xff' + b'\x01' * 1000
+            content = b"\xff\xd8\xff" + b"\x01" * 1000
             (src / _src_name(1)).write_bytes(content)
             (src / _src_name(2)).write_bytes(content)
             images = [
@@ -286,14 +314,17 @@ class TestCreateCbz:
             assert added == 1
             assert any("duplicate" in s for s in skipped)
 
-    @pytest.mark.parametrize("bad_name", [
-        "../evil.jpg",
-        "../../etc/passwd",
-        "/absolute/path.png",
-        "sub/dir.png",
-        "..",
-        "",
-    ])
+    @pytest.mark.parametrize(
+        "bad_name",
+        [
+            "../evil.jpg",
+            "../../etc/passwd",
+            "/absolute/path.png",
+            "sub/dir.png",
+            "..",
+            "",
+        ],
+    )
     def test_traversal_filenames_never_touch_outside(self, bad_name):
         """Plugin-supplied filenames must stay inside source_dir: anything with
         a path separator, an '..' component, an absolute path, or an empty/'.'
@@ -306,20 +337,20 @@ class TestCreateCbz:
             out.mkdir()
 
             outside = base / "evil.jpg"
-            outside.write_bytes(b'\xff\xd8\xff' + b'secret')
+            outside.write_bytes(b"\xff\xd8\xff" + b"secret")
 
             images = [
                 ImageItem(url="http://x.com/1", page_number=1, filename=bad_name),
                 ImageItem(url="http://x.com/2", page_number=2, filename=_src_name(2)),
             ]
-            (src / _src_name(2)).write_bytes(b'\xff\xd8\xff' + b'\x02')
+            (src / _src_name(2)).write_bytes(b"\xff\xd8\xff" + b"\x02")
             cbz = out / "test.cbz"
             added, skipped = create_archive(images, src, cbz)
             assert added == 1
             assert any("missing" in s for s in skipped)
             assert outside.exists()
-            assert outside.read_bytes() == b'\xff\xd8\xff' + b'secret'
-            with zipfile.ZipFile(cbz, 'r') as zf:
+            assert outside.read_bytes() == b"\xff\xd8\xff" + b"secret"
+            with zipfile.ZipFile(cbz, "r") as zf:
                 names = zf.namelist()
                 assert all("evil" not in n and "passwd" not in n for n in names)
 
@@ -332,7 +363,7 @@ class TestCreateCbz:
             src.mkdir()
             out.mkdir()
             p = src / _src_name(1)
-            p.write_bytes(b'\xff\xd8\xff' + b'\x01')  # actually jpeg
+            p.write_bytes(b"\xff\xd8\xff" + b"\x01")  # actually jpeg
             images = [
                 ImageItem(url="http://x.com/1", page_number=1, filename=_src_name(1)),
             ]
@@ -341,7 +372,7 @@ class TestCreateCbz:
                 images, src, cbz, verified_formats={_src_name(1): "png"}
             )
             assert added == 1
-            with zipfile.ZipFile(cbz, 'r') as zf:
+            with zipfile.ZipFile(cbz, "r") as zf:
                 assert any("Page_0001.jpeg" in n for n in zf.namelist())
 
     def test_atomic_write(self):
@@ -437,9 +468,9 @@ class TestCreateCbz:
             out = Path(td) / "out"
             src.mkdir()
             out.mkdir()
-            _make_image(src, 3, content=b'\x03')
-            _make_image(src, 1, content=b'\x01')
-            _make_image(src, 2, content=b'\x02')
+            _make_image(src, 3, content=b"\x03")
+            _make_image(src, 1, content=b"\x01")
+            _make_image(src, 2, content=b"\x02")
             images = [
                 ImageItem(url="http://x.com/3", page_number=3, filename=_src_name(3)),
                 ImageItem(url="http://x.com/1", page_number=1, filename=_src_name(1)),
@@ -448,7 +479,7 @@ class TestCreateCbz:
             cbz = out / "test.cbz"
             added, _skipped = create_archive(images, src, cbz)
             assert added == 3
-            with zipfile.ZipFile(cbz, 'r') as zf:
+            with zipfile.ZipFile(cbz, "r") as zf:
                 names = zf.namelist()
                 naming_order = [n for n in names if n.endswith(".jpg")]
                 assert naming_order == sorted(naming_order)
@@ -462,13 +493,21 @@ class TestCreateCbz:
             _make_image(src, 1, fmt="png", url="http://x.com/img.png")
             _make_image(src, 2, fmt="webp", url="http://x.com/img.webp")
             images = [
-                ImageItem(url="http://x.com/img.png", page_number=1, filename=_src_name(1, "http://x.com/img.png")),
-                ImageItem(url="http://x.com/img.webp", page_number=2, filename=_src_name(2, "http://x.com/img.webp")),
+                ImageItem(
+                    url="http://x.com/img.png",
+                    page_number=1,
+                    filename=_src_name(1, "http://x.com/img.png"),
+                ),
+                ImageItem(
+                    url="http://x.com/img.webp",
+                    page_number=2,
+                    filename=_src_name(2, "http://x.com/img.webp"),
+                ),
             ]
             cbz = out / "test.cbz"
             added, _ = create_archive(images, src, cbz)
             assert added == 2
-            with zipfile.ZipFile(cbz, 'r') as zf:
+            with zipfile.ZipFile(cbz, "r") as zf:
                 names = zf.namelist()
                 assert any("Page_0001.png" in n for n in names)
                 assert any("Page_0002.webp" in n for n in names)
@@ -487,7 +526,7 @@ class TestCreateCbz:
             added, skipped = create_archive(images, src, cbz)
             assert added == 1
             assert skipped == []
-            with zipfile.ZipFile(cbz, 'r') as zf:
+            with zipfile.ZipFile(cbz, "r") as zf:
                 assert "ComicInfo.xml" not in zf.namelist()
 
 
@@ -498,8 +537,8 @@ class TestSizeFirstDedup:
             out = Path(td) / "out"
             src.mkdir()
             out.mkdir()
-            _make_image(src, 1, content=b'\x01')
-            _make_image(src, 2, content=b'\x02' * 100)
+            _make_image(src, 1, content=b"\x01")
+            _make_image(src, 2, content=b"\x02" * 100)
             images = [
                 ImageItem(url="http://x.com/1", page_number=1, filename=_src_name(1)),
                 ImageItem(url="http://x.com/2", page_number=2, filename=_src_name(2)),
@@ -508,7 +547,7 @@ class TestSizeFirstDedup:
             added, skipped = create_archive(images, src, cbz)
             assert added == 2
             assert skipped == []
-            with zipfile.ZipFile(cbz, 'r') as zf:
+            with zipfile.ZipFile(cbz, "r") as zf:
                 names = zf.namelist()
                 assert any("Page_0001" in n for n in names)
                 assert any("Page_0002" in n for n in names)
@@ -519,7 +558,7 @@ class TestSizeFirstDedup:
             out = Path(td) / "out"
             src.mkdir()
             out.mkdir()
-            content = b'\xff\xd8\xff' + b'\x01' * 1000
+            content = b"\xff\xd8\xff" + b"\x01" * 1000
             (src / _src_name(1)).write_bytes(content)
             (src / _src_name(2)).write_bytes(content)
             images = [
@@ -539,8 +578,8 @@ class TestSizeFirstDedup:
             out = Path(td) / "out"
             src.mkdir()
             out.mkdir()
-            (src / _src_name(1)).write_bytes(b'\xff\xd8\xff' + b'\x01' * 1000)
-            (src / _src_name(2)).write_bytes(b'\xff\xd8\xff' + b'\x02' * 1000)
+            (src / _src_name(1)).write_bytes(b"\xff\xd8\xff" + b"\x01" * 1000)
+            (src / _src_name(2)).write_bytes(b"\xff\xd8\xff" + b"\x02" * 1000)
             images = [
                 ImageItem(url="http://x.com/1", page_number=1, filename=_src_name(1)),
                 ImageItem(url="http://x.com/2", page_number=2, filename=_src_name(2)),
@@ -549,7 +588,7 @@ class TestSizeFirstDedup:
             added, skipped = create_archive(images, src, cbz)
             assert added == 2
             assert skipped == []
-            with zipfile.ZipFile(cbz, 'r') as zf:
+            with zipfile.ZipFile(cbz, "r") as zf:
                 names = zf.namelist()
                 assert any("Page_0001" in n for n in names)
                 assert any("Page_0002" in n for n in names)
@@ -584,9 +623,17 @@ class TestParseCompression:
         assert parse_compression("DEFLATE") == parse_compression("deflate")
         assert parse_compression(" Stored ") == parse_compression("stored")
 
-    @pytest.mark.parametrize("bad", [
-        "deflate:10", "deflate:-1", "deflate:x", "gzip", "", "deflate:6:2",
-    ])
+    @pytest.mark.parametrize(
+        "bad",
+        [
+            "deflate:10",
+            "deflate:-1",
+            "deflate:x",
+            "gzip",
+            "",
+            "deflate:6:2",
+        ],
+    )
     def test_invalid_raises(self, bad):
         from comic_dl.archiver import parse_compression
 
@@ -611,7 +658,7 @@ class TestCreateCbzCompression:
             added, skipped = create_archive(images, src, cbz, compression="deflate:6")
             assert added == 2
             assert skipped == []
-            with zipfile.ZipFile(cbz, 'r') as zf:
+            with zipfile.ZipFile(cbz, "r") as zf:
                 for n in zf.namelist():
                     if n != "ComicInfo.xml":
                         assert zf.getinfo(n).compress_type == zipfile.ZIP_DEFLATED
@@ -661,7 +708,7 @@ class TestCreateCbzCompression:
             ]
             cbz = out / "test.cbz"
             create_archive(images, src, cbz)
-            with zipfile.ZipFile(cbz, 'r') as zf:
+            with zipfile.ZipFile(cbz, "r") as zf:
                 assert zf.getinfo(zf.namelist()[0]).compress_type == zipfile.ZIP_STORED
 
     def test_dedup_deterministic_order(self):
@@ -683,7 +730,7 @@ class TestCreateCbzCompression:
             added, skipped = create_archive(images, src, cbz)
             assert added == 1  # first page claims the content, the rest are dupes
             assert len(skipped) == 2
-            with zipfile.ZipFile(cbz, 'r') as zf:
+            with zipfile.ZipFile(cbz, "r") as zf:
                 names = zf.namelist()
                 assert any("Page_0001" in n for n in names)
 
@@ -699,8 +746,8 @@ class TestCreateArchive:
             out = Path(td) / "out"
             src.mkdir()
             out.mkdir()
-            _make_image(src, 1, content=b'\x01')
-            _make_image(src, 2, content=b'\x02')
+            _make_image(src, 1, content=b"\x01")
+            _make_image(src, 2, content=b"\x02")
             images = [
                 ImageItem(url="http://x.com/1", page_number=1, filename=_src_name(1)),
                 ImageItem(url="http://x.com/2", page_number=2, filename=_src_name(2)),
@@ -723,11 +770,17 @@ class TestCreateArchive:
             out.mkdir()
             _make_image(src, 1, url="http://x.com/img.jpg")
             images = [
-                ImageItem(url="http://x.com/img.jpg", page_number=1, filename=_src_name(1, "http://x.com/img.jpg")),
+                ImageItem(
+                    url="http://x.com/img.jpg",
+                    page_number=1,
+                    filename=_src_name(1, "http://x.com/img.jpg"),
+                ),
             ]
             cbt = out / "test.cbt"
             added, skipped = create_archive(
-                images, src, cbt,
+                images,
+                src,
+                cbt,
                 series_title="My Series",
                 chapter_title="Chapter 1",
                 source_url="https://example.com/g/1",
@@ -769,7 +822,7 @@ class TestCreateArchive:
             out = Path(td) / "out"
             src.mkdir()
             out.mkdir()
-            content = b'\xff\xd8\xff' + b'\x01' * 1000
+            content = b"\xff\xd8\xff" + b"\x01" * 1000
             (src / _src_name(1)).write_bytes(content)
             (src / _src_name(2)).write_bytes(content)
             images = [
@@ -863,18 +916,22 @@ class TestCreateArchive:
             out = Path(td) / "out"
             src.mkdir()
             out.mkdir()
-            _make_image(src, 1, content=b'\x01')
+            _make_image(src, 1, content=b"\x01")
             images = [
                 ImageItem(url="http://x.com/1", page_number=1, filename=_src_name(1)),
             ]
             zip_path = out / "test.zip"
             added, skipped = create_archive(
-                images, src, zip_path,
-                series_title="S", chapter_title="C", source_url="https://x/1",
+                images,
+                src,
+                zip_path,
+                series_title="S",
+                chapter_title="C",
+                source_url="https://x/1",
             )
             assert added == 1
             assert skipped == []
-            with zipfile.ZipFile(zip_path, 'r') as zf:
+            with zipfile.ZipFile(zip_path, "r") as zf:
                 names = zf.namelist()
                 assert "ComicInfo.xml" in names
                 assert any("Page_0001" in n for n in names)

@@ -158,9 +158,7 @@ def local_sites() -> list[LocalSite]:
     return sorted(out, key=lambda s: s.site_id)
 
 
-def status_for(
-    local: LocalSite, available: SiteRelease | None, installed_core: str
-) -> str:
+def status_for(local: LocalSite, available: SiteRelease | None, installed_core: str) -> str:
     """Per-site status from installed + published versions.
 
     ``incompatible`` means the adapter would need a newer core than is
@@ -183,6 +181,7 @@ def status_for(
 
 # ---------------------------------------------------------------------------
 # Manifest fetch + local cache
+
 
 def _cache_path() -> Path:
     return cache_dir() / "site-support.json"
@@ -327,6 +326,7 @@ def site_update_hint(domain: str) -> str:
 # ---------------------------------------------------------------------------
 # Command entry points (return process exit codes)
 
+
 def _render_table(title: str, rows: list[list[str]], extra: str = "") -> None:
     table = Table(
         box=None,
@@ -380,8 +380,12 @@ async def run_site_list_command(*, json_mode: bool) -> int:
         return EXIT_OK
     if not json_mode:
         rows = [
-            [s.site_id, s.version, s.domain,
-             status_for(s, cached.sites.get(s.site_id) if cached else None, installed_core)]
+            [
+                s.site_id,
+                s.version,
+                s.domain,
+                status_for(s, cached.sites.get(s.site_id) if cached else None, installed_core),
+            ]
             for s in sites
         ]
         extra = "" if cached else "Status shows 'unable to check' until a site check is run."
@@ -389,9 +393,7 @@ async def run_site_list_command(*, json_mode: bool) -> int:
     return EXIT_OK
 
 
-async def run_site_check_command(
-    *, target: str | None, live: bool, json_mode: bool
-) -> int:
+async def run_site_check_command(*, target: str | None, live: bool, json_mode: bool) -> int:
     """``self site check`` — installed vs the latest published manifest."""
     if live and target is None:
         print_error("--live requires a single site id.")
@@ -426,9 +428,7 @@ async def run_site_check_command(
             status = f"live: {live_res.status}"
             if live_res.status not in ("healthy", "skipped"):
                 degraded = True
-        rows.append(
-            [s.site_id, s.version, available.version if available else "unknown", status]
-        )
+        rows.append([s.site_id, s.version, available.version if available else "unknown", status])
 
     if not json_mode:
         _render_table(f"Site support check ({len(sites)})", rows)
@@ -460,9 +460,7 @@ async def run_site_check_command(
     return EXIT_OK
 
 
-async def run_site_update_command(
-    *, target: str | None, all_sites: bool, yes: bool
-) -> int:
+async def run_site_update_command(*, target: str | None, all_sites: bool, yes: bool) -> int:
     """``self site update <id>`` / ``--all`` — route an adapter update through
     the core update strategy (bundled adapters update with the core)."""
     if all_sites == (target is not None):

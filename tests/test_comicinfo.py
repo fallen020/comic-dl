@@ -57,9 +57,7 @@ class TestComicInfo:
         assert 'xmlns:xsd="http://www.w3.org/2001/XMLSchema"' in xml
 
     def test_description(self):
-        xml = generate_comicinfo_xml(
-            "S", "C", 1, description="A great series"
-        )
+        xml = generate_comicinfo_xml("S", "C", 1, description="A great series")
         root = ET.fromstring(xml)
         assert root.find("Summary").text == "A great series"
 
@@ -155,9 +153,7 @@ class TestComicInfo:
         assert root.find("Publisher") is None
 
     def test_colorist(self):
-        xml = generate_comicinfo_xml(
-            "S", "C", 1, colorists=["Red", "Blue"]
-        )
+        xml = generate_comicinfo_xml("S", "C", 1, colorists=["Red", "Blue"])
         root = ET.fromstring(xml)
         assert root.find("Colorist").text == "Red, Blue"
 
@@ -255,12 +251,24 @@ class TestSeriesComicInfo:
         """Exact bytes for a fully-populated chapter archive: the canonical
         tag order is a contract, so writer changes must be deliberate."""
         xml = generate_comicinfo_xml(
-            "My Series", "Chapter 5", 30, "https://example.com/g/1",
-            description="A great series", chapter_number="5", volume_number="1",
-            authors=["A", "B"], artists=["X"], colorists=["C"],
-            genres=["Action", "Romance"], language="en", publisher="Pub",
-            status="Ongoing", reading_direction="rtl", community_rating=9.2,
-            year=2024, has_cover=True,
+            "My Series",
+            "Chapter 5",
+            30,
+            "https://example.com/g/1",
+            description="A great series",
+            chapter_number="5",
+            volume_number="1",
+            authors=["A", "B"],
+            artists=["X"],
+            colorists=["C"],
+            genres=["Action", "Romance"],
+            language="en",
+            publisher="Pub",
+            status="Ongoing",
+            reading_direction="rtl",
+            community_rating=9.2,
+            year=2024,
+            has_cover=True,
         )
         pages = "".join(
             f'    <Page Image="{i}" />\n' if i else '    <Page Image="0" Type="FrontCover" />\n'
@@ -271,58 +279,68 @@ class TestSeriesComicInfo:
             '<ComicInfo xmlns:ty="http://www.w3.org/2001/XMLSchema" '
             'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
             'xmlns:xsd="http://www.w3.org/2001/XMLSchema">\n'
-            '  <Series>My Series</Series>\n'
-            '  <Title>My Series</Title>\n'
-            '  <Number>5</Number>\n'
-            '  <Volume>1</Volume>\n'
-            '  <PageCount>30</PageCount>\n'
-            '  <Summary>A great series</Summary>\n'
-            '  <Web>https://example.com/g/1</Web>\n'
-            '  <Genre>Action, Romance</Genre>\n'
-            '  <Writer>A, B</Writer>\n'
-            '  <Artist>X</Artist>\n'
-            '  <Colorist>C</Colorist>\n'
-            '  <Publisher>Pub</Publisher>\n'
-            '  <Status>Ongoing</Status>\n'
-            '  <ty:PublishingStatusTachiyomi>Ongoing</ty:PublishingStatusTachiyomi>\n'
-            '  <LanguageISO>en</LanguageISO>\n'
-            '  <Manga>YesAndRightToLeft</Manga>\n'
-            '  <CommunityRating>9.2</CommunityRating>\n'
-            '  <Year>2024</Year>\n'
-            '  <Pages>\n'
-            f'{pages}'
-            '  </Pages>\n'
-            '</ComicInfo>'
+            "  <Series>My Series</Series>\n"
+            "  <Title>My Series</Title>\n"
+            "  <Number>5</Number>\n"
+            "  <Volume>1</Volume>\n"
+            "  <PageCount>30</PageCount>\n"
+            "  <Summary>A great series</Summary>\n"
+            "  <Web>https://example.com/g/1</Web>\n"
+            "  <Genre>Action, Romance</Genre>\n"
+            "  <Writer>A, B</Writer>\n"
+            "  <Artist>X</Artist>\n"
+            "  <Colorist>C</Colorist>\n"
+            "  <Publisher>Pub</Publisher>\n"
+            "  <Status>Ongoing</Status>\n"
+            "  <ty:PublishingStatusTachiyomi>Ongoing</ty:PublishingStatusTachiyomi>\n"
+            "  <LanguageISO>en</LanguageISO>\n"
+            "  <Manga>YesAndRightToLeft</Manga>\n"
+            "  <CommunityRating>9.2</CommunityRating>\n"
+            "  <Year>2024</Year>\n"
+            "  <Pages>\n"
+            f"{pages}"
+            "  </Pages>\n"
+            "</ComicInfo>"
         )
 
     def test_snapshot_series_xml(self):
         """Exact bytes for a fully-populated series folder file."""
         xml = generate_series_comicinfo_xml(
-            "My Series", "https://example.com/s", "A blurb", ["Auth A"],
-            ["Art B"], ["Col C"], ["Action", "Romance"], "Pub", "Ongoing",
-            "en", "rtl", 9.2, 2024,
+            "My Series",
+            "https://example.com/s",
+            "A blurb",
+            ["Auth A"],
+            ["Art B"],
+            ["Col C"],
+            ["Action", "Romance"],
+            "Pub",
+            "Ongoing",
+            "en",
+            "rtl",
+            9.2,
+            2024,
         )
         assert xml == (
             '<?xml version="1.0" encoding="utf-8"?>\n'
             '<ComicInfo xmlns:ty="http://www.w3.org/2001/XMLSchema" '
             'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
             'xmlns:xsd="http://www.w3.org/2001/XMLSchema">\n'
-            '  <Series>My Series</Series>\n'
-            '  <Title>My Series</Title>\n'
-            '  <Summary>A blurb</Summary>\n'
-            '  <Web>https://example.com/s</Web>\n'
-            '  <Genre>Action, Romance</Genre>\n'
-            '  <Writer>Auth A</Writer>\n'
-            '  <Artist>Art B</Artist>\n'
-            '  <Colorist>Col C</Colorist>\n'
-            '  <Publisher>Pub</Publisher>\n'
-            '  <Status>Ongoing</Status>\n'
-            '  <ty:PublishingStatusTachiyomi>Ongoing</ty:PublishingStatusTachiyomi>\n'
-            '  <LanguageISO>en</LanguageISO>\n'
-            '  <Manga>YesAndRightToLeft</Manga>\n'
-            '  <CommunityRating>9.2</CommunityRating>\n'
-            '  <Year>2024</Year>\n'
-            '</ComicInfo>'
+            "  <Series>My Series</Series>\n"
+            "  <Title>My Series</Title>\n"
+            "  <Summary>A blurb</Summary>\n"
+            "  <Web>https://example.com/s</Web>\n"
+            "  <Genre>Action, Romance</Genre>\n"
+            "  <Writer>Auth A</Writer>\n"
+            "  <Artist>Art B</Artist>\n"
+            "  <Colorist>Col C</Colorist>\n"
+            "  <Publisher>Pub</Publisher>\n"
+            "  <Status>Ongoing</Status>\n"
+            "  <ty:PublishingStatusTachiyomi>Ongoing</ty:PublishingStatusTachiyomi>\n"
+            "  <LanguageISO>en</LanguageISO>\n"
+            "  <Manga>YesAndRightToLeft</Manga>\n"
+            "  <CommunityRating>9.2</CommunityRating>\n"
+            "  <Year>2024</Year>\n"
+            "</ComicInfo>"
         )
 
     def test_series_fields_present(self):
@@ -409,15 +427,34 @@ class TestSeriesComicInfo:
             "year": 2024,
         }
         shared = [
-            "Summary", "Genre", "Writer", "Artist", "Colorist", "Publisher",
-            "Status", "LanguageISO", "Manga", "CommunityRating", "Year",
+            "Summary",
+            "Genre",
+            "Writer",
+            "Artist",
+            "Colorist",
+            "Publisher",
+            "Status",
+            "LanguageISO",
+            "Manga",
+            "CommunityRating",
+            "Year",
         ]
-        chapter = ET.fromstring(generate_comicinfo_xml(
-            "S", "C", 3, "https://x.com/g/1", **kwargs,
-        ))
-        series = ET.fromstring(generate_series_comicinfo_xml(
-            "S", "https://x.com/s", **kwargs,
-        ))
+        chapter = ET.fromstring(
+            generate_comicinfo_xml(
+                "S",
+                "C",
+                3,
+                "https://x.com/g/1",
+                **kwargs,
+            )
+        )
+        series = ET.fromstring(
+            generate_series_comicinfo_xml(
+                "S",
+                "https://x.com/s",
+                **kwargs,
+            )
+        )
         for tag in shared:
             assert chapter.find(tag).text == series.find(tag).text, tag
         assert chapter.find("Web").text != series.find("Web").text

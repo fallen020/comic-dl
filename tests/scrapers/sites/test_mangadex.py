@@ -37,17 +37,25 @@ MANGA_DETAIL = {
             "year": 2020,
             "rating": 8.5,
             "tags": [
-                {"id": "t1", "type": "tag",
-                 "attributes": {"name": {"en": "Action"}, "group": "genre"}},
-                {"id": "t2", "type": "tag",
-                 "attributes": {"name": {"en": "Adventure"}, "group": "genre"}},
-                {"id": "t3", "type": "tag",
-                 "attributes": {"name": {"en": "Time Skip"}, "group": "theme"}},
+                {
+                    "id": "t1",
+                    "type": "tag",
+                    "attributes": {"name": {"en": "Action"}, "group": "genre"},
+                },
+                {
+                    "id": "t2",
+                    "type": "tag",
+                    "attributes": {"name": {"en": "Adventure"}, "group": "genre"},
+                },
+                {
+                    "id": "t3",
+                    "type": "tag",
+                    "attributes": {"name": {"en": "Time Skip"}, "group": "theme"},
+                },
             ],
         },
         "relationships": [
-            {"id": "c1", "type": "cover_art",
-             "attributes": {"fileName": "abc123.jpg"}},
+            {"id": "c1", "type": "cover_art", "attributes": {"fileName": "abc123.jpg"}},
             {"id": "a1", "type": "author", "attributes": {"name": "Author One"}},
             {"id": "a2", "type": "artist", "attributes": {"name": "Artist One"}},
         ],
@@ -85,19 +93,47 @@ FEED = {
     "result": "ok",
     "response": "collection",
     "data": [
-        {"id": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeee1", "type": "chapter",
-         "attributes": {"volume": "1", "chapter": "3", "title": None,
-                        "translatedLanguage": "en"}},
-        {"id": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeee2", "type": "chapter",
-         "attributes": {"volume": "1", "chapter": "5", "title": "Test Chapter",
-                        "translatedLanguage": "en"}},
-        {"id": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeee3", "type": "chapter",
-         "attributes": {"volume": "2", "chapter": "1", "title": "Vol Two",
-                        "translatedLanguage": "en"}},
-        {"id": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeee4", "type": "chapter",
-         "attributes": {"volume": "1", "chapter": "10", "title": None,
-                        "translatedLanguage": "en",
-                        "externalUrl": "https://mangaplus.shueisha.co.jp/x"}},
+        {
+            "id": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeee1",
+            "type": "chapter",
+            "attributes": {
+                "volume": "1",
+                "chapter": "3",
+                "title": None,
+                "translatedLanguage": "en",
+            },
+        },
+        {
+            "id": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeee2",
+            "type": "chapter",
+            "attributes": {
+                "volume": "1",
+                "chapter": "5",
+                "title": "Test Chapter",
+                "translatedLanguage": "en",
+            },
+        },
+        {
+            "id": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeee3",
+            "type": "chapter",
+            "attributes": {
+                "volume": "2",
+                "chapter": "1",
+                "title": "Vol Two",
+                "translatedLanguage": "en",
+            },
+        },
+        {
+            "id": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeee4",
+            "type": "chapter",
+            "attributes": {
+                "volume": "1",
+                "chapter": "10",
+                "title": None,
+                "translatedLanguage": "en",
+                "externalUrl": "https://mangaplus.shueisha.co.jp/x",
+            },
+        },
     ],
     "limit": 500,
     "offset": 0,
@@ -107,15 +143,9 @@ FEED = {
 
 class TestUrlPatterns:
     def test_valid_series_urls(self):
-        assert is_series_url(
-            f"https://mangadex.org/title/{MANGA_ID}"
-        )
-        assert is_series_url(
-            f"https://www.mangadex.org/title/{MANGA_ID}/"
-        )
-        assert is_series_url(
-            f"https://mangadex.org/manga/{MANGA_ID}"
-        )
+        assert is_series_url(f"https://mangadex.org/title/{MANGA_ID}")
+        assert is_series_url(f"https://www.mangadex.org/title/{MANGA_ID}/")
+        assert is_series_url(f"https://mangadex.org/manga/{MANGA_ID}")
 
     def test_invalid_series_urls(self):
         assert not is_series_url("")
@@ -125,12 +155,8 @@ class TestUrlPatterns:
         assert not is_series_url("https://other.com/title/abc")
 
     def test_valid_chapter_urls(self):
-        assert is_chapter_url(
-            f"https://mangadex.org/chapter/{CHAPTER_ID}"
-        )
-        assert is_chapter_url(
-            f"https://www.mangadex.org/chapter/{CHAPTER_ID}/"
-        )
+        assert is_chapter_url(f"https://mangadex.org/chapter/{CHAPTER_ID}")
+        assert is_chapter_url(f"https://www.mangadex.org/chapter/{CHAPTER_ID}/")
 
     def test_invalid_chapter_urls(self):
         assert not is_chapter_url("")
@@ -146,15 +172,9 @@ class TestUrlPatterns:
 
     def test_matches_series_url(self):
         scraper = MangadexScraper()
-        assert scraper.matches_series_url(
-            f"https://mangadex.org/title/{MANGA_ID}"
-        )
-        assert scraper.matches_series_url(
-            f"https://mangadex.org/manga/{MANGA_ID}/"
-        )
-        assert not scraper.matches_series_url(
-            f"https://mangadex.org/chapter/{CHAPTER_ID}"
-        )
+        assert scraper.matches_series_url(f"https://mangadex.org/title/{MANGA_ID}")
+        assert scraper.matches_series_url(f"https://mangadex.org/manga/{MANGA_ID}/")
+        assert not scraper.matches_series_url(f"https://mangadex.org/chapter/{CHAPTER_ID}")
 
     def test_id_extraction(self):
         assert _extract_series_id(f"https://mangadex.org/title/{MANGA_ID}/") == MANGA_ID
@@ -181,13 +201,15 @@ class TestHelpers:
         assert meta["status"] == "ongoing"
         assert meta["year"] == 2020
         assert meta["community_rating"] == 8.5
-        assert meta["cover_url"] == (
-            f"https://uploads.mangadex.org/covers/{MANGA_ID}/abc123.jpg"
-        )
+        assert meta["cover_url"] == (f"https://uploads.mangadex.org/covers/{MANGA_ID}/abc123.jpg")
 
     def test_manga_fields_missing_cover(self):
-        data = {"id": MANGA_ID, "type": "manga", "attributes": {"title": {"en": "X"}},
-                "relationships": []}
+        data = {
+            "id": MANGA_ID,
+            "type": "manga",
+            "attributes": {"title": {"en": "X"}},
+            "relationships": [],
+        }
         meta = _manga_fields(data, MANGA_ID)
         assert meta["cover_url"] == ""
         assert meta["series_title"] == "X"
@@ -257,8 +279,7 @@ class TestMangadexScraper:
         assert len(meta.images) == 3
         assert meta.images[0].page_number == 1
         assert meta.images[0].url == (
-            "https://node-a.mangadex.network/data/"
-            "deadbeefdeadbeefdeadbeefdeadbeef/001.jpg"
+            "https://node-a.mangadex.network/data/deadbeefdeadbeefdeadbeefdeadbeef/001.jpg"
         )
 
     @pytest.mark.asyncio
@@ -307,9 +328,7 @@ class TestMangadexScraper:
 
         assert series.series_title == "Test Series"
         assert series.description == "A test series description."
-        assert series.cover_url == (
-            f"https://uploads.mangadex.org/covers/{MANGA_ID}/abc123.jpg"
-        )
+        assert series.cover_url == (f"https://uploads.mangadex.org/covers/{MANGA_ID}/abc123.jpg")
         assert series.title_no == MANGA_ID
         assert len(series.chapters) == 3
         # volume asc, then chapter asc; external chapter skipped

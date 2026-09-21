@@ -18,6 +18,7 @@ from comic_dl.models import ImageItem
 # Path traversal / filesystem containment
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.parametrize(
     "name",
     [
@@ -86,6 +87,7 @@ def test_verify_downloads_cannot_unlink_outside_dest(tmp_path) -> None:
 # SQLite parameterisation, LIKE escaping, migration safety
 # ---------------------------------------------------------------------------
 
+
 def _library(tmp_path: Path) -> Library:
     lib = Library(tmp_path / "library.db")
     lib.open()
@@ -94,9 +96,7 @@ def _library(tmp_path: Path) -> Library:
 
 def test_sql_parameterised_and_literal(tmp_path) -> None:
     lib = _library(tmp_path)
-    lib.upsert_series(
-        "s1", title="Good ' OR 1=1 --", source="http://x.com", relative_path="r"
-    )
+    lib.upsert_series("s1", title="Good ' OR 1=1 --", source="http://x.com", relative_path="r")
     lib.upsert_series("s2", title="Plain", source="http://x", relative_path="r2")
     assert lib.find_series("zzz-nonexistent") == []
     assert lib.find_series("Good ' OR 1=1 --")[0]["series_id"] == "s1"
@@ -142,6 +142,7 @@ def test_fresh_schema_roundtrips(tmp_path) -> None:
 # Untrusted .cbz ComicInfo.xml must not expand entities or reach the disk
 # ---------------------------------------------------------------------------
 
+
 def _cbz(tmp_path: Path, xml: bytes) -> Path:
     p = tmp_path / "book.cbz"
     with zipfile.ZipFile(p, "w") as zf:
@@ -176,11 +177,11 @@ def test_benign_cbz_source_url_parses(tmp_path) -> None:
 # Concurrency bounds
 # ---------------------------------------------------------------------------
 
+
 def test_concurrency_capped_at_max(monkeypatch) -> None:
     monkeypatch.setattr(
         "sys.argv",
-        ["comic-dl", "--concurrency", "999999", "--url",
-         "https://example.com", "-o", "/tmp/out"],
+        ["comic-dl", "--concurrency", "999999", "--url", "https://example.com", "-o", "/tmp/out"],
     )
     _, args = parse_urls()
     assert args.concurrency == MAX_CONCURRENCY
@@ -189,8 +190,7 @@ def test_concurrency_capped_at_max(monkeypatch) -> None:
 def test_concurrency_below_one_is_an_error(monkeypatch) -> None:
     monkeypatch.setattr(
         "sys.argv",
-        ["comic-dl", "--concurrency", "0", "--url",
-         "https://example.com", "-o", "/tmp/out"],
+        ["comic-dl", "--concurrency", "0", "--url", "https://example.com", "-o", "/tmp/out"],
     )
     with pytest.raises(SystemExit):
         parse_urls()

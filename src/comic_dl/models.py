@@ -26,10 +26,10 @@ class ImageItem:
 
     @classmethod
     def from_url(cls, url: str, page_number: int | None = None) -> ImageItem | None:
-        match = re.search(r'[?&]f=([^&]+)', url)
+        match = re.search(r"[?&]f=([^&]+)", url)
         if match:
             page_name = sanitize_filename(unquote(match.group(1)))
-            num_match = re.search(r'(\d+)', page_name)
+            num_match = re.search(r"(\d+)", page_name)
             if num_match:
                 return cls(
                     url=url,
@@ -40,7 +40,7 @@ class ImageItem:
                 return cls(url=url, page_number=page_number, filename=page_name)
 
         parsed = urlparse(url)
-        raw = parsed.path.rstrip('/').rsplit('/', 1)[-1]
+        raw = parsed.path.rstrip("/").rsplit("/", 1)[-1]
         if not raw or page_number is None:
             return None
         filename = sanitize_filename(unquote(raw))

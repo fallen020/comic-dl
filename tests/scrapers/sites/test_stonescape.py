@@ -185,9 +185,7 @@ class TestUrlPatterns:
         assert scraper.matches_url(f"https://stonescape.xyz/series/{SLUG}")
         assert scraper.matches_series_url(f"https://stonescape.xyz/series/{SLUG}")
         assert not scraper.matches_url("https://stonescape.xyz/browse")
-        assert not scraper.matches_series_url(
-            f"https://stonescape.xyz/series/{SLUG}/ch-1"
-        )
+        assert not scraper.matches_series_url(f"https://stonescape.xyz/series/{SLUG}/ch-1")
 
 
 class TestHelpers:
@@ -207,12 +205,8 @@ class TestHelpers:
         assert _slug_from_url("https://stonescape.xyz/") == ""
 
     def test_chapter_number_from_url(self):
-        assert _chapter_number_from_url(
-            f"https://stonescape.xyz/series/{SLUG}/ch-36"
-        ) == "36"
-        assert _chapter_number_from_url(
-            "https://stonescape.xyz/series/slug/ch-5.5"
-        ) == "5.5"
+        assert _chapter_number_from_url(f"https://stonescape.xyz/series/{SLUG}/ch-36") == "36"
+        assert _chapter_number_from_url("https://stonescape.xyz/series/slug/ch-5.5") == "5.5"
         assert _chapter_number_from_url("https://stonescape.xyz/series/slug") is None
 
     def test_find_chapter_by_normalized_number(self):
@@ -308,9 +302,7 @@ class TestStoneScapeScraper:
     async def test_scrape_chapter_locked_raises(self):
         session = self._session(self._series_handler())
         with pytest.raises(ValueError, match="locked on StoneScape"):
-            await StoneScapeScraper().scrape(
-                f"https://stonescape.xyz/series/{SLUG}/ch-37", session
-            )
+            await StoneScapeScraper().scrape(f"https://stonescape.xyz/series/{SLUG}/ch-37", session)
 
     @pytest.mark.asyncio
     async def test_scrape_no_images_raises(self):
@@ -321,9 +313,7 @@ class TestStoneScapeScraper:
     @pytest.mark.asyncio
     async def test_scrape_missing_series_404_is_friendly(self):
         session = _MockSession(
-            lambda url: _MockResponse(
-                json_data={"message": "Series not found"}, status=404
-            )
+            lambda url: _MockResponse(json_data={"message": "Series not found"}, status=404)
         )
         with pytest.raises(ValueError, match="Not found on StoneScape"):
             await StoneScapeScraper().scrape(
@@ -342,9 +332,7 @@ class TestStoneScapeScraper:
         assert [c["episode_no"] for c in series.chapters] == ["0", "34", "35", "36", "37"]
         assert series.chapters[0]["title"] == "Prologue"
         assert series.chapters[-1]["title"] == "Chapter 37"
-        assert series.chapters[-1]["url"] == (
-            f"https://stonescape.xyz/series/{SLUG}/ch-37"
-        )
+        assert series.chapters[-1]["url"] == (f"https://stonescape.xyz/series/{SLUG}/ch-37")
 
     @pytest.mark.asyncio
     async def test_scrape_series_no_chapters_raises(self):
@@ -355,9 +343,7 @@ class TestStoneScapeScraper:
     @pytest.mark.asyncio
     async def test_scrape_series_missing_404_is_friendly(self):
         session = _MockSession(
-            lambda url: _MockResponse(
-                json_data={"message": "Series not found"}, status=404
-            )
+            lambda url: _MockResponse(json_data={"message": "Series not found"}, status=404)
         )
         with pytest.raises(ValueError, match="Not found on StoneScape"):
             await StoneScapeScraper().scrape_series(

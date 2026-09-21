@@ -115,14 +115,11 @@ class TestKingofshojoScraper:
 
     @pytest.mark.asyncio
     async def test_scrape_chapter_no_images_raises(self):
-        page = CHAPTER_PAGE.replace(
-            f'<img decoding="async" src="{IMG_BASE}1.jpg"', ""
-        ).replace(
-            f'<img decoding="async" src="{IMG_BASE}2.jpg"', ""
-        ).replace(
-            f'<img decoding="async" src="{IMG_BASE}3.jpg"', ""
-        ).replace(
-            '<img decoding="async" src="https://i.ibb.co/CPmfdnY/1-2.jpg"', ""
+        page = (
+            CHAPTER_PAGE.replace(f'<img decoding="async" src="{IMG_BASE}1.jpg"', "")
+            .replace(f'<img decoding="async" src="{IMG_BASE}2.jpg"', "")
+            .replace(f'<img decoding="async" src="{IMG_BASE}3.jpg"', "")
+            .replace('<img decoding="async" src="https://i.ibb.co/CPmfdnY/1-2.jpg"', "")
         )
 
         def handler(url):

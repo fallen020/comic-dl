@@ -32,9 +32,7 @@ _STATUS_ALIASES = {
     "paused": "On hiatus",
 }
 
-_PLACEHOLDER_CHAPTER_TITLE = re.compile(
-    r"^chapter(?:\s*(?:#|no\.?)?\s*\d+)?$", re.IGNORECASE
-)
+_PLACEHOLDER_CHAPTER_TITLE = re.compile(r"^chapter(?:\s*(?:#|no\.?)?\s*\d+)?$", re.IGNORECASE)
 
 
 def normalize_status(value: str | None) -> str | None:

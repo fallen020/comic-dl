@@ -205,6 +205,38 @@ class TestCaptchaTieBreaks:
         assert verdict.kind == "none"
 
 
+class TestMediaPayloadsAreNeverChallenges:
+    """A 2xx binary media response is a download, not an antibot challenge.
+
+    Regression: FSIComics image ETags (e.g. ``69b504dd-30afd7c``) contain the
+    DataDome marker substring ``dd-``, and large images tripped the honeypot
+    size heuristic — a valid image was retried 3x and flagged "partial".
+    """
+
+    def test_image_with_dd_etag_is_not_a_block(self):
+        headers = {
+            "content-type": "image/webp",
+            "etag": '"51cc0-69b504dd-30afd7c;;;"',
+            "cf-cache-status": "HIT",
+        }
+        verdict = classify_block(200, headers, body="\xff\xd8" * 100_000)
+        assert verdict.vendor == "none"
+        assert verdict.kind == "none"
+        assert verdict.honeypot is False
+
+    def test_large_image_body_is_not_a_honeypot(self):
+        headers = {"content-type": "image/webp"}
+        verdict = classify_block(200, headers, body="\xff\xd8" * 200_000)
+        assert verdict.vendor == "none"
+        assert verdict.honeypot is False
+
+    def test_non_2xx_media_still_classified(self):
+        # A 403 image is a real error even though the content-type is media.
+        verdict = classify_block(403, {"content-type": "image/webp"})
+        assert verdict.vendor == "unknown"
+        assert verdict.kind == "waf"
+
+
 class TestHoneypotBoundaries:
     """Pin the honeypot size thresholds (P1.4)."""
 

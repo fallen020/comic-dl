@@ -217,9 +217,9 @@ class TestToonilyScraper:
 
     @pytest.mark.asyncio
     async def test_scrape_chapter_no_images_raises(self):
-        page = CHAPTER_PAGE.replace(f"<img id=\"image-0\" src=\"{IMG}1.jpg\"", "")
-        page = page.replace(f"<img id=\"image-1\" src=\"{IMG}2.jpg\"", "")
-        page = page.replace(f"<img id=\"image-2\" src=\"{IMG}3.jpg\"", "")
+        page = CHAPTER_PAGE.replace(f'<img id="image-0" src="{IMG}1.jpg"', "")
+        page = page.replace(f'<img id="image-1" src="{IMG}2.jpg"', "")
+        page = page.replace(f'<img id="image-2" src="{IMG}3.jpg"', "")
 
         def handler(url):
             return _MockResponse(page)

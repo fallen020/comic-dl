@@ -25,12 +25,8 @@ from ..registry import register_scraper
 DOMAIN = "toonily.com"
 BASE = "https://toonily.com"
 
-_SERIES_PATH_RE = re.compile(
-    r"^https?://(?:www\.)?toonily\.com/serie/[^/]+/?$"
-)
-_CHAPTER_PATH_RE = re.compile(
-    r"^https?://(?:www\.)?toonily\.com/serie/[^/]+/chapter-[^/]+/?$"
-)
+_SERIES_PATH_RE = re.compile(r"^https?://(?:www\.)?toonily\.com/serie/[^/]+/?$")
+_CHAPTER_PATH_RE = re.compile(r"^https?://(?:www\.)?toonily\.com/serie/[^/]+/chapter-[^/]+/?$")
 
 _CHAPTER_NUM_RE = re.compile(r"chapter-([0-9.]+)", re.IGNORECASE)
 

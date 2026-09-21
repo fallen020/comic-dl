@@ -72,22 +72,24 @@ class TestFlameScraper:
 
     @pytest.mark.asyncio
     async def test_scrape_with_jsonld(self):
-        ld_json = json.dumps({
-            "@type": "Chapter",
-            "name": "My Series - Chapter 1",
-            "isPartOf": {"name": "My Series"},
-        })
+        ld_json = json.dumps(
+            {
+                "@type": "Chapter",
+                "name": "My Series - Chapter 1",
+                "isPartOf": {"name": "My Series"},
+            }
+        )
         html = (
             b"<html><head>"
-            b'<title>Chapter 1 - My Series - Flame Comics</title>'
+            b"<title>Chapter 1 - My Series - Flame Comics</title>"
             b'<meta property="og:description" content="Great chapter"/>'
             b'<meta property="og:image" content="https://cdn.flamecomics.xyz/cover.jpg"/>'
             b'<meta property="og:site_name" content="Flame Comics"/>'
-            b'<script type="application/ld+json">' + ld_json.encode() + b'</script>'
-            b'</head><body>'
+            b'<script type="application/ld+json">' + ld_json.encode() + b"</script>"
+            b"</head><body>"
             b'<img src="https://cdn.flamecomics.xyz/assets/read/page1.jpg" alt="001.jpg"/>'
             b'<img src="https://cdn.flamecomics.xyz/uploads/page2.jpg" alt="002.jpg"/>'
-            b'</body></html>'
+            b"</body></html>"
         )
         session = _MockSession(lambda url: _MockResponse(html))
         scraper = FlameScraper()
@@ -104,11 +106,11 @@ class TestFlameScraper:
     async def test_scrape_fallback_title(self):
         html = (
             b"<html><head>"
-            b'<title>Chapter 5 - My Series - Flame Comics</title>'
+            b"<title>Chapter 5 - My Series - Flame Comics</title>"
             b'<meta property="og:site_name" content="Flame Comics"/>'
-            b'</head><body>'
+            b"</head><body>"
             b'<img src="https://cdn.flamecomics.xyz/uploads/p1.jpg" alt="001.jpg"/>'
-            b'</body></html>'
+            b"</body></html>"
         )
         session = _MockSession(lambda url: _MockResponse(html))
         scraper = FlameScraper()
@@ -137,18 +139,16 @@ class TestFlameScraper:
             b'<meta property="og:image" content="https://cdn.flamecomics.xyz/stale-preview.jpg"/>'
             b'<script id="__NEXT_DATA__" type="application/json">'
             + json.dumps(next_data).encode()
-            + b'</script>'
-            b'</head><body>'
+            + b"</script>"
+            b"</head><body>"
             b'<img src="https://cdn.flamecomics.xyz/uploads/p1.jpg" alt="001.jpg"/>'
-            b'</body></html>'
+            b"</body></html>"
         )
         session = _MockSession(lambda url: _MockResponse(html))
         scraper = FlameScraper()
         meta = await scraper.scrape("https://flamecomics.xyz/series/42/a1b2/", session)
 
-        assert meta.cover_url == (
-            "https://cdn.flamecomics.xyz/uploads/images/series/42/cover.webp"
-        )
+        assert meta.cover_url == ("https://cdn.flamecomics.xyz/uploads/images/series/42/cover.webp")
 
     @pytest.mark.asyncio
     async def test_scrape_series(self):
@@ -170,12 +170,12 @@ class TestFlameScraper:
         }
         html = (
             b"<html><head>"
-            b'<title>Test Series - Flame Comics</title>'
+            b"<title>Test Series - Flame Comics</title>"
             b'<meta property="og:site_name" content="Flame Comics"/>'
             b'<script id="__NEXT_DATA__" type="application/json">'
             + json.dumps(next_data).encode()
-            + b'</script>'
-            b'</head><body></body></html>'
+            + b"</script>"
+            b"</head><body></body></html>"
         )
         session = _MockSession(lambda url: _MockResponse(html))
         scraper = FlameScraper()
@@ -211,10 +211,10 @@ class TestFlameScraper:
         }
         html = (
             b"<html><head>"
-            b'<title>Long Series - Flame Comics</title>'
+            b"<title>Long Series - Flame Comics</title>"
             b'<script id="__NEXT_DATA__" type="application/json">'
             + json.dumps(next_data).encode()
-            + b'</script>'
+            + b"</script>"
             b"</head><body></body></html>"
         )
         session = _MockSession(lambda url: _MockResponse(html))
@@ -243,10 +243,10 @@ class TestFlameScraper:
         }
         html = (
             b"<html><head>"
-            b'<title>Finale - Long Series - Flame Comics</title>'
+            b"<title>Finale - Long Series - Flame Comics</title>"
             b'<script id="__NEXT_DATA__" type="application/json">'
             + json.dumps(next_data).encode()
-            + b'</script>'
+            + b"</script>"
             b"</head><body>"
             b'<img src="https://cdn.flamecomics.xyz/uploads/p1.jpg" alt="001.jpg"/>'
             b"</body></html>"
@@ -261,18 +261,20 @@ class TestFlameScraper:
     async def test_scrape_chapter_enriches_from_series_page(self):
         chapter_html = (
             b"<html><head>"
-            b'<title>Ep 1 - My Series - Flame Comics</title>'
+            b"<title>Ep 1 - My Series - Flame Comics</title>"
             b'<meta property="og:site_name" content="Flame Comics"/>'
             b'<script id="__NEXT_DATA__" type="application/json">'
-            + json.dumps({
-                "props": {
-                    "pageProps": {
-                        "chapter": {"chapter_title": "Ep 1", "chapter": "1"},
-                        "series": {"title": "My Series", "series_id": 42},
+            + json.dumps(
+                {
+                    "props": {
+                        "pageProps": {
+                            "chapter": {"chapter_title": "Ep 1", "chapter": "1"},
+                            "series": {"title": "My Series", "series_id": 42},
+                        }
                     }
                 }
-            }).encode()
-            + b'</script>'
+            ).encode()
+            + b"</script>"
             b"</head><body>"
             b'<img src="https://cdn.flamecomics.xyz/uploads/p1.jpg" alt="001.jpg"/>'
             b"</body></html>"
@@ -280,23 +282,25 @@ class TestFlameScraper:
         series_html = (
             b"<html><head>"
             b'<script id="__NEXT_DATA__" type="application/json">'
-            + json.dumps({
-                "props": {
-                    "pageProps": {
-                        "series": {
-                            "series_id": 42,
-                            "title": "My Series",
-                            "type": "Manhwa",
-                            "publisher": ["Acme Studio"],
-                            "status": "Hiatus",
-                            "year": 2021,
-                            "author": ["Creator One", "Creator Two"],
-                            "artist": ["Artist Only"],
+            + json.dumps(
+                {
+                    "props": {
+                        "pageProps": {
+                            "series": {
+                                "series_id": 42,
+                                "title": "My Series",
+                                "type": "Manhwa",
+                                "publisher": ["Acme Studio"],
+                                "status": "Hiatus",
+                                "year": 2021,
+                                "author": ["Creator One", "Creator Two"],
+                                "artist": ["Artist Only"],
+                            }
                         }
                     }
                 }
-            }).encode()
-            + b'</script>'
+            ).encode()
+            + b"</script>"
             b"</head><body></body></html>"
         )
 
@@ -333,15 +337,11 @@ class TestFlameScraper:
         )
         if ld_json is not None:
             body += (
-                b'<script type="application/ld+json">'
-                + json.dumps(ld_json).encode()
-                + b"</script>"
+                b'<script type="application/ld+json">' + json.dumps(ld_json).encode() + b"</script>"
             )
         return (
             b"<html><head>"
-            b'<meta property="og:site_name" content="Flame Comics"/>'
-            + body
-            + b"</head><body>"
+            b'<meta property="og:site_name" content="Flame Comics"/>' + body + b"</head><body>"
             b'<img src="https://cdn.flamecomics.xyz/uploads/p1.jpg" alt="001.jpg"/>'
             b"</body></html>"
         )
@@ -447,9 +447,7 @@ class TestFlameScraper:
         scraper = FlameScraper()
         meta = await scraper.scrape("https://flamecomics.xyz/series/10/aaa/", session)
 
-        assert meta.cover_url == (
-            "https://cdn.flamecomics.xyz/uploads/images/series/10/cover.webp"
-        )
+        assert meta.cover_url == ("https://cdn.flamecomics.xyz/uploads/images/series/10/cover.webp")
         assert meta.genres == ["Action", "Drama"]
         assert meta.description == "The real description"
         assert meta.language == "English"
@@ -473,9 +471,7 @@ class TestFlameScraper:
         html = self._chapter_html(next_data)
         session = _MockSession(lambda url: _MockResponse(html))
         scraper = FlameScraper()
-        meta = await scraper.scrape(
-            "https://flamecomics.xyz/series/42/b0b20c/", session
-        )
+        meta = await scraper.scrape("https://flamecomics.xyz/series/42/b0b20c/", session)
 
         assert meta.series_title == "Embedded Series Title"
         assert meta.chapter_title == "Interlude"
@@ -519,10 +515,10 @@ class TestFlameScraper:
         }
         html = (
             b"<html><head>"
-            b'<title>Ordered Series - Flame Comics</title>'
+            b"<title>Ordered Series - Flame Comics</title>"
             b'<script id="__NEXT_DATA__" type="application/json">'
             + json.dumps(next_data).encode()
-            + b'</script>'
+            + b"</script>"
             b"</head><body></body></html>"
         )
         session = _MockSession(lambda url: _MockResponse(html))
@@ -554,10 +550,10 @@ class TestFlameScraper:
         }
         html = (
             b"<html><head>"
-            b'<title>Duplicate Series - Flame Comics</title>'
+            b"<title>Duplicate Series - Flame Comics</title>"
             b'<script id="__NEXT_DATA__" type="application/json">'
             + json.dumps(next_data).encode()
-            + b'</script>'
+            + b"</script>"
             b"</head><body></body></html>"
         )
         session = _MockSession(lambda url: _MockResponse(html))

@@ -17,20 +17,36 @@ def _seed(tmp_path: Path, root: Path) -> Library:
     lib = Library(root / ".comic-dl" / "library.db")
     lib.open()
     lib.upsert_series(
-        "e-hentai.org:aaa", title="Alpha", source="https://x/",
-        source_site="e-hentai.org", relative_path="Alpha",
+        "e-hentai.org:aaa",
+        title="Alpha",
+        source="https://x/",
+        source_site="e-hentai.org",
+        relative_path="Alpha",
     )
     lib.upsert_series(
-        "e-hentai.org:bbb", title="Beta", source="https://x/",
-        source_site="e-hentai.org", relative_path="Beta",
+        "e-hentai.org:bbb",
+        title="Beta",
+        source="https://x/",
+        source_site="e-hentai.org",
+        relative_path="Beta",
     )
     lib.upsert_chapter(
-        "e-hentai.org:aaa", url="https://e-hentai.org/g/aaa/1/",
-        chapter_no="1", title="Ch 1", cbz="1.cbz", size_bytes=100, page_count=5,
+        "e-hentai.org:aaa",
+        url="https://e-hentai.org/g/aaa/1/",
+        chapter_no="1",
+        title="Ch 1",
+        cbz="1.cbz",
+        size_bytes=100,
+        page_count=5,
     )
     lib.upsert_chapter(
-        "e-hentai.org:aaa", url="https://e-hentai.org/g/aaa/2/",
-        chapter_no="2", title="Ch 2", cbz="2.cbz", size_bytes=200, page_count=6,
+        "e-hentai.org:aaa",
+        url="https://e-hentai.org/g/aaa/2/",
+        chapter_no="2",
+        title="Ch 2",
+        cbz="2.cbz",
+        size_bytes=200,
+        page_count=6,
     )
     lib.close()
 
@@ -113,8 +129,11 @@ class TestList:
         lib = _seed(tmp_path, root)
         lib.open()
         lib.upsert_series(
-            "webtoons.com:1", title="Webtoon", source="https://www.webtoons.com/x",
-            source_site="webtoons.com", relative_path="Webtoon",
+            "webtoons.com:1",
+            title="Webtoon",
+            source="https://www.webtoons.com/x",
+            source_site="webtoons.com",
+            relative_path="Webtoon",
         )
         lib.close()
         assert run_library_command("list", ["-o", str(root), "--source", "e-hentai.org"]) == 0
@@ -134,12 +153,20 @@ class TestList:
 
         entries = [
             SourceEntry(
-                instance=None, domain="e-hentai.org", capabilities=frozenset(),
-                name="t", version="0", builtin=True,
+                instance=None,
+                domain="e-hentai.org",
+                capabilities=frozenset(),
+                name="t",
+                version="0",
+                builtin=True,
             ),
             SourceEntry(
-                instance=None, domain="webtoons.com", capabilities=frozenset(),
-                name="t", version="0", builtin=True,
+                instance=None,
+                domain="webtoons.com",
+                capabilities=frozenset(),
+                name="t",
+                version="0",
+                builtin=True,
             ),
         ]
         monkeypatch.setattr("comic_dl.cli.library.list_sources", lambda: entries)
@@ -194,14 +221,19 @@ class TestInfo:
         lib = Library(root / ".comic-dl" / "library.db")
         lib.open()
         lib.upsert_series(
-            "webtoons.com:10482", title="Lodoss",
+            "webtoons.com:10482",
+            title="Lodoss",
             source="https://www.webtoons.com/en/action/list?title_no=10482",
-            source_site="webtoons.com", relative_path="Lodoss",
+            source_site="webtoons.com",
+            relative_path="Lodoss",
         )
         lib.close()
-        assert run_library_command(
-            "info", ["-o", str(root), "https://www.webtoons.com/en/action/list/?title_no=10482"]
-        ) == 0
+        assert (
+            run_library_command(
+                "info", ["-o", str(root), "https://www.webtoons.com/en/action/list/?title_no=10482"]
+            )
+            == 0
+        )
         out = capsys.readouterr().out
         assert "Lodoss" in out
         assert "webtoons.com:10482" in out
@@ -209,9 +241,7 @@ class TestInfo:
     def test_info_url_not_found_hints_root(self, tmp_path, capsys):
         root = tmp_path / "dl"
         _seed(tmp_path, root)
-        assert run_library_command(
-            "info", ["-o", str(root), "https://example.com/missing"]
-        ) == 2
+        assert run_library_command("info", ["-o", str(root), "https://example.com/missing"]) == 2
         assert "matches that URL" in capsys.readouterr().err
 
     def test_info_ambiguous(self, tmp_path, capsys):
@@ -234,8 +264,10 @@ class TestInfo:
         lib = _seed(tmp_path, root)
         lib.open()
         lib.upsert_chapter(
-            "e-hentai.org:aaa", url="https://e-hentai.org/g/aaa/3/",
-            chapter_no="3", title="Ch 3",
+            "e-hentai.org:aaa",
+            url="https://e-hentai.org/g/aaa/3/",
+            chapter_no="3",
+            title="Ch 3",
         )
         lib.close()
         assert run_library_command("info", ["-o", str(root), "Alpha"]) == 0
@@ -272,8 +304,12 @@ class TestInfo:
 
         entries = [
             SourceEntry(
-                instance=None, domain="gedecomix.com", capabilities=frozenset(),
-                name="t", version="0", builtin=True,
+                instance=None,
+                domain="gedecomix.com",
+                capabilities=frozenset(),
+                name="t",
+                version="0",
+                builtin=True,
             ),
         ]
         monkeypatch.setattr("comic_dl.cli.library.list_sources", lambda: entries)
@@ -356,9 +392,12 @@ class TestLatest:
                 (datetime.now(UTC).isoformat(timespec="seconds"),),
             )
         lib.close()
-        assert run_library_command(
-            "latest", ["-o", str(root), "--days", "1", "--source", "e-hentai.org"]
-        ) == 0
+        assert (
+            run_library_command(
+                "latest", ["-o", str(root), "--days", "1", "--source", "e-hentai.org"]
+            )
+            == 0
+        )
         assert "Ch 1" in capsys.readouterr().out
 
     def test_latest_source_no_match_hint(self, tmp_path, capsys):
@@ -371,9 +410,12 @@ class TestLatest:
                 (datetime.now(UTC).isoformat(timespec="seconds"),),
             )
         lib.close()
-        assert run_library_command(
-            "latest", ["-o", str(root), "--days", "1", "--source", "webtoons.com"]
-        ) == 0
+        assert (
+            run_library_command(
+                "latest", ["-o", str(root), "--days", "1", "--source", "webtoons.com"]
+            )
+            == 0
+        )
         assert "No chapters from 'webtoons.com'" in capsys.readouterr().out
 
 
@@ -447,7 +489,9 @@ class TestRemove:
         lib = Library(root / ".comic-dl" / "library.db")
         lib.open()
         lib.upsert_series(
-            "x:1", title="Evil", source_site="x",
+            "x:1",
+            title="Evil",
+            source_site="x",
             relative_path=os.path.join("..", "elsewhere"),
         )
         lib.close()
@@ -458,9 +502,7 @@ class TestRemove:
     def test_remove_dry_run_changes_nothing(self, tmp_path, capsys):
         root = tmp_path / "dl"
         _seed(tmp_path, root)
-        assert run_library_command(
-            "remove", ["-o", str(root), "Alpha", "--dry-run"]
-        ) == 0
+        assert run_library_command("remove", ["-o", str(root), "Alpha", "--dry-run"]) == 0
         assert "dry run" in capsys.readouterr().err.lower()
         assert (root / "Alpha").is_dir()
         assert not (root / ".comic-dl" / "trash").exists()
@@ -472,20 +514,17 @@ class TestRemove:
     def test_remove_json_requires_yes(self, tmp_path, capsys):
         root = tmp_path / "dl"
         _seed(tmp_path, root)
-        assert run_library_command(
-            "remove", ["-o", str(root), "Alpha", "--json"]
-        ) == 130
+        assert run_library_command("remove", ["-o", str(root), "Alpha", "--json"]) == 130
         captured = capsys.readouterr()
         assert "requires confirmation" in (captured.out + captured.err).lower()
         assert (root / "Alpha").is_dir()
 
     def test_remove_json_emits_result(self, tmp_path, capsys):
         import json
+
         root = tmp_path / "dl"
         _seed(tmp_path, root)
-        assert run_library_command(
-            "remove", ["-o", str(root), "Alpha", "--json", "-y"]
-        ) == 0
+        assert run_library_command("remove", ["-o", str(root), "Alpha", "--json", "-y"]) == 0
         payload = json.loads(capsys.readouterr().out)
         assert payload["schema_version"] == 1
         assert payload["series_id"] == "e-hentai.org:aaa"
@@ -498,11 +537,10 @@ class TestRemove:
 
     def test_remove_json_dry_run(self, tmp_path, capsys):
         import json
+
         root = tmp_path / "dl"
         _seed(tmp_path, root)
-        assert run_library_command(
-            "remove", ["-o", str(root), "Alpha", "--json", "--dry-run"]
-        ) == 0
+        assert run_library_command("remove", ["-o", str(root), "Alpha", "--json", "--dry-run"]) == 0
         payload = json.loads(capsys.readouterr().out)
         assert payload["dry_run"] is True
         assert payload["series_id"] == "e-hentai.org:aaa"
@@ -512,6 +550,7 @@ class TestRemove:
 class TestListJson:
     def _read_json(self, capsys):
         import json
+
         return json.loads(capsys.readouterr().out)
 
     def test_empty_library_emits_empty_list(self, tmp_path, capsys):
@@ -553,14 +592,13 @@ class TestListJson:
 class TestInfoJson:
     def _read_json(self, capsys):
         import json
+
         return json.loads(capsys.readouterr().out)
 
     def test_payload_fields(self, tmp_path, capsys):
         root = tmp_path / "dl"
         _seed(tmp_path, root)
-        assert run_library_command(
-            "info", ["-o", str(root), "alpha", "--json"]
-        ) == 0
+        assert run_library_command("info", ["-o", str(root), "alpha", "--json"]) == 0
         payload = self._read_json(capsys)
         assert payload["schema_version"] == 1
         assert payload["title"] == "Alpha"
@@ -572,9 +610,7 @@ class TestInfoJson:
         root = tmp_path / "dl"
         _seed(tmp_path, root)
         (root / "Alpha" / "2.cbz").unlink()
-        assert run_library_command(
-            "info", ["-o", str(root), "Alpha", "--json"]
-        ) == 0
+        assert run_library_command("info", ["-o", str(root), "Alpha", "--json"]) == 0
         payload = self._read_json(capsys)
         assert payload["chapters"][0]["ok"] is True
         assert payload["chapters"][1]["ok"] is False
@@ -582,14 +618,13 @@ class TestInfoJson:
     def test_not_found_exits_usage(self, tmp_path):
         root = tmp_path / "dl"
         _seed(tmp_path, root)
-        assert run_library_command(
-            "info", ["-o", str(root), "Nope", "--json"]
-        ) == 2
+        assert run_library_command("info", ["-o", str(root), "Nope", "--json"]) == 2
 
 
 class TestLatestJson:
     def _read_json(self, capsys):
         import json
+
         return json.loads(capsys.readouterr().out)
 
     def test_payload_fields(self, tmp_path, capsys):
@@ -626,9 +661,7 @@ class TestRestore:
     def test_remove_then_restore_round_trips(self, tmp_path, capsys):
         root = tmp_path / "dl"
         _seed(tmp_path, root)
-        assert run_library_command(
-            "remove", ["-o", str(root), "Alpha", "-y"]
-        ) == 0
+        assert run_library_command("remove", ["-o", str(root), "Alpha", "-y"]) == 0
         capsys.readouterr()
         assert not (root / "Alpha").exists()
 
@@ -659,13 +692,9 @@ class TestRestore:
                 "UPDATE series SET last_updated = '2021-03-04T05:06:07',"
                 " created_at = '2021-01-01T00:00:00'"
             )
-            lib._conn.execute(
-                "UPDATE chapters SET downloaded_at = '2021-02-02T00:00:00'"
-            )
+            lib._conn.execute("UPDATE chapters SET downloaded_at = '2021-02-02T00:00:00'")
         lib.close()
-        assert run_library_command(
-            "remove", ["-o", str(root), "Alpha", "-y"]
-        ) == 0
+        assert run_library_command("remove", ["-o", str(root), "Alpha", "-y"]) == 0
         capsys.readouterr()
         assert run_library_command("restore", ["-o", str(root), "Alpha"]) == 0
         capsys.readouterr()
@@ -681,33 +710,23 @@ class TestRestore:
     def test_restore_by_url(self, tmp_path, capsys):
         root = tmp_path / "dl"
         _seed(tmp_path, root)
-        assert run_library_command(
-            "remove", ["-o", str(root), "Alpha", "-y"]
-        ) == 0
+        assert run_library_command("remove", ["-o", str(root), "Alpha", "-y"]) == 0
         capsys.readouterr()
-        assert run_library_command(
-            "restore", ["-o", str(root), "https://x/"]
-        ) == 0
+        assert run_library_command("restore", ["-o", str(root), "https://x/"]) == 0
         assert "restored to library" in capsys.readouterr().out.lower()
 
     def test_restore_by_id(self, tmp_path, capsys):
         root = tmp_path / "dl"
         _seed(tmp_path, root)
-        assert run_library_command(
-            "remove", ["-o", str(root), "Alpha", "-y"]
-        ) == 0
+        assert run_library_command("remove", ["-o", str(root), "Alpha", "-y"]) == 0
         capsys.readouterr()
-        assert run_library_command(
-            "restore", ["-o", str(root), "e-hentai.org:aaa"]
-        ) == 0
+        assert run_library_command("restore", ["-o", str(root), "e-hentai.org:aaa"]) == 0
         assert "restored to library" in capsys.readouterr().out.lower()
 
     def test_restore_not_found(self, tmp_path, capsys):
         root = tmp_path / "dl"
         _seed(tmp_path, root)
-        assert run_library_command(
-            "restore", ["-o", str(root), "Nope"]
-        ) == 2
+        assert run_library_command("restore", ["-o", str(root), "Nope"]) == 2
         assert "no trashed series matches" in capsys.readouterr().err.lower()
 
     def test_restore_ambiguous(self, tmp_path, capsys):
@@ -719,25 +738,17 @@ class TestRestore:
         lib.close()
         for sdir, sid in (("A", "x:1"), ("B", "x:2")):
             (root / sdir).mkdir(parents=True)
-            assert run_library_command(
-                "remove", ["-o", str(root), sid, "-y"]
-            ) == 0
+            assert run_library_command("remove", ["-o", str(root), sid, "-y"]) == 0
             capsys.readouterr()
-        assert run_library_command(
-            "restore", ["-o", str(root), "same"]
-        ) == 2
+        assert run_library_command("restore", ["-o", str(root), "same"]) == 2
         assert "matches multiple" in capsys.readouterr().err.lower()
 
     def test_restore_dry_run_changes_nothing(self, tmp_path, capsys):
         root = tmp_path / "dl"
         _seed(tmp_path, root)
-        assert run_library_command(
-            "remove", ["-o", str(root), "Alpha", "-y"]
-        ) == 0
+        assert run_library_command("remove", ["-o", str(root), "Alpha", "-y"]) == 0
         capsys.readouterr()
-        assert run_library_command(
-            "restore", ["-o", str(root), "Alpha", "--dry-run"]
-        ) == 0
+        assert run_library_command("restore", ["-o", str(root), "Alpha", "--dry-run"]) == 0
         assert "dry run" in capsys.readouterr().err.lower()
         assert not (root / "Alpha").exists()
         lib = Library(root / ".comic-dl" / "library.db")
@@ -747,13 +758,12 @@ class TestRestore:
 
     def test_restore_json_round_trip(self, tmp_path, capsys):
         import json
+
         root = tmp_path / "dl"
         _seed(tmp_path, root)
         assert run_library_command("remove", ["-o", str(root), "Alpha", "-y"]) == 0
         capsys.readouterr()
-        assert run_library_command(
-            "restore", ["-o", str(root), "Alpha", "--json"]
-        ) == 0
+        assert run_library_command("restore", ["-o", str(root), "Alpha", "--json"]) == 0
         payload = json.loads(capsys.readouterr().out)
         assert payload["schema_version"] == 1
         assert payload["series_id"] == "e-hentai.org:aaa"
@@ -763,13 +773,14 @@ class TestRestore:
 
     def test_restore_json_dry_run(self, tmp_path, capsys):
         import json
+
         root = tmp_path / "dl"
         _seed(tmp_path, root)
         assert run_library_command("remove", ["-o", str(root), "Alpha", "-y"]) == 0
         capsys.readouterr()
-        assert run_library_command(
-            "restore", ["-o", str(root), "Alpha", "--json", "--dry-run"]
-        ) == 0
+        assert (
+            run_library_command("restore", ["-o", str(root), "Alpha", "--json", "--dry-run"]) == 0
+        )
         payload = json.loads(capsys.readouterr().out)
         assert payload["dry_run"] is True
         assert not (root / "Alpha").exists()
@@ -777,49 +788,40 @@ class TestRestore:
     def test_restore_refuses_existing_library_entry(self, tmp_path, capsys):
         root = tmp_path / "dl"
         _seed(tmp_path, root)
-        assert run_library_command(
-            "remove", ["-o", str(root), "Alpha", "-y"]
-        ) == 0
+        assert run_library_command("remove", ["-o", str(root), "Alpha", "-y"]) == 0
         capsys.readouterr()
         lib = Library(root / ".comic-dl" / "library.db")
         lib.open()
         lib.upsert_series(
-            "e-hentai.org:aaa", title="Alpha", source_site="e-hentai.org",
+            "e-hentai.org:aaa",
+            title="Alpha",
+            source_site="e-hentai.org",
             relative_path="Alpha",
         )
         lib.close()
-        assert run_library_command(
-            "restore", ["-o", str(root), "Alpha"]
-        ) == 1
+        assert run_library_command("restore", ["-o", str(root), "Alpha"]) == 1
         assert "already in the library" in capsys.readouterr().err.lower()
 
     def test_restore_refuses_existing_directory(self, tmp_path, capsys):
         root = tmp_path / "dl"
         _seed(tmp_path, root)
-        assert run_library_command(
-            "remove", ["-o", str(root), "Alpha", "-y"]
-        ) == 0
+        assert run_library_command("remove", ["-o", str(root), "Alpha", "-y"]) == 0
         capsys.readouterr()
         (root / "Alpha").mkdir(parents=True)
-        assert run_library_command(
-            "restore", ["-o", str(root), "Alpha"]
-        ) == 1
+        assert run_library_command("restore", ["-o", str(root), "Alpha"]) == 1
         assert "refusing to restore" in capsys.readouterr().err.lower()
 
     def test_restore_without_directory_restores_db_only(self, tmp_path, capsys):
         root = tmp_path / "dl"
         _seed(tmp_path, root)
-        assert run_library_command(
-            "remove", ["-o", str(root), "Alpha", "-y"]
-        ) == 0
+        assert run_library_command("remove", ["-o", str(root), "Alpha", "-y"]) == 0
         capsys.readouterr()
         import shutil as _shutil
+
         for entry in (root / ".comic-dl" / "trash").iterdir():
             if entry.is_dir():
                 _shutil.rmtree(entry)
-        assert run_library_command(
-            "restore", ["-o", str(root), "Alpha"]
-        ) == 0
+        assert run_library_command("restore", ["-o", str(root), "Alpha"]) == 0
         captured = capsys.readouterr()
         assert "directory not found" in captured.err.lower()
         assert "restored to library" in captured.out.lower()
@@ -832,20 +834,17 @@ class TestRestore:
     def test_restore_escapes_root(self, tmp_path, capsys):
         root = tmp_path / "dl"
         _seed(tmp_path, root)
-        assert run_library_command(
-            "remove", ["-o", str(root), "Alpha", "-y"]
-        ) == 0
+        assert run_library_command("remove", ["-o", str(root), "Alpha", "-y"]) == 0
         capsys.readouterr()
         # Tamper the sidecar so restore resolves outside the root.
         import json
+
         trash = root / ".comic-dl" / "trash"
         sidecar = next(trash.glob("*.restore.json"))
         meta = json.loads(sidecar.read_text())
         meta["series"]["relative_path"] = os.path.join("..", "elsewhere")
         sidecar.write_text(json.dumps(meta))
-        assert run_library_command(
-            "restore", ["-o", str(root), "Alpha"]
-        ) == 1
+        assert run_library_command("restore", ["-o", str(root), "Alpha"]) == 1
         assert "refusing" in capsys.readouterr().err.lower()
 
 
@@ -914,12 +913,15 @@ class TestDispatch:
         root = tmp_path / "dl"
         lib = Library(root / ".comic-dl" / "library.db")
         lib.open()
-        lib.upsert_series(
-            "x:1", title="Evil[/] Title", source_site="x", relative_path="Evil"
-        )
+        lib.upsert_series("x:1", title="Evil[/] Title", source_site="x", relative_path="Evil")
         lib.upsert_chapter(
-            "x:1", url="https://x/1", title="Ch 1 [/]",
-            chapter_no="1", cbz="1.cbz", size_bytes=10, page_count=2,
+            "x:1",
+            url="https://x/1",
+            title="Ch 1 [/]",
+            chapter_no="1",
+            cbz="1.cbz",
+            size_bytes=10,
+            page_count=2,
         )
         lib.close()
         (root / "Evil").mkdir(parents=True)
@@ -947,8 +949,11 @@ class TestUpdate:
     def _seed_webtoon(self, root: Path, sid: str = "webtoons.com:s1") -> None:
         lib = self._lib(root)
         lib.upsert_series(
-            sid, title="Comet", source="https://www.webtoons.com/en/action/s/list?title_no=1",
-            source_site="webtoons.com", relative_path="Comet",
+            sid,
+            title="Comet",
+            source="https://www.webtoons.com/en/action/s/list?title_no=1",
+            source_site="webtoons.com",
+            relative_path="Comet",
         )
         lib.close()
 
@@ -956,6 +961,7 @@ class TestUpdate:
         import asyncio
 
         from comic_dl.cli import _run_update
+
         assert asyncio.run(_run_update(["-o", str(tmp_path), "all"])) == 0
         assert "nothing to update" in capsys.readouterr().err.lower()
 
@@ -963,6 +969,7 @@ class TestUpdate:
         import asyncio
 
         from comic_dl import cli
+
         self._seed_webtoon(tmp_path)
         called: list[str] = []
 
@@ -982,6 +989,7 @@ class TestUpdate:
         import json
 
         from comic_dl import cli
+
         self._seed_webtoon(tmp_path)
 
         async def stub(*args, **kwargs):
@@ -994,25 +1002,33 @@ class TestUpdate:
         assert payload["schema_version"] == 1
         assert payload["checked"] == 1
         assert payload["failed"] == []
-        assert payload["series"] == [{
-            "series_id": "webtoons.com:s1",
-            "title": "Comet",
-            "status": "unchanged",
-        }]
+        assert payload["series"] == [
+            {
+                "series_id": "webtoons.com:s1",
+                "title": "Comet",
+                "status": "unchanged",
+            }
+        ]
 
     def test_all_skips_non_series_source(self, tmp_path, capsys, monkeypatch):
         import asyncio
 
         from comic_dl import cli
+
         lib = self._lib(tmp_path)
         lib.upsert_series(
-            "webtoons.com:s1", title="Comet", source_site="webtoons.com",
+            "webtoons.com:s1",
+            title="Comet",
+            source_site="webtoons.com",
             source="https://www.webtoons.com/en/action/s/list?title_no=1",
             relative_path="Comet",
         )
         lib.upsert_series(
-            "e-hentai.org:aaa", title="Gallery", source_site="e-hentai.org",
-            source="https://e-hentai.org/g/aaa/1/", relative_path="Gallery",
+            "e-hentai.org:aaa",
+            title="Gallery",
+            source_site="e-hentai.org",
+            source="https://e-hentai.org/g/aaa/1/",
+            relative_path="Gallery",
         )
         lib.close()
         called: list[str] = []
@@ -1032,10 +1048,14 @@ class TestUpdate:
         import asyncio
 
         from comic_dl import cli
+
         lib = self._lib(tmp_path)
         lib.upsert_series(
-            "webtoons.com:s1", title="Comet", source_site="webtoons.com",
-            source="", relative_path="Comet",
+            "webtoons.com:s1",
+            title="Comet",
+            source_site="webtoons.com",
+            source="",
+            relative_path="Comet",
         )
         lib.close()
         called: list[str] = []
@@ -1055,14 +1075,18 @@ class TestUpdate:
         import asyncio
 
         from comic_dl import cli
+
         self._seed_webtoon(tmp_path)
 
         async def stub(*args, output_dir, **kwargs):
             lib = Library(Path(output_dir) / ".comic-dl" / "library.db")
             lib.open()
             lib.upsert_chapter(
-                "webtoons.com:s1", url="https://webtoons.com/ep/n",
-                chapter_no="n", title="New", cbz="new.cbz",
+                "webtoons.com:s1",
+                url="https://webtoons.com/ep/n",
+                chapter_no="n",
+                title="New",
+                cbz="new.cbz",
             )
             lib.close()
             return True
@@ -1077,6 +1101,7 @@ class TestUpdate:
         import asyncio
 
         from comic_dl.cli import _run_update
+
         self._seed_webtoon(tmp_path)
         assert asyncio.run(_run_update(["-o", str(tmp_path), "Nope"])) == 2
         assert "not found" in capsys.readouterr().err.lower()

@@ -41,23 +41,17 @@ def _fake_webview(monkeypatch, *, available=True, live_session=None, solves=True
             calls["solve"].append(url)
             return solves
 
-    monkeypatch.setitem(
-        __import__("sys").modules, "comic_dl.webview", _FakeWebview
-    )
+    monkeypatch.setitem(__import__("sys").modules, "comic_dl.webview", _FakeWebview)
     return calls
 
 
 class TestEscalationLadder:
     def test_off_mode_never_retries(self, monkeypatch):
-        monkeypatch.setattr(
-            cf, "solver_mode", lambda host=None: "off"
-        )
+        monkeypatch.setattr(cf, "solver_mode", lambda host=None: "off")
         assert _run(cf.handle_challenge("https://kagane.to/x")) is False
 
     def test_impersonation_mode_stops_before_webview(self, monkeypatch):
-        monkeypatch.setattr(
-            cf, "solver_mode", lambda host=None: "impersonation"
-        )
+        monkeypatch.setattr(cf, "solver_mode", lambda host=None: "impersonation")
         calls = _fake_webview(monkeypatch)
         assert _run(cf.handle_challenge("https://kagane.to/x")) is True
         assert calls["solve"] == []  # impersonation retry signal only; no webview
@@ -95,9 +89,7 @@ class TestEscalationLadder:
         assert _run(cf.handle_challenge("https://other.example/x")) is True
         assert calls["solve"] == ["https://kagane.to/x", "https://other.example/x"]
 
-    def test_auto_falls_back_to_retry_when_webview_unavailable(
-        self, monkeypatch
-    ):
+    def test_auto_falls_back_to_retry_when_webview_unavailable(self, monkeypatch):
         monkeypatch.setattr(cf, "solver_mode", lambda host=None: "auto")
         _fake_webview(monkeypatch, available=False)
         assert _run(cf.handle_challenge("https://kagane.to/x")) is True
@@ -118,14 +110,10 @@ class TestEscalationLadder:
             async def solve_challenge(url):
                 raise RuntimeError("gtk exploded")
 
-        monkeypatch.setitem(
-            __import__("sys").modules, "comic_dl.webview", _BoomWebview
-        )
+        monkeypatch.setitem(__import__("sys").modules, "comic_dl.webview", _BoomWebview)
         assert _run(cf.handle_challenge("https://kagane.to/x")) is True
 
-    def test_webview_success_returns_true_without_impersonation_signal(
-        self, monkeypatch
-    ):
+    def test_webview_success_returns_true_without_impersonation_signal(self, monkeypatch):
         monkeypatch.setattr(cf, "solver_mode", lambda host=None: "webview")
         calls = _fake_webview(monkeypatch)
         assert _run(cf.handle_challenge("https://kagane.to/x")) is True
@@ -142,9 +130,7 @@ class TestSolverModePrecedence:
     """
 
     def _config(self, monkeypatch, tmp_path, text):
-        monkeypatch.setattr(
-            cfgmodule, "config_path", lambda: tmp_path / "config.toml"
-        )
+        monkeypatch.setattr(cfgmodule, "config_path", lambda: tmp_path / "config.toml")
         (tmp_path / "config.toml").write_text(text, encoding="utf-8")
 
     def test_defaults_to_auto(self, monkeypatch, tmp_path):
@@ -159,8 +145,7 @@ class TestSolverModePrecedence:
         self._config(
             monkeypatch,
             tmp_path,
-            '[sources."other.example"]\nmode = "webview"\n'
-            '[http]\nsolver = "off"\n',
+            '[sources."other.example"]\nmode = "webview"\n[http]\nsolver = "off"\n',
         )
         assert cf.solver_mode("other.example") == "webview"
 
@@ -185,7 +170,5 @@ class TestSolverModePrecedence:
             cfgmodule._RUNTIME_HTTP.clear()
 
     def test_bogus_sources_mode_falls_through(self, monkeypatch, tmp_path):
-        self._config(
-            monkeypatch, tmp_path, '[sources."other.example"]\nmode = "turbo"\n'
-        )
+        self._config(monkeypatch, tmp_path, '[sources."other.example"]\nmode = "turbo"\n')
         assert cf.solver_mode("other.example") == "auto"

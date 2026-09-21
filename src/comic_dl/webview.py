@@ -89,10 +89,7 @@ def available() -> bool:
     # helper can fail for reasons other than a missing display, and a missing
     # gi is the most common reason on headless systems.
     if sys.platform.startswith("linux"):
-        if not any(
-            _interpreter_has_gi(python)
-            for python in _interpreter_candidates()
-        ):
+        if not any(_interpreter_has_gi(python) for python in _interpreter_candidates()):
             trace(
                 "webview: PyGObject/WebKit not available; "
                 "install system packages for the webview solver:\n"
@@ -108,10 +105,7 @@ def available() -> bool:
     if shutil.which("xvfb-run") is not None:
         return True
     if sys.platform.startswith("linux"):
-        trace(
-            "webview: no display available; "
-            "use --solver impersonation or run under xvfb-run."
-        )
+        trace("webview: no display available; use --solver impersonation or run under xvfb-run.")
     return False
 
 
@@ -132,9 +126,7 @@ def _helper_env() -> dict[str, str]:
         purelib = get_paths().get("purelib")
         if purelib and purelib not in env["PYTHONPATH"]:
             env["PYTHONPATH"] = (
-                f"{purelib}{os.pathsep}{env['PYTHONPATH']}"
-                if env["PYTHONPATH"]
-                else purelib
+                f"{purelib}{os.pathsep}{env['PYTHONPATH']}" if env["PYTHONPATH"] else purelib
             )
     with contextlib.suppress(Exception):
         package_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -269,9 +261,7 @@ async def _run_helper(url: str, timeout: float) -> dict[str, Any]:
         trace(f"webview: could not start solver: {type(exc).__name__}")
         return {}
     try:
-        stdout, _stderr = await asyncio.wait_for(
-            proc.communicate(), timeout=timeout + 10
-        )
+        stdout, _stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout + 10)
     except TimeoutError:
         with contextlib.suppress(Exception):
             proc.kill()
@@ -322,8 +312,7 @@ async def solve_challenge(url: str) -> bool:
         vlog(1, "webview solver unavailable — using impersonation only", tag=TAG_WARNING)
         return False
     print_dim(
-        f"Opening a browser window to pass the {host} challenge — "
-        "it closes by itself once cleared."
+        f"Opening a browser window to pass the {host} challenge — it closes by itself once cleared."
     )
     data = await _run_helper(url, SOLVE_TIMEOUT)
     cookies = data.get("cookies")
@@ -374,9 +363,7 @@ class _SessionStream:
         self.status_code = 0
         self.headers: Mapping[str, str] = {}
 
-    def _store_header(
-        self, status: int, headers: dict[str, str]
-    ) -> None:
+    def _store_header(self, status: int, headers: dict[str, str]) -> None:
         self.status_code = status
         self.headers = headers
         self._header_stored = True
@@ -400,9 +387,7 @@ class _SessionStream:
 
             raise HTTPError(f"HTTP Error {self.status_code}", response=self)
 
-    async def aiter_content(
-        self, chunk_size: int | None = None
-    ) -> AsyncIterator[bytes]:
+    async def aiter_content(self, chunk_size: int | None = None) -> AsyncIterator[bytes]:
         while True:
             chunk = await self._chunks.get()
             if chunk is None:
@@ -492,9 +477,7 @@ class WebViewSession:
             await self.close()
             return False
         try:
-            line = await asyncio.wait_for(
-                self._proc.stdout.readline(), timeout=SESSION_TIMEOUT
-            )
+            line = await asyncio.wait_for(self._proc.stdout.readline(), timeout=SESSION_TIMEOUT)
         except TimeoutError:
             await self.close()
             return False
@@ -568,9 +551,7 @@ class WebViewSession:
                     proc.stdin.write((json.dumps(request) + "\n").encode("utf-8"))
                     await proc.stdin.drain()
                 except (BrokenPipeError, ConnectionResetError) as exc:
-                    raise SessionRequestError(
-                        "webview session pipe closed"
-                    ) from exc
+                    raise SessionRequestError("webview session pipe closed") from exc
                 # Expose the read as a cancellable task so close() can interrupt
                 # an in-flight request; readline() raises ValueError for frames
                 # over the pipe limit (MAX_FRAME_BYTES), which we map to an error.
@@ -597,9 +578,7 @@ class WebViewSession:
                 try:
                     data = json.loads(line.decode(errors="ignore"))
                 except json.JSONDecodeError as exc:
-                    raise SessionRequestError(
-                        "malformed response from webview session"
-                    ) from exc
+                    raise SessionRequestError("malformed response from webview session") from exc
                 if not isinstance(data, dict) or data.get("id") != req_id:
                     raise SessionRequestError("unexpected response id from webview session")
                 if data.get("error"):
@@ -607,9 +586,7 @@ class WebViewSession:
                 status = data.get("status", 0)
                 if not isinstance(status, int):
                     status = 0
-                headers_out = {
-                    str(k): str(v) for k, v in (data.get("headers") or {}).items()
-                }
+                headers_out = {str(k): str(v) for k, v in (data.get("headers") or {}).items()}
                 body_b64 = data.get("body_b64") or ""
                 body_bytes = b""
                 with contextlib.suppress(Exception):
@@ -704,9 +681,7 @@ class WebViewSession:
                     await proc.stdin.drain()
                 except (BrokenPipeError, ConnectionResetError) as exc:
                     await self._close_stream_transport()
-                    raise SessionTransportError(
-                        "webview session pipe closed"
-                    ) from exc
+                    raise SessionTransportError("webview session pipe closed") from exc
                 # Expose the header read as a cancellable task so close() can
                 # interrupt a stream that never gets its header.
                 header_task = asyncio.create_task(proc.stdout.readline())
@@ -748,10 +723,7 @@ class WebViewSession:
                     raise SessionTransportError("malformed stream length")
                 stream._store_header(
                     status,
-                    {
-                        str(k): str(v)
-                        for k, v in (data.get("headers") or {}).items()
-                    },
+                    {str(k): str(v) for k, v in (data.get("headers") or {}).items()},
                 )
 
                 remaining = length
@@ -764,8 +736,7 @@ class WebViewSession:
                     except asyncio.IncompleteReadError as exc:
                         await self._close_stream_transport()
                         raise SessionTransportError(
-                            "webview stream truncated "
-                            f"(expected {length} bytes)"
+                            f"webview stream truncated (expected {length} bytes)"
                         ) from exc
                     except TimeoutError as exc:
                         await self._close_stream_transport()
@@ -960,12 +931,8 @@ async def session_request(
     """
     session = await ensure_session(url)
     if session is None:
-        raise SessionUnavailableError(
-            f"webview session unavailable for {urlsplit(url).hostname}"
-        )
-    return await session.request(
-        method, url, headers=headers, body=body, timeout=timeout
-    )
+        raise SessionUnavailableError(f"webview session unavailable for {urlsplit(url).hostname}")
+    return await session.request(method, url, headers=headers, body=body, timeout=timeout)
 
 
 def session_enabled() -> bool:

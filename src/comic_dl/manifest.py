@@ -113,9 +113,7 @@ class ChapterManifest:
             )
         self.save()
 
-    def record(
-        self, filename: str, status: str, error: str = "", size: int = 0
-    ) -> None:
+    def record(self, filename: str, status: str, error: str = "", size: int = 0) -> None:
         """Set one page's state and persist atomically."""
         entry = self._pages.setdefault(filename, {"status": STATE_PENDING, "error": "", "size": 0})
         entry["status"] = status
@@ -157,8 +155,7 @@ class ChapterManifest:
     def paged(self) -> list[dict[str, Any]]:
         """Entries with the downloader's canonical page numbers attached."""
         return [
-            {"name": name, "page": e.get("page", 0), **dict(e)}
-            for name, e in self._pages.items()
+            {"name": name, "page": e.get("page", 0), **dict(e)} for name, e in self._pages.items()
         ]
 
     def _update(self, filename: str, status: str, error: str, size: int) -> None:
@@ -179,9 +176,7 @@ class ChapterManifest:
             "total_pages": len(self._pages),
             "pages": self._pages,
         }
-        fd, tmp_name = tempfile.mkstemp(
-            dir=self._path.parent, prefix=".state.", suffix=".tmp"
-        )
+        fd, tmp_name = tempfile.mkstemp(dir=self._path.parent, prefix=".state.", suffix=".tmp")
         os.close(fd)
         tmp_path = Path(tmp_name)
         try:

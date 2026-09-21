@@ -34,12 +34,8 @@ def _permissive_validation(monkeypatch):
     async def _permissive_async(url):
         return url
 
-    monkeypatch.setattr(
-        "comic_dl.scrapers.base.validate_request_url_async", _permissive_async
-    )
-    monkeypatch.setattr(
-        "comic_dl.scrapers.generic.validate_request_url", lambda url: url
-    )
+    monkeypatch.setattr("comic_dl.scrapers.base.validate_request_url_async", _permissive_async)
+    monkeypatch.setattr("comic_dl.scrapers.generic.validate_request_url", lambda url: url)
 
 
 def _soup(html: str) -> BeautifulSoup:
@@ -90,10 +86,7 @@ class TestLargestSrcset:
         assert _largest_srcset(srcset) == "https://cdn.example.com/3x.jpg"
 
     def test_skips_data_uri_blur_up(self):
-        srcset = (
-            "data:image/gif;base64,R0lGODl, "
-            "https://cdn.example.com/real.jpg 800w"
-        )
+        srcset = "data:image/gif;base64,R0lGODl, https://cdn.example.com/real.jpg 800w"
         assert _largest_srcset(srcset) == "https://cdn.example.com/real.jpg"
 
     def test_single_url_without_descriptor(self):
@@ -260,9 +253,7 @@ class TestCandidateUrls:
                 raise RequestBlockedError(f"blocked {url!r}")
             return url
 
-        monkeypatch.setattr(
-            "comic_dl.scrapers.generic.validate_request_url", _block
-        )
+        monkeypatch.setattr("comic_dl.scrapers.generic.validate_request_url", _block)
         soup = _soup("""
         <html><body>
           <img src="https://evil.example/a/1.jpg"/>
@@ -363,7 +354,9 @@ class TestExtractGalleryImages:
         images = _extract_gallery_images(soup, GALLERY_BASE)
         assert [i.page_number for i in images] == [1, 2, 3]
         assert [i.filename for i in images] == [
-            "0001.jpg", "0002.jpg", "0003.jpg",
+            "0001.jpg",
+            "0002.jpg",
+            "0003.jpg",
         ]
 
     def test_json_ld_used_only_when_no_img_candidates(self):
@@ -601,7 +594,9 @@ class TestGenericScraperScrape:
         client = _FakeClient({url: _FakeResp(GALLERY_HTML)})
         meta = await scraper.scrape(url, client)
         assert [i.filename for i in meta.images] == [
-            "page_0001.jpg", "page_0002.jpg", "page_0003.jpg",
+            "page_0001.jpg",
+            "page_0002.jpg",
+            "page_0003.jpg",
         ]
         assert meta.total_pages == 3
         assert meta.series_title == "Manga"
@@ -679,7 +674,10 @@ class TestGenericScraperSeries:
             "https://manga.example.com/series/foo/chapter-4",
         ]
         assert [c["title"] for c in series.chapters] == [
-            "Chapter 1", "Chapter 2", "Chapter 3", "Chapter 4",
+            "Chapter 1",
+            "Chapter 2",
+            "Chapter 3",
+            "Chapter 4",
         ]
         assert [c["episode_no"] for c in series.chapters] == ["1", "2", "3", "4"]
 

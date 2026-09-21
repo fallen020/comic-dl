@@ -112,7 +112,7 @@ class TestChapterContext:
 
     def test_button_fallback_without_og_title(self):
         soup = BeautifulSoup(
-            '<html><body><button><span>Episode 12</span></button></body></html>',
+            "<html><body><button><span>Episode 12</span></button></body></html>",
             "lxml",
         )
         series, _url, label = _extract_chapter_context(soup, {})

@@ -27,7 +27,9 @@ SLUG = "shadow-slave"
 SERIES_URL = f"https://en-thunderscans.com/comics/{SLUG}/"
 CHAPTER_URL = f"https://en-thunderscans.com/{SLUG}-chapter-9/"
 IMG_BASE = "https://en-thunderscans.com/wp-content/uploads/manga/4b5a2a1856b453aa7df04bba1249623f/"
-COVER = "https://en-thunderscans.com/wp-content/uploads/2026/07/2026-08-20-01-25-42-1787189142561.webp"
+COVER = (
+    "https://en-thunderscans.com/wp-content/uploads/2026/07/2026-08-20-01-25-42-1787189142561.webp"
+)
 
 TS_READER_JSON = (
     '{"post_id":671945,"noimagehtml":"<center><h4>NO IMAGE YET</h4></center>",'
@@ -100,7 +102,7 @@ CHAPTER_PAGE = f"""
 """
 
 CHAPTER_PAGE_NO_IMAGES = (
-    '<html><head><title>Shadow Slave Chapter 9 &#8211; Thunderscans EN</title></head>'
+    "<html><head><title>Shadow Slave Chapter 9 &#8211; Thunderscans EN</title></head>"
     '<body><h1 class="entry-title">Shadow Slave Chapter 9</h1>'
     '<div id="content" class="readercontent"><div id="readerarea"></div></div></body></html>'
 )
@@ -150,15 +152,9 @@ class TestUrlPatterns:
 
     def test_chapter_number(self):
         assert _chapter_number_from_url(CHAPTER_URL) == "9"
-        assert _chapter_number_from_url(
-            "https://en-thunderscans.com/foo-chapter-25/"
-        ) == "25"
-        assert _chapter_number_from_url(
-            "https://en-thunderscans.com/foo-chapter-33-1/"
-        ) == "33.1"
-        assert _chapter_number_from_url(
-            "https://en-thunderscans.com/foo-chapter-408.5/"
-        ) == "408.5"
+        assert _chapter_number_from_url("https://en-thunderscans.com/foo-chapter-25/") == "25"
+        assert _chapter_number_from_url("https://en-thunderscans.com/foo-chapter-33-1/") == "33.1"
+        assert _chapter_number_from_url("https://en-thunderscans.com/foo-chapter-408.5/") == "408.5"
         assert _chapter_number_from_url(SERIES_URL) is None
 
 

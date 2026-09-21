@@ -28,7 +28,8 @@ CHAPTER_URL = f"https://hivetoons.org/series/{SLUG}/chapter-416/"
 IMG_BASE = f"https://storage.hivetoon.com/public/upload/series/{SLUG}/74450708/page-"
 COVER = "https://storage.hivetoon.com/public//upload/2024/11/20/cover_1732118474124.webp"
 
-SERIES_PAGE = f"""
+SERIES_PAGE = (
+    f"""
 <html lang="en"><head>
     <title>Eleceed Manhwa</title>
     <meta property="og:title" content="Eleceed"/>
@@ -49,13 +50,15 @@ SERIES_PAGE = f"""
     <span>Chapter 417</span>
     <div title="Fulfilling the Promise">Fulfilling the Promise</div>
 </a>
-""" + """
+"""
+    + """
 <script>{"id":[0,1],"number":[0,416],"slug":[0,"chapter-416"],"title":[0,"Divine Judgement"],"createdAt":[0,"2026-09-01T14:47:38.933Z"],"isLocked":[0,false]}</script>
 <script>{"id":[0,2],"number":[0,417],"slug":[0,"chapter-417"],"title":[0,"Fulfilling the Promise"],"createdAt":[0,"2026-09-02T14:47:38.933Z"],"isLocked":[0,false]}</script>
 <script>{"id":[0,3],"number":[0,418],"slug":[0,"chapter-418"],"title":[0,""],"createdAt":[0,"2026-09-03T14:47:38.933Z"],"isLocked":[0,false]}</script>
 <script>{"id":[0,4],"number":[0,419],"slug":[0,"chapter-419"],"title":[0,"Locked Chapter"],"createdAt":[0,"2026-09-04T14:47:38.933Z"],"isLocked":[0,true]}</script>
 </body></html>
 """
+)
 
 CHAPTER_PAGE = f"""
 <html lang="en"><head>
@@ -122,7 +125,9 @@ class TestUrlPatterns:
     def test_chapter_number(self):
         assert _chapter_number_from_url(CHAPTER_URL) == "416"
         assert _chapter_number_from_url("https://hivetoons.org/series/foo/chapter-25/") == "25"
-        assert _chapter_number_from_url("https://hivetoons.org/series/foo/chapter-408.5/") == "408.5"
+        assert (
+            _chapter_number_from_url("https://hivetoons.org/series/foo/chapter-408.5/") == "408.5"
+        )
         assert _chapter_number_from_url(SERIES_URL) is None
 
 
@@ -133,8 +138,7 @@ class TestExtraction:
 
     def test_series_title_from_og_fallback(self):
         soup = BeautifulSoup(
-            '<html><head><meta property="og:title" content="Eleceed"/>'
-            "</head><body></body></html>",
+            '<html><head><meta property="og:title" content="Eleceed"/></head><body></body></html>',
             "lxml",
         )
         from comic_dl.scrapers.base import meta_index

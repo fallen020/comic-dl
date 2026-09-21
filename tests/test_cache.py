@@ -354,14 +354,21 @@ def test_sweep_evicts_oldest_until_under_size_budget(monkeypatch):
     monkeypatch.setattr(cache, "_last_sweep", -1.0)
     config.set_runtime_http(**{"cache-max-bytes": "5KB"})
     try:
-        for url in ("https://kagane.to/series/oldest", "https://kagane.to/series/mid",
-                    "https://kagane.to/series/newest"):
+        for url in (
+            "https://kagane.to/series/oldest",
+            "https://kagane.to/series/mid",
+            "https://kagane.to/series/newest",
+        ):
             _store(url, body=b"x" * 4096)
         # Oldest two have highest mtime (all three stored; make mtimes explicit).
         now = time.time()
-        for idx, url in enumerate(("https://kagane.to/series/oldest",
-                                   "https://kagane.to/series/mid",
-                                   "https://kagane.to/series/newest")):
+        for idx, url in enumerate(
+            (
+                "https://kagane.to/series/oldest",
+                "https://kagane.to/series/mid",
+                "https://kagane.to/series/newest",
+            )
+        ):
             path = cache._entry_path(url, PROFILE, {})
             os.utime(path, (now - 1000 + idx, now - 1000 + idx))
         monkeypatch.setattr(cache, "_last_sweep", -1.0)
@@ -384,8 +391,11 @@ def test_sweep_under_budget_keeps_all_entries(monkeypatch):
             _store(url, body=b"y" * 512)
         monkeypatch.setattr(cache, "_last_sweep", -1.0)
         _store("https://kagane.to/series/c", body=b"z" * 512)
-        for url in ("https://kagane.to/series/a", "https://kagane.to/series/b",
-                    "https://kagane.to/series/c"):
+        for url in (
+            "https://kagane.to/series/a",
+            "https://kagane.to/series/b",
+            "https://kagane.to/series/c",
+        ):
             assert cache._entry_path(url, PROFILE, {}).exists()
     finally:
         config.set_runtime_http(**{"cache-max-bytes": cache._DEFAULT_MAX_BYTES})

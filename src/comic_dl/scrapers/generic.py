@@ -41,16 +41,43 @@ from .registry import register_generic
 
 # Image extensions a direct-link URL may carry. ``avif`` is covered by the
 # downloader's magic-byte map (see ``comic_dl.utils.IMAGE_MAGIC``).
-DIRECT_IMAGE_EXTS = frozenset({
-    "jpg", "jpeg", "png", "webp", "gif", "bmp", "avif",
-})
+DIRECT_IMAGE_EXTS = frozenset(
+    {
+        "jpg",
+        "jpeg",
+        "png",
+        "webp",
+        "gif",
+        "bmp",
+        "avif",
+    }
+)
 
 # Non-image asset extensions: a link/image candidate ending in one of these is
 # never a gallery page image.
-_ASSET_EXTS = DIRECT_IMAGE_EXTS | frozenset({
-    "svg", "css", "js", "mjs", "ico", "woff", "woff2", "ttf", "eot",
-    "mp4", "webm", "mp3", "ogg", "zip", "pdf", "html", "htm", "xml", "json",
-})
+_ASSET_EXTS = DIRECT_IMAGE_EXTS | frozenset(
+    {
+        "svg",
+        "css",
+        "js",
+        "mjs",
+        "ico",
+        "woff",
+        "woff2",
+        "ttf",
+        "eot",
+        "mp4",
+        "webm",
+        "mp3",
+        "ogg",
+        "zip",
+        "pdf",
+        "html",
+        "htm",
+        "xml",
+        "json",
+    }
+)
 
 # Series detection threshold (Phase-0 decision #2): a page is a series/chapter
 # list when it carries at least this many deep internal links and fewer images
@@ -61,17 +88,36 @@ SERIES_MIN_LINKS = 3
 # than a gallery page. A naive ``src``-only read otherwise harvests hundreds of
 # identical 1 KB transparent squares.
 _PLACEHOLDER_KEYWORDS = (
-    "placeholder", "spacer", "loader", "loading", "icon", "logo", "avatar",
-    "favicon", "sprite", "pixel", "blank", "preview", "transparent", "spinner",
+    "placeholder",
+    "spacer",
+    "loader",
+    "loading",
+    "icon",
+    "logo",
+    "avatar",
+    "favicon",
+    "sprite",
+    "pixel",
+    "blank",
+    "preview",
+    "transparent",
+    "spinner",
 )
 
 # Lazy-loading attributes that hide the real image URL from ``src``.
 _LAZY_ATTRS = ("data-src", "data-original", "data-lazy-src", "data-image")
 
 # JSON keys whose string value may hold an image URL (JSON-LD / __NEXT_DATA__).
-_IMAGE_KEYS = frozenset({
-    "image", "images", "src", "url", "contenturl", "content_url",
-})
+_IMAGE_KEYS = frozenset(
+    {
+        "image",
+        "images",
+        "src",
+        "url",
+        "contenturl",
+        "content_url",
+    }
+)
 
 _BACKGROUND_RE = re.compile(
     r"background(?:-image)?\s*:\s*url\(\s*['\"]?([^'\")]+)['\"]?\s*\)",
@@ -310,7 +356,7 @@ def _structured_image_urls(soup: BeautifulSoup, base_url: str) -> list[str]:
         for value in _walk_images(data):
             collect(value)
 
-    next_data = soup.select_one('script#__NEXT_DATA__')
+    next_data = soup.select_one("script#__NEXT_DATA__")
     if next_data is not None:
         try:
             data = json.loads(html.unescape(next_data.string or next_data.get_text()))
@@ -478,7 +524,9 @@ class GenericScraper(BaseScraper):
         return soup
 
     async def _resolve_page(
-        self, url: str, client: AsyncSession,
+        self,
+        url: str,
+        client: AsyncSession,
     ) -> BeautifulSoup | None:
         """Fetch/classify ``url``; return soup for HTML pages or ``None`` for a
         direct image URL (remembered so later calls skip re-probing)."""
@@ -534,7 +582,7 @@ class GenericScraper(BaseScraper):
         title = _page_title(soup, idx, url)
         series_title = _series_title_for(url, title)
         if series_title and title.startswith(series_title + " -"):
-            title = title[len(series_title) + 3:].strip() or title
+            title = title[len(series_title) + 3 :].strip() or title
         return PostMetadata(
             series_title=series_title,
             chapter_title=title,
@@ -562,11 +610,13 @@ class GenericScraper(BaseScraper):
         chapters: list[dict] = []
         for index, (href, text) in enumerate(links):
             label = text or _path_segment(href) or href
-            chapters.append({
-                "title": label,
-                "url": href,
-                "episode_no": _episode_no(label, index + 1),
-            })
+            chapters.append(
+                {
+                    "title": label,
+                    "url": href,
+                    "episode_no": _episode_no(label, index + 1),
+                }
+            )
 
         return SeriesMetadata(
             series_title=_series_title_for(url, title),

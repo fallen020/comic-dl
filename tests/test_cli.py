@@ -75,8 +75,11 @@ def _patch_chapter_scraper(monkeypatch, overrides):
 def _make_zip_cbz(path: Path, name: str, web: str = "") -> None:
     """Write a minimal valid .cbz carrying an optional source URL."""
     path.mkdir(parents=True, exist_ok=True)
-    xml = f"<ComicInfo><Title>T</Title><Web>{web}</Web></ComicInfo>" if web \
+    xml = (
+        f"<ComicInfo><Title>T</Title><Web>{web}</Web></ComicInfo>"
+        if web
         else "<ComicInfo><Title>T</Title></ComicInfo>"
+    )
     with zipfile.ZipFile(path / name, "w") as zf:
         zf.writestr("ComicInfo.xml", xml)
 
@@ -103,7 +106,7 @@ class TestFormatBytes:
         assert format_bytes(5 * 1024 * 1024) == "5 MB"
 
     def test_gb(self):
-        assert format_bytes(3 * 1024 ** 3) == "3.0 GB"
+        assert format_bytes(3 * 1024**3) == "3.0 GB"
 
 
 class TestFormatOptionSize:
@@ -122,7 +125,7 @@ class TestEstimateDownloadBytes:
         assert _estimate_download_bytes() == 0
 
     def test_known_size_returned(self):
-        known = 7 * 1024 ** 3
+        known = 7 * 1024**3
         est = _estimate_download_bytes(known_size=known)
         assert est == known
 
@@ -154,7 +157,7 @@ class TestCheckDiskSpace:
 
     def test_zero_estimate_passes_above_floor(self, monkeypatch, tmp_path):
         class FakeUsage:
-            free = 1024 ** 3  # above MIN_FREE_DISK_BYTES
+            free = 1024**3  # above MIN_FREE_DISK_BYTES
 
         monkeypatch.setattr(shutil, "disk_usage", lambda p: FakeUsage())
         assert _check_disk_space(tmp_path, 0) is True
@@ -162,6 +165,7 @@ class TestCheckDiskSpace:
     def test_small_download_passes_with_modest_free_space(self, monkeypatch, tmp_path):
         """A ~20 MB download must not fail with only 100 MB free (the old
         512 MB floor rejected it)."""
+
         class FakeUsage:
             free = 100 * 1024 * 1024
 
@@ -170,6 +174,7 @@ class TestCheckDiskSpace:
 
     def test_known_size_never_below_floor(self, monkeypatch, tmp_path):
         """A tiny estimate still requires the minimum floor."""
+
         class FakeUsage:
             free = 48 * 1024 * 1024  # below the 64 MB floor
 
@@ -178,17 +183,17 @@ class TestCheckDiskSpace:
 
     def test_known_size_gate_passes(self, monkeypatch, tmp_path):
         class FakeUsage:
-            free = 10 * 1024 ** 3  # 10 GB free
+            free = 10 * 1024**3  # 10 GB free
 
         monkeypatch.setattr(shutil, "disk_usage", lambda p: FakeUsage())
-        assert _check_disk_space(tmp_path, 7 * 1024 ** 3) is True
+        assert _check_disk_space(tmp_path, 7 * 1024**3) is True
 
     def test_known_size_gate_fails(self, monkeypatch, tmp_path):
         class FakeUsage:
-            free = 5 * 1024 ** 3  # 5 GB free, needs ~7.7 GB
+            free = 5 * 1024**3  # 5 GB free, needs ~7.7 GB
 
         monkeypatch.setattr(shutil, "disk_usage", lambda p: FakeUsage())
-        assert _check_disk_space(tmp_path, 7 * 1024 ** 3) is False
+        assert _check_disk_space(tmp_path, 7 * 1024**3) is False
 
 
 class TestCleanupTempDir:
@@ -214,6 +219,7 @@ class TestCleanupTempDir:
 class TestTmpRootAllocation:
     def test_allocated_with_mkdtemp_semantics(self, monkeypatch):
         import stat
+
         monkeypatch.setattr("comic_dl.cli._TMP_ROOT", None)
         root = _tmp_root()
         try:
@@ -268,6 +274,7 @@ class TestQuietFlagDispatch:
         monkeypatch.setattr("comic_dl.cli._run_update", fake_run_update)
         monkeypatch.setattr("sys.argv", ["prog", "update", "-q", "My Series"])
         from comic_dl.cli import main
+
         assert await main() == 0
         assert received and "-q" in received[0]
 
@@ -281,6 +288,7 @@ class TestQuietFlagDispatch:
         monkeypatch.setattr("comic_dl.cli._run_update", fake_run_update)
         monkeypatch.setattr("sys.argv", ["prog", "update", "--quiet", "s"])
         from comic_dl.cli import main
+
         assert await main() == 0
         assert received and "--quiet" in received[0]
 
@@ -294,6 +302,7 @@ class TestQuietFlagDispatch:
         monkeypatch.setattr("comic_dl.cli._run_cache", fake_run_cache)
         monkeypatch.setattr("sys.argv", ["prog", "cache", "-q", "status"])
         from comic_dl.cli import main
+
         assert await main() == 0
         # cache's parser does not declare -q; it must be stripped.
         assert "-q" not in received[0]
@@ -306,14 +315,13 @@ class TestCommandDispatchOrder:
 
     pytestmark = pytest.mark.asyncio
 
-    async def test_flag_before_command_rejected_loudly(
-        self, monkeypatch, capsys
-    ):
+    async def test_flag_before_command_rejected_loudly(self, monkeypatch, capsys):
         monkeypatch.setattr(
             "sys.argv",
             ["prog", "--impersonate", "chrome131", "update", "My Series"],
         )
         from comic_dl.cli import main
+
         assert await main() == 2
         err = capsys.readouterr().err
         assert "before command 'update'" in err
@@ -329,12 +337,14 @@ class TestCommandDispatchOrder:
         monkeypatch.setattr("comic_dl.cli._run_update", fake_run_update)
         monkeypatch.setattr("sys.argv", ["prog", "update", "-q", "s"])
         from comic_dl.cli import main
+
         assert await main() == 0
         assert received == [["-q", "s"]]
 
 
 class TestWithSpinner:
     pytestmark = pytest.mark.asyncio
+
     async def test_quiet_mode_skips_spinner(self):
         result = await _with_spinner("test", True, _fake_coro("done"))
         assert result == "done"
@@ -389,6 +399,7 @@ class TestReadUrlsFromFile:
 
     def test_skips_overlong_url(self, tmp_path, capsys):
         from comic_dl.cli import MAX_URL_LENGTH
+
         f = tmp_path / "urls.txt"
         long_url = "https://a.com/" + "x" * (MAX_URL_LENGTH + 10)
         f.write_text(f"{long_url}\nhttps://b.com/\n")
@@ -397,10 +408,9 @@ class TestReadUrlsFromFile:
 
     def test_stops_at_max_urls(self, tmp_path, capsys):
         from comic_dl.cli import MAX_URLS_PER_RUN, _read_urls_from_file_indexed
+
         f = tmp_path / "urls.txt"
-        f.write_text(
-            "".join(f"https://a.com/{i}\n" for i in range(MAX_URLS_PER_RUN + 5))
-        )
+        f.write_text("".join(f"https://a.com/{i}\n" for i in range(MAX_URLS_PER_RUN + 5)))
         result = _read_urls_from_file_indexed(f)
         assert result is not None
         assert len(result) == MAX_URLS_PER_RUN
@@ -412,9 +422,7 @@ class TestReadUrlsFromFileIndexed:
         from comic_dl.cli import _read_urls_from_file_indexed
 
         f = tmp_path / "urls.txt"
-        f.write_text(
-            "# comment\n\nhttps://a.com/\nhttps://b.com/\n"
-        )
+        f.write_text("# comment\n\nhttps://a.com/\nhttps://b.com/\n")
         assert _read_urls_from_file_indexed(f) == [
             ("https://a.com/", 3),
             ("https://b.com/", 4),
@@ -424,9 +432,7 @@ class TestReadUrlsFromFileIndexed:
         from comic_dl.cli import _read_urls_from_file_indexed
 
         f = tmp_path / "urls.txt"
-        f.write_text(
-            "https://a.com/\nhttps://b.com/\nhttps://A.com/\n"
-        )
+        f.write_text("https://a.com/\nhttps://b.com/\nhttps://A.com/\n")
         assert _read_urls_from_file_indexed(f) == [
             ("https://a.com/", 1),
             ("https://b.com/", 2),
@@ -436,9 +442,7 @@ class TestReadUrlsFromFileIndexed:
         from comic_dl.cli import _read_urls_from_file_indexed
 
         f = tmp_path / "urls.txt"
-        f.write_text(
-            "https://a.com/ # chapter 1\nhttps://b.com/\t# second\n"
-        )
+        f.write_text("https://a.com/ # chapter 1\nhttps://b.com/\t# second\n")
         assert _read_urls_from_file_indexed(f) == [
             ("https://a.com/", 1),
             ("https://b.com/", 2),
@@ -448,9 +452,7 @@ class TestReadUrlsFromFileIndexed:
         from comic_dl.cli import _read_urls_from_file_indexed
 
         f = tmp_path / "urls.txt"
-        f.write_text(
-            "https://a.com/#page2\n"
-        )
+        f.write_text("https://a.com/#page2\n")
         assert _read_urls_from_file_indexed(f) == [
             ("https://a.com/#page2", 1),
         ]
@@ -459,9 +461,7 @@ class TestReadUrlsFromFileIndexed:
         from comic_dl.cli import _read_urls_from_file_indexed
 
         f = tmp_path / "urls.txt"
-        f.write_text(
-            "https://a.com/\nnot a url\nftp://b.com/\nhttps://c.com/\n"
-        )
+        f.write_text("https://a.com/\nnot a url\nftp://b.com/\nhttps://c.com/\n")
         assert _read_urls_from_file_indexed(f) == [
             ("https://a.com/", 1),
             ("https://c.com/", 4),
@@ -476,9 +476,7 @@ class TestReadUrlsFromFileIndexed:
         from comic_dl.cli import _read_urls_from_file_indexed
 
         f = tmp_path / "urls.txt"
-        f.write_text(
-            "   # full-line comment\nhttps://a.com/ # inline\n"
-        )
+        f.write_text("   # full-line comment\nhttps://a.com/ # inline\n")
         assert _read_urls_from_file_indexed(f) == [
             ("https://a.com/", 2),
         ]
@@ -487,7 +485,8 @@ class TestReadUrlsFromFileIndexed:
 class TestParseUrls:
     def test_url_argument(self, monkeypatch):
         monkeypatch.setattr(
-            "sys.argv", ["prog", "--url", "https://e-hentai.org/g/123/abc/"],
+            "sys.argv",
+            ["prog", "--url", "https://e-hentai.org/g/123/abc/"],
         )
         urls, _args = parse_urls()
         assert len(urls) == 1
@@ -533,9 +532,7 @@ class TestParseUrls:
         assert "Loaded" not in capsys.readouterr().err
 
     def test_url_argument_prints_no_load_count(self, monkeypatch, capsys):
-        monkeypatch.setattr(
-            "sys.argv", ["prog", "--url", "https://a.com/"]
-        )
+        monkeypatch.setattr("sys.argv", ["prog", "--url", "https://a.com/"])
         parse_urls()
         assert "Loaded" not in capsys.readouterr().err
 
@@ -550,9 +547,7 @@ class TestParseUrls:
 
     def test_file_sets_url_origins(self, tmp_path, monkeypatch):
         f = tmp_path / "urls.txt"
-        f.write_text(
-            "# comment\n\nhttps://a.com/\nhttps://b.com/\nhttps://a.com/\n"
-        )
+        f.write_text("# comment\n\nhttps://a.com/\nhttps://b.com/\nhttps://a.com/\n")
         monkeypatch.setattr("sys.argv", ["prog", "--file", str(f)])
         urls, args = parse_urls()
         assert urls == ["https://a.com/", "https://b.com/"]
@@ -562,9 +557,7 @@ class TestParseUrls:
         }
 
     def test_url_argument_has_no_origins(self, monkeypatch):
-        monkeypatch.setattr(
-            "sys.argv", ["prog", "-u", "https://a.com/"]
-        )
+        monkeypatch.setattr("sys.argv", ["prog", "-u", "https://a.com/"])
         _, args = parse_urls()
         assert args.url_origins is None
 
@@ -592,7 +585,10 @@ class TestParseUrls:
         assert args.output == tmp_path / "dl"
 
     def test_custom_output(self, monkeypatch, tmp_path):
-        monkeypatch.setattr("sys.argv", ["prog", "--url", "https://e-hentai.org/g/1/a/", "--output", str(tmp_path / "mydl")])
+        monkeypatch.setattr(
+            "sys.argv",
+            ["prog", "--url", "https://e-hentai.org/g/1/a/", "--output", str(tmp_path / "mydl")],
+        )
         _, args = parse_urls()
         assert args.output == tmp_path / "mydl"
 
@@ -623,8 +619,7 @@ class TestParseUrls:
 
         monkeypatch.setattr(
             "sys.argv",
-            ["prog", "--url", "https://e-hentai.org/g/1/a/",
-             "--no-clobber", "--force"],
+            ["prog", "--url", "https://e-hentai.org/g/1/a/", "--no-clobber", "--force"],
         )
         with pytest.raises(SystemExit) as excinfo:
             parse_urls()
@@ -682,7 +677,9 @@ class TestParseUrls:
             parse_urls()
 
     def test_concurrency_negative_rejected(self, monkeypatch):
-        monkeypatch.setattr("sys.argv", ["prog", "--url", "https://e-hentai.org/g/1/a/", "-c", "-1"])
+        monkeypatch.setattr(
+            "sys.argv", ["prog", "--url", "https://e-hentai.org/g/1/a/", "-c", "-1"]
+        )
         with pytest.raises(SystemExit):
             parse_urls()
 
@@ -720,7 +717,8 @@ class TestParseUrls:
     def test_interactive_file_path(self, monkeypatch, tmp_path):
         monkeypatch.setattr("sys.argv", ["prog"])
         monkeypatch.setattr(
-            "comic_dl.cli._is_interactive_output", lambda: True,
+            "comic_dl.cli._is_interactive_output",
+            lambda: True,
         )
         f = tmp_path / "links.txt"
         f.write_text("https://e-hentai.org/g/1/a/\n")
@@ -731,7 +729,8 @@ class TestParseUrls:
     def test_interactive_url_with_scheme(self, monkeypatch):
         monkeypatch.setattr("sys.argv", ["prog"])
         monkeypatch.setattr(
-            "comic_dl.cli._is_interactive_output", lambda: True,
+            "comic_dl.cli._is_interactive_output",
+            lambda: True,
         )
         monkeypatch.setattr("comic_dl.cli.Prompt.ask", lambda msg: "https://e-hentai.org/g/1/a/")
         urls, _ = parse_urls()
@@ -740,7 +739,8 @@ class TestParseUrls:
     def test_interactive_empty_input(self, monkeypatch):
         monkeypatch.setattr("sys.argv", ["prog"])
         monkeypatch.setattr(
-            "comic_dl.cli._is_interactive_output", lambda: True,
+            "comic_dl.cli._is_interactive_output",
+            lambda: True,
         )
         monkeypatch.setattr("comic_dl.cli.Prompt.ask", lambda msg: "  ")
         with pytest.raises(SystemExit):
@@ -749,7 +749,8 @@ class TestParseUrls:
     def test_interactive_nonexistent_path_no_scheme(self, monkeypatch):
         monkeypatch.setattr("sys.argv", ["prog"])
         monkeypatch.setattr(
-            "comic_dl.cli._is_interactive_output", lambda: True,
+            "comic_dl.cli._is_interactive_output",
+            lambda: True,
         )
         monkeypatch.setattr("comic_dl.cli.Prompt.ask", lambda msg: "nonexistent_file.txt")
         urls, _ = parse_urls()
@@ -759,10 +760,13 @@ class TestParseUrls:
     def test_interactive_eof(self, monkeypatch):
         monkeypatch.setattr("sys.argv", ["prog"])
         monkeypatch.setattr(
-            "comic_dl.cli._is_interactive_output", lambda: True,
+            "comic_dl.cli._is_interactive_output",
+            lambda: True,
         )
+
         def _raise_eof(*args):
             raise EOFError()
+
         monkeypatch.setattr("comic_dl.cli.Prompt.ask", _raise_eof)
         with pytest.raises(SystemExit) as exc_info:
             parse_urls()
@@ -771,7 +775,8 @@ class TestParseUrls:
     def test_noninteractive_no_args_exits_usage(self, monkeypatch):
         monkeypatch.setattr("sys.argv", ["prog"])
         monkeypatch.setattr(
-            "comic_dl.cli._is_interactive_output", lambda: False,
+            "comic_dl.cli._is_interactive_output",
+            lambda: False,
         )
         with pytest.raises(SystemExit) as exc_info:
             parse_urls()
@@ -810,7 +815,8 @@ class TestBarePositionalUrl:
 
     def test_positional_routes_like_u(self, monkeypatch):
         monkeypatch.setattr(
-            "sys.argv", ["prog", "https://e-hentai.org/g/123/abc/"],
+            "sys.argv",
+            ["prog", "https://e-hentai.org/g/123/abc/"],
         )
         urls, args = parse_urls()
         assert urls == ["https://e-hentai.org/g/123/abc/"]
@@ -835,7 +841,8 @@ class TestBarePositionalUrl:
 
     def test_positional_conflicts_with_u(self, monkeypatch, capsys):
         monkeypatch.setattr(
-            "sys.argv", ["prog", "https://a.com/", "-u", "https://b.com/"],
+            "sys.argv",
+            ["prog", "https://a.com/", "-u", "https://b.com/"],
         )
         with pytest.raises(SystemExit) as exc_info:
             parse_urls()
@@ -846,7 +853,8 @@ class TestBarePositionalUrl:
         f = tmp_path / "urls.txt"
         f.write_text("https://b.com/\n")
         monkeypatch.setattr(
-            "sys.argv", ["prog", "https://a.com/", "-f", str(f)],
+            "sys.argv",
+            ["prog", "https://a.com/", "-f", str(f)],
         )
         with pytest.raises(SystemExit) as exc_info:
             parse_urls()
@@ -874,7 +882,8 @@ class TestBareUrlDispatch:
 
         monkeypatch.setattr("comic_dl.cli._run_urls", fake_run_urls)
         monkeypatch.setattr(
-            "sys.argv", ["prog", "--quiet", "https://e-hentai.org/g/123/abc/"],
+            "sys.argv",
+            ["prog", "--quiet", "https://e-hentai.org/g/123/abc/"],
         )
         from comic_dl.cli import main
 
@@ -886,9 +895,7 @@ class TestBareUrlDispatch:
         from comic_dl.cli import main
 
         assert await main() == EXIT_USAGE
-        assert "unknown command 'frobnicate'" in capsys.readouterr().err.replace(
-            "\n", ""
-        )
+        assert "unknown command 'frobnicate'" in capsys.readouterr().err.replace("\n", "")
 
 
 class TestScanGlobalFlags:
@@ -945,9 +952,7 @@ class TestScanGlobalFlags:
         assert flags.color_mode == "neon"
 
     def test_debug_file_and_config_stripped(self):
-        flags = _scan_global_flags(
-            ["--debug-file", "dbg.log", "--config", "custom.toml", "update"]
-        )
+        flags = _scan_global_flags(["--debug-file", "dbg.log", "--config", "custom.toml", "update"])
         assert flags.debug_file == "dbg.log"
         assert flags.config_path == "custom.toml"
         assert flags.argv == ["update"]
@@ -1017,7 +1022,6 @@ class TestProcessUrl:
                 url="https://example.com/bad",
                 output_dir=Path(td),
                 concurrency=5,
-
                 force=False,
             )
             assert status == "failed"
@@ -1079,7 +1083,7 @@ class TestProcessUrl:
         async def mock_download(images, dest_dir, *args, **kwargs):
             dest_dir.mkdir(parents=True, exist_ok=True)
             for img in images:
-                (dest_dir / img.filename).write_bytes(b'\xff\xd8\xff')
+                (dest_dir / img.filename).write_bytes(b"\xff\xd8\xff")
             return set()
 
         monkeypatch.setattr("comic_dl.downloader.download_httpx", mock_download)
@@ -1091,7 +1095,6 @@ class TestProcessUrl:
                 url="https://gedecomix.com/porncomic/series/5-ch-05/",
                 output_dir=Path(td),
                 concurrency=1,
-
                 force=False,
                 quiet=True,
             )
@@ -1114,7 +1117,6 @@ class TestProcessUrl:
                 url="https://pawchive.pw/patreon/user/1/post/2/",
                 output_dir=Path(td),
                 concurrency=1,
-
                 force=False,
                 quiet=True,
             )
@@ -1137,7 +1139,6 @@ class TestProcessUrl:
                 url="https://e-hentai.org/g/1/abc/",
                 output_dir=Path(td),
                 concurrency=1,
-
                 force=False,
                 quiet=True,
             )
@@ -1164,7 +1165,6 @@ class TestProcessUrl:
                 url="https://e-hentai.org/g/1/abc/",
                 output_dir=Path(td),
                 concurrency=1,
-
                 force=False,
                 quiet=False,
             )
@@ -1180,7 +1180,6 @@ class TestProcessUrl:
                 url="https://e-hentai.org/g/1/abc/",
                 output_dir=Path(td),
                 concurrency=1,
-
                 force=False,
                 max_image_size=100 * 1024 * 1024,
                 max_total_size=1,
@@ -1332,7 +1331,6 @@ class TestProcessUrl:
                 url="https://pawchive.pw/patreon/user/1/post/2/",
                 output_dir=out,
                 concurrency=1,
-
                 force=False,
                 quiet=True,
             )
@@ -1342,7 +1340,6 @@ class TestProcessUrl:
                 url="https://pawchive.pw/patreon/user/1/post/2/",
                 output_dir=out,
                 concurrency=1,
-
                 force=False,
                 quiet=True,
             )
@@ -1353,7 +1350,7 @@ class TestProcessUrl:
         async def mock_download(images, dest_dir, *args, **kwargs):
             dest_dir.mkdir(parents=True, exist_ok=True)
             for img in images:
-                (dest_dir / img.filename).write_bytes(b'\xff\xd8\xff')
+                (dest_dir / img.filename).write_bytes(b"\xff\xd8\xff")
             return set()
 
         monkeypatch.setattr("comic_dl.downloader.download_httpx", mock_download)
@@ -1372,7 +1369,6 @@ class TestProcessUrl:
                 url="https://pawchive.pw/patreon/user/1/post/2/",
                 output_dir=out,
                 concurrency=1,
-
                 force=True,
                 quiet=True,
             )
@@ -1382,7 +1378,6 @@ class TestProcessUrl:
                 url="https://pawchive.pw/patreon/user/1/post/2/",
                 output_dir=out,
                 concurrency=1,
-
                 force=True,
                 quiet=True,
             )
@@ -1495,9 +1490,7 @@ class TestProcessUrl:
                 if calls["n"] <= 2:
                     raise CurlHTTPError(
                         "rate limited",
-                        response=SimpleNamespace(
-                            status_code=429, headers={"retry-after": "5"}
-                        ),
+                        response=SimpleNamespace(status_code=429, headers={"retry-after": "5"}),
                     )
                 return PostMetadata(
                     series_title="Test Series",
@@ -1693,8 +1686,8 @@ class TestChapterNumberMatching:
 class TestParseUrlsChaptersFlag:
     def test_flag_parsed(self, monkeypatch):
         monkeypatch.setattr(
-            "sys.argv", ["prog", "--url", "https://e-hentai.org/g/1/a/",
-                         "--chapters", "1-3,7"],
+            "sys.argv",
+            ["prog", "--url", "https://e-hentai.org/g/1/a/", "--chapters", "1-3,7"],
         )
         _, args = parse_urls()
         assert args.chapters == "1-3,7"
@@ -1706,8 +1699,8 @@ class TestParseUrlsChaptersFlag:
 
     def test_invalid_exits_usage(self, monkeypatch):
         monkeypatch.setattr(
-            "sys.argv", ["prog", "--url", "https://e-hentai.org/g/1/a/",
-                         "--chapters", "abc"],
+            "sys.argv",
+            ["prog", "--url", "https://e-hentai.org/g/1/a/", "--chapters", "abc"],
         )
         with pytest.raises(SystemExit) as exc_info:
             parse_urls()
@@ -1715,8 +1708,8 @@ class TestParseUrlsChaptersFlag:
 
     def test_reversed_range_exits_usage(self, monkeypatch):
         monkeypatch.setattr(
-            "sys.argv", ["prog", "--url", "https://e-hentai.org/g/1/a/",
-                         "--chapters", "5-2"],
+            "sys.argv",
+            ["prog", "--url", "https://e-hentai.org/g/1/a/", "--chapters", "5-2"],
         )
         with pytest.raises(SystemExit) as exc_info:
             parse_urls()
@@ -1731,7 +1724,7 @@ class TestParseSize:
         assert _parse_size("100MB") == 100 * 1024 * 1024
 
     def test_gb_suffix(self):
-        assert _parse_size("2GB") == 2 * 1024 ** 3
+        assert _parse_size("2GB") == 2 * 1024**3
 
     def test_kb_suffix(self):
         assert _parse_size("512KB") == 512 * 1024
@@ -1745,11 +1738,13 @@ class TestParseSize:
 
     def test_negative_int_rejected(self):
         import argparse
+
         with pytest.raises(argparse.ArgumentTypeError):
             _parse_size("-5")
 
     def test_negative_suffixed_rejected(self):
         import argparse
+
         with pytest.raises(argparse.ArgumentTypeError):
             _parse_size("-5GB")
 
@@ -1776,7 +1771,9 @@ class TestOpenLibrary:
 
 class TestExtractDomain:
     def test_webtoons_com(self):
-        assert _extract_domain("https://www.webtoons.com/en/romance/series/episode") == "webtoons.com"
+        assert (
+            _extract_domain("https://www.webtoons.com/en/romance/series/episode") == "webtoons.com"
+        )
 
     def test_ehentai(self):
         assert _extract_domain("https://e-hentai.org/g/123/abc/") == "e-hentai.org"
@@ -1846,16 +1843,29 @@ class TestBatchErrorContinuation:
         monkeypatch.setattr("comic_dl.cli.process_url", mock_process)
         monkeypatch.setattr("comic_dl.cli._build_downloaded_index", lambda out: {})
         monkeypatch.setattr("sys.argv", ["prog", "--file", "/nonexistent"])
-        monkeypatch.setattr("comic_dl.cli.parse_urls", lambda: (
-            ["https://a.com/", "https://b.com/"],
-            argparse.Namespace(quiet=True, output=Path("/tmp"),
-                               concurrency=5, parallel=5, force=False,
-                               max_image_size=100 * 1024 * 1024, max_size=0,
-                               chapter_parallel=1,
-                               chapters=None, json=False, url=None, dry_run=False),
-        ))
+        monkeypatch.setattr(
+            "comic_dl.cli.parse_urls",
+            lambda: (
+                ["https://a.com/", "https://b.com/"],
+                argparse.Namespace(
+                    quiet=True,
+                    output=Path("/tmp"),
+                    concurrency=5,
+                    parallel=5,
+                    force=False,
+                    max_image_size=100 * 1024 * 1024,
+                    max_size=0,
+                    chapter_parallel=1,
+                    chapters=None,
+                    json=False,
+                    url=None,
+                    dry_run=False,
+                ),
+            ),
+        )
 
         from comic_dl.cli import main
+
         assert await main() == 1
         assert call_count[0] == 2
 
@@ -1873,20 +1883,33 @@ class TestBatchVerdicts:
         monkeypatch.setattr("comic_dl.cli.process_url", mock_process)
         monkeypatch.setattr("comic_dl.cli._build_downloaded_index", lambda out: {})
         monkeypatch.setattr("sys.argv", ["prog", "--file", "/nonexistent"])
-        monkeypatch.setattr("comic_dl.cli.parse_urls", lambda: (
-            ["https://a.com/", "https://b.com/"],
-            argparse.Namespace(quiet=True, output=Path("/tmp"),
-                               concurrency=5, parallel=5, force=False,
-                               max_image_size=100 * 1024 * 1024, max_size=0,
-                               chapter_parallel=1,
-                               chapters=None, json=False, url=None, dry_run=False),
-        ))
+        monkeypatch.setattr(
+            "comic_dl.cli.parse_urls",
+            lambda: (
+                ["https://a.com/", "https://b.com/"],
+                argparse.Namespace(
+                    quiet=True,
+                    output=Path("/tmp"),
+                    concurrency=5,
+                    parallel=5,
+                    force=False,
+                    max_image_size=100 * 1024 * 1024,
+                    max_size=0,
+                    chapter_parallel=1,
+                    chapters=None,
+                    json=False,
+                    url=None,
+                    dry_run=False,
+                ),
+            ),
+        )
         return calls
 
     async def test_all_skipped_exits_zero(self, monkeypatch, capsys):
         self._patch_run(monkeypatch, [("skipped", ""), ("skipped", "")])
 
         from comic_dl.cli import main
+
         assert await main() == 0
         captured = capsys.readouterr()
         assert "Skipped: https://a.com/" in captured.err
@@ -1897,6 +1920,7 @@ class TestBatchVerdicts:
         self._patch_run(monkeypatch, [("downloaded", "a.cbz"), ("skipped", "")])
 
         from comic_dl.cli import main
+
         assert await main() == 0
         captured = capsys.readouterr()
         # The pipeline itself prints the durable "Saved" line; _run_urls must
@@ -1909,6 +1933,7 @@ class TestBatchVerdicts:
         self._patch_run(monkeypatch, [("downloaded", "a.cbz"), ("failed", "")])
 
         from comic_dl.cli import main
+
         assert await main() == 1
         captured = capsys.readouterr()
         assert "Failed: https://b.com/" in captured.err
@@ -1921,16 +1946,29 @@ class TestBatchVerdicts:
         monkeypatch.setattr("comic_dl.cli.process_url", mock_process)
         monkeypatch.setattr("comic_dl.cli._build_downloaded_index", lambda out: {})
         monkeypatch.setattr("sys.argv", ["prog", "--file", "/nonexistent"])
-        monkeypatch.setattr("comic_dl.cli.parse_urls", lambda: (
-            ["https://a.com/"],
-            argparse.Namespace(quiet=True, output=Path("/tmp"),
-                               concurrency=5, parallel=5, force=False,
-                               max_image_size=100 * 1024 * 1024, max_size=0,
-                               chapter_parallel=1,
-                               chapters=None, json=False, url=None, dry_run=False),
-        ))
+        monkeypatch.setattr(
+            "comic_dl.cli.parse_urls",
+            lambda: (
+                ["https://a.com/"],
+                argparse.Namespace(
+                    quiet=True,
+                    output=Path("/tmp"),
+                    concurrency=5,
+                    parallel=5,
+                    force=False,
+                    max_image_size=100 * 1024 * 1024,
+                    max_size=0,
+                    chapter_parallel=1,
+                    chapters=None,
+                    json=False,
+                    url=None,
+                    dry_run=False,
+                ),
+            ),
+        )
 
         from comic_dl.cli import main
+
         assert await main() == 1
         captured = capsys.readouterr()
         assert "Failed: https://a.com/" in captured.err
@@ -1939,6 +1977,7 @@ class TestBatchVerdicts:
         self._patch_run(monkeypatch, [("failed", ""), ("failed", "")])
 
         from comic_dl.cli import main
+
         assert await main() == 1
         captured = capsys.readouterr()
         # Both URLs share the fallback reason, so the recap groups them into
@@ -2011,14 +2050,26 @@ class TestDownloadJson:
             else ["prog", "--file", "/nonexistent", "--json"]
         )
         monkeypatch.setattr("sys.argv", argv)
-        monkeypatch.setattr("comic_dl.cli.parse_urls", lambda: (
-            urls,
-            argparse.Namespace(quiet=True, output=Path("/tmp"),
-                               concurrency=5, parallel=5, force=False,
-                               max_image_size=100 * 1024 * 1024, max_size=0,
-                               chapter_parallel=1,
-                               chapters=None, json=True, url=url, dry_run=False),
-        ))
+        monkeypatch.setattr(
+            "comic_dl.cli.parse_urls",
+            lambda: (
+                urls,
+                argparse.Namespace(
+                    quiet=True,
+                    output=Path("/tmp"),
+                    concurrency=5,
+                    parallel=5,
+                    force=False,
+                    max_image_size=100 * 1024 * 1024,
+                    max_size=0,
+                    chapter_parallel=1,
+                    chapters=None,
+                    json=True,
+                    url=url,
+                    dry_run=False,
+                ),
+            ),
+        )
 
     async def test_single_url_flat_payload(self, monkeypatch, capsys):
         import json
@@ -2026,6 +2077,7 @@ class TestDownloadJson:
         self._patch(monkeypatch, [("downloaded", "a.cbz")])
 
         from comic_dl.cli import main
+
         assert await main() == 0
         payload = json.loads(capsys.readouterr().out)
         assert payload["schema_version"] == 1
@@ -2045,19 +2097,30 @@ class TestDownloadJson:
 
         monkeypatch.setattr("comic_dl.cli.process_url", mock_process)
         monkeypatch.setattr("comic_dl.cli._build_downloaded_index", lambda out: {})
+        monkeypatch.setattr("sys.argv", ["prog", "-u", "https://a.com/", "--json"])
         monkeypatch.setattr(
-            "sys.argv", ["prog", "-u", "https://a.com/", "--json"]
+            "comic_dl.cli.parse_urls",
+            lambda: (
+                ["https://a.com/"],
+                argparse.Namespace(
+                    quiet=True,
+                    output=Path("/tmp"),
+                    concurrency=5,
+                    parallel=5,
+                    force=False,
+                    max_image_size=100 * 1024 * 1024,
+                    max_size=0,
+                    chapter_parallel=1,
+                    chapters=None,
+                    json=True,
+                    url="https://a.com/",
+                    dry_run=False,
+                ),
+            ),
         )
-        monkeypatch.setattr("comic_dl.cli.parse_urls", lambda: (
-            ["https://a.com/"],
-            argparse.Namespace(quiet=True, output=Path("/tmp"),
-                               concurrency=5, parallel=5, force=False,
-                               max_image_size=100 * 1024 * 1024, max_size=0,
-                               chapter_parallel=1,
-                               chapters=None, json=True, url="https://a.com/", dry_run=False),
-        ))
 
         from comic_dl.cli import main
+
         assert await main() == 1
         payload = json.loads(capsys.readouterr().out)
         assert payload["schema_version"] == 1
@@ -2076,6 +2139,7 @@ class TestDownloadJson:
         )
 
         from comic_dl.cli import main
+
         assert await main() == 1
         payload = json.loads(capsys.readouterr().out)
         assert payload["schema_version"] == 1
@@ -2113,19 +2177,29 @@ class TestDryRun:
             existing = index.get(normalize_url(url))
             if existing is not None and not force:
                 return {
-                    "url": url, "domain": "a.com", "kind": "chapter",
-                    "title": "Chapter 1", "detail": "20 pages",
-                    "action": "skip", "existing": existing.name,
+                    "url": url,
+                    "domain": "a.com",
+                    "kind": "chapter",
+                    "title": "Chapter 1",
+                    "detail": "20 pages",
+                    "action": "skip",
+                    "existing": existing.name,
                 }
             if existing is not None:
                 return {
-                    "url": url, "domain": "a.com", "kind": "series",
-                    "title": "Series A", "detail": "12 chapters",
+                    "url": url,
+                    "domain": "a.com",
+                    "kind": "series",
+                    "title": "Series A",
+                    "detail": "12 chapters",
                     "action": "redownload",
                 }
             return {
-                "url": url, "domain": "a.com", "kind": "chapter",
-                "title": "Chapter 1", "detail": "20 pages",
+                "url": url,
+                "domain": "a.com",
+                "kind": "chapter",
+                "title": "Chapter 1",
+                "detail": "20 pages",
                 "action": "download",
             }
 
@@ -2133,15 +2207,26 @@ class TestDryRun:
         monkeypatch.setattr("comic_dl.cli._preview_url", mock_preview)
         monkeypatch.setattr("comic_dl.cli.process_url", mock_process)
         monkeypatch.setattr("sys.argv", ["prog", "--file", "/nonexistent"])
-        monkeypatch.setattr("comic_dl.cli.parse_urls", lambda: (
-            ["https://a.com/", "https://b.com/"],
-            argparse.Namespace(quiet=True, output=Path("/tmp"),
-                               concurrency=5, parallel=5, force=force,
-                               max_image_size=100 * 1024 * 1024, max_size=0,
-                               chapter_parallel=1,
-                               chapters=None, json=json, url=None,
-                               dry_run=True),
-        ))
+        monkeypatch.setattr(
+            "comic_dl.cli.parse_urls",
+            lambda: (
+                ["https://a.com/", "https://b.com/"],
+                argparse.Namespace(
+                    quiet=True,
+                    output=Path("/tmp"),
+                    concurrency=5,
+                    parallel=5,
+                    force=force,
+                    max_image_size=100 * 1024 * 1024,
+                    max_size=0,
+                    chapter_parallel=1,
+                    chapters=None,
+                    json=json,
+                    url=None,
+                    dry_run=True,
+                ),
+            ),
+        )
         return calls
 
     async def test_previews_skip_and_download(self, monkeypatch, capsys):
@@ -2149,6 +2234,7 @@ class TestDryRun:
         calls = self._patch(monkeypatch, index)
 
         from comic_dl.cli import main
+
         assert await main() == 0
         assert calls == []
         err = capsys.readouterr().err
@@ -2162,9 +2248,11 @@ class TestDryRun:
         self._patch(monkeypatch, {})
 
         from comic_dl.cli import main
+
         assert await main() == 0
         err = capsys.readouterr().err
         from comic_dl.ui import glyphs
+
         assert f"chapter 'Chapter 1' {glyphs().dot} 20 pages" in err
 
     async def test_force_previews_redownload(self, monkeypatch, capsys):
@@ -2172,9 +2260,11 @@ class TestDryRun:
         self._patch(monkeypatch, index, force=True)
 
         from comic_dl.cli import main
+
         assert await main() == 0
         err = capsys.readouterr().err
         from comic_dl.ui import glyphs
+
         assert "would redownload" in err and "https://a.com/" in err
         assert f"series 'Series A' {glyphs().dot} 12 chapters" in err
         assert "1 would redownload" in err
@@ -2186,6 +2276,7 @@ class TestDryRun:
         self._patch(monkeypatch, index, json=True)
 
         from comic_dl.cli import main
+
         assert await main() == 0
         payload = json.loads(capsys.readouterr().out)
         assert payload["schema_version"] == 1
@@ -2208,6 +2299,7 @@ class TestDryRun:
         self._patch(monkeypatch, {}, json=True)
 
         from comic_dl.cli import main
+
         assert await main() == 0
         captured = capsys.readouterr()
         payload = json.loads(captured.out)
@@ -2221,22 +2313,45 @@ class TestDryRun:
 
         out_dir = tmp_path / "out"
         args = argparse.Namespace(
-            output=out_dir, format="zip", compress="deflate", force=False,
-            parallel=5, concurrency=3, max_image_size=100 * 1024 * 1024,
-            max_size=0, chapter_parallel=1, chapters=None, json=False,
-            url=None, dry_run=True,
+            output=out_dir,
+            format="zip",
+            compress="deflate",
+            force=False,
+            parallel=5,
+            concurrency=3,
+            max_image_size=100 * 1024 * 1024,
+            max_size=0,
+            chapter_parallel=1,
+            chapters=None,
+            json=False,
+            url=None,
+            dry_run=True,
         )
         entries = [
             {
-                "url": "https://a.com/1/", "domain": "a.com", "kind": "chapter",
-                "title": "Chapter 1", "detail": "20 pages", "action": "download",
-                "pages": 20, "series": "Series A", "post_id": "", "size": 10485760,
+                "url": "https://a.com/1/",
+                "domain": "a.com",
+                "kind": "chapter",
+                "title": "Chapter 1",
+                "detail": "20 pages",
+                "action": "download",
+                "pages": 20,
+                "series": "Series A",
+                "post_id": "",
+                "size": 10485760,
                 "estimated_size": 0,
             },
             {
-                "url": "https://a.com/2/", "domain": "a.com", "kind": "chapter",
-                "title": "Chapter 2", "detail": "5 pages", "action": "download",
-                "pages": 5, "series": "Series A", "post_id": "", "size": 0,
+                "url": "https://a.com/2/",
+                "domain": "a.com",
+                "kind": "chapter",
+                "title": "Chapter 2",
+                "detail": "5 pages",
+                "action": "download",
+                "pages": 5,
+                "series": "Series A",
+                "post_id": "",
+                "size": 0,
                 "estimated_size": 0,
             },
         ]
@@ -2258,21 +2373,38 @@ class TestDryRun:
         from comic_dl.cli import _report_dry_run
 
         base_args = dict(
-            output=tmp_path / "out", compress="stored", force=False,
-            parallel=5, concurrency=3, max_image_size=100 * 1024 * 1024,
-            max_size=0, chapter_parallel=1, chapters=None, json=False,
-            url=None, dry_run=True,
+            output=tmp_path / "out",
+            compress="stored",
+            force=False,
+            parallel=5,
+            concurrency=3,
+            max_image_size=100 * 1024 * 1024,
+            max_size=0,
+            chapter_parallel=1,
+            chapters=None,
+            json=False,
+            url=None,
+            dry_run=True,
         )
         entry = {
-            "url": "https://a.com/1/", "domain": "a.com", "kind": "chapter",
-            "title": "Chapter 1", "detail": "20 pages", "action": "download",
-            "pages": 20, "series": "Series A", "post_id": "", "size": 0,
+            "url": "https://a.com/1/",
+            "domain": "a.com",
+            "kind": "chapter",
+            "title": "Chapter 1",
+            "detail": "20 pages",
+            "action": "download",
+            "pages": 20,
+            "series": "Series A",
+            "post_id": "",
+            "size": 0,
             "estimated_size": 0,
         }
         for fmt, ext in (("cbz", ".cbz"), ("zip", ".zip"), ("cbt", ".cbt")):
             _report_dry_run(
-                [entry], [entry["url"]],
-                argparse.Namespace(format=fmt, **base_args), {},
+                [entry],
+                [entry["url"]],
+                argparse.Namespace(format=fmt, **base_args),
+                {},
             )
             err = capsys.readouterr().err.replace("\n", "").replace("\r", "")
             # ``Chapter 1.cbz`` is never split by the 80-col wrap (the fold
@@ -2283,25 +2415,41 @@ class TestDryRun:
     async def test_error_entry_reported_without_crash(self, monkeypatch, capsys):
         async def fail_preview(url, index, force):
             return {
-                "url": url, "domain": "x.com", "kind": "",
-                "title": "", "detail": "",
-                "action": "error", "error": "Unsupported URL.",
+                "url": url,
+                "domain": "x.com",
+                "kind": "",
+                "title": "",
+                "detail": "",
+                "action": "error",
+                "error": "Unsupported URL.",
             }
 
         monkeypatch.setattr("comic_dl.cli._preview_url", fail_preview)
         monkeypatch.setattr("comic_dl.cli.process_url", lambda url, **k: None)
         monkeypatch.setattr("sys.argv", ["prog", "--file", "/nonexistent"])
-        monkeypatch.setattr("comic_dl.cli.parse_urls", lambda: (
-            ["https://x.com/"],
-            argparse.Namespace(quiet=True, output=Path("/tmp"),
-                               concurrency=5, parallel=5, force=False,
-                               max_image_size=100 * 1024 * 1024, max_size=0,
-                               chapter_parallel=1,
-                               chapters=None, json=False, url=None,
-                               dry_run=True),
-        ))
+        monkeypatch.setattr(
+            "comic_dl.cli.parse_urls",
+            lambda: (
+                ["https://x.com/"],
+                argparse.Namespace(
+                    quiet=True,
+                    output=Path("/tmp"),
+                    concurrency=5,
+                    parallel=5,
+                    force=False,
+                    max_image_size=100 * 1024 * 1024,
+                    max_size=0,
+                    chapter_parallel=1,
+                    chapters=None,
+                    json=False,
+                    url=None,
+                    dry_run=True,
+                ),
+            ),
+        )
 
         from comic_dl.cli import main
+
         assert await main() == 0
         err = capsys.readouterr().err
         assert "would error" in err and "https://x.com/" in err
@@ -2317,23 +2465,33 @@ class TestDryRun:
         monkeypatch.setattr("comic_dl.cli._with_referer", lambda url: {})
         monkeypatch.setattr("comic_dl.cli.get_series_scraper", lambda domain: None)
         monkeypatch.setattr("comic_dl.cli.get_chapter_scraper", lambda domain: _RaisingScraper())
-        monkeypatch.setattr(
-            "comic_dl.cli.AsyncSession", _FakeAsyncSession
-        )
+        monkeypatch.setattr("comic_dl.cli.AsyncSession", _FakeAsyncSession)
         monkeypatch.setattr("comic_dl.cli._build_downloaded_index", lambda out: {})
         monkeypatch.setattr("comic_dl.cli.process_url", lambda url, **k: None)
         monkeypatch.setattr("sys.argv", ["prog", "--file", "/nonexistent"])
-        monkeypatch.setattr("comic_dl.cli.parse_urls", lambda: (
-            ["https://a.com/g/1/"],
-            argparse.Namespace(quiet=True, output=Path("/tmp"),
-                               concurrency=5, parallel=5, force=False,
-                               max_image_size=100 * 1024 * 1024, max_size=0,
-                               chapter_parallel=1,
-                               chapters=None, json=False, url=None,
-                               dry_run=True),
-        ))
+        monkeypatch.setattr(
+            "comic_dl.cli.parse_urls",
+            lambda: (
+                ["https://a.com/g/1/"],
+                argparse.Namespace(
+                    quiet=True,
+                    output=Path("/tmp"),
+                    concurrency=5,
+                    parallel=5,
+                    force=False,
+                    max_image_size=100 * 1024 * 1024,
+                    max_size=0,
+                    chapter_parallel=1,
+                    chapters=None,
+                    json=False,
+                    url=None,
+                    dry_run=True,
+                ),
+            ),
+        )
 
         from comic_dl.cli import main
+
         assert await main() == 0
         err = capsys.readouterr().err
         assert "Gallery has no images" in err
@@ -2346,8 +2504,11 @@ class TestPreviewClassification:
 
         index = {normalize_url("https://a.com/s/"): Path("S.cbz")}
         entry = {
-            "kind": "series", "url": "https://a.com/s/", "title": "S",
-            "detail": "3 chapters", "action": "",
+            "kind": "series",
+            "url": "https://a.com/s/",
+            "title": "S",
+            "detail": "3 chapters",
+            "action": "",
         }
         classified = _classify_preview_entry(entry, "https://a.com/s/", index, False)
         assert classified["action"] == "download"
@@ -2366,25 +2527,35 @@ class TestForceBatchWarning:
         monkeypatch.setattr("comic_dl.cli._build_downloaded_index", lambda out: {})
         monkeypatch.setattr("comic_dl.cli.process_url", mock_process)
         monkeypatch.setattr("sys.argv", ["prog", "--file", "/nonexistent"])
-        monkeypatch.setattr("comic_dl.cli.parse_urls", lambda: (
-            urls,
-            argparse.Namespace(quiet=quiet, output=Path("/tmp"),
-                               concurrency=5, parallel=5, force=force,
-                               max_image_size=100 * 1024 * 1024, max_size=0,
-                               chapter_parallel=1,
-                               chapters=None, json=False, url=None,
-                               dry_run=False),
-        ))
+        monkeypatch.setattr(
+            "comic_dl.cli.parse_urls",
+            lambda: (
+                urls,
+                argparse.Namespace(
+                    quiet=quiet,
+                    output=Path("/tmp"),
+                    concurrency=5,
+                    parallel=5,
+                    force=force,
+                    max_image_size=100 * 1024 * 1024,
+                    max_size=0,
+                    chapter_parallel=1,
+                    chapters=None,
+                    json=False,
+                    url=None,
+                    dry_run=False,
+                ),
+            ),
+        )
         return calls
 
     async def test_noninteractive_batch_force_fails_loud(self, monkeypatch, capsys):
-        monkeypatch.setattr(
-            "comic_dl.cli._redownload_estimate", lambda urls, index: (3, 1024)
-        )
+        monkeypatch.setattr("comic_dl.cli._redownload_estimate", lambda urls, index: (3, 1024))
         calls = self._patch(monkeypatch, ["https://a.com/", "https://b.com/"])
 
         from comic_dl.cli import main
         from comic_dl.errors import EXIT_INTERRUPTED
+
         # Aligned with the other unanswerable-confirmation refusals
         # (library remove --json without -y, EOF on Prompt.ask): 130.
         assert await main() == EXIT_INTERRUPTED
@@ -2394,12 +2565,11 @@ class TestForceBatchWarning:
         assert "Pass --dry-run to preview this redownload." in captured.err
 
     async def test_single_url_force_needs_no_warning(self, monkeypatch, capsys):
-        monkeypatch.setattr(
-            "comic_dl.cli._redownload_estimate", lambda urls, index: (3, 1024)
-        )
+        monkeypatch.setattr("comic_dl.cli._redownload_estimate", lambda urls, index: (3, 1024))
         calls = self._patch(monkeypatch, ["https://a.com/"])
 
         from comic_dl.cli import main
+
         assert await main() == 0
         assert calls == ["https://a.com/"]
         assert "--force would redownload" not in capsys.readouterr().err
@@ -2407,20 +2577,17 @@ class TestForceBatchWarning:
     async def test_declined_interactive_prompt_aborts(self, monkeypatch, capsys):
         import types
 
-        monkeypatch.setattr(
-            "comic_dl.cli._redownload_estimate", lambda urls, index: (3, 1024)
-        )
+        monkeypatch.setattr("comic_dl.cli._redownload_estimate", lambda urls, index: (3, 1024))
         monkeypatch.setattr("comic_dl.cli.Prompt.ask", lambda *a, **k: "n")
         fake_stdin = types.SimpleNamespace(isatty=lambda: True)
         monkeypatch.setattr("comic_dl.cli.sys.stdin", fake_stdin)
         import comic_dl.cli as cli
 
-        monkeypatch.setattr(
-            type(cli.console), "is_terminal", property(lambda self: True)
-        )
+        monkeypatch.setattr(type(cli.console), "is_terminal", property(lambda self: True))
         calls = self._patch(monkeypatch, ["https://a.com/", "https://b.com/"], quiet=False)
 
         from comic_dl.cli import main
+
         assert await main() == 0
         assert calls == []
         assert "Cancelled." in capsys.readouterr().err
@@ -2439,9 +2606,7 @@ class TestRedownloadEstimate:
             normalize_url("https://a.com/"): series / "1.cbz",
             normalize_url("https://b.com/"): Path("/nonexistent/x.cbz"),
         }
-        chapters, size = _redownload_estimate(
-            ["https://a.com/", "https://b.com/"], index
-        )
+        chapters, size = _redownload_estimate(["https://a.com/", "https://b.com/"], index)
         assert chapters == 3
         assert size == 350
 
@@ -2459,14 +2624,26 @@ class TestRunUrlsPreSkip:
         monkeypatch.setattr("comic_dl.cli._build_downloaded_index", lambda out: index)
         monkeypatch.setattr("comic_dl.cli.process_url", mock_process)
         monkeypatch.setattr("sys.argv", ["prog", "--file", "/nonexistent"])
-        monkeypatch.setattr("comic_dl.cli.parse_urls", lambda: (
-            urls if urls is not None else ["https://a.com/", "https://b.com/"],
-            argparse.Namespace(quiet=quiet, output=Path("/tmp"),
-                               concurrency=5, parallel=5, force=force,
-                               max_image_size=100 * 1024 * 1024, max_size=0,
-                               chapter_parallel=1,
-                               chapters=None, json=False, url=None, dry_run=False),
-        ))
+        monkeypatch.setattr(
+            "comic_dl.cli.parse_urls",
+            lambda: (
+                urls if urls is not None else ["https://a.com/", "https://b.com/"],
+                argparse.Namespace(
+                    quiet=quiet,
+                    output=Path("/tmp"),
+                    concurrency=5,
+                    parallel=5,
+                    force=force,
+                    max_image_size=100 * 1024 * 1024,
+                    max_size=0,
+                    chapter_parallel=1,
+                    chapters=None,
+                    json=False,
+                    url=None,
+                    dry_run=False,
+                ),
+            ),
+        )
         return calls
 
     async def test_match_skips_before_scrape(self, monkeypatch, capsys):
@@ -2474,6 +2651,7 @@ class TestRunUrlsPreSkip:
         calls = self._patch(monkeypatch, index, quiet=False)
 
         from comic_dl.cli import main
+
         assert await main() == 0
         assert calls == ["https://b.com/"]
         captured = capsys.readouterr()
@@ -2486,34 +2664,42 @@ class TestRunUrlsPreSkip:
         calls = self._patch(monkeypatch, index, quiet=True)
 
         from comic_dl.cli import main
+
         assert await main() == 0
         assert calls == ["https://b.com/"]
         assert "a.cbz already exists. Skipping." not in capsys.readouterr().out
 
     async def test_force_bypasses_index(self, monkeypatch):
         index = {normalize_url("https://a.com/"): Path("a.cbz")}
-        calls = self._patch(monkeypatch, index, quiet=True, force=True,
-                            urls=["https://a.com/"])
+        calls = self._patch(monkeypatch, index, quiet=True, force=True, urls=["https://a.com/"])
 
         from comic_dl.cli import main
+
         assert await main() == 0
         assert calls == ["https://a.com/"]
 
     async def test_mismatch_still_reaches_process_url(self, monkeypatch):
         index = {normalize_url("https://a.com/"): Path("a.cbz")}
-        calls = self._patch(monkeypatch, index, quiet=True,
-                            urls=["https://c.com/", "https://a.com/"])
+        calls = self._patch(
+            monkeypatch, index, quiet=True, urls=["https://c.com/", "https://a.com/"]
+        )
 
         from comic_dl.cli import main
+
         assert await main() == 0
         assert calls == ["https://c.com/"]
 
     async def test_series_url_not_in_index_routes_to_process_url(self, monkeypatch):
         index = {normalize_url("https://pawchive.pw/p/user/1/post/2/"): Path("a.cbz")}
-        calls = self._patch(monkeypatch, index, quiet=True,
-                            urls=["https://webtoons.com/en/action/s/ep-1/viewer?title_no=1&episode_no=1"])
+        calls = self._patch(
+            monkeypatch,
+            index,
+            quiet=True,
+            urls=["https://webtoons.com/en/action/s/ep-1/viewer?title_no=1&episode_no=1"],
+        )
 
         from comic_dl.cli import main
+
         assert await main() == 0
         assert calls == ["https://webtoons.com/en/action/s/ep-1/viewer?title_no=1&episode_no=1"]
 
@@ -2539,20 +2725,33 @@ class TestRunUrlsParallel:
         monkeypatch.setattr("comic_dl.cli.process_url", mock_process)
         monkeypatch.setattr("comic_dl.cli._build_downloaded_index", lambda out: {})
         monkeypatch.setattr("sys.argv", ["prog", "--file", "/nonexistent"])
-        monkeypatch.setattr("comic_dl.cli.parse_urls", lambda: (
-            urls,
-            argparse.Namespace(quiet=True, output=Path("/tmp"),
-                               concurrency=5, parallel=parallel, force=False,
-                               max_image_size=100 * 1024 * 1024, max_size=0,
-                               chapter_parallel=1,
-                               chapters=None, json=json, url=None, dry_run=False),
-        ))
+        monkeypatch.setattr(
+            "comic_dl.cli.parse_urls",
+            lambda: (
+                urls,
+                argparse.Namespace(
+                    quiet=True,
+                    output=Path("/tmp"),
+                    concurrency=5,
+                    parallel=parallel,
+                    force=False,
+                    max_image_size=100 * 1024 * 1024,
+                    max_size=0,
+                    chapter_parallel=1,
+                    chapters=None,
+                    json=json,
+                    url=None,
+                    dry_run=False,
+                ),
+            ),
+        )
         return calls, max_active
 
     async def test_parallel_3_runs_concurrently(self, monkeypatch, capsys):
         urls = [f"https://s{i}.com/p/{i}" for i in range(6)]
         calls, max_active = self._patch(monkeypatch, urls, parallel=3)
         from comic_dl.cli import main
+
         assert await main() == 0
         assert sorted(calls) == sorted(urls)
         assert max_active[0] == 3
@@ -2563,6 +2762,7 @@ class TestRunUrlsParallel:
         urls = [f"https://s{i}.com/p/{i}" for i in range(6)]
         self._patch(monkeypatch, urls, parallel=2)
         from comic_dl.cli import main
+
         assert await main() == 0
         payload = json.loads(capsys.readouterr().out)
         assert payload["succeeded"] == 6
@@ -2572,6 +2772,7 @@ class TestRunUrlsParallel:
         urls = [f"https://s{i}.com/p/{i}" for i in range(4)]
         calls, max_active = self._patch(monkeypatch, urls, parallel=1)
         from comic_dl.cli import main
+
         assert await main() == 0
         assert max_active[0] == 1
         assert calls == urls
@@ -2606,15 +2807,26 @@ class TestSharedBatchActivity:
         monkeypatch.setattr("comic_dl.cli.process_url", mock_process)
         monkeypatch.setattr("comic_dl.cli._build_downloaded_index", lambda out: {})
         monkeypatch.setattr("sys.argv", ["prog", "--file", "/nonexistent"])
-        monkeypatch.setattr("comic_dl.cli.parse_urls", lambda: (
-            urls,
-            argparse.Namespace(quiet=False, output=Path("/tmp"),
-                               concurrency=5, parallel=parallel, force=False,
-                               max_image_size=100 * 1024 * 1024, max_size=0,
-                               chapter_parallel=1,
-                               chapters=None, json=False, url=None,
-                               dry_run=False),
-        ))
+        monkeypatch.setattr(
+            "comic_dl.cli.parse_urls",
+            lambda: (
+                urls,
+                argparse.Namespace(
+                    quiet=False,
+                    output=Path("/tmp"),
+                    concurrency=5,
+                    parallel=parallel,
+                    force=False,
+                    max_image_size=100 * 1024 * 1024,
+                    max_size=0,
+                    chapter_parallel=1,
+                    chapters=None,
+                    json=False,
+                    url=None,
+                    dry_run=False,
+                ),
+            ),
+        )
         return calls, max_active, seen_activities, seen_row_keys, batch_activities
 
     async def test_quiet_off_batch_uses_one_shared_activity(self, monkeypatch, capsys):
@@ -2623,6 +2835,7 @@ class TestSharedBatchActivity:
             monkeypatch, urls, parallel=3
         )
         from comic_dl.cli import main
+
         assert await main() == 0
         # Exactly one Activity instance serves the whole batch, and every URL
         # borrows a distinct row from it.
@@ -2642,6 +2855,7 @@ class TestSharedBatchActivity:
         urls = [f"https://s{i}.com/p/{i}" for i in range(3)]
         self._patch(monkeypatch, urls, parallel=3)
         from comic_dl.cli import main
+
         assert await main() == 0
         err = capsys.readouterr().err
         assert err.count("Processing 3 URLs") == 1
@@ -2657,24 +2871,36 @@ class TestUrlOriginMessages:
         monkeypatch.setattr("comic_dl.cli.process_url", mock_process)
         monkeypatch.setattr("comic_dl.cli._build_downloaded_index", lambda out: {})
         monkeypatch.setattr("sys.argv", ["prog", "--file", "/nonexistent"])
-        monkeypatch.setattr("comic_dl.cli.parse_urls", lambda: (
-            ["https://a.com/", "https://b.com/"],
-            argparse.Namespace(quiet=True, output=Path("/tmp"),
-                               concurrency=5, parallel=5, force=False,
-                               max_image_size=100 * 1024 * 1024, max_size=0,
-                               chapter_parallel=1,
-                               chapters=None, json=False, url=None,
-                               dry_run=False,
-                               url_origins={
-                                   "https://a.com/": "urls.txt:3",
-                                   "https://b.com/": "urls.txt:4",
-                               }),
-        ))
+        monkeypatch.setattr(
+            "comic_dl.cli.parse_urls",
+            lambda: (
+                ["https://a.com/", "https://b.com/"],
+                argparse.Namespace(
+                    quiet=True,
+                    output=Path("/tmp"),
+                    concurrency=5,
+                    parallel=5,
+                    force=False,
+                    max_image_size=100 * 1024 * 1024,
+                    max_size=0,
+                    chapter_parallel=1,
+                    chapters=None,
+                    json=False,
+                    url=None,
+                    dry_run=False,
+                    url_origins={
+                        "https://a.com/": "urls.txt:3",
+                        "https://b.com/": "urls.txt:4",
+                    },
+                ),
+            ),
+        )
 
     async def test_failure_message_includes_file_line(self, monkeypatch, capsys):
         self._patch(monkeypatch, [("downloaded", "a.cbz"), ("failed", "")])
 
         from comic_dl.cli import main
+
         assert await main() == 1
         assert "Failed: https://b.com/ (urls.txt:4)" in capsys.readouterr().err
 
@@ -2682,6 +2908,7 @@ class TestUrlOriginMessages:
         self._patch(monkeypatch, [("downloaded", "a.cbz"), ("skipped", "")])
 
         from comic_dl.cli import main
+
         assert await main() == 0
         assert "Skipped: https://b.com/ (urls.txt:4)" in capsys.readouterr().err
 
@@ -2756,8 +2983,11 @@ class TestBuildDownloadedIndex:
         lib.open()
         for sid in ("webtoons.com-a", "webtoons.com-b"):
             lib.upsert_series(
-                sid, title=sid, source=f"https://webtoons.com/s/{sid}/list",
-                source_site="webtoons.com", relative_path=sid,
+                sid,
+                title=sid,
+                source=f"https://webtoons.com/s/{sid}/list",
+                source_site="webtoons.com",
+                relative_path=sid,
             )
             for ep in range(3):
                 _make_zip_cbz(
@@ -2773,16 +3003,12 @@ class TestBuildDownloadedIndex:
                 )
         # One standalone cbz + one standalone text post, both recorded.
         _make_zip_cbz(tmp_path / "solo", "Solo.cbz", "https://pawchive.pw/u/1/post/9")
-        lib.upsert_download(
-            "https://pawchive.pw/u/1/post/9", "solo/Solo.cbz", "cbz"
-        )
+        lib.upsert_download("https://pawchive.pw/u/1/post/9", "solo/Solo.cbz", "cbz")
         (tmp_path / "solo" / "note.md").write_text(
             "<!-- source: https://pawchive.pw/u/1/post/10 -->\n# t\n",
             encoding="utf-8",
         )
-        lib.upsert_download(
-            "https://pawchive.pw/u/1/post/10", "solo/note.md", "md"
-        )
+        lib.upsert_download("https://pawchive.pw/u/1/post/10", "solo/note.md", "md")
         lib.close()
 
     def test_db_primary_avoids_zip_opens_for_recorded(self, tmp_path, monkeypatch):
@@ -2804,9 +3030,7 @@ class TestBuildDownloadedIndex:
     def test_fallback_scans_unrecorded_cbz(self, tmp_path, monkeypatch):
         """A .cbz absent from the DB still gets discovered by the scan."""
         self._seed_library_db(tmp_path)
-        _make_zip_cbz(
-            tmp_path / "legacy", "Old.cbz", "https://webtoons.com/legacy/epic/7"
-        )
+        _make_zip_cbz(tmp_path / "legacy", "Old.cbz", "https://webtoons.com/legacy/epic/7")
         real = _cbz_source_url
         calls = {"n": 0}
 
@@ -2840,7 +3064,7 @@ class TestCbzSourceUrl:
         with zipfile.ZipFile(cbz, "w") as zf:
             zf.writestr(
                 "ComicInfo.xml",
-                '<ComicInfo><Title>T</Title><Web>https://fsicomics.com/x/</Web></ComicInfo>',
+                "<ComicInfo><Title>T</Title><Web>https://fsicomics.com/x/</Web></ComicInfo>",
             )
         assert _cbz_source_url(cbz) == "https://fsicomics.com/x/"
 
@@ -2868,7 +3092,7 @@ class TestCbzSourceUrl:
 
     def test_reads_web_url_from_cbt(self, tmp_path):
         cbt = tmp_path / "a.cbt"
-        data = b'<ComicInfo><Title>T</Title><Web>https://fsicomics.com/x/</Web></ComicInfo>'
+        data = b"<ComicInfo><Title>T</Title><Web>https://fsicomics.com/x/</Web></ComicInfo>"
         with tarfile.open(cbt, "w") as tf:
             info = tarfile.TarInfo("ComicInfo.xml")
             info.size = len(data)
@@ -2886,14 +3110,14 @@ class TestResolveCbzPath:
         with zipfile.ZipFile(path, "w") as zf:
             zf.writestr(
                 "ComicInfo.xml",
-                f'<ComicInfo><Title>T</Title><Web>{url}</Web></ComicInfo>',
+                f"<ComicInfo><Title>T</Title><Web>{url}</Web></ComicInfo>",
             )
 
     def _make_archive(self, path: Path, url: str) -> None:
         if path.suffix.lower() == ".cbt":
             import tarfile
 
-            data = f'<ComicInfo><Title>T</Title><Web>{url}</Web></ComicInfo>'.encode()
+            data = f"<ComicInfo><Title>T</Title><Web>{url}</Web></ComicInfo>".encode()
             with tarfile.open(path, "w") as tf:
                 info = tarfile.TarInfo("ComicInfo.xml")
                 info.size = len(data)
@@ -2903,47 +3127,65 @@ class TestResolveCbzPath:
 
     def test_new_file_returns_base(self, tmp_path):
         series = tmp_path / "Series"
-        assert _resolve_archive_path(series, "Chapter 1", "https://x/1/", "", False, True, "cbz") == \
-            series / "Chapter 1.cbz"
+        assert (
+            _resolve_archive_path(series, "Chapter 1", "https://x/1/", "", False, True, "cbz")
+            == series / "Chapter 1.cbz"
+        )
 
     def test_same_source_skips(self, tmp_path):
         series = tmp_path / "Series"
         series.mkdir()
         self._make_cbz(series / "Chapter 1.cbz", "https://x/1/")
-        assert _resolve_archive_path(series, "Chapter 1", "https://x/1/", "111", False, True, "cbz") is None
+        assert (
+            _resolve_archive_path(series, "Chapter 1", "https://x/1/", "111", False, True, "cbz")
+            is None
+        )
 
     def test_same_source_ignores_trailing_slash(self, tmp_path):
         series = tmp_path / "Series"
         series.mkdir()
         self._make_cbz(series / "Chapter 1.cbz", "https://x/1/")
-        assert _resolve_archive_path(series, "Chapter 1", "https://x/1", "111", False, True, "cbz") is None
+        assert (
+            _resolve_archive_path(series, "Chapter 1", "https://x/1", "111", False, True, "cbz")
+            is None
+        )
 
     def test_different_source_disambiguates(self, tmp_path):
         series = tmp_path / "Series"
         series.mkdir()
         self._make_cbz(series / "Chapter 1.cbz", "https://x/1/")
-        result = _resolve_archive_path(series, "Chapter 1", "https://x/2/", "222", False, True, "cbz")
+        result = _resolve_archive_path(
+            series, "Chapter 1", "https://x/2/", "222", False, True, "cbz"
+        )
         assert result == series / "Chapter 1 (222).cbz"
 
     def test_different_source_no_post_id_skips(self, tmp_path):
         series = tmp_path / "Series"
         series.mkdir()
         self._make_cbz(series / "Chapter 1.cbz", "https://x/1/")
-        assert _resolve_archive_path(series, "Chapter 1", "https://x/2/", "", False, True, "cbz") is None
+        assert (
+            _resolve_archive_path(series, "Chapter 1", "https://x/2/", "", False, True, "cbz")
+            is None
+        )
 
     def test_disambiguated_exists_skips(self, tmp_path):
         series = tmp_path / "Series"
         series.mkdir()
         self._make_cbz(series / "Chapter 1.cbz", "https://x/1/")
         self._make_cbz(series / "Chapter 1 (222).cbz", "https://x/2/")
-        assert _resolve_archive_path(series, "Chapter 1", "https://x/2/", "222", False, True, "cbz") is None
+        assert (
+            _resolve_archive_path(series, "Chapter 1", "https://x/2/", "222", False, True, "cbz")
+            is None
+        )
 
     def test_force_overwrites_base(self, tmp_path):
         series = tmp_path / "Series"
         series.mkdir()
         self._make_cbz(series / "Chapter 1.cbz", "https://x/1/")
-        assert _resolve_archive_path(series, "Chapter 1", "https://x/1/", "111", True, True, "cbz") == \
-            series / "Chapter 1.cbz"
+        assert (
+            _resolve_archive_path(series, "Chapter 1", "https://x/1/", "111", True, True, "cbz")
+            == series / "Chapter 1.cbz"
+        )
 
     def test_partial_marker_retries(self, tmp_path):
         """A chapter that previously failed part-way (marker present) must be
@@ -2953,27 +3195,36 @@ class TestResolveCbzPath:
         cbz = series / "Chapter 1.cbz"
         self._make_cbz(cbz, "https://x/1/")
         (series / "Chapter 1.cbz.partial").touch()
-        assert _resolve_archive_path(series, "Chapter 1", "https://x/1/", "111", False, True, "cbz") == \
-            cbz
+        assert (
+            _resolve_archive_path(series, "Chapter 1", "https://x/1/", "111", False, True, "cbz")
+            == cbz
+        )
 
     def test_partial_with_different_source_retries_base(self, tmp_path):
         series = tmp_path / "Series"
         series.mkdir()
         self._make_cbz(series / "Chapter 1.cbz", "https://x/1/")
         (series / "Chapter 1.cbz.partial").touch()
-        assert _resolve_archive_path(series, "Chapter 1", "https://x/2/", "222", False, True, "cbz") == \
-            series / "Chapter 1.cbz"
+        assert (
+            _resolve_archive_path(series, "Chapter 1", "https://x/2/", "222", False, True, "cbz")
+            == series / "Chapter 1.cbz"
+        )
 
     def test_zip_target_new_file_returns_zip(self, tmp_path):
         series = tmp_path / "Series"
-        assert _resolve_archive_path(series, "Chapter 1", "https://x/1/", "", False, True, "zip") == \
-            series / "Chapter 1.zip"
+        assert (
+            _resolve_archive_path(series, "Chapter 1", "https://x/1/", "", False, True, "zip")
+            == series / "Chapter 1.zip"
+        )
 
     def test_zip_target_same_source_skips(self, tmp_path):
         series = tmp_path / "Series"
         series.mkdir()
         self._make_archive(series / "Chapter 1.zip", "https://x/1/")
-        assert _resolve_archive_path(series, "Chapter 1", "https://x/1/", "111", False, True, "zip") is None
+        assert (
+            _resolve_archive_path(series, "Chapter 1", "https://x/1/", "111", False, True, "zip")
+            is None
+        )
 
     def test_other_format_counts_as_existing(self, tmp_path):
         """A format switch must not download a duplicate: an existing .zip
@@ -2981,20 +3232,28 @@ class TestResolveCbzPath:
         series = tmp_path / "Series"
         series.mkdir()
         self._make_archive(series / "Chapter 1.zip", "https://x/1/")
-        assert _resolve_archive_path(series, "Chapter 1", "https://x/1/", "111", False, True, "cbz") is None
+        assert (
+            _resolve_archive_path(series, "Chapter 1", "https://x/1/", "111", False, True, "cbz")
+            is None
+        )
 
     def test_other_format_different_source_disambiguates(self, tmp_path):
         series = tmp_path / "Series"
         series.mkdir()
         self._make_archive(series / "Chapter 1.cbt", "https://x/1/")
-        result = _resolve_archive_path(series, "Chapter 1", "https://x/2/", "222", False, True, "cbz")
+        result = _resolve_archive_path(
+            series, "Chapter 1", "https://x/2/", "222", False, True, "cbz"
+        )
         assert result == series / "Chapter 1 (222).cbz"
 
     def test_disambiguated_other_format_skips(self, tmp_path):
         series = tmp_path / "Series"
         series.mkdir()
         self._make_archive(series / "Chapter 1 (222).zip", "https://x/2/")
-        assert _resolve_archive_path(series, "Chapter 1", "https://x/2/", "222", False, True, "cbz") is None
+        assert (
+            _resolve_archive_path(series, "Chapter 1", "https://x/2/", "222", False, True, "cbz")
+            is None
+        )
 
     def test_partial_other_format_retries_that_file(self, tmp_path):
         series = tmp_path / "Series"
@@ -3002,7 +3261,10 @@ class TestResolveCbzPath:
         cbt = series / "Chapter 1.cbt"
         self._make_archive(cbt, "https://x/1/")
         (series / "Chapter 1.cbt.partial").touch()
-        assert _resolve_archive_path(series, "Chapter 1", "https://x/1/", "111", False, True, "cbz") == cbt
+        assert (
+            _resolve_archive_path(series, "Chapter 1", "https://x/1/", "111", False, True, "cbz")
+            == cbt
+        )
 
 
 class TestDownloadedIndexPartial:
@@ -3016,7 +3278,7 @@ class TestDownloadedIndexPartial:
         with zipfile.ZipFile(cbz, "w") as zf:
             zf.writestr(
                 "ComicInfo.xml",
-                '<ComicInfo><Title>T</Title><Web>https://x/1/</Web></ComicInfo>',
+                "<ComicInfo><Title>T</Title><Web>https://x/1/</Web></ComicInfo>",
             )
         index = _build_downloaded_index(root)
         assert normalize_url("https://x/1/") in index
@@ -3078,13 +3340,13 @@ class TestSigintHandling:
         yield
         reset_stop()
 
-    @pytest.mark.skipif(
-        sys.platform == "win32", reason="add_signal_handler is POSIX-only"
-    )
+    @pytest.mark.skipif(sys.platform == "win32", reason="add_signal_handler is POSIX-only")
     def test_single_sigint_exits_130(self):
         proc = subprocess.Popen(
             [sys.executable, "-c", _SIGINT_SCRIPT],
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
         )
         time.sleep(1.5)
         os.kill(proc.pid, signal.SIGINT)
@@ -3093,14 +3355,14 @@ class TestSigintHandling:
         assert "Interrupted." in err
         assert "Traceback" not in err
 
-    @pytest.mark.skipif(
-        sys.platform == "win32", reason="add_signal_handler is POSIX-only"
-    )
+    @pytest.mark.skipif(sys.platform == "win32", reason="add_signal_handler is POSIX-only")
     def test_single_sigint_exits_without_second_press(self):
         env = {**os.environ, "GRACE_SLEEP": "30"}
         proc = subprocess.Popen(
             [sys.executable, "-c", _SIGINT_SCRIPT],
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
             env=env,
         )
         try:
@@ -3118,6 +3380,7 @@ class TestSigintHandling:
 
     def test_interrupt_before_work_task_raises_keyboard_interrupt(self):
         import comic_dl.cli as cli
+
         cli._WORK_TASK = None
         try:
             _handle_interrupt(signal.SIGINT, None)
@@ -3176,12 +3439,8 @@ class TestSigintHandling:
         monkeypatch.setattr(cli.os, "_exit", lambda code: exited.append(code))
         monkeypatch.setattr(cli, "_WORK_TASK", object())
         monkeypatch.setattr(cli, "active_partial_files", lambda: set())
-        monkeypatch.setattr(
-            cli, "flush_debug_file", lambda: flushed.append(True)
-        )
-        monkeypatch.setattr(
-            cli, "_cleanup_temp_dir", lambda: tmp_clean.append(True)
-        )
+        monkeypatch.setattr(cli, "flush_debug_file", lambda: flushed.append(True))
+        monkeypatch.setattr(cli, "_cleanup_temp_dir", lambda: tmp_clean.append(True))
         try:
             # First press: sets stop flag, no os._exit.
             cli._handle_interrupt(2, None)
@@ -3295,22 +3554,32 @@ class TestGracefulStopBoundary:
             return "downloaded", ""
 
         args = argparse.Namespace(
-            json=False, quiet=True, chapters=None, urls_from_file=False,
-            parallel=1, output="/tmp/test", force=False, dry_run=False,
-            concurrency=5, max_image_size=100 * 1024 * 1024, max_size=0,
-            chapter_parallel=1, compress="stored", format="cbz",
+            json=False,
+            quiet=True,
+            chapters=None,
+            urls_from_file=False,
+            parallel=1,
+            output="/tmp/test",
+            force=False,
+            dry_run=False,
+            concurrency=5,
+            max_image_size=100 * 1024 * 1024,
+            max_size=0,
+            chapter_parallel=1,
+            compress="stored",
+            format="cbz",
         )
         monkeypatch.setattr(cli, "_build_downloaded_index", lambda p: {})
-        monkeypatch.setattr(cli, "_open_library", lambda p: type(
-            "Lib", (), {"available": True, "close": lambda s: None}
-        )())
+        monkeypatch.setattr(
+            cli,
+            "_open_library",
+            lambda p: type("Lib", (), {"available": True, "close": lambda s: None})(),
+        )
         monkeypatch.setattr(cli, "process_url", _mock_process_url)
         monkeypatch.setattr(cli, "print_failure_recap", lambda *a, **kw: None)
         monkeypatch.setattr(cli, "print_batch_summary", lambda *a, **kw: None)
 
-        result = asyncio.run(
-            cli._run_urls(["https://a.com/1", "https://b.com/2"], args)
-        )
+        result = asyncio.run(cli._run_urls(["https://a.com/1", "https://b.com/2"], args))
         assert result == EXIT_INTERRUPTED
 
     def test_run_update_stops_between_series(self, monkeypatch):
@@ -3332,28 +3601,32 @@ class TestGracefulStopBoundary:
             return True
 
         monkeypatch.setattr(cli, "_process_series", _fake_process_series)
-        monkeypatch.setattr(cli, "_resolve_series", lambda lib, t: {
-            "series_id": "1", "title": t, "source": "https://a.com/s1"
-        })
+        monkeypatch.setattr(
+            cli,
+            "_resolve_series",
+            lambda lib, t: {"series_id": "1", "title": t, "source": "https://a.com/s1"},
+        )
         monkeypatch.setattr(cli, "get_series_scraper", lambda d: FakeScraper())
         monkeypatch.setattr(cli, "generic_enabled", lambda: False)
         monkeypatch.setattr(cli, "normalize_url", lambda u: u)
 
         # Mock library
-        fake_lib = type("Lib", (), {
-            "available": True,
-            "list_series": lambda s: [
-                {"series_id": "1", "title": "S1", "source": "https://a.com/s1"},
-                {"series_id": "2", "title": "S2", "source": "https://a.com/s2"},
-            ],
-            "get_chapters": lambda s, id: [],
-            "close": lambda s: None,
-        })()
+        fake_lib = type(
+            "Lib",
+            (),
+            {
+                "available": True,
+                "list_series": lambda s: [
+                    {"series_id": "1", "title": "S1", "source": "https://a.com/s1"},
+                    {"series_id": "2", "title": "S2", "source": "https://a.com/s2"},
+                ],
+                "get_chapters": lambda s, id: [],
+                "close": lambda s: None,
+            },
+        )()
         monkeypatch.setattr(cli, "_open_library", lambda p: fake_lib)
 
-        result = asyncio.run(
-            cli._run_update(["all"])
-        )
+        result = asyncio.run(cli._run_update(["all"]))
         assert result == EXIT_INTERRUPTED
         # Only first series should have been processed
         assert len(series_processed) == 1
@@ -3378,21 +3651,23 @@ class TestGracefulStopBoundary:
         monkeypatch.setattr(cli, "generic_enabled", lambda: False)
         monkeypatch.setattr(cli, "normalize_url", lambda u: u)
 
-        fake_lib = type("Lib", (), {
-            "available": True,
-            "list_series": lambda s: [
-                {"series_id": "1", "title": "S1", "source": "https://a.com/s1"},
-                {"series_id": "2", "title": "S2", "source": "https://b.com/s2"},
-                {"series_id": "3", "title": "S3", "source": "https://c.com/s3"},
-            ],
-            "get_chapters": lambda s, id: [],
-            "close": lambda s: None,
-        })()
+        fake_lib = type(
+            "Lib",
+            (),
+            {
+                "available": True,
+                "list_series": lambda s: [
+                    {"series_id": "1", "title": "S1", "source": "https://a.com/s1"},
+                    {"series_id": "2", "title": "S2", "source": "https://b.com/s2"},
+                    {"series_id": "3", "title": "S3", "source": "https://c.com/s3"},
+                ],
+                "get_chapters": lambda s, id: [],
+                "close": lambda s: None,
+            },
+        )()
         monkeypatch.setattr(cli, "_open_library", lambda p: fake_lib)
 
-        result = asyncio.run(
-            cli._run_update(["all", "--parallel", "2", "-q"])
-        )
+        result = asyncio.run(cli._run_update(["all", "--parallel", "2", "-q"]))
         assert result == EXIT_OK
         assert len(series_processed) == 3
 
@@ -3401,11 +3676,15 @@ class TestGracefulStopBoundary:
         import comic_dl.cli as cli
         from comic_dl.errors import EXIT_USAGE
 
-        fake_lib = type("Lib", (), {
-            "available": True,
-            "list_series": lambda s: [],
-            "close": lambda s: None,
-        })()
+        fake_lib = type(
+            "Lib",
+            (),
+            {
+                "available": True,
+                "list_series": lambda s: [],
+                "close": lambda s: None,
+            },
+        )()
         monkeypatch.setattr(cli, "_open_library", lambda p: fake_lib)
 
         result = asyncio.run(cli._run_update(["all", "--parallel", "0"]))
@@ -3442,7 +3721,9 @@ class TestResumeCommand:
         assert "/tmp/out" in result
 
     def test_strips_debug_file(self):
-        result = resume_command(["comic-dl", "--debug-file", "/tmp/dbg.log", "-u", "https://example.com/"])
+        result = resume_command(
+            ["comic-dl", "--debug-file", "/tmp/dbg.log", "-u", "https://example.com/"]
+        )
         assert "--debug-file" not in result
         assert "/tmp/dbg.log" not in result
         assert "https://example.com/" in result
@@ -3466,7 +3747,9 @@ class TestResumeCommand:
         assert "1-5" in result
 
     def test_preserves_config_flag(self):
-        result = resume_command(["comic-dl", "--config", "/tmp/cfg.toml", "-u", "https://example.com/"])
+        result = resume_command(
+            ["comic-dl", "--config", "/tmp/cfg.toml", "-u", "https://example.com/"]
+        )
         assert "--config" in result
         assert "/tmp/cfg.toml" in result
 
@@ -3493,18 +3776,21 @@ class TestLibraryDashAliases:
     async def test_double_dash_alias_dispatches_to_subcommand(self, monkeypatch):
         calls = self._patch(monkeypatch, ["--list", "-o", "/tmp"])
         from comic_dl.cli import main
+
         assert await main() == 42
         assert calls == [("list", ["-o", "/tmp"])]
 
     async def test_bare_subcommand_still_works(self, monkeypatch):
         calls = self._patch(monkeypatch, ["list", "-o", "/tmp"])
         from comic_dl.cli import main
+
         assert await main() == 42
         assert calls == [("list", ["-o", "/tmp"])]
 
     async def test_info_and_other_aliases(self, monkeypatch):
         calls = self._patch(monkeypatch, ["--info", "Some Series"])
         from comic_dl.cli import main
+
         assert await main() == 42
         assert calls == [("info", ["Some Series"])]
 
@@ -3514,6 +3800,7 @@ class TestLibraryDashAliases:
         for flag in ("-q", "--quiet"):
             calls = self._patch(monkeypatch, ["list", flag, "-o", "/tmp"])
             from comic_dl.cli import main
+
             assert await main() == 42
             assert calls == [("list", ["-o", "/tmp"])]
 
@@ -3651,9 +3938,7 @@ class TestNoColorFlag:
 
         original = (console.no_color, err_console.no_color)
         try:
-            monkeypatch.setattr(
-                "sys.argv", ["prog", "--no-color", "config", "path"]
-            )
+            monkeypatch.setattr("sys.argv", ["prog", "--no-color", "config", "path"])
             assert await main() == 0
             assert console.no_color is True
             assert err_console.no_color is True
@@ -3730,9 +4015,7 @@ class TestColorModeFlag:
 
         try:
             monkeypatch.setenv("NO_COLOR", "1")
-            monkeypatch.setattr(
-                "sys.argv", ["prog", "--color", "always", "config", "path"]
-            )
+            monkeypatch.setattr("sys.argv", ["prog", "--color", "always", "config", "path"])
             assert await main() == 0
             assert console.no_color is False
         finally:
@@ -3811,8 +4094,7 @@ class TestNoConfigFlag:
     async def test_config_and_no_config_mutually_exclusive(self, monkeypatch):
         monkeypatch.setattr(
             "sys.argv",
-            ["prog", "--config", "x", "--no-config", "-u",
-             "https://e-hentai.org/g/1/a/"],
+            ["prog", "--config", "x", "--no-config", "-u", "https://e-hentai.org/g/1/a/"],
         )
         with pytest.raises(SystemExit):
             parse_urls()
@@ -3855,37 +4137,36 @@ class TestNoCacheFlag:
 class TestBannerPolicy:
     def test_banner_suppressed_off_tty(self, monkeypatch, capsys):
         monkeypatch.setattr(
-            "comic_dl.cli.is_interactive", lambda: False,
+            "comic_dl.cli.is_interactive",
+            lambda: False,
         )
         called = []
 
         import comic_dl.cli as cli
 
         monkeypatch.setattr(cli, "print_banner", lambda: called.append(True))
-        monkeypatch.setattr(
-            "sys.argv", ["prog", "--url", "https://e-hentai.org/g/1/a/"]
-        )
+        monkeypatch.setattr("sys.argv", ["prog", "--url", "https://e-hentai.org/g/1/a/"])
         parse_urls()
         assert called == []
 
     def test_banner_shown_on_tty(self, monkeypatch):
         monkeypatch.setattr(
-            "comic_dl.cli.is_interactive", lambda: True,
+            "comic_dl.cli.is_interactive",
+            lambda: True,
         )
         called = []
 
         import comic_dl.cli as cli
 
         monkeypatch.setattr(cli, "print_banner", lambda: called.append(True))
-        monkeypatch.setattr(
-            "sys.argv", ["prog", "--url", "https://e-hentai.org/g/1/a/"]
-        )
+        monkeypatch.setattr("sys.argv", ["prog", "--url", "https://e-hentai.org/g/1/a/"])
         parse_urls()
         assert called == [True]
 
     def test_no_banner_flag_still_wins(self, monkeypatch):
         monkeypatch.setattr(
-            "comic_dl.cli.is_interactive", lambda: True,
+            "comic_dl.cli.is_interactive",
+            lambda: True,
         )
         called = []
 
@@ -3952,9 +4233,7 @@ class TestConfigVerb:
 
         cfg = tmp_path / "c.toml"
         cfg.write_text("output = '/tmp'\n", encoding="utf-8")
-        monkeypatch.setattr(
-            "sys.argv", ["prog", "config", "init", "--force", "--config", str(cfg)]
-        )
+        monkeypatch.setattr("sys.argv", ["prog", "config", "init", "--force", "--config", str(cfg)])
         assert await main() == 0
         out = capsys.readouterr().out
         assert "Wrote config" in out
@@ -3978,7 +4257,7 @@ class TestConfigVerb:
         monkeypatch.setattr("sys.argv", ["prog", "config", "show", "--config", str(cfg)])
         assert await main() == 0
         out = capsys.readouterr().out
-        assert 'concurrency = 3' in out
+        assert "concurrency = 3" in out
         assert 'output = "/tmp/x"' in out
         assert "parallel = 5" in out
 
@@ -3986,7 +4265,7 @@ class TestConfigVerb:
         from comic_dl.cli import main
 
         cfg = tmp_path / "c.toml"
-        cfg.write_text('concurrency = 3\n', encoding="utf-8")
+        cfg.write_text("concurrency = 3\n", encoding="utf-8")
         monkeypatch.setattr("sys.argv", ["prog", "config", "list", "--config", str(cfg)])
         assert await main() == 0
         out = capsys.readouterr().out
@@ -3997,12 +4276,8 @@ class TestConfigVerb:
         from comic_dl.cli import main
 
         cfg = tmp_path / "c.toml"
-        cfg.write_text(
-            "concurrency = 3\n[http]\nrate-enabled = true\n", encoding="utf-8"
-        )
-        monkeypatch.setattr(
-            "sys.argv", ["prog", "config", "validate", "--config", str(cfg)]
-        )
+        cfg.write_text("concurrency = 3\n[http]\nrate-enabled = true\n", encoding="utf-8")
+        monkeypatch.setattr("sys.argv", ["prog", "config", "validate", "--config", str(cfg)])
         assert await main() == 0
         assert "Config OK" in capsys.readouterr().out
 
@@ -4011,9 +4286,7 @@ class TestConfigVerb:
 
         cfg = tmp_path / "c.toml"
         cfg.write_text('concurrency = "many"\n[http]\nsolver = "nope"\n', encoding="utf-8")
-        monkeypatch.setattr(
-            "sys.argv", ["prog", "config", "validate", "--config", str(cfg)]
-        )
+        monkeypatch.setattr("sys.argv", ["prog", "config", "validate", "--config", str(cfg)])
         assert await main() == 1
         err = capsys.readouterr().err
         assert "concurrency" in err
@@ -4024,9 +4297,7 @@ class TestConfigVerb:
 
         cfg = tmp_path / "c.toml"
         cfg.write_text("this is not [ valid", encoding="utf-8")
-        monkeypatch.setattr(
-            "sys.argv", ["prog", "config", "validate", "--config", str(cfg)]
-        )
+        monkeypatch.setattr("sys.argv", ["prog", "config", "validate", "--config", str(cfg)])
         assert await main() == 1
         assert "Invalid TOML" in capsys.readouterr().err
 
@@ -4040,7 +4311,7 @@ class TestConfigVerb:
             editor.write_text('@echo ran> "%MARK%"\n', encoding="utf-8")
         else:
             editor = tmp_path / "fake-editor.sh"
-            editor.write_text("#!/bin/sh\necho ran > \"$MARK\"\n", encoding="utf-8")
+            editor.write_text('#!/bin/sh\necho ran > "$MARK"\n', encoding="utf-8")
             editor.chmod(0o755)
         monkeypatch.setenv("EDITOR", str(editor))
         monkeypatch.setenv("MARK", str(marker))
@@ -4150,8 +4421,12 @@ class TestRestorePagesFromArchive:
         cbz = tmp_path / "Ch.cbz"
         self._make_partial(
             cbz,
-            {"../evil.webp": b"x", "sub/Page_0002.webp": b"y",
-             "cover.txt": b"z", "Page_0005.png": b"ok"},
+            {
+                "../evil.webp": b"x",
+                "sub/Page_0002.webp": b"y",
+                "cover.txt": b"z",
+                "Page_0005.png": b"ok",
+            },
             comicinfo=False,
         )
         dest = tmp_path / "tmp"
@@ -4169,9 +4444,7 @@ class TestRestorePagesFromArchive:
     def test_oversized_member_skipped(self, tmp_path, monkeypatch):
         monkeypatch.setattr(cli, "_RESTORE_PAGE_CAP", 4)
         cbz = tmp_path / "Ch.cbz"
-        self._make_partial(
-            cbz, {"Page_0001.jpg": b"12345", "Page_0002.jpg": b"ok"}
-        )
+        self._make_partial(cbz, {"Page_0001.jpg": b"12345", "Page_0002.jpg": b"ok"})
         dest = tmp_path / "tmp"
         dest.mkdir()
         assert cli._restore_pages_from_archive(cbz, dest) == 1
@@ -4202,17 +4475,29 @@ class TestSingleUrlVerdict:
 
     def _args(self):
         return argparse.Namespace(
-            json=False, quiet=False, chapters=None, urls_from_file=False,
-            parallel=1, output="/tmp/out", force=False, dry_run=False,
-            concurrency=5, max_image_size=100 * 1024 * 1024, max_size=0,
-            chapter_parallel=1, compress="stored", format="cbz",
+            json=False,
+            quiet=False,
+            chapters=None,
+            urls_from_file=False,
+            parallel=1,
+            output="/tmp/out",
+            force=False,
+            dry_run=False,
+            concurrency=5,
+            max_image_size=100 * 1024 * 1024,
+            max_size=0,
+            chapter_parallel=1,
+            compress="stored",
+            format="cbz",
         )
 
     def _setup(self, monkeypatch):
         monkeypatch.setattr(cli, "_build_downloaded_index", lambda p: {})
-        monkeypatch.setattr(cli, "_open_library", lambda p: type(
-            "Lib", (), {"available": True, "close": lambda s: None}
-        )())
+        monkeypatch.setattr(
+            cli,
+            "_open_library",
+            lambda p: type("Lib", (), {"available": True, "close": lambda s: None})(),
+        )
 
     def test_success_prints_verdict(self, monkeypatch, capsys):
         async def _ok(**kwargs):
@@ -4223,9 +4508,7 @@ class TestSingleUrlVerdict:
 
         self._setup(monkeypatch)
         monkeypatch.setattr(cli, "process_url", _ok)
-        code = asyncio.run(
-            cli._run_urls(["https://a.com/1"], self._args())
-        )
+        code = asyncio.run(cli._run_urls(["https://a.com/1"], self._args()))
         out = capsys.readouterr().out
         assert code == EXIT_OK
         assert "Downloaded: Ch.cbz" in out
@@ -4240,9 +4523,7 @@ class TestSingleUrlVerdict:
 
         self._setup(monkeypatch)
         monkeypatch.setattr(cli, "process_url", _partial)
-        code = asyncio.run(
-            cli._run_urls(["https://a.com/1"], self._args())
-        )
+        code = asyncio.run(cli._run_urls(["https://a.com/1"], self._args()))
         captured = capsys.readouterr()
         assert code == EXIT_ERROR
         assert "Downloaded:" not in captured.out
@@ -4264,6 +4545,7 @@ class TestSingleUrlVerdict:
     def test_partial_with_path_output_single_verdict(self, monkeypatch, capsys):
         """Path output must not crash print_partial_block (rich.markup.escape
         rejects Path) and must not be tallied twice when it does."""
+
         # The batch runner passes args.output, which argparse builds as a
         # Path, straight into the partial block.  An escape error used to be
         # swallowed by the per-URL exception handler, which re-appended the

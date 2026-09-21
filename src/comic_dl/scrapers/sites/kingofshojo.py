@@ -57,10 +57,7 @@ def _on_image_host(raw: str) -> bool:
     host = urllib.parse.urlparse(raw).hostname or ""
     host = host.lower()
     return (
-        host == DOMAIN
-        or host.startswith("cdn.")
-        or host.endswith(".wp.com")
-        or host == "i.ibb.co"
+        host == DOMAIN or host.startswith("cdn.") or host.endswith(".wp.com") or host == "i.ibb.co"
     )
 
 

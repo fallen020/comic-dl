@@ -162,8 +162,7 @@ class CookieJar:
             with self._lock:
                 conn = self._connect()
                 candidates = conn.execute(
-                    "SELECT host, path, name, value, expires, secure "
-                    "FROM cookies WHERE host = ?",
+                    "SELECT host, path, name, value, expires, secure FROM cookies WHERE host = ?",
                     (host,),
                 ).fetchall()
                 candidates += conn.execute(
@@ -217,9 +216,7 @@ class CookieJar:
                         (host.lower(),),
                     )
                 else:
-                    cur = conn.execute(
-                        "SELECT host, path, name, expires FROM cookies"
-                    )
+                    cur = conn.execute("SELECT host, path, name, expires FROM cookies")
                 for host_, path, name, expires in cur.fetchall():
                     if expires is not None and expires <= now:
                         continue

@@ -32,9 +32,7 @@ _REDIRECT_STATUSES = frozenset({301, 302, 303, 307, 308})
 
 def no_images_error(hint: str = "") -> ScrapeError:
     """The standard "page loaded but yielded no images" failure."""
-    default = (
-        "The page may require login, be region-locked, or have been removed."
-    )
+    default = "The page may require login, be region-locked, or have been removed."
     return ScrapeError("No images found on this page.", hint=hint or default)
 
 
@@ -95,7 +93,8 @@ def jsonld_type_includes(node: dict, wanted: str) -> bool:
 def article_jsonld_nodes(soup: BeautifulSoup) -> list[dict]:
     """JSON-LD nodes whose ``@type`` includes an article type."""
     return [
-        n for n in extract_jsonld(soup)
+        n
+        for n in extract_jsonld(soup)
         if any(jsonld_type_includes(n, t) for t in JSONLD_ARTICLE_TYPES)
     ]
 

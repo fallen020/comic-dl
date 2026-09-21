@@ -110,12 +110,9 @@ DRM_TOKENS = {
 INTEGRITY_RESPONSE = {"token": "integrity-token-1"}
 
 PAGE_URLS = [
-    f"https://kstatic.to/api/v2/books/page/{BOOK_1}/p001.webp"
-    f"?is_datasaver=false&token=tok123",
-    f"https://kstatic.to/api/v2/books/page/{BOOK_1}/p002.webp"
-    f"?is_datasaver=false&token=tok123",
-    f"https://kstatic.to/api/v2/books/page/{BOOK_1}/p003.webp"
-    f"?is_datasaver=false&token=tok123",
+    f"https://kstatic.to/api/v2/books/page/{BOOK_1}/p001.webp?is_datasaver=false&token=tok123",
+    f"https://kstatic.to/api/v2/books/page/{BOOK_1}/p002.webp?is_datasaver=false&token=tok123",
+    f"https://kstatic.to/api/v2/books/page/{BOOK_1}/p003.webp?is_datasaver=false&token=tok123",
 ]
 
 _FAKE_SESSION: _FakeWebViewSession | None = None
@@ -168,9 +165,7 @@ def _session_disabled_by_default(monkeypatch):
     HTTP fallback rely on a mock client, so pin the session off unless a test
     explicitly enables it (see :class:`TestKaganeScraperSessionPath`).
     """
-    monkeypatch.setattr(
-        kagane_module.webview, "session_enabled", lambda: False
-    )
+    monkeypatch.setattr(kagane_module.webview, "session_enabled", lambda: False)
 
 
 class TestUrlPatterns:
@@ -187,9 +182,7 @@ class TestUrlPatterns:
 
     def test_valid_chapter_urls(self):
         assert is_chapter_url(f"https://kagane.to/series/{SERIES_ID}/reader/{BOOK_1}")
-        assert is_chapter_url(
-            f"https://www.kagane.to/series/{SERIES_ID}/reader/{BOOK_1}/"
-        )
+        assert is_chapter_url(f"https://www.kagane.to/series/{SERIES_ID}/reader/{BOOK_1}/")
 
     def test_invalid_chapter_urls(self):
         assert not is_chapter_url("")
@@ -209,9 +202,10 @@ class TestExtractIds:
         assert _extract_ids(f"https://kagane.to/series/{SERIES_ID}") == (SERIES_ID, None)
 
     def test_reader_url(self):
-        assert _extract_ids(
-            f"https://kagane.to/series/{SERIES_ID}/reader/{BOOK_1}"
-        ) == (SERIES_ID, BOOK_1)
+        assert _extract_ids(f"https://kagane.to/series/{SERIES_ID}/reader/{BOOK_1}") == (
+            SERIES_ID,
+            BOOK_1,
+        )
 
     def test_unrelated_url(self):
         assert _extract_ids("https://kagane.to/") == ("", None)
@@ -249,13 +243,14 @@ class TestBuildImageUrls:
         assert build_image_urls(None, BOOK_1) == []
         assert build_image_urls({}, BOOK_1) == []
         assert build_image_urls("nope", BOOK_1) == []
-        assert build_image_urls(
-            {"cache_url": "https://x", "access_token": "t"}, BOOK_1
-        ) == []
-        assert build_image_urls(
-            {"cache_url": "https://x", "access_token": "t", "manifest": {"pages": []}},
-            BOOK_1,
-        ) == []
+        assert build_image_urls({"cache_url": "https://x", "access_token": "t"}, BOOK_1) == []
+        assert (
+            build_image_urls(
+                {"cache_url": "https://x", "access_token": "t", "manifest": {"pages": []}},
+                BOOK_1,
+            )
+            == []
+        )
 
 
 class TestSeriesParsing:
@@ -267,8 +262,7 @@ class TestSeriesParsing:
 
     def test_cover_url(self):
         assert (
-            kagane_module._cover_url(SERIES_JSON)
-            == "https://kagane.to/api/v2/image/cover-image-1"
+            kagane_module._cover_url(SERIES_JSON) == "https://kagane.to/api/v2/image/cover-image-1"
         )
         assert kagane_module._cover_url({}) == ""
 
@@ -315,7 +309,8 @@ class TestKaganeScraper:
         session = _MockSession(handler)
         scraper = KaganeScraper()
         meta = await scraper.scrape(
-            f"https://kagane.to/series/{SERIES_ID}/reader/{BOOK_1}", session,
+            f"https://kagane.to/series/{SERIES_ID}/reader/{BOOK_1}",
+            session,
         )
 
         assert meta.series_title == "Solo Leveling"
@@ -336,12 +331,8 @@ class TestKaganeScraper:
         assert [img.url for img in meta.images] == PAGE_URLS
         assert [img.page_number for img in meta.images] == [1, 2, 3]
 
-        integrity_calls = [
-            (u, k) for u, k in session.requests if "/api/integrity" in u
-        ]
-        books_calls = [
-            (u, k) for u, k in session.requests if "/api/v2/books/" in u
-        ]
+        integrity_calls = [(u, k) for u, k in session.requests if "/api/integrity" in u]
+        books_calls = [(u, k) for u, k in session.requests if "/api/v2/books/" in u]
         assert integrity_calls and books_calls
         assert "X-Integrity-Token" in books_calls[0][1]["headers"]
         assert books_calls[0][1]["json"] == {}
@@ -357,7 +348,8 @@ class TestKaganeScraper:
         scraper = KaganeScraper()
         with pytest.raises(ValueError, match="API"):
             await scraper.scrape(
-                f"https://kagane.to/series/{SERIES_ID}/reader/{BOOK_1}", session,
+                f"https://kagane.to/series/{SERIES_ID}/reader/{BOOK_1}",
+                session,
             )
 
     @pytest.mark.asyncio
@@ -379,7 +371,8 @@ class TestKaganeScraper:
         scraper = KaganeScraper()
         with pytest.raises(ValueError, match="No images found"):
             await scraper.scrape(
-                f"https://kagane.to/series/{SERIES_ID}/reader/{BOOK_1}", session,
+                f"https://kagane.to/series/{SERIES_ID}/reader/{BOOK_1}",
+                session,
             )
 
     @pytest.mark.asyncio
@@ -394,7 +387,8 @@ class TestKaganeScraper:
         session = _MockSession(handler)
         scraper = KaganeScraper()
         meta = await scraper.scrape(
-            f"https://kagane.to/series/{SERIES_ID}/reader/{BOOK_1}", session,
+            f"https://kagane.to/series/{SERIES_ID}/reader/{BOOK_1}",
+            session,
         )
 
         assert meta.series_title == "Untitled"
@@ -411,7 +405,8 @@ class TestKaganeScraper:
         session = _MockSession(lambda url: _MockResponse(json_data=SERIES_JSON))
         scraper = KaganeScraper()
         series = await scraper.scrape_series(
-            f"https://kagane.to/series/{SERIES_ID}", session,
+            f"https://kagane.to/series/{SERIES_ID}",
+            session,
         )
 
         assert series.series_title == "Solo Leveling"
@@ -432,7 +427,8 @@ class TestKaganeScraper:
         scraper = KaganeScraper()
         with pytest.raises(ValueError, match="No chapters found"):
             await scraper.scrape_series(
-                f"https://kagane.to/series/{SERIES_ID}", session,
+                f"https://kagane.to/series/{SERIES_ID}",
+                session,
             )
 
 
@@ -446,12 +442,8 @@ class TestKaganeScraperSessionPath:
 
     @pytest.fixture(autouse=True)
     def _enable_session(self, monkeypatch):
-        monkeypatch.setattr(
-            kagane_module.webview, "session_enabled", _session_enabled_true
-        )
-        monkeypatch.setattr(
-            kagane_module.webview, "ensure_session", _fake_ensure_session
-        )
+        monkeypatch.setattr(kagane_module.webview, "session_enabled", _session_enabled_true)
+        monkeypatch.setattr(kagane_module.webview, "ensure_session", _fake_ensure_session)
 
     @pytest.mark.asyncio
     async def test_scrape_chapter_success(self, monkeypatch):
@@ -467,7 +459,8 @@ class TestKaganeScraperSessionPath:
         session = _MockSession(lambda url: _MockResponse(json_data={}))
         scraper = KaganeScraper()
         meta = await scraper.scrape(
-            f"https://kagane.to/series/{SERIES_ID}/reader/{BOOK_1}", session,
+            f"https://kagane.to/series/{SERIES_ID}/reader/{BOOK_1}",
+            session,
         )
 
         assert meta.series_title == "Solo Leveling"
@@ -476,15 +469,9 @@ class TestKaganeScraperSessionPath:
         assert [img.url for img in meta.images] == PAGE_URLS
 
         integrity_calls = [
-            (m, u, h, b)
-            for m, u, h, b in _FAKE_SESSION.calls
-            if "/api/integrity" in u
+            (m, u, h, b) for m, u, h, b in _FAKE_SESSION.calls if "/api/integrity" in u
         ]
-        books_calls = [
-            (m, u, h, b)
-            for m, u, h, b in _FAKE_SESSION.calls
-            if "/api/v2/books/" in u
-        ]
+        books_calls = [(m, u, h, b) for m, u, h, b in _FAKE_SESSION.calls if "/api/v2/books/" in u]
         assert integrity_calls and books_calls
         assert integrity_calls[0][0] == "POST"
         assert books_calls[0][0] == "POST"
@@ -513,19 +500,19 @@ class TestKaganeScraperSessionPath:
         scraper = KaganeScraper()
         with pytest.raises(ValueError, match="No images found"):
             await scraper.scrape(
-                f"https://kagane.to/series/{SERIES_ID}/reader/{BOOK_1}", session,
+                f"https://kagane.to/series/{SERIES_ID}/reader/{BOOK_1}",
+                session,
             )
 
     @pytest.mark.asyncio
     async def test_scrape_series(self, monkeypatch):
         global _FAKE_SESSION
-        _FAKE_SESSION = _FakeWebViewSession(
-            lambda url: _MockResponse(json_data=SERIES_JSON)
-        )
+        _FAKE_SESSION = _FakeWebViewSession(lambda url: _MockResponse(json_data=SERIES_JSON))
         session = _MockSession(lambda url: _MockResponse(json_data={}))
         scraper = KaganeScraper()
         series = await scraper.scrape_series(
-            f"https://kagane.to/series/{SERIES_ID}", session,
+            f"https://kagane.to/series/{SERIES_ID}",
+            session,
         )
 
         assert series.series_title == "Solo Leveling"
@@ -533,9 +520,7 @@ class TestKaganeScraperSessionPath:
         assert len(series.chapters) == 2
 
     @pytest.mark.asyncio
-    async def test_series_json_enrichment_failure_is_best_effort(
-        self, monkeypatch
-    ):
+    async def test_series_json_enrichment_failure_is_best_effort(self, monkeypatch):
         def handler(url):
             if "/api/integrity" in url:
                 return _MockResponse(json_data=INTEGRITY_RESPONSE)
@@ -548,7 +533,8 @@ class TestKaganeScraperSessionPath:
         session = _MockSession(lambda url: _MockResponse(json_data={}))
         scraper = KaganeScraper()
         meta = await scraper.scrape(
-            f"https://kagane.to/series/{SERIES_ID}/reader/{BOOK_1}", session,
+            f"https://kagane.to/series/{SERIES_ID}/reader/{BOOK_1}",
+            session,
         )
 
         assert meta.series_title == "Untitled"

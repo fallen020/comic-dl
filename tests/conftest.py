@@ -38,11 +38,7 @@ def _stub_unresolvable_test_dns(monkeypatch):
         name = host.lower().rstrip(".") if isinstance(host, str) else ""
         if name in passthrough_failures:
             return real_getaddrinfo(host, *args, **kwargs)
-        if (
-            name in fake_hosts
-            or name.endswith(fake_suffixes)
-            or name.endswith(test_suffixes)
-        ):
+        if name in fake_hosts or name.endswith(fake_suffixes) or name.endswith(test_suffixes):
             return fake_result
         return real_getaddrinfo(host, *args, **kwargs)
 

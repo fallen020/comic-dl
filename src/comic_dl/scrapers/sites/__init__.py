@@ -21,11 +21,7 @@ from ..registry import list_sources as _list_sources
 
 # Discovered in sorted order so registrations (and any first-wins domain tie)
 # are deterministic across runs regardless of filesystem enumeration order.
-_MODULE_NAMES = sorted(
-    m.name
-    for m in pkgutil.iter_modules(__path__)
-    if not m.name.startswith("_")
-)
+_MODULE_NAMES = sorted(m.name for m in pkgutil.iter_modules(__path__) if not m.name.startswith("_"))
 
 for _name in _MODULE_NAMES:
     _before = len(_list_sources())

@@ -23,9 +23,7 @@ from comic_dl.scrapers.sites.asurascans import (
 from tests.helpers import MockResponse as _MockResponse
 from tests.helpers import MockSession as _MockSession
 
-COVER = (
-    "https://cdn.asurascans.com/asura-images/covers/murim-psychopath.60ee5d.webp"
-)
+COVER = "https://cdn.asurascans.com/asura-images/covers/murim-psychopath.60ee5d.webp"
 
 SERIES_JSONLD = """{
   "@context": "https://schema.org",
@@ -49,42 +47,28 @@ SERIES_JSONLD = """{
 
 class TestUrlPatterns:
     def test_valid_chapter_urls(self):
-        assert is_chapter_url(
-            "https://asurascans.com/comics/murim-psychopath-00dcbf97/chapter/1"
-        )
-        assert is_chapter_url(
-            "https://www.asurascans.com/comics/nano-machine-00dcbf97/chapter/324"
-        )
-        assert is_chapter_url(
-            "https://asurascans.com/comics/murim-psychopath-00dcbf97/chapter/0/"
-        )
+        assert is_chapter_url("https://asurascans.com/comics/murim-psychopath-00dcbf97/chapter/1")
+        assert is_chapter_url("https://www.asurascans.com/comics/nano-machine-00dcbf97/chapter/324")
+        assert is_chapter_url("https://asurascans.com/comics/murim-psychopath-00dcbf97/chapter/0/")
 
     def test_invalid_chapter_urls(self):
         assert not is_chapter_url("")
         assert not is_chapter_url("https://asurascans.com/")
         assert not is_chapter_url("https://asurascans.com/comics/")
         assert not is_chapter_url("https://asurascans.com/comics/series/")
-        assert not is_chapter_url(
-            "https://asurascans.com/comics/series/chapter/"
-        )
-        assert not is_chapter_url(
-            "https://asurascans.com/comics/series/chapter/abc"
-        )
+        assert not is_chapter_url("https://asurascans.com/comics/series/chapter/")
+        assert not is_chapter_url("https://asurascans.com/comics/series/chapter/abc")
         assert not is_chapter_url("https://other.com/comics/series/chapter/1")
 
     def test_valid_series_urls(self):
         assert is_series_url("https://asurascans.com/comics/murim-psychopath-00dcbf97")
-        assert is_series_url(
-            "https://www.asurascans.com/comics/nano-machine-00dcbf97/"
-        )
+        assert is_series_url("https://www.asurascans.com/comics/nano-machine-00dcbf97/")
 
     def test_invalid_series_urls(self):
         assert not is_series_url("")
         assert not is_series_url("https://asurascans.com/")
         assert not is_series_url("https://asurascans.com/comics/")
-        assert not is_series_url(
-            "https://asurascans.com/comics/series/chapter/1"
-        )
+        assert not is_series_url("https://asurascans.com/comics/series/chapter/1")
         assert not is_series_url("https://other.com/comics/hello/")
 
     def test_error_urls_are_rejected(self):
@@ -105,35 +89,31 @@ class TestUrlPatterns:
 
     def test_matches_url(self):
         scraper = AsurascansScraper()
-        assert scraper.matches_url(
-            "https://asurascans.com/comics/series/chapter/1"
-        )
+        assert scraper.matches_url("https://asurascans.com/comics/series/chapter/1")
         assert scraper.matches_url("https://asurascans.com/comics/series")
         assert not scraper.matches_url("https://asurascans.com/browse")
 
 
 class TestHelpers:
     def test_clean_image_url_strips_cache_buster(self):
-        assert _clean_image_url(
-            "https://cdn.asurascans.com/asura-images/chapters/s/1/001.webp?v=1748971234"
-        ) == "https://cdn.asurascans.com/asura-images/chapters/s/1/001.webp"
+        assert (
+            _clean_image_url(
+                "https://cdn.asurascans.com/asura-images/chapters/s/1/001.webp?v=1748971234"
+            )
+            == "https://cdn.asurascans.com/asura-images/chapters/s/1/001.webp"
+        )
 
     def test_chapter_number_from_slug(self):
-        assert _chapter_number_from_slug(
-            "https://asurascans.com/comics/s/chapter/37"
-        ) == "37"
-        assert _chapter_number_from_slug(
-            "https://asurascans.com/comics/s/chapter/0"
-        ) == "0"
+        assert _chapter_number_from_slug("https://asurascans.com/comics/s/chapter/37") == "37"
+        assert _chapter_number_from_slug("https://asurascans.com/comics/s/chapter/0") == "0"
         assert _chapter_number_from_slug("https://asurascans.com/comics/s") is None
 
     def test_series_slug_from_url(self):
-        assert _series_slug_from_url(
-            "https://asurascans.com/comics/murim-psychopath-00dcbf97"
-        ) == "murim-psychopath-00dcbf97"
-        assert _series_slug_from_url(
-            "https://asurascans.com/comics/s/chapter/1"
-        ) == "s"
+        assert (
+            _series_slug_from_url("https://asurascans.com/comics/murim-psychopath-00dcbf97")
+            == "murim-psychopath-00dcbf97"
+        )
+        assert _series_slug_from_url("https://asurascans.com/comics/s/chapter/1") == "s"
         assert _series_slug_from_url("https://asurascans.com/") == ""
 
 
@@ -313,10 +293,7 @@ class TestAsurascansScraper:
     _SLUG = "murim-psychopath-00dcbf97"
     _CH = f"https://asurascans.com/comics/{_SLUG}/chapter/"
     _IMG = f"https://cdn.asurascans.com/asura-images/chapters/{_SLUG}/1/"
-    _COVER_400 = (
-        "https://cdn.asurascans.com/asura-images/covers/"
-        f"{_SLUG}-400.webp?v=1"
-    )
+    _COVER_400 = f"https://cdn.asurascans.com/asura-images/covers/{_SLUG}-400.webp?v=1"
 
     SERIES_PAGE = f"""
     <html lang="en"><head>
@@ -403,7 +380,8 @@ class TestAsurascansScraper:
         scraper = AsurascansScraper()
         with pytest.raises(ValueError, match="No images found"):
             await scraper.scrape(
-                "https://asurascans.com/comics/series/chapter/1", session,
+                "https://asurascans.com/comics/series/chapter/1",
+                session,
             )
 
     @pytest.mark.asyncio
@@ -443,6 +421,7 @@ class TestAsurascansScraper:
 
         config.set_runtime_http(cache=False)
         try:
+
             def handler(url):
                 if url.endswith("/comics/murim-psychopath-00dcbf97"):
                     return _MockResponse(self.SERIES_PAGE)
@@ -480,9 +459,7 @@ class TestAsurascansScraper:
 
     @pytest.mark.asyncio
     async def test_scrape_404_gives_friendly_error(self):
-        session = _MockSession(
-            lambda url: _MockResponse(b"<html><body></body></html>", status=404)
-        )
+        session = _MockSession(lambda url: _MockResponse(b"<html><body></body></html>", status=404))
         scraper = AsurascansScraper()
         with pytest.raises(ValueError, match="page not found"):
             await scraper.scrape(
@@ -492,9 +469,7 @@ class TestAsurascansScraper:
 
     @pytest.mark.asyncio
     async def test_scrape_series_404_gives_friendly_error(self):
-        session = _MockSession(
-            lambda url: _MockResponse(b"<html><body></body></html>", status=404)
-        )
+        session = _MockSession(lambda url: _MockResponse(b"<html><body></body></html>", status=404))
         scraper = AsurascansScraper()
         with pytest.raises(ValueError, match="page not found on Asura Scans"):
             await scraper.scrape_series(
@@ -534,5 +509,6 @@ class TestAsurascansScraper:
         scraper = AsurascansScraper()
         with pytest.raises(ValueError, match="No chapters found"):
             await scraper.scrape_series(
-                "https://asurascans.com/comics/some-series", session,
+                "https://asurascans.com/comics/some-series",
+                session,
             )

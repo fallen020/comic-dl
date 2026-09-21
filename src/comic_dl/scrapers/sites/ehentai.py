@@ -42,8 +42,8 @@ from ..base import BaseScraper, _attr_text, no_images_error
 from ..refresh import register_image_refresher
 from ..registry import register_scraper
 
-_BRACKET_GROUP_RE = re.compile(r'^\[([^\]]+)\]\s*')
-_BRACKET_GROUP_ARTIST_RE = re.compile(r'^(.+?)\s*\(([^)]+)\)\s*$')
+_BRACKET_GROUP_RE = re.compile(r"^\[([^\]]+)\]\s*")
+_BRACKET_GROUP_ARTIST_RE = re.compile(r"^(.+?)\s*\(([^)]+)\)\s*$")
 
 _GALLERY_URL_RE = re.compile(
     r"^https?://(?:www\.)?e-hentai\.org/g/(\d+)/([a-fA-F0-9]+)/?(?:[?#].*)?$"
@@ -74,8 +74,7 @@ def _gallery_parts(url: str) -> tuple[int, str]:
     if not m:
         raise ScrapeError(
             f"Invalid e-hentai gallery URL: {url}",
-            hint="Expected a gallery URL like "
-                 "https://e-hentai.org/g/{id}/{token}/",
+            hint="Expected a gallery URL like https://e-hentai.org/g/{id}/{token}/",
         )
     return int(m.group(1)), m.group(2).lower()
 
@@ -237,7 +236,7 @@ async def _api_gdata(gid: int, token: str, client: AsyncSession) -> dict:
             raise ScrapeError(
                 "This e-hentai gallery is missing or inaccessible.",
                 hint="The gallery may have been removed, expunged, or the "
-                     "ID/token in the URL is wrong.",
+                "ID/token in the URL is wrong.",
             )
         raise ScrapeError(f"e-hentai API error: {error}")
     return data["gmetadata"][0]
@@ -262,7 +261,9 @@ def _extract_series_chapter(title: str) -> tuple[str, str]:
 
 
 async def _fetch_gallery_page(
-    page_url: str, client: AsyncSession, use_cache: bool = True,
+    page_url: str,
+    client: AsyncSession,
+    use_cache: bool = True,
 ) -> list[str]:
     resp = await BaseScraper._timeout_get(page_url, client, use_cache=use_cache)
     resp.raise_for_status()
@@ -328,9 +329,7 @@ async def _fetch_gallery_page_with_retry(page_url: str, client: AsyncSession) ->
     last_exc: BaseException | None = None
     for attempt in range(_GALLERY_PAGE_RETRIES):
         try:
-            return await _fetch_gallery_page(
-                page_url, client, use_cache=attempt == 0
-            )
+            return await _fetch_gallery_page(page_url, client, use_cache=attempt == 0)
         except Exception as exc:
             if not _is_transient_page_error(exc):
                 raise
@@ -344,9 +343,7 @@ async def _fetch_gallery_page_with_retry(page_url: str, client: AsyncSession) ->
 
 async def _gallery_page_urls(base_url: str, filecount: int, client: AsyncSession) -> list[str]:
     num_pages = (filecount + 19) // 20
-    page_urls = [
-        base_url if p == 0 else f"{base_url}?p={p}" for p in range(num_pages)
-    ]
+    page_urls = [base_url if p == 0 else f"{base_url}?p={p}" for p in range(num_pages)]
 
     async def _limited_fetch(pu: str) -> list[str]:
         async with _GALLERY_PAGE_SEM:
@@ -364,7 +361,9 @@ async def _gallery_page_urls(base_url: str, filecount: int, client: AsyncSession
 
 
 async def _image_page_url(
-    page_url: str, client: AsyncSession, sem: asyncio.Semaphore,
+    page_url: str,
+    client: AsyncSession,
+    sem: asyncio.Semaphore,
     use_cache: bool = True,
 ) -> tuple[str, str] | None:
     async with sem:
@@ -397,9 +396,7 @@ async def _image_page_url(
 
 
 @register_image_refresher("e-hentai.org", "exhentai.org")
-async def _refresh_stale_image(
-    client: AsyncSession, item: ImageItem
-) -> ImageItem | None:
+async def _refresh_stale_image(client: AsyncSession, item: ImageItem) -> ImageItem | None:
     """Re-mint an expired H@H keystamp link from its ``/s/`` page.
 
     The downloader calls this when a retryable failure suggests the link
@@ -507,9 +504,7 @@ class EHentaiScraper(BaseScraper):
                 source_url=item.source_url,
             )
 
-    async def _gallery_skeleton(
-        self, url: str, client: AsyncSession
-    ) -> dict[str, Any]:
+    async def _gallery_skeleton(self, url: str, client: AsyncSession) -> dict[str, Any]:
         """Everything about a gallery except its image URLs (one API call)."""
         gid, token = _gallery_parts(url)
 
@@ -552,9 +547,7 @@ class EHentaiScraper(BaseScraper):
             year = None
 
         # Manga and doujinshi read right-to-left; everything else left-to-right.
-        reading_direction = (
-            "rtl" if category.strip().lower() in ("manga", "doujinshi") else "ltr"
-        )
+        reading_direction = "rtl" if category.strip().lower() in ("manga", "doujinshi") else "ltr"
         community_rating: float | None = None
         try:
             raw_rating = float(meta.get("rating") or 0)
@@ -593,14 +586,10 @@ class EHentaiScraper(BaseScraper):
             "cover_url": meta.get("thumb", ""),
         }
 
-    async def _scrape_chapter(
-        self, url: str, client: AsyncSession
-    ) -> ScrapedChapter:
+    async def _scrape_chapter(self, url: str, client: AsyncSession) -> ScrapedChapter:
         skel = await self._gallery_skeleton(url, client)
         images: list[ImageItem] = []
-        async for item in _iter_image_items(
-            skel["base_url"], skel["filecount"], client
-        ):
+        async for item in _iter_image_items(skel["base_url"], skel["filecount"], client):
             images.append(item)
 
         if not images:

@@ -50,48 +50,34 @@ class TestAvailable:
         assert webview_mod.available() is False
 
     def test_false_without_display_or_xvfb(self, monkeypatch):
-        monkeypatch.setattr(
-            webview_mod.importlib.util, "find_spec", lambda _name: object()
-        )
+        monkeypatch.setattr(webview_mod.importlib.util, "find_spec", lambda _name: object())
         monkeypatch.setattr(webview_mod.os, "name", "posix")
         monkeypatch.setattr(webview_mod.sys, "platform", "linux")
-        monkeypatch.setattr(
-            webview_mod.subprocess, "run", lambda *a, **k: _Proc(returncode=0)
-        )
+        monkeypatch.setattr(webview_mod.subprocess, "run", lambda *a, **k: _Proc(returncode=0))
         monkeypatch.setattr(webview_mod, "_has_display", lambda: False)
         monkeypatch.setattr(webview_mod.shutil, "which", lambda _name: None)
         assert webview_mod.available() is False
 
     def test_true_with_display(self, monkeypatch):
-        monkeypatch.setattr(
-            webview_mod.importlib.util, "find_spec", lambda _name: object()
-        )
+        monkeypatch.setattr(webview_mod.importlib.util, "find_spec", lambda _name: object())
         monkeypatch.setattr(webview_mod.os, "name", "posix")
         monkeypatch.setattr(webview_mod.sys, "platform", "linux")
-        monkeypatch.setattr(
-            webview_mod.subprocess, "run", lambda *a, **k: _Proc(returncode=0)
-        )
+        monkeypatch.setattr(webview_mod.subprocess, "run", lambda *a, **k: _Proc(returncode=0))
         monkeypatch.setattr(webview_mod, "_has_display", lambda: True)
         assert webview_mod.available() is True
 
     def test_false_when_gi_probe_fails(self, monkeypatch):
-        monkeypatch.setattr(
-            webview_mod.importlib.util, "find_spec", lambda _name: object()
-        )
+        monkeypatch.setattr(webview_mod.importlib.util, "find_spec", lambda _name: object())
         monkeypatch.setattr(webview_mod.os, "name", "posix")
         monkeypatch.setattr(webview_mod.sys, "platform", "linux")
-        monkeypatch.setattr(
-            webview_mod.subprocess, "run", lambda *a, **k: _Proc(returncode=1)
-        )
+        monkeypatch.setattr(webview_mod.subprocess, "run", lambda *a, **k: _Proc(returncode=1))
         monkeypatch.setattr(webview_mod, "_has_display", lambda: True)
         assert webview_mod.available() is False
 
     def test_true_when_system_python_has_gi_but_venv_lacks_it(self, monkeypatch):
         # A venv python without PyGObject must not disable the solver when a
         # candidate the helper would spawn (a system python3) has gi.
-        monkeypatch.setattr(
-            webview_mod.importlib.util, "find_spec", lambda _name: object()
-        )
+        monkeypatch.setattr(webview_mod.importlib.util, "find_spec", lambda _name: object())
         monkeypatch.setattr(webview_mod.os, "name", "posix")
         monkeypatch.setattr(webview_mod.sys, "platform", "linux")
         monkeypatch.setattr(webview_mod, "_has_display", lambda: True)
@@ -135,9 +121,7 @@ class TestHelperCommand:
     def test_none_when_no_interpreter_passes_gi_probe(self, monkeypatch):
         monkeypatch.setattr(webview_mod.os, "name", "posix")
         monkeypatch.setattr(webview_mod, "_python_on_path", lambda: [])
-        monkeypatch.setattr(
-            webview_mod.subprocess, "run", lambda *a, **k: _Proc(returncode=1)
-        )
+        monkeypatch.setattr(webview_mod.subprocess, "run", lambda *a, **k: _Proc(returncode=1))
         assert webview_mod._helper_command() is None
 
 
@@ -201,9 +185,7 @@ class TestWebViewSessionErrors:
         monkeypatch.setattr(webview_mod, "validate_request_url", lambda url: url)
         sess = WebViewSession("https://example.com/")
         sess._proc = _BlockingProc()
-        req_task = asyncio.create_task(
-            sess.request("GET", "https://example.com/x")
-        )
+        req_task = asyncio.create_task(sess.request("GET", "https://example.com/x"))
         for _ in range(100):
             if sess._active_request is not None:
                 break
@@ -235,9 +217,7 @@ class TestIdleShutdown:
         sess._idle_timeout = 0.02
         sess._arm_idle()
         assert sess._idle_task is not None
-        req_task = asyncio.create_task(
-            sess.request("GET", "https://example.com/x")
-        )
+        req_task = asyncio.create_task(sess.request("GET", "https://example.com/x"))
         for _ in range(100):
             if sess._active_request is not None:
                 break
@@ -275,9 +255,7 @@ def _isolate_streams(monkeypatch):
     monkeypatch.setattr(webview_mod, "_session", None)
 
 
-_VALID_STREAM_HEADER = (
-    b'{"id": 1, "status": 200, "headers": {}, "stream": true, "length": 10}\n'
-)
+_VALID_STREAM_HEADER = b'{"id": 1, "status": 200, "headers": {}, "stream": true, "length": 10}\n'
 
 
 class _TruncatedStdout:

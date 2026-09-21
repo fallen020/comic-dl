@@ -37,12 +37,8 @@ def _fake_transport(monkeypatch):
     async def _permissive(url):
         return url
 
-    monkeypatch.setattr(
-        "comic_dl.scrapers.base.validate_request_url_async", _permissive
-    )
-    monkeypatch.setattr(
-        "comic_dl.scrapers.generic.validate_request_url", lambda url: url
-    )
+    monkeypatch.setattr("comic_dl.scrapers.base.validate_request_url_async", _permissive)
+    monkeypatch.setattr("comic_dl.scrapers.generic.validate_request_url", lambda url: url)
 
 
 @pytest.fixture(autouse=True)
@@ -215,10 +211,9 @@ class TestProcessUrl:
         assert scrapers == [fake]
 
     @pytest.mark.asyncio
-    async def test_plugin_series_url_routes_via_matches_series_url(
-        self, monkeypatch, tmp_path
-    ):
+    async def test_plugin_series_url_routes_via_matches_series_url(self, monkeypatch, tmp_path):
         """A plugin domain without a static checker still reaches series mode."""
+
         class PluginScraper:
             def matches_series_url(self, url):
                 return url.startswith("https://plugin.example/manga/")
@@ -247,10 +242,9 @@ class TestProcessUrl:
         assert isinstance(scrapers[0], PluginScraper)
 
     @pytest.mark.asyncio
-    async def test_plugin_chapter_url_stays_in_chapter_mode(
-        self, monkeypatch, tmp_path
-    ):
+    async def test_plugin_chapter_url_stays_in_chapter_mode(self, monkeypatch, tmp_path):
         """The matches_series_url fallback must not swallow chapter URLs."""
+
         class PluginScraper:
             def matches_series_url(self, url):
                 return url.startswith("https://plugin.example/manga/")
@@ -272,9 +266,7 @@ class TestProcessUrl:
 
         monkeypatch.setattr("comic_dl.downloader.download_httpx", fake_download)
         _patch_series_scraper(monkeypatch, {"plugin.example": PluginScraper()})
-        _patch_chapter_scraper(
-            monkeypatch, {"plugin.example": PluginChapterScraper()}
-        )
+        _patch_chapter_scraper(monkeypatch, {"plugin.example": PluginChapterScraper()})
 
         status, _ = await cli.process_url(
             url="https://plugin.example/chapter/7",
@@ -303,9 +295,7 @@ class TestProcessUrl:
         assert fake.detect_calls == []
 
     @pytest.mark.asyncio
-    async def test_generic_finds_nothing_falls_through_to_unsupported(
-        self, monkeypatch, tmp_path
-    ):
+    async def test_generic_finds_nothing_falls_through_to_unsupported(self, monkeypatch, tmp_path):
         fake = _FakeGeneric(None)
         _patch_generic(monkeypatch, fake)
         _patch_chapter_scraper(monkeypatch, {})
@@ -376,9 +366,7 @@ class TestPreviewUrl:
         assert fake.detect_calls == []
 
     @pytest.mark.asyncio
-    async def test_plugin_series_url_preview_via_matches_series_url(
-        self, monkeypatch, tmp_path
-    ):
+    async def test_plugin_series_url_preview_via_matches_series_url(self, monkeypatch, tmp_path):
         """Dry-run preview routes plugin series URLs the same way process_url does."""
 
         class PluginScraper:
@@ -440,9 +428,7 @@ class TestLibraryUpdate:
         assert scrapers == [fake]
         assert fake.detect_calls == [SERIES_URL]
 
-    def test_update_skips_unknown_source_when_generic_disabled(
-        self, tmp_path, monkeypatch, capsys
-    ):
+    def test_update_skips_unknown_source_when_generic_disabled(self, tmp_path, monkeypatch, capsys):
         from comic_dl import cli as cli_module
 
         self._seed_unknown_series(tmp_path)
@@ -486,10 +472,20 @@ class TestFlagParsing:
         monkeypatch.setattr("comic_dl.cli.impersonate_is_deprecated", lambda p: False)
 
         args = argparse.Namespace(
-            output=None, concurrency=None, parallel=None, chapter_parallel=None,
-            max_image_size=None, max_size=None, compress=None, format=None,
-            impersonate=None, solver=None, no_cookie=False, no_cache=False,
-            no_rate=False, no_generic=True,
+            output=None,
+            concurrency=None,
+            parallel=None,
+            chapter_parallel=None,
+            max_image_size=None,
+            max_size=None,
+            compress=None,
+            format=None,
+            impersonate=None,
+            solver=None,
+            no_cookie=False,
+            no_cache=False,
+            no_rate=False,
+            no_generic=True,
         )
         cli._apply_config(args)
         assert {"generic": False} in calls
@@ -508,10 +504,20 @@ class TestFlagParsing:
         monkeypatch.setattr("comic_dl.cli.impersonate_is_deprecated", lambda p: False)
 
         args = argparse.Namespace(
-            output=Path("/tmp"), concurrency=1, parallel=1, chapter_parallel=1,
-            max_image_size=1, max_size=0, compress="stored", format="cbz",
-            impersonate=None, solver=None, no_cookie=False, no_cache=False,
-            no_rate=False, no_generic=False,
+            output=Path("/tmp"),
+            concurrency=1,
+            parallel=1,
+            chapter_parallel=1,
+            max_image_size=1,
+            max_size=0,
+            compress="stored",
+            format="cbz",
+            impersonate=None,
+            solver=None,
+            no_cookie=False,
+            no_cache=False,
+            no_rate=False,
+            no_generic=False,
         )
         cli._apply_config(args)
         assert calls == []
@@ -520,7 +526,7 @@ class TestFlagParsing:
         from comic_dl import config
 
         cfg = tmp_path / "config.toml"
-        cfg.write_text('[download]\ngeneric = false\n', encoding="utf-8")
+        cfg.write_text("[download]\ngeneric = false\n", encoding="utf-8")
         monkeypatch.setattr(config, "config_path", lambda: cfg)
         assert config.generic_enabled() is False
 

@@ -23,9 +23,7 @@ from ..registry import register_scraper
 DOMAIN = "manhwatop.com"
 BASE = "https://manhwatop.com"
 
-_SERIES_PATH_RE = re.compile(
-    r"^https?://(?:www\.)?manhwatop\.com/manga/[^/]+/?$"
-)
+_SERIES_PATH_RE = re.compile(r"^https?://(?:www\.)?manhwatop\.com/manga/[^/]+/?$")
 _CHAPTER_PATH_RE = re.compile(
     r"^https?://(?:www\.)?manhwatop\.com/manga/[^/]+/chapter-\d+(?:\.\d+)?/?$"
 )

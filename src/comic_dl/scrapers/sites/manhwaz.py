@@ -24,12 +24,8 @@ from ..registry import register_scraper
 DOMAIN = "manhwaz.com"
 BASE = "https://manhwaz.com"
 
-_SERIES_PATH_RE = re.compile(
-    r"^https?://(?:www\.)?manhwaz\.com/webtoon/[^/]+/?$"
-)
-_CHAPTER_PATH_RE = re.compile(
-    r"^https?://(?:www\.)?manhwaz\.com/webtoon/[^/]+/chapter-[^/]+/?$"
-)
+_SERIES_PATH_RE = re.compile(r"^https?://(?:www\.)?manhwaz\.com/webtoon/[^/]+/?$")
+_CHAPTER_PATH_RE = re.compile(r"^https?://(?:www\.)?manhwaz\.com/webtoon/[^/]+/chapter-[^/]+/?$")
 
 _CHAPTER_NUM_RE = re.compile(r"chapter-([0-9.]+)", re.IGNORECASE)
 

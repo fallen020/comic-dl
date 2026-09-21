@@ -40,13 +40,9 @@ _CHAPTER_PATH_MARKS = (
     "/asura-images/chapters-restored/",
 )
 
-_SERIES_PATH_RE = re.compile(
-    r"^https?://(?:www\.)?asurascans\.com/comics/[^/]+/?$"
-)
+_SERIES_PATH_RE = re.compile(r"^https?://(?:www\.)?asurascans\.com/comics/[^/]+/?$")
 
-_CHAPTER_PATH_RE = re.compile(
-    r"^https?://(?:www\.)?asurascans\.com/comics/[^/]+/chapter/\d+/?$"
-)
+_CHAPTER_PATH_RE = re.compile(r"^https?://(?:www\.)?asurascans\.com/comics/[^/]+/chapter/\d+/?$")
 
 _STATUS_LABEL = "Status"
 _PREMIUM_MARKER = "Premium"
@@ -160,13 +156,13 @@ def _extract_chapter_title(
     headline = _attr_text(article.get("headline")) if article else ""
     if headline:
         if series_title and headline.startswith(series_title):
-            rest = headline[len(series_title):].lstrip(" -:").strip()
+            rest = headline[len(series_title) :].lstrip(" -:").strip()
             if rest:
                 return rest
         return headline
     stripped = _site_stripped_title(soup, idx)
     if series_title and stripped.startswith(series_title):
-        rest = stripped[len(series_title):].lstrip(" -:").strip()
+        rest = stripped[len(series_title) :].lstrip(" -:").strip()
         if rest:
             return rest
     if stripped:
@@ -222,7 +218,7 @@ def _extract_status(soup: BeautifulSoup) -> str | None:
             parent = el.parent
             if parent is not None:
                 text = parent.get_text(" ", strip=True)
-                value = text[len(_STATUS_LABEL):].strip()
+                value = text[len(_STATUS_LABEL) :].strip()
                 if value:
                     return value
     return None
@@ -319,9 +315,7 @@ class AsurascansScraper(BaseScraper):
             return cached
         data: dict = {}
         try:
-            response = await BaseScraper._timeout_get(
-                f"{BASE}/comics/{series_slug}", client
-            )
+            response = await BaseScraper._timeout_get(f"{BASE}/comics/{series_slug}", client)
             response.raise_for_status()
             soup = BeautifulSoup(response.text, "lxml")
             meta = _extract_meta(soup)
@@ -342,7 +336,9 @@ class AsurascansScraper(BaseScraper):
         return data
 
     async def _scrape_chapter(
-        self, url: str, client: AsyncSession,
+        self,
+        url: str,
+        client: AsyncSession,
     ) -> ScrapedChapter:
         soup, _ = await self._fetch(url, client)
         idx = meta_index(soup)
@@ -416,7 +412,9 @@ class AsurascansScraper(BaseScraper):
         )
 
     async def _scrape_series(
-        self, url: str, client: AsyncSession,
+        self,
+        url: str,
+        client: AsyncSession,
     ) -> SeriesMetadata:
         soup, _ = await self._fetch(url, client)
         idx = meta_index(soup)
@@ -438,11 +436,13 @@ class AsurascansScraper(BaseScraper):
             number = _chapter_number_from_slug(href)
             raw_title = link.get_text(strip=True) or ""
             title = f"Chapter {number}" if number else raw_title
-            chapters.append({
-                "title": title,
-                "url": urljoin(url, href),
-                "episode_no": number or title,
-            })
+            chapters.append(
+                {
+                    "title": title,
+                    "url": urljoin(url, href),
+                    "episode_no": number or title,
+                }
+            )
 
         if not chapters:
             raise no_chapters_error()
@@ -456,9 +456,8 @@ class AsurascansScraper(BaseScraper):
         chapters.sort(key=_sort_key)
 
         return SeriesMetadata(
-            series_title=series_title or (
-                title_no.replace("-", " ").title() if title_no else "Untitled"
-            ),
+            series_title=series_title
+            or (title_no.replace("-", " ").title() if title_no else "Untitled"),
             description=description,
             cover_url=cover_url,
             title_no=title_no,

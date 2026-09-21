@@ -42,9 +42,7 @@ from ..registry import register_scraper
 DOMAIN = "qimanga.com"
 BASE = "https://qimanga.com"
 
-_SERIES_PATH_RE = re.compile(
-    r"^https?://(?:www\.)?qimanga\.com/series/[^/]+/?$"
-)
+_SERIES_PATH_RE = re.compile(r"^https?://(?:www\.)?qimanga\.com/series/[^/]+/?$")
 
 _CHAPTER_PATH_RE = re.compile(
     r"^https?://(?:www\.)?qimanga\.com/series/[^/]+/chapter-\d+(?:\.\d+)?/?$"
@@ -122,11 +120,7 @@ def _extract_cover(soup: BeautifulSoup, idx: dict[str, list[str]]) -> str:
 
 
 def _extract_genres(soup: BeautifulSoup) -> list[str]:
-    return [
-        a.get_text(strip=True)
-        for a in soup.select("a.genre-tag")
-        if a.get_text(strip=True)
-    ]
+    return [a.get_text(strip=True) for a in soup.select("a.genre-tag") if a.get_text(strip=True)]
 
 
 def _status_item_value(soup: BeautifulSoup, label: str) -> str | None:
@@ -187,7 +181,8 @@ def _breadcrumb_series_title(soup: BeautifulSoup) -> str:
 
 
 def _extract_chapter_title(
-    soup: BeautifulSoup, chapter_number: str | None,
+    soup: BeautifulSoup,
+    chapter_number: str | None,
 ) -> str:
     span = soup.select_one("span.r-breadcrumb-chapter")
     if span is not None:
@@ -278,9 +273,7 @@ class QiMangaScraper(BaseScraper):
             return cached
         data: dict = {}
         try:
-            response = await BaseScraper._timeout_get(
-                f"{BASE}/series/{series_slug}", client
-            )
+            response = await BaseScraper._timeout_get(f"{BASE}/series/{series_slug}", client)
             response.raise_for_status()
             soup = BeautifulSoup(response.text, "lxml")
             idx = meta_index(soup)
@@ -301,7 +294,9 @@ class QiMangaScraper(BaseScraper):
         return data
 
     async def _scrape_chapter(
-        self, url: str, client: AsyncSession,
+        self,
+        url: str,
+        client: AsyncSession,
     ) -> ScrapedChapter:
         soup, _ = await self._fetch(url, client)
 
@@ -316,9 +311,7 @@ class QiMangaScraper(BaseScraper):
         chapter_number = _chapter_number_from_url(url)
         chapter_title = _extract_chapter_title(soup, chapter_number)
         if not chapter_title:
-            chapter_title = (
-                f"Chapter {chapter_number}" if chapter_number else "Chapter"
-            )
+            chapter_title = f"Chapter {chapter_number}" if chapter_number else "Chapter"
 
         return ScrapedChapter(
             info=ChapterInfo(
@@ -341,7 +334,9 @@ class QiMangaScraper(BaseScraper):
         )
 
     async def _scrape_series(
-        self, url: str, client: AsyncSession,
+        self,
+        url: str,
+        client: AsyncSession,
     ) -> SeriesMetadata:
         soup, _ = await self._fetch(url, client)
         idx = meta_index(soup)
@@ -367,11 +362,13 @@ class QiMangaScraper(BaseScraper):
             if num_span is not None:
                 label = num_span.get_text(strip=True)
             label = label or _attr_text(link.get("aria-label")) or f"Chapter {number}"
-            chapters.append({
-                "title": label,
-                "url": urljoin(url, href),
-                "episode_no": number,
-            })
+            chapters.append(
+                {
+                    "title": label,
+                    "url": urljoin(url, href),
+                    "episode_no": number,
+                }
+            )
 
         if not chapters:
             raise no_chapters_error()
@@ -379,12 +376,10 @@ class QiMangaScraper(BaseScraper):
         chapters.sort(key=_chapter_sort_key)
 
         return SeriesMetadata(
-            series_title=series_title or (
-                title_no.replace("-", " ").title() if title_no else "Untitled"
-            ),
+            series_title=series_title
+            or (title_no.replace("-", " ").title() if title_no else "Untitled"),
             description=description,
             cover_url=cover_url,
             title_no=title_no,
             chapters=chapters,
         )
-

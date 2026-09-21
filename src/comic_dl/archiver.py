@@ -42,9 +42,7 @@ def parse_compression(value: str) -> tuple[int, int]:
     compressed, so the value is parsed but unused for them.
     """
     if not isinstance(value, str):
-        raise ValueError(
-            f"Invalid compression {value!r}: expected stored or deflate[:level]"
-        )
+        raise ValueError(f"Invalid compression {value!r}: expected stored or deflate[:level]")
     v = value.strip().lower()
     if v == "stored":
         return ZIP_STORED, 0
@@ -123,10 +121,10 @@ def _packed_members(
             continue
         try:
             fhash = sha256()
-            with open(src, 'rb') as f:
+            with open(src, "rb") as f:
                 header = f.read(MAGIC_MAX)
                 fhash.update(header)
-                for chunk in iter(lambda: f.read(65536), b''):
+                for chunk in iter(lambda: f.read(65536), b""):
                     fhash.update(chunk)
         except OSError:
             skipped.append(f"{src_name} (missing)")
@@ -176,9 +174,7 @@ def _comicinfo_bytes(
         reading_direction=(
             getattr(series_meta, "reading_direction", None) if series_meta else None
         ),
-        community_rating=(
-            getattr(series_meta, "community_rating", None) if series_meta else None
-        ),
+        community_rating=(getattr(series_meta, "community_rating", None) if series_meta else None),
         year=getattr(series_meta, "year", None) if series_meta else None,
         has_cover=True,
     )
@@ -194,9 +190,9 @@ def _write_zip(
 ) -> int:
     compress_type, compress_level = parse_compression(compression)
     added = 0
-    with ZipFile(tmp_path, 'w', compress_type, compresslevel=compress_level) as zf:
+    with ZipFile(tmp_path, "w", compress_type, compresslevel=compress_level) as zf:
         for _idx, src, arcname in members:
-            with open(src, 'rb') as f, zf.open(arcname, 'w') as zf_f:
+            with open(src, "rb") as f, zf.open(arcname, "w") as zf_f:
                 shutil.copyfileobj(f, zf_f)
             added += 1
             if on_packed is not None:
@@ -325,8 +321,7 @@ def create_archive(
     fmt = output_path.suffix.lower()
     if fmt not in ARCHIVE_SUFFIXES:
         raise ValueError(
-            f"Unsupported archive format {output_path.suffix!r}: "
-            "expected .cbz, .zip, or .cbt"
+            f"Unsupported archive format {output_path.suffix!r}: expected .cbz, .zip, or .cbt"
         )
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -370,4 +365,3 @@ def create_archive(
                 tmp_path.unlink(missing_ok=True)
 
     return added, skipped
-

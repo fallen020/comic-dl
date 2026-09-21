@@ -55,14 +55,16 @@ from .webview_constants import (
 _BRIDGE_READY_JS = "typeof pywebview !== 'undefined' && typeof pywebview.api !== 'undefined'"
 
 # Headers that must not be set via XHR (browser-managed or security-sensitive).
-_BLOCKED_HEADERS = frozenset({
-    "content-length",
-    "host",
-    "connection",
-    "cookie",
-    "origin",
-    "referer",
-})
+_BLOCKED_HEADERS = frozenset(
+    {
+        "content-length",
+        "host",
+        "connection",
+        "cookie",
+        "origin",
+        "referer",
+    }
+)
 
 
 def _xhr_js(
@@ -98,11 +100,7 @@ def _xhr_js(
         if not binary
         else "try { xhr.overrideMimeType('text/plain; charset=x-user-defined'); } catch (e) {}\n"
     )
-    byte_map = (
-        "bytes.charCodeAt(i) & 0xFF"
-        if binary
-        else "bytes[i]"
-    )
+    byte_map = "bytes.charCodeAt(i) & 0xFF" if binary else "bytes[i]"
     return (
         "(function () {\n"
         "try {\n"
@@ -121,11 +119,9 @@ def _xhr_js(
         "}\n"
         "var b64 = '';\n"
         "try {\n"
-        "  var bytes = " + (
-            "new TextEncoder().encode(xhr.responseText)"
-            if not binary
-            else "xhr.responseText"
-        ) + ";\n"
+        "  var bytes = "
+        + ("new TextEncoder().encode(xhr.responseText)" if not binary else "xhr.responseText")
+        + ";\n"
         "  var binary = '';\n"
         "  for (var i = 0; i < bytes.length; i++) { "
         "binary += String.fromCharCode(" + byte_map + "); }\n"
@@ -243,10 +239,7 @@ def _handle_request(window: Any, req: dict[str, Any], page_origin: str) -> dict[
             }
 
         # Filter unsafe headers.
-        filtered_headers = {
-            k: v for k, v in headers.items()
-            if k.lower() not in _BLOCKED_HEADERS
-        }
+        filtered_headers = {k: v for k, v in headers.items() if k.lower() not in _BLOCKED_HEADERS}
 
         js = _xhr_js(
             method,
@@ -402,9 +395,7 @@ def main() -> int:
         "--user-agent", default=None, help="User-Agent to present (matches curl_cffi)"
     )
     parser.add_argument("--timeout", type=float, default=COOKIE_TIMEOUT)
-    parser.add_argument(
-        "--solver", default=None, help="pywebview GUI override (gtk/qt/etc.)"
-    )
+    parser.add_argument("--solver", default=None, help="pywebview GUI override (gtk/qt/etc.)")
     parser.add_argument(
         "--serve",
         action="store_true",
@@ -414,6 +405,7 @@ def main() -> int:
 
     try:
         from .utils import validate_request_url
+
         validate_request_url(args.url)
     except Exception as exc:
         _result(False, [])
@@ -433,9 +425,7 @@ def main() -> int:
 
     # create_window always returns a Window instance; None would mean a
     # fatal GUI-backend error that surfaces as an exception.
-    window = webview.create_window(
-        "comic-dl — solve Cloudflare challenge", args.url
-    )
+    window = webview.create_window("comic-dl — solve Cloudflare challenge", args.url)
     if window is None:  # pragma: no cover - pywebview always returns a Window
         _result(False, [])
         print("webview_solver: pywebview returned no window", file=sys.stderr)

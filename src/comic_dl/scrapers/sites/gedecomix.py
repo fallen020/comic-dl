@@ -48,17 +48,11 @@ from ..registry import register_scraper, url_in_domain
 DOMAIN = "gedecomix.com"
 BASE = "https://gedecomix.com"
 
-_SERIES_PATH_RE = re.compile(
-    r"^https?://(?:www\.)?gedecomix\.com/porncomic/[^/]+/?$"
-)
+_SERIES_PATH_RE = re.compile(r"^https?://(?:www\.)?gedecomix\.com/porncomic/[^/]+/?$")
 
-_CHAPTER_PATH_RE = re.compile(
-    r"^https?://(?:www\.)?gedecomix\.com/porncomic/[^/]+/[^/]+/?$"
-)
+_CHAPTER_PATH_RE = re.compile(r"^https?://(?:www\.)?gedecomix\.com/porncomic/[^/]+/[^/]+/?$")
 
-_CHAPTER_NUMBER_RE = re.compile(
-    r"(?:chapter|ch)[.\s]*#?\s*(\d+)", re.IGNORECASE
-)
+_CHAPTER_NUMBER_RE = re.compile(r"(?:chapter|ch)[.\s]*#?\s*(\d+)", re.IGNORECASE)
 
 _CHAPTER_NUM_PREFIX_RE = re.compile(r"^\d+[\s.\-]*")
 
@@ -196,7 +190,7 @@ def _extract_chapter_title(
     """Chapter title by stripping the known series prefix off the page title."""
     stripped = _site_stripped_title(soup, idx)
     if series_title and stripped.startswith(series_title):
-        rest = stripped[len(series_title):].lstrip(" -").strip()
+        rest = stripped[len(series_title) :].lstrip(" -").strip()
         if rest:
             return rest
     if stripped:
@@ -272,7 +266,9 @@ class GedecomixScraper(MadaraScraper):
         }
 
     async def _scrape_chapter(
-        self, url: str, client: AsyncSession,
+        self,
+        url: str,
+        client: AsyncSession,
     ) -> ScrapedChapter:
         soup, _ = await self.fetch_html_raw(url, client)
         idx = meta_index(soup)
@@ -301,10 +297,7 @@ class GedecomixScraper(MadaraScraper):
         if not images:
             raise no_images_error()
 
-        chapter_number = (
-            _extract_chapter_number(chapter_title)
-            or _chapter_number_from_slug(url)
-        )
+        chapter_number = _extract_chapter_number(chapter_title) or _chapter_number_from_slug(url)
 
         artists: list[str] = []
         genres: list[str] = []
@@ -336,7 +329,9 @@ class GedecomixScraper(MadaraScraper):
         )
 
     async def _scrape_series(
-        self, url: str, client: AsyncSession,
+        self,
+        url: str,
+        client: AsyncSession,
     ) -> SeriesMetadata:
         soup = await self.fetch_html(url, client)
 
@@ -364,11 +359,13 @@ class GedecomixScraper(MadaraScraper):
             raw_title = link.get_text(strip=True) or ""
             title = _CHAPTER_NUM_PREFIX_RE.sub("", raw_title).strip() or raw_title
             number = _chapter_number_from_slug(href) or _extract_chapter_number(raw_title)
-            chapters.append({
-                "title": title,
-                "url": urljoin(url, href),
-                "episode_no": number or title,
-            })
+            chapters.append(
+                {
+                    "title": title,
+                    "url": urljoin(url, href),
+                    "episode_no": number or title,
+                }
+            )
 
         if not chapters:
             raise no_chapters_error()

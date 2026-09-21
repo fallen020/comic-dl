@@ -345,9 +345,7 @@ def _write_entry(path: Path, entry: dict[str, Any]) -> None:
     fd: int | None = None
     try:
         path.parent.mkdir(parents=True, exist_ok=True)
-        fd, tmp_path = tempfile.mkstemp(
-            dir=path.parent, prefix=f".{path.name}.", suffix=".tmp"
-        )
+        fd, tmp_path = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.", suffix=".tmp")
         with os.fdopen(fd, "wb") as fh:
             fd = None
             fh.write(payload)
@@ -458,9 +456,7 @@ def store(
     if any(k.lower() == "set-cookie" for k in headers):
         return
     etag = next((v for k, v in headers.items() if k.lower() == "etag"), None)
-    last_modified = next(
-        (v for k, v in headers.items() if k.lower() == "last-modified"), None
-    )
+    last_modified = next((v for k, v in headers.items() if k.lower() == "last-modified"), None)
     entry = {
         "status": status,
         "headers": {k: _header_str(v) for k, v in headers.items()},

@@ -197,9 +197,7 @@ class TestHttpEventRedaction:
     def test_auth_header_masked(self, capsys, monkeypatch):
         monkeypatch.setenv("COMIC_DL_TRACE_HTTP", "1")
         set_verbosity(DIAGNOSTIC)
-        http_event(
-            "GET", "https://s/1", status=200, headers={"authorization": "Bearer abcdef"}
-        )
+        http_event("GET", "https://s/1", status=200, headers={"authorization": "Bearer abcdef"})
         err = capsys.readouterr().err
         assert "Bearer abcdef" not in err
         assert "authorization" not in err
@@ -215,6 +213,7 @@ class TestHttpEventRedaction:
         )
         err = capsys.readouterr().err
         from comic_dl.ui import glyphs
+
         assert glyphs().ellipsis in err
         assert "a" * 201 not in err
 
@@ -646,9 +645,7 @@ class TestGlyphFallback:
         from comic_dl import ui
 
         for field in ui._GlyphSet.__dataclass_fields__:
-            assert getattr(ui._UTF8_GLYPHS, field), (
-                f"UTF-8 glyph {field!r} must not be empty"
-            )
+            assert getattr(ui._UTF8_GLYPHS, field), f"UTF-8 glyph {field!r} must not be empty"
 
     def test_ascii_table_has_no_banned_unicode(self):
         from comic_dl import ui
@@ -694,14 +691,10 @@ class TestColorEnvResolution:
         assert self._resolve(monkeypatch, NO_COLOR="") is None
 
     def test_no_color_beats_clicolor_force(self, monkeypatch):
-        assert (
-            self._resolve(monkeypatch, NO_COLOR="1", CLICOLOR_FORCE="1") == "never"
-        )
+        assert self._resolve(monkeypatch, NO_COLOR="1", CLICOLOR_FORCE="1") == "never"
 
     def test_clicolor_force_wins(self, monkeypatch):
-        assert (
-            self._resolve(monkeypatch, CLICOLOR_FORCE="1", CLICOLOR="0") == "always"
-        )
+        assert self._resolve(monkeypatch, CLICOLOR_FORCE="1", CLICOLOR="0") == "always"
 
     def test_clicolor_zero(self, monkeypatch):
         assert self._resolve(monkeypatch, CLICOLOR="0") == "never"
@@ -814,9 +807,22 @@ class TestLightBackground:
 
 class TestColorTokens:
     ANSI = {
-        "black", "red", "green", "yellow", "blue", "magenta", "cyan", "white",
-        "bright_black", "bright_red", "bright_green", "bright_yellow",
-        "bright_blue", "bright_magenta", "bright_cyan", "bright_white",
+        "black",
+        "red",
+        "green",
+        "yellow",
+        "blue",
+        "magenta",
+        "cyan",
+        "white",
+        "bright_black",
+        "bright_red",
+        "bright_green",
+        "bright_yellow",
+        "bright_blue",
+        "bright_magenta",
+        "bright_cyan",
+        "bright_white",
     }
 
     def test_all_roles_resolve_to_ansi_names(self, monkeypatch):
@@ -860,9 +866,7 @@ class TestBanner:
         monkeypatch.setattr(ui_module, "_active_console", lambda: _FakeConsole())
         ui_module.print_banner()
 
-        logos = [
-            args[0] for args, _k in captured if args and isinstance(args[0], ui_module.Text)
-        ]
+        logos = [args[0] for args, _k in captured if args and isinstance(args[0], ui_module.Text)]
         assert logos, "banner printed no logo Text"
         logo = logos[0]
         styles = {span.style for span in logo.spans if span.style is not None}
@@ -965,8 +969,7 @@ class TestNoHardcodedGlyphs:
         roots = set()
         for node in ast.walk(tree):
             if isinstance(node, ast.Assign) and any(
-                isinstance(t, ast.Name) and t.id in self._TABLES
-                for t in node.targets
+                isinstance(t, ast.Name) and t.id in self._TABLES for t in node.targets
             ):
                 roots.add(id(node.value))
         return roots
@@ -1086,9 +1089,7 @@ class TestBatchETA:
     def _states(self, rows):
         from comic_dl.ui import RowState
 
-        return [
-            RowState(key=k, status=s, total=t, bytes=b) for k, s, t, b in rows
-        ]
+        return [RowState(key=k, status=s, total=t, bytes=b) for k, s, t, b in rows]
 
     def test_page_weighted_projection(self):
         from comic_dl.ui import _batch_eta
@@ -1100,7 +1101,10 @@ class TestBatchETA:
             ]
         )
         eta = _batch_eta(
-            states, done=1, batch_total=2, nbytes=15 * 1024 * 1024,
+            states,
+            done=1,
+            batch_total=2,
+            nbytes=15 * 1024 * 1024,
             speed=1024 * 1024,
         )
         # 160 pages total at 1 MB/s -> 16 s, minus the 15 MB already fetched.
@@ -1116,7 +1120,10 @@ class TestBatchETA:
             ]
         )
         eta = _batch_eta(
-            states, done=1, batch_total=2, nbytes=5 * 1024 * 1024,
+            states,
+            done=1,
+            batch_total=2,
+            nbytes=5 * 1024 * 1024,
             speed=1024 * 1024,
         )
         assert eta == pytest.approx(5.0)
@@ -1127,7 +1134,10 @@ class TestBatchETA:
         states = self._states([("a", "done", 10, 1024 * 1024)])
         assert (
             _batch_eta(
-                states, done=1, batch_total=1, nbytes=1024 * 1024,
+                states,
+                done=1,
+                batch_total=1,
+                nbytes=1024 * 1024,
                 speed=1024 * 1024,
             )
             is None
@@ -1153,7 +1163,9 @@ class TestPrintBatchSummary:
 
     def test_with_failure_details_uses_grouped_recap(self, capsys):
         print_batch_summary(
-            1, 0, 2,
+            1,
+            0,
+            2,
             ["Failed: https://a/", "Failed: https://b/"],
             failure_details=[
                 ("Failed: https://a/", "Unsupported URL for domain 'x'."),
@@ -1184,8 +1196,7 @@ class TestPrintSummary:
         assert "Download complete" in captured.out
 
     def test_with_bytes_and_throughput(self, capsys):
-        print_summary("S", 5, 1, 0, "/out", "10s",
-                      total_bytes=50 * 1024 * 1024, elapsed_secs=10.0)
+        print_summary("S", 5, 1, 0, "/out", "10s", total_bytes=50 * 1024 * 1024, elapsed_secs=10.0)
         captured = capsys.readouterr()
         assert "MB" in captured.out
         assert "MB/s" in captured.out
@@ -1245,11 +1256,13 @@ class TestPrintFailureRecap:
         assert "HTTP 404" in captured.err
 
     def test_recap_groups_identical_reasons(self, capsys):
-        print_failure_recap([
-            ("Failed: https://a/", "Unsupported URL for domain 'fsicomics.com'."),
-            ("Failed: https://b/", "Unsupported URL for domain 'fsicomics.com'."),
-            ("Failed: https://c/", "Could not connect to the server."),
-        ])
+        print_failure_recap(
+            [
+                ("Failed: https://a/", "Unsupported URL for domain 'fsicomics.com'."),
+                ("Failed: https://b/", "Unsupported URL for domain 'fsicomics.com'."),
+                ("Failed: https://c/", "Could not connect to the server."),
+            ]
+        )
         captured = capsys.readouterr()
         # One reason bullet with a xN count, not N repeated lines.
         assert captured.err.count("Unsupported URL for domain 'fsicomics.com'.") == 1
@@ -1356,7 +1369,8 @@ class TestCheckboxPrompt:
 
         console_obj = Console(file=io.StringIO(), width=80, force_terminal=True)
         result = checkbox_prompt(
-            "Pick", [(1, "One"), (2, "Two")],
+            "Pick",
+            [(1, "One"), (2, "Two")],
             read_key=eof,
             console_obj=console_obj,
         )
@@ -1383,7 +1397,8 @@ class TestCheckboxPrompt:
         console_obj = Console(file=io.StringIO(), width=80, force_terminal=True)
         reader = iter(["space", "enter"])
         checkbox_prompt(
-            "Pick", [(1, "One"), (2, "Two")],
+            "Pick",
+            [(1, "One"), (2, "Two")],
             read_key=lambda: next(reader),
             console_obj=console_obj,
         )
@@ -1398,7 +1413,12 @@ class TestCheckboxRenderable:
         from comic_dl.ui import glyphs
 
         group = _checkbox_renderable(
-            "Pick", [(1, "One"), (2, "Two")], {1}, cursor=0, view_start=0, height=2,
+            "Pick",
+            [(1, "One"), (2, "Two")],
+            {1},
+            cursor=0,
+            view_start=0,
+            height=2,
         )
         plain = "\n".join(r.plain for r in group.renderables)
         assert glyphs().radio_on in plain
@@ -1407,7 +1427,12 @@ class TestCheckboxRenderable:
 
     def test_footer_hint(self):
         group = _checkbox_renderable(
-            "Pick", [(1, "One")], set(), cursor=0, view_start=0, height=1,
+            "Pick",
+            [(1, "One")],
+            set(),
+            cursor=0,
+            view_start=0,
+            height=1,
         )
         assert any("space toggle" in r.plain for r in group.renderables)
 
@@ -1562,6 +1587,7 @@ class TestSourceSearch:
 class TestVersionConstant:
     def test_version_exists(self):
         from comic_dl import __version__
+
         assert isinstance(__version__, str)
         assert len(__version__) > 0
 
@@ -1569,6 +1595,7 @@ class TestVersionConstant:
 class TestActivityRowBlock:
     def _row(self):
         from comic_dl.ui import Activity
+
         act = Activity(quiet=False)
         act.row("chapters")
         act.set_label("chapters", "Ep. 2  (2/3)")
@@ -1807,13 +1834,18 @@ class TestFixedWidthLiveSlots:
         )()
 
     def test_bytes_slot_fixed_width(self):
-        for b in [512 * 1024, 999 * 1024, 1024 * 1024, 100 * 1024 * 1024,
-                  1024 * 1024 * 1024, 3 * 1024 * 1024 * 1024]:
+        for b in [
+            512 * 1024,
+            999 * 1024,
+            1024 * 1024,
+            100 * 1024 * 1024,
+            1024 * 1024 * 1024,
+            3 * 1024 * 1024 * 1024,
+        ]:
             assert len(ui_module.format_bytes_fixed(b)) == 8
 
     def test_speed_slot_fixed_width(self):
-        for s in [500, 2048, 100 * 1024, 2 * 1024 * 1024,
-                  100 * 1024 * 1024, 1024 * 1024 * 1024]:
+        for s in [500, 2048, 100 * 1024, 2 * 1024 * 1024, 100 * 1024 * 1024, 1024 * 1024 * 1024]:
             assert len(ui_module.format_speed_fixed(s)) == 10
 
     def test_remaining_slot_fixed_width(self):
@@ -1838,8 +1870,13 @@ class TestFixedWidthLiveSlots:
         )
         col = ui_module._RowStatsColumn(lambda: state)
         widths = set()
-        for b in [512 * 1024, 1024 * 1024, 5 * 1024 * 1024, 100 * 1024 * 1024,
-                  3 * 1024 * 1024 * 1024]:
+        for b in [
+            512 * 1024,
+            1024 * 1024,
+            5 * 1024 * 1024,
+            100 * 1024 * 1024,
+            3 * 1024 * 1024 * 1024,
+        ]:
             for s in [2048, 2 * 1024 * 1024, 50 * 1024 * 1024]:
                 state.bytes = b
                 state.speed_ewma = s
@@ -1854,8 +1891,7 @@ class TestFixedWidthLiveSlots:
                 status="running",
                 last_tick=time.monotonic() - stall_seconds,
             )
-            return len(ui_module._running_row_renderable(state, None, 0)
-                       .renderables[0].plain)
+            return len(ui_module._running_row_renderable(state, None, 0).renderables[0].plain)
 
         assert width(50) == width(120) == width(999)
 
@@ -2183,9 +2219,7 @@ class TestErrorBlock:
 
         from comic_dl.ui import print_partial_block
 
-        print_partial_block(
-            "https://s/ch2", missing=58, total=124, output_dir=Path("/out")
-        )
+        print_partial_block("https://s/ch2", missing=58, total=124, output_dir=Path("/out"))
         err = capsys.readouterr().err
         assert "partial download: 58 of 124 pages missing" in err
         assert "rerun to resume" in err
@@ -2291,9 +2325,7 @@ class TestSinkDurability:
         async with act:
             assert ui_mod._ACTIVE_LIVE is not None
             live_console = ui_mod._ACTIVE_LIVE.console
-            monkeypatch.setattr(
-                live_console, "print", lambda x: printed.append(str(x))
-            )
+            monkeypatch.setattr(live_console, "print", lambda x: printed.append(str(x)))
             sink = act.row("main")
             await sink.succeed("Saved: X.cbz (1.0 MB)")
         assert any("Saved: X.cbz" in line for line in printed)
@@ -2306,9 +2338,7 @@ class TestSinkDurability:
         act = ui_mod.Activity(quiet=False)
         async with act:
             live_console = ui_mod._ACTIVE_LIVE.console
-            monkeypatch.setattr(
-                live_console, "print", lambda x: printed.append(str(x))
-            )
+            monkeypatch.setattr(live_console, "print", lambda x: printed.append(str(x)))
             sink = act.row("main")
             await sink.fail("No valid pages downloaded (3 failed).")
         assert any("No valid pages" in line for line in printed)
@@ -2318,9 +2348,7 @@ class TestSinkDurability:
         import comic_dl.ui as ui_mod
 
         printed = []
-        monkeypatch.setattr(
-            ui_mod.console, "print", lambda x: printed.append(str(x))
-        )
+        monkeypatch.setattr(ui_mod.console, "print", lambda x: printed.append(str(x)))
         act = ui_mod.Activity(quiet=True)
         async with act:
             assert ui_mod._ACTIVE_LIVE is None

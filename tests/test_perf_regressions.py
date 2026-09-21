@@ -80,9 +80,7 @@ class TestCoverSessionReuse:
                 seen.append(url)
                 return _cover_response(200, payload=b"\xff\xd8\xff")
 
-        monkeypatch.setattr(
-            "comic_dl.downloader._shared_cover_client", lambda: MockClient()
-        )
+        monkeypatch.setattr("comic_dl.downloader._shared_cover_client", lambda: MockClient())
         with tempfile.TemporaryDirectory() as td:
             dest = Path(td) / "cover.jpg"
             written = await download_cover_to("https://kagane.to/cover.jpg", dest)

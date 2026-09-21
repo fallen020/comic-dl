@@ -71,6 +71,7 @@ def _ep_key(ep: object) -> str:
     """Stable identifier for an entry point (real ones expose ``name``)."""
     return getattr(ep, "name", None) or getattr(ep, "value", None) or repr(ep)
 
+
 # The generic fallback scraper, stored apart from the domain map. It is
 # intentionally *not* a SourceEntry: domain-keyed lookups can never reach it,
 # and listing it would make it sort first in ``list_sources()``. The CLI
@@ -140,15 +141,13 @@ def _check_builtin_id_unique(domain: str, site_id: str) -> None:
 
     if not _SITE_ID_RE.match(site_id):
         raise SiteRegistryError(
-            f"Built-in scraper for {domain!r} declares an invalid site id "
-            f"{site_id!r}.",
+            f"Built-in scraper for {domain!r} declares an invalid site id {site_id!r}.",
             hint="Use a stable lowercase-slug id (e.g. 'manga-example').",
         )
     prior = _builtin_ids.get(site_id)
     if prior is not None and prior != domain:
         raise SiteRegistryError(
-            f"Built-in scrapers {prior!r} and {domain!r} both declare site id "
-            f"{site_id!r}.",
+            f"Built-in scrapers {prior!r} and {domain!r} both declare site id {site_id!r}.",
             hint="Every site adapter needs its own stable id.",
         )
     _builtin_ids[site_id] = domain
@@ -207,8 +206,7 @@ def register_scraper(
             min_core = None
         if version != "builtin" and not _VERSION_RE.match(version):
             raise ValueError(
-                f"{domain!r} declares an invalid site version {version!r}; "
-                "use MAJOR.MINOR.PATCH."
+                f"{domain!r} declares an invalid site version {version!r}; use MAJOR.MINOR.PATCH."
             )
         if min_core is not None and not _VERSION_RE.match(str(min_core)):
             raise ValueError(
@@ -270,11 +268,7 @@ def get_generic_scraper() -> Any | None:
 
 def instances_for(capability: str) -> dict[str, Any]:
     """Return ``{domain: instance}`` for every source with ``capability``."""
-    return {
-        domain: e.instance
-        for domain, e in _sourcemap.items()
-        if capability in e.capabilities
-    }
+    return {domain: e.instance for domain, e in _sourcemap.items() if capability in e.capabilities}
 
 
 def list_sources() -> list[SourceEntry]:

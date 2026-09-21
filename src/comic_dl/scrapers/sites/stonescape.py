@@ -31,9 +31,7 @@ from ..registry import register_scraper
 DOMAIN = "stonescape.xyz"
 BASE = "https://stonescape.xyz"
 
-_SERIES_PATH_RE = re.compile(
-    r"^https?://(?:www\.)?stonescape\.xyz/series/[^/]+/?$"
-)
+_SERIES_PATH_RE = re.compile(r"^https?://(?:www\.)?stonescape\.xyz/series/[^/]+/?$")
 
 _CHAPTER_PATH_RE = re.compile(
     r"^https?://(?:www\.)?stonescape\.xyz/series/[^/]+/ch-\d+(?:\.\d+)?/?$"
@@ -173,8 +171,7 @@ class StoneScapeScraper(BaseScraper):
             if status == 404:
                 raise ScrapeError(
                     "Not found on StoneScape.",
-                    hint="the series or chapter may have been removed, or this "
-                    "link is dead.",
+                    hint="the series or chapter may have been removed, or this link is dead.",
                 ) from None
             if status == 403:
                 raise ScrapeError(
@@ -199,14 +196,14 @@ class StoneScapeScraper(BaseScraper):
         return await self._scrape_series(url, client)
 
     async def _scrape_chapter(
-        self, url: str, client: AsyncSession,
+        self,
+        url: str,
+        client: AsyncSession,
     ) -> ScrapedChapter:
         slug = _slug_from_url(url)
         number = _normalize_number(_chapter_number_from_url(url) or "")
 
-        payload = await self._fetch_json(
-            f"{BASE}/api/series/by-slug/{slug}/chapters", client
-        )
+        payload = await self._fetch_json(f"{BASE}/api/series/by-slug/{slug}/chapters", client)
         chapter = _find_chapter(payload.get("chapters"), number)
         if chapter is None:
             raise ScrapeError(
@@ -216,16 +213,11 @@ class StoneScapeScraper(BaseScraper):
         if chapter.get("locked"):
             raise ScrapeError(
                 "Chapter is locked on StoneScape.",
-                hint="locked chapters need coins or a subscription, which this "
-                "tool does not pay.",
+                hint="locked chapters need coins or a subscription, which this tool does not pay.",
             )
 
-        detail = await self._fetch_json(
-            f"{BASE}/api/series/by-slug/{slug}", client
-        )
-        pages = await self._fetch_json(
-            f"{BASE}/api/chapters/{chapter['chapterId']}/pages", client
-        )
+        detail = await self._fetch_json(f"{BASE}/api/series/by-slug/{slug}", client)
+        pages = await self._fetch_json(f"{BASE}/api/chapters/{chapter['chapterId']}/pages", client)
         images = _page_images(pages)
         if not images:
             raise no_images_error()
@@ -240,7 +232,8 @@ class StoneScapeScraper(BaseScraper):
             if isinstance(value, str) and value.strip()
         ]
         genres = [
-            str(genre) for genre in detail.get("genres", [])
+            str(genre)
+            for genre in detail.get("genres", [])
             if isinstance(genre, str) and genre.strip()
         ]
         status = detail.get("publicationStatus")
@@ -267,16 +260,14 @@ class StoneScapeScraper(BaseScraper):
         )
 
     async def _scrape_series(
-        self, url: str, client: AsyncSession,
+        self,
+        url: str,
+        client: AsyncSession,
     ) -> SeriesMetadata:
         slug = _slug_from_url(url)
 
-        detail = await self._fetch_json(
-            f"{BASE}/api/series/by-slug/{slug}", client
-        )
-        payload = await self._fetch_json(
-            f"{BASE}/api/series/by-slug/{slug}/chapters", client
-        )
+        detail = await self._fetch_json(f"{BASE}/api/series/by-slug/{slug}", client)
+        payload = await self._fetch_json(f"{BASE}/api/series/by-slug/{slug}/chapters", client)
 
         entries: list[dict] = []
         for chapter in payload.get("chapters", []):
@@ -287,11 +278,13 @@ class StoneScapeScraper(BaseScraper):
                 continue
             num = _normalize_number(str(raw))
             title = chapter.get("title")
-            entries.append({
-                "title": str(title) if title else f"Chapter {num}",
-                "url": f"{BASE}/series/{slug}/ch-{num}",
-                "episode_no": num,
-            })
+            entries.append(
+                {
+                    "title": str(title) if title else f"Chapter {num}",
+                    "url": f"{BASE}/series/{slug}/ch-{num}",
+                    "episode_no": num,
+                }
+            )
 
         if not entries:
             raise no_chapters_error()

@@ -26,26 +26,45 @@ from .config import http_setting
 _CGNAT_NET = ipaddress.ip_network("100.64.0.0/10")
 
 INVALID_FS_CHARS = re.compile(r'[<>:"/\\|?*]')
-CONTROL_CHARS = re.compile(r'[\x00-\x1f\x7f-\x9f]')
-MULTI_DASH = re.compile(r' - |--+')
-MULTI_SPACE = re.compile(r'\s+')
+CONTROL_CHARS = re.compile(r"[\x00-\x1f\x7f-\x9f]")
+MULTI_DASH = re.compile(r" - |--+")
+MULTI_SPACE = re.compile(r"\s+")
 DOS_RESERVED = {
-    "con", "prn", "aux", "nul",
-    "com1", "com2", "com3", "com4", "com5", "com6", "com7", "com8", "com9",
-    "lpt1", "lpt2", "lpt3", "lpt4", "lpt5", "lpt6", "lpt7", "lpt8", "lpt9",
+    "con",
+    "prn",
+    "aux",
+    "nul",
+    "com1",
+    "com2",
+    "com3",
+    "com4",
+    "com5",
+    "com6",
+    "com7",
+    "com8",
+    "com9",
+    "lpt1",
+    "lpt2",
+    "lpt3",
+    "lpt4",
+    "lpt5",
+    "lpt6",
+    "lpt7",
+    "lpt8",
+    "lpt9",
 }
 
 _MAX_COMICINFO_XML = 1_048_576
 
 PAWCHIVE_PATTERN = re.compile(
-    r'^https?://(?:www\.)?pawchive\.pw/'
-    r'(?:[^/]+)/user/(\d+)/post/(\d+)'
-    r'/?'
+    r"^https?://(?:www\.)?pawchive\.pw/"
+    r"(?:[^/]+)/user/(\d+)/post/(\d+)"
+    r"/?"
 )
 
 E_HENTAI_PATTERN = re.compile(
-    r'^https?://(?:www\.)?e-hentai\.org/g/(\d+)/([a-f0-9]+)'
-    r'/?'
+    r"^https?://(?:www\.)?e-hentai\.org/g/(\d+)/([a-f0-9]+)"
+    r"/?"
 )
 
 WEBTOON_PATTERN = re.compile(
@@ -58,15 +77,25 @@ WEBTOON_PATTERN = re.compile(
     r"/?$"
 )
 
-PART_PATTERN = re.compile(
-    r'(?:part|chapter)\s*#?\s*(\d+)', re.IGNORECASE
-)
+PART_PATTERN = re.compile(r"(?:part|chapter)\s*#?\s*(\d+)", re.IGNORECASE)
 
-GENERIC_CATEGORIES = frozenset({
-    'fanfiction', 'manga', 'anime', 'doujinshi', 'artist cg', 'image set',
-    'cosplay', 'game cg', 'western', 'non-h', 'misc', 'asian porn',
-    'original',
-})
+GENERIC_CATEGORIES = frozenset(
+    {
+        "fanfiction",
+        "manga",
+        "anime",
+        "doujinshi",
+        "artist cg",
+        "image set",
+        "cosplay",
+        "game cg",
+        "western",
+        "non-h",
+        "misc",
+        "asian porn",
+        "original",
+    }
+)
 
 
 LOW_SPEED_LIMIT_BPS = 1
@@ -83,10 +112,7 @@ HTTP_CLIENT_ARGS: dict[str, Any] = {
             "AppleWebKit/537.36 (KHTML, like Gecko) "
             "Chrome/146.0.0.0 Safari/537.36"
         ),
-        "Sec-Ch-Ua": (
-            '"Chromium";v="146", "Not-A.Brand";v="24", '
-            '"Google Chrome";v="146"'
-        ),
+        "Sec-Ch-Ua": ('"Chromium";v="146", "Not-A.Brand";v="24", "Google Chrome";v="146"'),
         "Sec-Ch-Ua-Mobile": "?0",
         "Sec-Ch-Ua-Platform": '"macOS"',
     },
@@ -101,7 +127,7 @@ _SEARCH_ORIGINS = (
 )
 
 _SIZE_RE = re.compile(r"^\s*(\d+(?:\.\d+)?)\s*([KMGT]?B)?\s*$", re.IGNORECASE)
-_SIZE_UNITS = {"B": 1, "KB": 1024, "MB": 1024 ** 2, "GB": 1024 ** 3}
+_SIZE_UNITS = {"B": 1, "KB": 1024, "MB": 1024**2, "GB": 1024**3}
 
 
 def parse_size_string(raw: Any) -> int:
@@ -142,7 +168,7 @@ def _search_referer_for_host(host: str) -> str:
     """
     if not host:
         return _SEARCH_ORIGINS[0]
-    h = 0x811c9dc5
+    h = 0x811C9DC5
     for ch in host.encode("utf-8"):
         h ^= ch
         h = (h * 0x01000193) & 0xFFFFFFFF
@@ -159,10 +185,18 @@ def search_referer(host: str | None = None) -> str:
     return _search_referer_for_host(host or "")
 
 
-_DEPRECATED_IMPERSONATE = frozenset({
-    "chrome99", "chrome100", "chrome101", "chrome104", "edge99", "edge101",
-    "safari15_3", "safari15_5",
-})
+_DEPRECATED_IMPERSONATE = frozenset(
+    {
+        "chrome99",
+        "chrome100",
+        "chrome101",
+        "chrome104",
+        "edge99",
+        "edge101",
+        "safari15_3",
+        "safari15_5",
+    }
+)
 
 
 def known_impersonate_profiles() -> frozenset[str]:
@@ -176,20 +210,50 @@ def known_impersonate_profiles() -> frozenset[str]:
     try:
         from curl_cffi.requests import BrowserType
 
-        names = {
-            name for name in dir(BrowserType) if not name.startswith("_")
-        }
+        names = {name for name in dir(BrowserType) if not name.startswith("_")}
     except Exception:
         names = {
-            "chrome99", "chrome100", "chrome101", "chrome104", "chrome107",
-            "chrome110", "chrome116", "chrome119", "chrome120", "chrome123",
-            "chrome124", "chrome131", "chrome133a", "chrome136", "chrome142",
-            "chrome145", "chrome146", "edge99", "edge101", "firefox133",
-            "firefox135", "firefox144", "firefox147", "safari153", "safari155",
-            "safari15_3", "safari15_5", "safari170", "safari17_0", "safari172_ios",
-            "safari17_2_ios", "safari180", "safari180_ios", "safari18_0",
-            "safari18_0_ios", "safari184", "safari184_ios", "safari260",
-            "safari2601", "safari260_ios", "tor145",
+            "chrome99",
+            "chrome100",
+            "chrome101",
+            "chrome104",
+            "chrome107",
+            "chrome110",
+            "chrome116",
+            "chrome119",
+            "chrome120",
+            "chrome123",
+            "chrome124",
+            "chrome131",
+            "chrome133a",
+            "chrome136",
+            "chrome142",
+            "chrome145",
+            "chrome146",
+            "edge99",
+            "edge101",
+            "firefox133",
+            "firefox135",
+            "firefox144",
+            "firefox147",
+            "safari153",
+            "safari155",
+            "safari15_3",
+            "safari15_5",
+            "safari170",
+            "safari17_0",
+            "safari172_ios",
+            "safari17_2_ios",
+            "safari180",
+            "safari180_ios",
+            "safari18_0",
+            "safari18_0_ios",
+            "safari184",
+            "safari184_ios",
+            "safari260",
+            "safari2601",
+            "safari260_ios",
+            "tor145",
         }
     return frozenset(name.lower() for name in names)
 
@@ -204,8 +268,7 @@ def validate_impersonate(profile: str) -> str | None:
     known = known_impersonate_profiles()
     if profile.lower() not in known:
         return (
-            f"unknown impersonation profile {profile!r}; "
-            f"known profiles: {', '.join(sorted(known))}"
+            f"unknown impersonation profile {profile!r}; known profiles: {', '.join(sorted(known))}"
         )
     return None
 
@@ -384,20 +447,14 @@ def referer_headers(referer_url: str) -> dict[str, str]:
     (a shared cover session, for instance) can pass these per-request.
     """
     parsed = urlsplit(referer_url)
-    origin = (
-        f"{parsed.scheme}://{parsed.netloc}"
-        if parsed.scheme and parsed.netloc
-        else ""
-    )
+    origin = f"{parsed.scheme}://{parsed.netloc}" if parsed.scheme and parsed.netloc else ""
     headers: dict[str, str] = {"Referer": referer_url}
     if origin:
         headers["Origin"] = origin
     return headers
 
 
-def http_client_args(
-    *, referer_url: str | None = None, host: str | None = None
-) -> dict[str, Any]:
+def http_client_args(*, referer_url: str | None = None, host: str | None = None) -> dict[str, Any]:
     """HTTP client kwargs with the effective impersonate profile applied.
 
     ``[http] impersonate`` (or ``--impersonate``) overrides the built-in
@@ -433,19 +490,19 @@ def http_client_args(
 def clean_title(s: str) -> str:
     """Strip leading labels and trailing annotations from a raw title."""
     s = s.strip().rstrip(",").strip()
-    bracket_start = s.find('[')
-    bracket_end = s.find(']')
+    bracket_start = s.find("[")
+    bracket_end = s.find("]")
     if bracket_start == 0 and bracket_end > bracket_start:
-        s = s[bracket_end + 1:].strip()
-    dash = s.find(' - ')
+        s = s[bracket_end + 1 :].strip()
+    dash = s.find(" - ")
     if dash > 0:
-        s = s[dash + 3:].strip()
-    if s.count('(') > s.count(')'):
-        s = s[:s.rfind('(')].strip()
-    if s.count('[') > s.count(']'):
-        s = s[:s.rfind('[')].strip()
-    s = re.sub(r'\s*\([^)]*\)\s*$', '', s)
-    s = re.sub(r'\s*\[[^\]]*\]\s*$', '', s)
+        s = s[dash + 3 :].strip()
+    if s.count("(") > s.count(")"):
+        s = s[: s.rfind("(")].strip()
+    if s.count("[") > s.count("]"):
+        s = s[: s.rfind("[")].strip()
+    s = re.sub(r"\s*\([^)]*\)\s*$", "", s)
+    s = re.sub(r"\s*\[[^\]]*\]\s*$", "", s)
     return s.strip()
 
 
@@ -471,15 +528,16 @@ def canonical_chapter_number(raw: str) -> str:
 
 
 IMAGE_MAGIC: list[tuple[bytes, int, str]] = [
-    (b'\xff\xd8\xff', 0, 'jpeg'),
-    (b'\x89PNG\r\n\x1a\n', 0, 'png'),
-    (b'GIF87a', 0, 'gif'),
-    (b'GIF89a', 0, 'gif'),
-    (b'RIFF', 0, 'webp'),
-    (b'BM', 0, 'bmp'),
-    (b'\x00\x00\x01\x00', 0, 'ico'),
-    (b'ftypavif', 4, 'avif'),
+    (b"\xff\xd8\xff", 0, "jpeg"),
+    (b"\x89PNG\r\n\x1a\n", 0, "png"),
+    (b"GIF87a", 0, "gif"),
+    (b"GIF89a", 0, "gif"),
+    (b"RIFF", 0, "webp"),
+    (b"BM", 0, "bmp"),
+    (b"\x00\x00\x01\x00", 0, "ico"),
+    (b"ftypavif", 4, "avif"),
 ]
+
 
 def image_source_name(page_number: int, url: str) -> str:
     """Return the stable on-disk filename for a page image."""
@@ -654,12 +712,12 @@ def verify_image_bytes(data: bytes) -> str | None:
     for magic, offset, fmt in IMAGE_MAGIC:
         if len(data) < offset + len(magic):
             continue
-        if fmt == 'webp':
+        if fmt == "webp":
             if len(data) < 12:
                 continue
-            if data[0:4] == b'RIFF' and data[8:12] == b'WEBP':
-                return 'webp'
-        elif data[offset:offset + len(magic)] == magic:
+            if data[0:4] == b"RIFF" and data[8:12] == b"WEBP":
+                return "webp"
+        elif data[offset : offset + len(magic)] == magic:
             return fmt
     return None
 
@@ -673,7 +731,7 @@ MAGIC_MAX = max(
 def verify_image_file(path: Path) -> str | None:
     """Detect an image format from a file header via magic bytes, or None."""
     try:
-        with open(path, 'rb') as f:
+        with open(path, "rb") as f:
             header = f.read(MAGIC_MAX)
     except (OSError, PermissionError):
         return None

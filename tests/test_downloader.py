@@ -45,7 +45,7 @@ from comic_dl.models import ImageItem
 from comic_dl.utils import image_source_name, verify_image_file
 from comic_dl.webview import SessionTransportError
 
-MAGIC_JPEG = b'\xff\xd8\xff'
+MAGIC_JPEG = b"\xff\xd8\xff"
 
 
 @pytest.fixture(autouse=True)
@@ -141,9 +141,7 @@ class TestDownloadFailureLabel:
 
         resp = CurlResponse()
         resp.status_code = 530
-        assert _download_failure_label(
-            CurlHTTPError("origin error", response=resp)
-        ) == "HTTP 530"
+        assert _download_failure_label(CurlHTTPError("origin error", response=resp)) == "HTTP 530"
 
     def test_timeout(self):
         from comic_dl.downloader import _download_failure_label
@@ -279,9 +277,7 @@ class TestRetryBlocked:
         live = self._FakeLiveSession(self._LiveRecovered())
         monkeypatch.setattr("comic_dl.webview.live_session_for", lambda url: live)
         solves = []
-        monkeypatch.setattr(
-            "comic_dl.cf.handle_challenge", lambda url: solves.append(url) or True
-        )
+        monkeypatch.setattr("comic_dl.cf.handle_challenge", lambda url: solves.append(url) or True)
 
         calls = []
 
@@ -302,13 +298,9 @@ class TestRetryBlocked:
         live = self._FakeLiveSession(blocked)
         monkeypatch.setattr("comic_dl.webview.live_session_for", lambda url: live)
         closes = []
-        monkeypatch.setattr(
-            "comic_dl.webview.close_session", lambda *a, **k: closes.append(1)
-        )
+        monkeypatch.setattr("comic_dl.webview.close_session", lambda *a, **k: closes.append(1))
         solves = []
-        monkeypatch.setattr(
-            "comic_dl.cf.handle_challenge", lambda url: solves.append(url) or True
-        )
+        monkeypatch.setattr("comic_dl.cf.handle_challenge", lambda url: solves.append(url) or True)
 
         async def fetch():
             return self._Challenge()
@@ -318,9 +310,7 @@ class TestRetryBlocked:
         assert closes == []
         assert solves == []
 
-    async def test_cf_live_session_transport_failure_discards_and_solves(
-        self, monkeypatch
-    ):
+    async def test_cf_live_session_transport_failure_discards_and_solves(self, monkeypatch):
         # A dead pipe means the session is unusable: discard it, then fall
         # through to the normal one-shot solve path.
         live = self._FakeLiveSession(SessionTransportError("pipe died"))
@@ -547,7 +537,7 @@ class TestBackoffDelay:
     def test_jitter_within_20_percent(self):
         # With jitter, each scheduled delay stays within ±20% and is capped.
         for i in range(3):
-            expected = min(2.0 * (2 ** i), 8.0)
+            expected = min(2.0 * (2**i), 8.0)
             for _ in range(200):
                 d = _backoff_delay(i, jitter=True)
                 assert expected * 0.8 <= d <= expected * 1.2
@@ -565,6 +555,7 @@ class TestBackoffDelay:
 
 class TestTryResume:
     pytestmark = pytest.mark.asyncio
+
     async def test_no_existing_file(self):
         with tempfile.TemporaryDirectory() as td:
             dest = Path(td) / "test.jpg"
@@ -604,12 +595,16 @@ class TestTryResume:
     async def test_resume_with_mock_206(self):
         class MockResponse:
             status_code = 206
+
             async def aiter_content(self):
-                yield b'complete'
+                yield b"complete"
+
             async def __aenter__(self):
                 return self
+
             async def __aexit__(self, *args):
                 pass
+
             @property
             def headers(self):
                 return {}
@@ -620,7 +615,7 @@ class TestTryResume:
 
         with tempfile.TemporaryDirectory() as td:
             dest = Path(td) / "test.jpg"
-            dest.write_bytes(b'\xff\xd8\xff')  # partial JPEG
+            dest.write_bytes(b"\xff\xd8\xff")  # partial JPEG
             result = await _try_resume(
                 ImageItem(url="http://x.com/img", page_number=1, filename="test.jpg"),
                 dest,
@@ -632,10 +627,13 @@ class TestTryResume:
     async def test_resume_416(self):
         class MockResponse:
             status_code = 416
+
             async def __aenter__(self):
                 return self
+
             async def __aexit__(self, *args):
                 pass
+
             @property
             def headers(self):
                 return {}
@@ -646,7 +644,7 @@ class TestTryResume:
 
         with tempfile.TemporaryDirectory() as td:
             dest = Path(td) / "test.jpg"
-            dest.write_bytes(b'\xff\xd8\xff')
+            dest.write_bytes(b"\xff\xd8\xff")
             result = await _try_resume(
                 ImageItem(url="http://x.com/img", page_number=1, filename="test.jpg"),
                 dest,
@@ -660,10 +658,13 @@ class TestTryResume:
     async def test_resume_fails_non_206(self):
         class MockResponse:
             status_code = 404
+
             async def __aenter__(self):
                 return self
+
             async def __aexit__(self, *args):
                 pass
+
             @property
             def headers(self):
                 return {}
@@ -674,7 +675,7 @@ class TestTryResume:
 
         with tempfile.TemporaryDirectory() as td:
             dest = Path(td) / "test.jpg"
-            dest.write_bytes(b'\xff\xd8\xff')
+            dest.write_bytes(b"\xff\xd8\xff")
             result = await _try_resume(
                 ImageItem(url="http://x.com/img", page_number=1, filename="test.jpg"),
                 dest,
@@ -688,8 +689,8 @@ class TestVerifyDownloads:
     def test_all_valid(self):
         with tempfile.TemporaryDirectory() as td:
             src = Path(td)
-            (src / "a.jpg").write_bytes(b'\xff\xd8\xff')
-            (src / "b.jpg").write_bytes(b'\x89PNG\r\n\x1a\n')
+            (src / "a.jpg").write_bytes(b"\xff\xd8\xff")
+            (src / "b.jpg").write_bytes(b"\x89PNG\r\n\x1a\n")
             images = [
                 ImageItem(url="http://x.com/1", page_number=1, filename="a.jpg"),
                 ImageItem(url="http://x.com/2", page_number=2, filename="b.jpg"),
@@ -744,7 +745,7 @@ class TestVerifyDownloads:
     def test_mixed_results(self):
         with tempfile.TemporaryDirectory() as td:
             src = Path(td)
-            (src / "good.jpg").write_bytes(b'\xff\xd8\xff')
+            (src / "good.jpg").write_bytes(b"\xff\xd8\xff")
             images = [
                 ImageItem(url="http://x.com/1", page_number=1, filename="good.jpg"),
                 ImageItem(url="http://x.com/2", page_number=2, filename="missing.jpg"),
@@ -760,7 +761,7 @@ class TestVerifyDownloads:
 class TestStreamToDisk:
     pytestmark = pytest.mark.asyncio
 
-    def _make_client(self, status=200, data=b'\xff\xd8\xff', content_length=None):
+    def _make_client(self, status=200, data=b"\xff\xd8\xff", content_length=None):
         """Create a mock httpx client for testing _stream_to_disk."""
 
         class MockResponse:
@@ -778,6 +779,7 @@ class TestStreamToDisk:
             def raise_for_status(self):
                 if self.status_code >= 400:
                     from curl_cffi.requests.exceptions import HTTPError as CurlHTTPError
+
                     raise CurlHTTPError("error", response=self)
 
             async def aiter_content(self, chunk_size=None):
@@ -800,6 +802,7 @@ class TestStreamToDisk:
         with tempfile.TemporaryDirectory() as td:
             dest = Path(td) / "test.jpg"
             from comic_dl.downloader import _stream_to_disk
+
             await _stream_to_disk(
                 ImageItem(url="http://x.com/img", page_number=1, filename="test.jpg"),
                 dest,
@@ -814,6 +817,7 @@ class TestStreamToDisk:
         with tempfile.TemporaryDirectory() as td:
             dest = Path(td) / "test.jpg"
             from comic_dl.downloader import _stream_to_disk
+
             with pytest.raises(ValueError, match="too large"):
                 await _stream_to_disk(
                     ImageItem(url="http://x.com/img", page_number=1, filename="test.jpg"),
@@ -846,6 +850,7 @@ class TestStreamToDisk:
         with tempfile.TemporaryDirectory() as td:
             dest = Path(td) / "test.jpg"
             from comic_dl.downloader import _stream_to_disk
+
             with pytest.raises(ValueError, match="exceeded max size"):
                 await _stream_to_disk(
                     ImageItem(url="http://x.com/img", page_number=1, filename="test.jpg"),
@@ -883,6 +888,7 @@ class TestStreamToDisk:
         with tempfile.TemporaryDirectory() as td:
             dest = Path(td) / "test.jpg"
             from comic_dl.downloader import _stream_to_disk
+
             with pytest.raises(NotImageResponseError):
                 await _stream_to_disk(
                     ImageItem(url="http://x.com/img", page_number=1, filename="test.jpg"),
@@ -919,6 +925,7 @@ class TestStreamToDisk:
         with tempfile.TemporaryDirectory() as td:
             dest = Path(td) / "test.jpg"
             from comic_dl.downloader import _stream_to_disk
+
             await _stream_to_disk(
                 ImageItem(url="http://x.com/img", page_number=1, filename="test.jpg"),
                 dest,
@@ -953,10 +960,13 @@ class TestPathTraversalGuard:
 
 class TestDownloadHttpx:
     pytestmark = pytest.mark.asyncio
+
     async def test_empty_images(self):
         with tempfile.TemporaryDirectory() as td:
             failed = await download_httpx(
-                [], Path(td), concurrency=5,
+                [],
+                Path(td),
+                concurrency=5,
             )
             assert failed == set()
 
@@ -969,7 +979,7 @@ class TestDownloadHttpx:
                 pass
 
             async def aiter_content(self, chunk_size=None):
-                yield b'\xff\xd8\xff'
+                yield b"\xff\xd8\xff"
 
             async def __aenter__(self):
                 return self
@@ -992,7 +1002,9 @@ class TestDownloadHttpx:
                 ImageItem(url="http://x.com/img", page_number=1, filename="test.jpg"),
             ]
             failed = await download_httpx(
-                images, Path(td), concurrency=5,
+                images,
+                Path(td),
+                concurrency=5,
                 client=MockClient(),  # type: ignore
             )
             assert failed == set()
@@ -1040,7 +1052,9 @@ class TestDownloadHttpxIter:
         ]
         with tempfile.TemporaryDirectory() as td:
             failed, resolved = await download_httpx_iter(
-                self._aiter(images), Path(td), concurrency=2,
+                self._aiter(images),
+                Path(td),
+                concurrency=2,
                 client=self.MockClient(),  # type: ignore
             )
             assert failed == set()
@@ -1051,7 +1065,9 @@ class TestDownloadHttpxIter:
     async def test_empty_iter(self):
         with tempfile.TemporaryDirectory() as td:
             failed, resolved = await download_httpx_iter(
-                self._aiter([]), Path(td), concurrency=2,
+                self._aiter([]),
+                Path(td),
+                concurrency=2,
                 client=self.MockClient(),  # type: ignore
             )
             assert failed == set()
@@ -1081,10 +1097,11 @@ class TestRetryPreservesPart:
                 if call_count[0] == 1:
                     yield MAGIC_JPEG
                     raise CurlTimeout("timed out")
-                yield MAGIC_JPEG + b'\x00\x00\x10JFIF\x00'
+                yield MAGIC_JPEG + b"\x00\x00\x10JFIF\x00"
 
             async def __aenter__(self):
                 return self
+
             async def __aexit__(self, *args):
                 pass
 
@@ -1093,10 +1110,11 @@ class TestRetryPreservesPart:
             headers = {}
 
             async def aiter_content(self, chunk_size=None):
-                yield b'\x00\x00\x10JFIF\x00'
+                yield b"\x00\x00\x10JFIF\x00"
 
             async def __aenter__(self):
                 return self
+
             async def __aexit__(self, *args):
                 pass
 
@@ -1115,6 +1133,7 @@ class TestRetryPreservesPart:
 
             async def __aenter__(self):
                 return self
+
             async def __aexit__(self, *args):
                 pass
 
@@ -1123,7 +1142,9 @@ class TestRetryPreservesPart:
                 ImageItem(url="http://x.com/img", page_number=1, filename="test.jpg"),
             ]
             failed = await download_httpx(
-                images, Path(td), concurrency=1,
+                images,
+                Path(td),
+                concurrency=1,
                 client=MockClient(),
             )
             assert failed == set()
@@ -1145,18 +1166,21 @@ class TestRetryPreservesPart:
                 raise CurlHTTPError("not found")
 
             async def aiter_content(self, chunk_size=None):
-                yield b''
+                yield b""
 
             async def __aenter__(self):
                 return self
+
             async def __aexit__(self, *args):
                 pass
 
         class MockClient:
             def stream(self, method, url, **kwargs):
                 return NotFoundResponse()
+
             async def __aenter__(self):
                 return self
+
             async def __aexit__(self, *args):
                 pass
 
@@ -1165,7 +1189,9 @@ class TestRetryPreservesPart:
                 ImageItem(url="http://x.com/img", page_number=1, filename="fail.jpg"),
             ]
             failed = await download_httpx(
-                images, Path(td), concurrency=1,
+                images,
+                Path(td),
+                concurrency=1,
                 client=MockClient(),
             )
             assert "fail.jpg" in failed
@@ -1194,14 +1220,17 @@ class TestRetryPreservesPart:
 
             async def __aenter__(self):
                 return self
+
             async def __aexit__(self, *args):
                 pass
 
         class MockClient:
             def stream(self, method, url, **kwargs):
                 return AlwaysFailsResponse()
+
             async def __aenter__(self):
                 return self
+
             async def __aexit__(self, *args):
                 pass
 
@@ -1210,7 +1239,9 @@ class TestRetryPreservesPart:
                 ImageItem(url="http://x.com/img", page_number=1, filename="fail.jpg"),
             ]
             failed = await download_httpx(
-                images, Path(td), concurrency=1,
+                images,
+                Path(td),
+                concurrency=1,
                 client=MockClient(),
             )
             assert "fail.jpg" in failed
@@ -1240,7 +1271,7 @@ class TestAdaptiveCooldown:
             async def aiter_content(self, chunk_size=None):
                 served.append(_time.monotonic())
                 raise CurlTimeout("throttled")
-                yield b''  # pragma: no cover
+                yield b""  # pragma: no cover
 
             async def __aenter__(self):
                 return self
@@ -1257,7 +1288,7 @@ class TestAdaptiveCooldown:
 
             async def aiter_content(self, chunk_size=None):
                 served.append(_time.monotonic())
-                yield b'\xff\xd8\xff'
+                yield b"\xff\xd8\xff"
 
             async def __aenter__(self):
                 return self
@@ -1292,7 +1323,10 @@ class TestAdaptiveCooldown:
                 ImageItem(url="http://x.com/b", page_number=2, filename="b.jpg"),
             ]
             failed = await download_httpx(
-                images, Path(td), concurrency=2, client=MockClient(),
+                images,
+                Path(td),
+                concurrency=2,
+                client=MockClient(),
             )
             assert failed == set()
             assert (Path(td) / "a.jpg").exists()
@@ -1332,9 +1366,7 @@ class TestEngineTuning:
     def test_clamps(self):
         from comic_dl import config as cfgmodule
 
-        cfgmodule.set_runtime_http(
-            **{"download-timeout": 0.1, "download-retries": 99}
-        )
+        cfgmodule.set_runtime_http(**{"download-timeout": 0.1, "download-retries": 99})
         try:
             timeout, attempts = _engine_tuning()
             assert timeout == 1.0
@@ -1363,6 +1395,7 @@ class TestDownloadTimeoutAndAttempts:
 
             async def __aenter__(self):
                 return self
+
             async def __aexit__(self, *args):
                 pass
 
@@ -1372,6 +1405,7 @@ class TestDownloadTimeoutAndAttempts:
 
             async def __aenter__(self):
                 return self
+
             async def __aexit__(self, *args):
                 pass
 
@@ -1380,7 +1414,9 @@ class TestDownloadTimeoutAndAttempts:
                 ImageItem(url="http://x.com/img", page_number=1, filename="fail.jpg"),
             ]
             failed = await download_httpx(
-                images, Path(td), concurrency=1,
+                images,
+                Path(td),
+                concurrency=1,
                 client=MockClient(),  # type: ignore
                 download_timeout=0.05,
                 max_attempts=1,
@@ -1407,14 +1443,17 @@ class TestDownloadTimeoutAndAttempts:
 
             async def __aenter__(self):
                 return self
+
             async def __aexit__(self, *args):
                 pass
 
         class MockClient:
             def stream(self, method, url, **kwargs):
                 return AlwaysFailsResponse()
+
             async def __aenter__(self):
                 return self
+
             async def __aexit__(self, *args):
                 pass
 
@@ -1428,7 +1467,9 @@ class TestDownloadTimeoutAndAttempts:
                 ImageItem(url="http://x.com/img", page_number=1, filename="fail.jpg"),
             ]
             failed = await download_httpx(
-                images, Path(td), concurrency=1,
+                images,
+                Path(td),
+                concurrency=1,
                 client=MockClient(),  # type: ignore
                 max_attempts=2,
             )
@@ -1458,14 +1499,17 @@ class TestExistingDestSkip:
 
             async def __aenter__(self):
                 return self
+
             async def __aexit__(self, *args):
                 pass
 
         class MockClient:
             def stream(self, method, url, **kwargs):
                 return MockResponse()
+
             async def __aenter__(self):
                 return self
+
             async def __aexit__(self, *args):
                 pass
 
@@ -1476,7 +1520,9 @@ class TestExistingDestSkip:
                 ImageItem(url="http://x.com/img", page_number=1, filename="existing.jpg"),
             ]
             failed = await download_httpx(
-                images, Path(td), concurrency=1,
+                images,
+                Path(td),
+                concurrency=1,
                 client=MockClient(),
             )
             assert failed == set()
@@ -1501,14 +1547,17 @@ class TestExistingDestSkip:
 
             async def __aenter__(self):
                 return self
+
             async def __aexit__(self, *args):
                 pass
 
         class MockClient:
             def stream(self, method, url, **kwargs):
                 return MockResponse()
+
             async def __aenter__(self):
                 return self
+
             async def __aexit__(self, *args):
                 pass
 
@@ -1519,7 +1568,9 @@ class TestExistingDestSkip:
                 ImageItem(url="http://x.com/img", page_number=1, filename="test.jpg"),
             ]
             failed = await download_httpx(
-                images, Path(td), concurrency=1,
+                images,
+                Path(td),
+                concurrency=1,
                 client=MockClient(),
             )
             assert failed == set()
@@ -1537,18 +1588,21 @@ class TestExistingDestSkip:
 
             async def aiter_content(self, chunk_size=None):
                 range_requests[0] += 1
-                yield b'\x00\x00\x10JFIF\x00'
+                yield b"\x00\x00\x10JFIF\x00"
 
             async def __aenter__(self):
                 return self
+
             async def __aexit__(self, *args):
                 pass
 
         class MockClient:
             def stream(self, method, url, **kwargs):
                 return ResumeResponse()
+
             async def __aenter__(self):
                 return self
+
             async def __aexit__(self, *args):
                 pass
 
@@ -1559,7 +1613,9 @@ class TestExistingDestSkip:
                 ImageItem(url="http://x.com/img", page_number=1, filename="test.jpg"),
             ]
             failed = await download_httpx(
-                images, Path(td), concurrency=1,
+                images,
+                Path(td),
+                concurrency=1,
                 client=MockClient(),
             )
             assert failed == set()
@@ -1583,6 +1639,7 @@ class TestExistingDestSkip:
 
             async def __aenter__(self):
                 return self
+
             async def __aexit__(self, *args):
                 pass
 
@@ -1599,6 +1656,7 @@ class TestExistingDestSkip:
 
             async def __aenter__(self):
                 return self
+
             async def __aexit__(self, *args):
                 pass
 
@@ -1608,8 +1666,10 @@ class TestExistingDestSkip:
                 if "Range" in headers:
                     return ResumeResponse()
                 return FullResponse()
+
             async def __aenter__(self):
                 return self
+
             async def __aexit__(self, *args):
                 pass
 
@@ -1622,7 +1682,9 @@ class TestExistingDestSkip:
                 ImageItem(url="http://x.com/img", page_number=1, filename="test.jpg"),
             ]
             failed = await download_httpx(
-                images, Path(td), concurrency=1,
+                images,
+                Path(td),
+                concurrency=1,
                 client=MockClient(),
             )
             assert failed == set()
@@ -1651,8 +1713,10 @@ class TestDownloadCoverTo:
 
             async def __aenter__(self):
                 return self
+
             async def __aexit__(self, *args):
                 pass
+
             async def aclose(self):
                 pass
 
@@ -1879,6 +1943,7 @@ class TestDownloadPipelinePageCap:
 
     def test_clamps_only_when_rate_limited_disabled(self, monkeypatch):
         from comic_dl import config as cfgmodule
+
         cfgmodule.set_runtime_http(**{"rate-enabled": False})
         try:
             assert self._pipe(50)._concurrency == 5
@@ -1899,14 +1964,22 @@ class TestDownloadPipelineFormats:
         import zipfile
 
         images = [
-            ImageItem(url="http://x.com/1", page_number=1, filename=image_source_name(1, "http://x.com/1")),
-            ImageItem(url="http://x.com/2", page_number=2, filename=image_source_name(2, "http://x.com/2")),
+            ImageItem(
+                url="http://x.com/1", page_number=1, filename=image_source_name(1, "http://x.com/1")
+            ),
+            ImageItem(
+                url="http://x.com/2", page_number=2, filename=image_source_name(2, "http://x.com/2")
+            ),
         ]
         tmp_dir = tmp_path / "tmp"
         out = tmp_path / "out.zip"
         pipe = DownloadPipeline(
-            images=images, tmp_dir=tmp_dir, cbz_path=out,
-            series_title="S", chapter_title="C", quiet=True,
+            images=images,
+            tmp_dir=tmp_dir,
+            cbz_path=out,
+            series_title="S",
+            chapter_title="C",
+            quiet=True,
         )
 
         async def fake_download(client_kwargs, progress_cb, activity_cb=None):
@@ -1928,14 +2001,22 @@ class TestDownloadPipelineFormats:
     async def test_cbt_output_is_tar(self, tmp_path, monkeypatch):
 
         images = [
-            ImageItem(url="http://x.com/1", page_number=1, filename=image_source_name(1, "http://x.com/1")),
-            ImageItem(url="http://x.com/2", page_number=2, filename=image_source_name(2, "http://x.com/2")),
+            ImageItem(
+                url="http://x.com/1", page_number=1, filename=image_source_name(1, "http://x.com/1")
+            ),
+            ImageItem(
+                url="http://x.com/2", page_number=2, filename=image_source_name(2, "http://x.com/2")
+            ),
         ]
         tmp_dir = tmp_path / "tmp"
         out = tmp_path / "out.cbt"
         pipe = DownloadPipeline(
-            images=images, tmp_dir=tmp_dir, cbz_path=out,
-            series_title="S", chapter_title="C", quiet=True,
+            images=images,
+            tmp_dir=tmp_dir,
+            cbz_path=out,
+            series_title="S",
+            chapter_title="C",
+            quiet=True,
         )
 
         async def fake_download(client_kwargs, progress_cb, activity_cb=None):
@@ -2019,7 +2100,10 @@ class TestStaleLinkRefresh:
         )
 
         failed, resolved = await _run_downloads(
-            self._aiter([item]), tmp_path, asyncio.Semaphore(2), None,
+            self._aiter([item]),
+            tmp_path,
+            asyncio.Semaphore(2),
+            None,
             MockClient(),  # type: ignore[arg-type]
         )
         assert failed == set()
@@ -2071,7 +2155,10 @@ class TestStaleLinkRefresh:
 
         item = ImageItem(url="http://x.com/a.jpg", page_number=1, filename="a.jpg")
         failed, _ = await _run_downloads(
-            self._aiter([item]), tmp_path, asyncio.Semaphore(2), None,
+            self._aiter([item]),
+            tmp_path,
+            asyncio.Semaphore(2),
+            None,
             MockClient(),  # type: ignore[arg-type]
         )
         assert failed == {"a.jpg"}
@@ -2162,12 +2249,9 @@ class TestHostBreaker:
                 return Resp(url)
 
         items = [
-            ImageItem(url="https://dead.hath.network/1", page_number=1,
-                      filename="a.jpg"),
-            ImageItem(url="https://alive.hath.network/2", page_number=2,
-                      filename="b.jpg"),
-            ImageItem(url="https://dead.hath.network/3", page_number=3,
-                      filename="c.jpg"),
+            ImageItem(url="https://dead.hath.network/1", page_number=1, filename="a.jpg"),
+            ImageItem(url="https://alive.hath.network/2", page_number=2, filename="b.jpg"),
+            ImageItem(url="https://dead.hath.network/3", page_number=3, filename="c.jpg"),
         ]
 
         async def no_refresh(client, it):
@@ -2181,10 +2265,13 @@ class TestHostBreaker:
         )
 
         failed, _ = await _run_downloads(
-            TestStaleLinkRefresh._aiter(items), tmp_path,
+            TestStaleLinkRefresh._aiter(items),
+            tmp_path,
             # One slot: 'a' exhausts its budget and parks the node BEFORE
             # 'c' is reached, making the zero-network assertion deterministic.
-            asyncio.Semaphore(1), None, Client(),  # type: ignore[arg-type]
+            asyncio.Semaphore(1),
+            None,
+            Client(),  # type: ignore[arg-type]
         )
         # Dead node burned its retry budget, parked the host, and the
         # third image failed fast — but the exact attempt count is
@@ -2211,9 +2298,7 @@ class TestTotalSizeBudget:
 
     pytestmark = pytest.mark.asyncio
 
-    async def test_exhausted_budget_rejects_late_items_without_network(
-        self, tmp_path
-    ):
+    async def test_exhausted_budget_rejects_late_items_without_network(self, tmp_path):
         from comic_dl.downloader import _run_downloads
 
         requested: list[str] = []
@@ -2243,18 +2328,14 @@ class TestTotalSizeBudget:
         dest.mkdir()
 
         async def aiter_late():
-            yield ImageItem(
-                url="http://x.com/a.jpg", page_number=1, filename="a.jpg"
-            )
+            yield ImageItem(url="http://x.com/a.jpg", page_number=1, filename="a.jpg")
             # Yield the second item only once the first is fully on disk, so
             # its consumed bytes are visible to the subsequent budget check.
             for _ in range(500):
                 if (dest / "a.jpg").exists():
                     break
                 await asyncio.sleep(0.01)
-            yield ImageItem(
-                url="http://x.com/b.jpg", page_number=2, filename="b.jpg"
-            )
+            yield ImageItem(url="http://x.com/b.jpg", page_number=2, filename="b.jpg")
 
         reasons: dict[str, int] = {}
         failed, resolved = await _run_downloads(
@@ -2309,8 +2390,11 @@ class TestFailureLabels:
         labels: dict[str, str] = {}
         failed = await download_httpx(
             [ImageItem(url="http://x.com/a.jpg", page_number=1, filename="a.jpg")],
-            dest, concurrency=1, client=Client(),  # type: ignore[arg-type]
-            max_attempts=1, failure_labels=labels,
+            dest,
+            concurrency=1,
+            client=Client(),  # type: ignore[arg-type]
+            max_attempts=1,
+            failure_labels=labels,
         )
         assert failed == {"a.jpg"}
         assert labels["a.jpg"] == "HTTP 404"
@@ -2346,23 +2430,23 @@ class TestFailureLabels:
         labels: dict[str, str] = {}
 
         async def gen():
-            yield ImageItem(
-                url="http://x.com/a.jpg", page_number=1, filename="a.jpg"
-            )
+            yield ImageItem(url="http://x.com/a.jpg", page_number=1, filename="a.jpg")
             # Yield the second item only once the first is fully on disk, so
             # its consumed bytes are visible to the budget gate.
             for _ in range(500):
                 if (dest / "a.jpg").exists():
                     break
                 await asyncio.sleep(0.01)
-            yield ImageItem(
-                url="http://x.com/b.jpg", page_number=2, filename="b.jpg"
-            )
+            yield ImageItem(url="http://x.com/b.jpg", page_number=2, filename="b.jpg")
 
         failed, resolved = await _run_downloads(
             gen(),
-            dest, asyncio.Semaphore(1), None, Client(),  # type: ignore[arg-type]
-            max_total_size=len(MAGIC_JPEG), failure_labels=labels,
+            dest,
+            asyncio.Semaphore(1),
+            None,
+            Client(),  # type: ignore[arg-type]
+            max_total_size=len(MAGIC_JPEG),
+            failure_labels=labels,
         )
         assert failed == {"b.jpg"}
         assert labels["b.jpg"] == "exceeds max total size"
@@ -2387,7 +2471,8 @@ class TestTryResumeTransportPreserve:
         with pytest.raises(CurlTimeout):
             await _try_resume(
                 ImageItem(url="http://x.com/img", page_number=1, filename="test.jpg"),
-                part, None,  # type: ignore[arg-type]
+                part,
+                None,  # type: ignore[arg-type]
             )
         assert part.exists()
 
@@ -2430,7 +2515,9 @@ class TestTryResumeTransportPreserve:
         part.write_bytes(MAGIC_JPEG)
         failed = await download_httpx(
             [ImageItem(url="http://x.com/img", page_number=1, filename="test.jpg")],
-            tmp_path, concurrency=1, client=MockClient(),  # type: ignore[arg-type]
+            tmp_path,
+            concurrency=1,
+            client=MockClient(),  # type: ignore[arg-type]
         )
         assert failed == set()
         assert (tmp_path / "test.jpg").exists()
@@ -2444,9 +2531,7 @@ class TestPass2Retry:
 
     pytestmark = pytest.mark.asyncio
 
-    async def test_retries_failed_pages_only_with_pass2_knobs(
-        self, tmp_path, monkeypatch
-    ):
+    async def test_retries_failed_pages_only_with_pass2_knobs(self, tmp_path, monkeypatch):
         from comic_dl import config as cfgmodule
 
         cfgmodule.set_runtime_http(
@@ -2581,8 +2666,12 @@ class TestPipelineManifest:
         ]
         tmp_dir = tmp_path / "tmp"
         pipe = DownloadPipeline(
-            images=images, tmp_dir=tmp_dir, cbz_path=tmp_path / "out.cbz",
-            series_title="S", chapter_title="C", quiet=True,
+            images=images,
+            tmp_dir=tmp_dir,
+            cbz_path=tmp_path / "out.cbz",
+            series_title="S",
+            chapter_title="C",
+            quiet=True,
         )
 
         async def fake_download(client_kwargs, progress_cb, activity_cb=None):

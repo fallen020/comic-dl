@@ -29,12 +29,8 @@ DOMAIN = "kagane.to"
 BASE = "https://kagane.to"
 _API = f"{BASE}/api/v2"
 
-_SERIES_PATH_RE = re.compile(
-    r"^https?://(?:www\.)?kagane\.to/series/[^/]+/?$"
-)
-_CHAPTER_PATH_RE = re.compile(
-    r"^https?://(?:www\.)?kagane\.to/series/[^/]+/reader/[^/]+/?$"
-)
+_SERIES_PATH_RE = re.compile(r"^https?://(?:www\.)?kagane\.to/series/[^/]+/?$")
+_CHAPTER_PATH_RE = re.compile(r"^https?://(?:www\.)?kagane\.to/series/[^/]+/reader/[^/]+/?$")
 
 # Cover/avatar images (best-effort; the real CDN host comes from each book's
 # ``cache_url`` and is never hardcoded).
@@ -156,14 +152,14 @@ def _chapters(data: object, series_id: str) -> list[dict]:
             continue
         number = book.get("chapter_no")
         number_s = str(number).strip() if number not in (None, "") else None
-        title = book.get("title") or (
-            f"Chapter {number_s}" if number_s else "Chapter"
+        title = book.get("title") or (f"Chapter {number_s}" if number_s else "Chapter")
+        chapters.append(
+            {
+                "title": str(title),
+                "url": f"{BASE}/series/{series_id}/reader/{book_id}",
+                "episode_no": number_s or str(title),
+            }
         )
-        chapters.append({
-            "title": str(title),
-            "url": f"{BASE}/series/{series_id}/reader/{book_id}",
-            "episode_no": number_s or str(title),
-        })
     return chapters
 
 
@@ -287,13 +283,20 @@ class KaganeScraper(BaseScraper):
             if session is not None:
                 await await_ratelimit(urlsplit(url).hostname or DOMAIN)
                 status, resp_headers, content = await session.request(
-                    method, url, headers=headers, body=body,
+                    method,
+                    url,
+                    headers=headers,
+                    body=body,
                 )
                 return _SessionResponse(status, resp_headers, content)
 
         json_body = json.loads(body) if body else None
         return await BaseScraper._timeout_get(
-            url, client, method=method, headers=headers, json=json_body,
+            url,
+            client,
+            method=method,
+            headers=headers,
+            json=json_body,
         )
 
     async def _series_json(self, series_id: str, client: AsyncSession) -> dict:
@@ -314,9 +317,7 @@ class KaganeScraper(BaseScraper):
             )
         return data
 
-    async def _chapter_tokens(
-        self, book_id: str, client: AsyncSession
-    ) -> dict:
+    async def _chapter_tokens(self, book_id: str, client: AsyncSession) -> dict:
         """Signed DRM payload for one book via Kagane's public API.
 
         Mirrors haruneko's kagane connector: an integrity token is minted at
@@ -325,7 +326,9 @@ class KaganeScraper(BaseScraper):
         webview session when available (see :meth:`_api_fetch`).
         """
         integrity = await self._api_fetch(
-            "POST", f"{BASE}/api/integrity", client,
+            "POST",
+            f"{BASE}/api/integrity",
+            client,
         )
         integrity.raise_for_status()
         token_data = integrity.json()
@@ -352,14 +355,15 @@ class KaganeScraper(BaseScraper):
         return data
 
     async def _scrape_chapter(
-        self, url: str, client: AsyncSession,
+        self,
+        url: str,
+        client: AsyncSession,
     ) -> ScrapedChapter:
         series_id, book_id = _extract_ids(url)
         if not book_id:
             raise ScrapeError(
                 "Unsupported kagane.to URL.",
-                hint="Expected a reader URL like "
-                     "https://kagane.to/series/{series}/reader/{book}",
+                hint="Expected a reader URL like https://kagane.to/series/{series}/reader/{book}",
             )
         reader_url = f"{BASE}/series/{series_id}/reader/{book_id}"
 
@@ -392,8 +396,7 @@ class KaganeScraper(BaseScraper):
             raise no_images_error()
 
         images = [
-            ImageItem(url=image_url, page_number=i + 1)
-            for i, image_url in enumerate(image_urls)
+            ImageItem(url=image_url, page_number=i + 1) for i, image_url in enumerate(image_urls)
         ]
 
         try:
@@ -430,7 +433,9 @@ class KaganeScraper(BaseScraper):
         )
 
     async def _scrape_series(
-        self, url: str, client: AsyncSession,
+        self,
+        url: str,
+        client: AsyncSession,
     ) -> SeriesMetadata:
         series_id, _ = _extract_ids(url)
         if not series_id:

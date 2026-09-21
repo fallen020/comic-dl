@@ -72,6 +72,7 @@ def verbosity() -> int:
     """Current diagnostic verbosity level (0-3)."""
     return VERBOSITY
 
+
 TAG_HTTP = "http"
 TAG_RETRY = "retry"
 TAG_SCRAPE = "scrape"
@@ -135,6 +136,7 @@ def set_verbosity(level: int) -> None:
     """
     global VERBOSITY
     VERBOSITY = max(NORMAL, min(level, TRACE))
+
 
 _DEBUG_FILE: TextIO | None = None
 
@@ -241,40 +243,42 @@ def trace(message: str) -> None:
     vlog(TRACE, message)
 
 
-_REDACT_HEADERS = frozenset({
-    "cookie",
-    "set-cookie",
-    "authorization",
-    "proxy-authorization",
-    "x-api-key",
-    "api-key",
-    "x-integrity-token",
-    "x-csrf-token",
-    "x-auth-token",
-    "cf_clearance",
-    "token",
-})
+_REDACT_HEADERS = frozenset(
+    {
+        "cookie",
+        "set-cookie",
+        "authorization",
+        "proxy-authorization",
+        "x-api-key",
+        "api-key",
+        "x-integrity-token",
+        "x-csrf-token",
+        "x-auth-token",
+        "cf_clearance",
+        "token",
+    }
+)
 
 # Bare ``key`` stays in the set on purpose: masking ``?key=chapter-id`` in a
 # display line costs nothing, while missing a real secret costs everything.
-_REDACT_QUERY_PARAMS = frozenset({
-    "token",
-    "access_token",
-    "auth_token",
-    "api_key",
-    "apikey",
-    "key",
-    "cf_clearance",
-    "secret",
-    "signature",
-    "sig",
-    "code",
-    "password",
-})
-
-_REDACT_QUERY_RE = re.compile(
-    r"([?&])(" + "|".join(sorted(_REDACT_QUERY_PARAMS)) + r")=[^&\s]*"
+_REDACT_QUERY_PARAMS = frozenset(
+    {
+        "token",
+        "access_token",
+        "auth_token",
+        "api_key",
+        "apikey",
+        "key",
+        "cf_clearance",
+        "secret",
+        "signature",
+        "sig",
+        "code",
+        "password",
+    }
 )
+
+_REDACT_QUERY_RE = re.compile(r"([?&])(" + "|".join(sorted(_REDACT_QUERY_PARAMS)) + r")=[^&\s]*")
 
 
 def _redact_text(text: str) -> str:
@@ -307,6 +311,7 @@ class SafeURL:
     def __str__(self) -> str:
         return redact_url(self.value)
 
+
 _HEADER_VALUE_MAX = 200
 
 
@@ -331,28 +336,26 @@ def redact_url(url: str) -> str:
         return url
     parsed = urlsplit(url)
     parts = [
-        (
-            f"{k}={v}"
-            if k.lower() not in _REDACT_QUERY_PARAMS
-            else f"{k}=***"
-        )
+        (f"{k}={v}" if k.lower() not in _REDACT_QUERY_PARAMS else f"{k}=***")
         for k, v in parse_qsl(parsed.query, keep_blank_values=True)
     ]
     return urlunsplit(parsed._replace(query="&".join(parts)))
 
 
-_HTTP_KEEP_HEADERS = frozenset({
-    "accept-ranges",
-    "cache-control",
-    "cf-cache-status",
-    "cf-ray",
-    "content-length",
-    "content-type",
-    "date",
-    "etag",
-    "last-modified",
-    "location",
-})
+_HTTP_KEEP_HEADERS = frozenset(
+    {
+        "accept-ranges",
+        "cache-control",
+        "cf-cache-status",
+        "cf-ray",
+        "content-length",
+        "content-type",
+        "date",
+        "etag",
+        "last-modified",
+        "location",
+    }
+)
 
 
 def _filter_headers(headers: Mapping[str, str]) -> list[str]:
@@ -538,6 +541,7 @@ class _GlyphSet:
     ASCII, otherwise UTF-8 is used only when stdout, stderr, and the locale
     default all claim UTF-8 (errors land on stderr, so it must count too).
     """
+
     arrow: str
     ok: str
     fail: str
@@ -677,6 +681,7 @@ def get_ui_gate() -> asyncio.Semaphore:
         _UI_GATE_LOOP = loop
     return _UI_GATE
 
+
 _COLOR_ROLES: dict[str, str] = {
     "brand": "bright_yellow",  # ANSI 93 — amber brand (banner, bars, spinners)
     "accent": "bright_cyan",  # ANSI 96 — interactive accents (cursors, pickers)
@@ -738,25 +743,31 @@ BANNER_PATH = Path(__file__).parent / "banner.txt"
 
 _BANNER_LINE_STYLE = style("brand", bold=True)
 
-console = Console(theme=Theme({
-    "brand": _color_token("brand"),
-    "success": _color_token("success"),
-    "error": _color_token("error"),
-    "warning": _color_token("warning"),
-    "muted": _color_token("muted"),
-    "info": _color_token("info"),
-}))
+console = Console(
+    theme=Theme(
+        {
+            "brand": _color_token("brand"),
+            "success": _color_token("success"),
+            "error": _color_token("error"),
+            "warning": _color_token("warning"),
+            "muted": _color_token("muted"),
+            "info": _color_token("info"),
+        }
+    )
+)
 
 err_console = Console(
     stderr=True,
-    theme=Theme({
-        "brand": _color_token("brand"),
-        "success": _color_token("success"),
-        "error": _color_token("error"),
-        "warning": _color_token("warning"),
-        "muted": _color_token("muted"),
-        "info": _color_token("info"),
-    }),
+    theme=Theme(
+        {
+            "brand": _color_token("brand"),
+            "success": _color_token("success"),
+            "error": _color_token("error"),
+            "warning": _color_token("warning"),
+            "muted": _color_token("muted"),
+            "info": _color_token("info"),
+        }
+    ),
 )
 
 
@@ -866,6 +877,7 @@ class ComicArgumentParser(argparse.ArgumentParser):
 def _option_tokens(message: str) -> list[str]:
     """Extract likely ``--flag``/``-f`` tokens from an argparse error text."""
     return re.findall(r"--[A-Za-z0-9][A-Za-z0-9-]*|-[A-Za-z0-9]", message)
+
 
 SIBLING_CMDS: dict[str, str] = {
     "--latest": "`--latest` is a separate command; try `comic-dl latest -o <dir>`",
@@ -1019,9 +1031,7 @@ def print_partial_block(
         f"  [bold {ERROR}]{glyphs().warn}[/] [white]{esc(safe)}[/] {glyphs().dash} "
         f"partial download: {missing} of {total} pages missing."
     )
-    err_console.print(
-        f"      rerun to resume: comic-dl -u {esc(safe)} -o {esc(str(output_dir))}"
-    )
+    err_console.print(f"      rerun to resume: comic-dl -u {esc(safe)} -o {esc(str(output_dir))}")
 
 
 def print_warning(message: str) -> None:
@@ -1045,9 +1055,7 @@ def print_interrupt(
     ran instead of a hardcoded example.
     """
     tail = f" ({_redact_text(progress)})" if progress else ""
-    err_console.print(
-        f"  [bold {WARNING}]{glyphs().warn}[/] [bold]Interrupted.{tail}[/]"
-    )
+    err_console.print(f"  [bold {WARNING}]{glyphs().warn}[/] [bold]Interrupted.{tail}[/]")
     if partial:
         hint = resume_cmd if resume_cmd else "comic-dl -u <url> -o <dir>"
         err_console.print(
@@ -1080,9 +1088,7 @@ def print_retry(attempt: int, total: int, *, reason: str = "") -> None:
 
 def print_error_detail(context: str, reason: str, *, hint: str = "") -> None:
     """Print an error with its cause and an optional remediation hint."""
-    err_console.print(
-        f"  [bold {ERROR}]{glyphs().err}[/] [white]{esc(_redact_text(context))}[/]"
-    )
+    err_console.print(f"  [bold {ERROR}]{glyphs().err}[/] [white]{esc(_redact_text(context))}[/]")
     err_console.print(f"    [{MUTED}]reason:[/] {esc(_redact_text(reason))}")
     if hint:
         err_console.print(f"    [{MUTED}]hint:[/] {esc(_redact_text(hint))}")
@@ -1127,9 +1133,7 @@ def error_kind(exc: BaseException) -> str:
     return kind
 
 
-def report_error(
-    exc: BaseException, *, context: str = "", hint: str = ""
-) -> int:
+def report_error(exc: BaseException, *, context: str = "", hint: str = "") -> int:
     """Print a user-friendly error for ``exc`` and return its exit code.
 
     A traceback is printed only at ``TRACE`` verbosity (``-vvv``; see
@@ -1173,6 +1177,7 @@ def print_batch_summary(
     total_bytes: int = 0,
     elapsed_secs: float = 0,
     failure_details: list[tuple[str, str]] | None = None,
+    incomplete: int = 0,
 ) -> None:
     """Print the end-of-run tally across all URLs.
 
@@ -1180,20 +1185,20 @@ def print_batch_summary(
     error list with a grouped, deduped recap so a batch with many identical
     failures reads as one unit instead of N repeated lines.
     """
-    total = succeeded + skipped + failed
-    if not failures:
+    total = succeeded + skipped + failed + incomplete
+    if not failures and not incomplete:
         if skipped:
             print_success(f"All {total} URLs completed successfully ({skipped} skipped).")
         else:
             print_success(f"All {total} URLs completed successfully.")
     else:
-        print_dim(
-            f"Processed {total} URLs: {succeeded} downloaded, "
-            f"{skipped} skipped, {failed} failed"
-        )
+        counts = f"{succeeded} downloaded, {skipped} skipped, {failed} failed"
+        if incomplete:
+            counts += f", {incomplete} incomplete"
+        print_dim(f"Processed {total} URLs: {counts}")
         if failure_details:
             print_failure_recap(failure_details)
-        else:
+        elif failures:
             for url in failures:
                 print_error(url)
     if chapters or total_bytes:
@@ -1205,14 +1210,14 @@ def print_batch_summary(
         ]
         if failed:
             parts.append(f"{failed} failed")
+        if incomplete:
+            parts.append(f"{incomplete} incomplete")
         if total_bytes:
             parts.append(format_bytes(total_bytes))
         if elapsed_secs > 0 and total_bytes > 0:
             mb = total_bytes / 1024 / 1024
             parts.append(f"{mb / elapsed_secs:.1f} MB/s")
-        _console.print(
-            "  [bold]" + f"  {glyphs().bullet}  ".join(parts) + "[/]"
-        )
+        _console.print("  [bold]" + f"  {glyphs().bullet}  ".join(parts) + "[/]")
 
 
 def print_summary(
@@ -1239,9 +1244,7 @@ def print_summary(
     _console = err_console if JSON_MODE else console
     _console.print()
     if interrupted:
-        _console.print(
-            f"  [bold {WARNING}]{glyphs().warn}[/] [bold]Interrupted[/]"
-        )
+        _console.print(f"  [bold {WARNING}]{glyphs().warn}[/] [bold]Interrupted[/]")
     elif failed or partial:
         if partial and not failed:
             verdict = "Download incomplete"
@@ -1274,9 +1277,7 @@ def print_summary(
             mb = total_bytes / 1024 / 1024
             throughput = mb / elapsed_secs
             _console.print(f"    [{MUTED}]Duration   :[/] [white]{elapsed}[/]")
-            _console.print(
-                f"    [{MUTED}]Average    :[/] [white]{throughput:.2f} MB/s[/]"
-            )
+            _console.print(f"    [{MUTED}]Average    :[/] [white]{throughput:.2f} MB/s[/]")
     _console.print(f"    [{MUTED}]Saved to   :[/] [white]{esc(output_dir)}[/]")
     _console.print()
 
@@ -1341,8 +1342,8 @@ def _indent_renderable(renderable: Any, width: int = 4) -> Any:
 
 
 def _format_speed(bytes_per_sec: float) -> str:
-    if bytes_per_sec >= 1024 ** 3:
-        return f"{bytes_per_sec / 1024 ** 3:.1f} GB/s"
+    if bytes_per_sec >= 1024**3:
+        return f"{bytes_per_sec / 1024**3:.1f} GB/s"
     if bytes_per_sec >= 1024 * 1024:
         return f"{bytes_per_sec / 1024 / 1024:.1f} MB/s"
     if bytes_per_sec >= 100 * 1024:
@@ -1386,9 +1387,7 @@ def _stall_seconds(state: RowState) -> float:
     return time.monotonic() - ref
 
 
-def _row_eta_remaining(
-    st: RowState | None, task: Any
-) -> float | None:
+def _row_eta_remaining(st: RowState | None, task: Any) -> float | None:
     """Estimated seconds left for one download row, or ``None`` when unknown.
 
     Pages-based rate once a page completes; a bytes-based estimate before the
@@ -1555,9 +1554,7 @@ def _running_row_renderable(
         if label:
             header.append(f"  {glyphs().bullet}  ", style=MUTED)
         header.append(
-            _truncate_label(
-                state.stage, max_width=max(int(err_console.width * 0.35), 16)
-            ),
+            _truncate_label(state.stage, max_width=max(int(err_console.width * 0.35), 16)),
             style=MUTED,
         )
     parts: list[Any] = [header]
@@ -1597,9 +1594,7 @@ def make_spinner() -> Progress:
 _STATUS_T = TypeVar("_STATUS_T")
 
 
-async def run_with_status(
-    desc: str, coro: Coroutine[Any, Any, _STATUS_T]
-) -> _STATUS_T:
+async def run_with_status(desc: str, coro: Coroutine[Any, Any, _STATUS_T]) -> _STATUS_T:
     """Await ``coro`` behind a live brand spinner.
 
     Interactive terminals get a smooth braille glyph plus a running elapsed
@@ -1640,13 +1635,15 @@ async def run_with_status(
             await driver
         if live is not None:
             glyph, style = status
-            live.update(Text.assemble(
-                ("  ", ""),
-                (glyph, style),
-                (" ", ""),
-                (desc, "bold white"),
-                (f"  ({time.monotonic() - start:.1f}s)", MUTED),
-            ))
+            live.update(
+                Text.assemble(
+                    ("  ", ""),
+                    (glyph, style),
+                    (" ", ""),
+                    (desc, "bold white"),
+                    (f"  ({time.monotonic() - start:.1f}s)", MUTED),
+                )
+            )
             live.refresh()
             await asyncio.sleep(FINAL_FRAME_DELAY)
             live.stop()
@@ -1665,18 +1662,20 @@ async def _drive_status(
         elapsed = time.monotonic() - start
         try:
             if live is not None:
-                live.update(Text.assemble(
-                    (f"  {SPINNER_GLYPHS[frame % len(SPINNER_GLYPHS)]} ", "bold brand"),
-                    (desc, "white"),
-                    (f"  {format_elapsed_fixed(elapsed)}", MUTED),
-                ), refresh=True)
+                live.update(
+                    Text.assemble(
+                        (f"  {SPINNER_GLYPHS[frame % len(SPINNER_GLYPHS)]} ", "bold brand"),
+                        (desc, "white"),
+                        (f"  {format_elapsed_fixed(elapsed)}", MUTED),
+                    ),
+                    refresh=True,
+                )
             elif elapsed >= next_beat:
                 # Non-TTY (piped/child) heartbeat: always ASCII, never braille —
                 # the pipe reader may be on any locale and braille would mojibake.
                 glyph = _SPINNER_GLYPHS_ASCII[frame % len(_SPINNER_GLYPHS_ASCII)]
                 _active_console().print(
-                    f"  [{glyph}] [{MUTED}]{desc} {glyphs().ellipsis} "
-                    f"{elapsed:5.1f}s[/]"
+                    f"  [{glyph}] [{MUTED}]{desc} {glyphs().ellipsis} {elapsed:5.1f}s[/]"
                 )
                 next_beat += SPIN_HEARTBEAT
         except Exception:
@@ -1787,24 +1786,28 @@ def _checkbox_renderable(
         is_cursor = index == cursor
         row_style = "bold white" if is_cursor else "white"
         glyph_style = SUCCESS if selected else MUTED
-        lines.append(Text.assemble(
-            ("  ", ""),
-            (f"{glyphs().arrow} " if is_cursor else "  ", ""),
-            (glyphs().radio_on if selected else glyphs().radio_off, glyph_style),
-            ("  ", ""),
-            (f"{num}. ", MUTED),
-            (label, row_style),
+        lines.append(
+            Text.assemble(
+                ("  ", ""),
+                (f"{glyphs().arrow} " if is_cursor else "  ", ""),
+                (glyphs().radio_on if selected else glyphs().radio_off, glyph_style),
+                ("  ", ""),
+                (f"{num}. ", MUTED),
+                (label, row_style),
+                no_wrap=True,
+                overflow="ellipsis",
+            )
+        )
+    lines.append(
+        Text(
+            f"  {glyphs().up}/{glyphs().down} move "
+            f"{glyphs().dot} space toggle {glyphs().dot} a=all {glyphs().dot} "
+            f"enter ok {glyphs().dot} q quit {glyphs().dot} ctrl-c interrupt",
+            style=MUTED,
             no_wrap=True,
             overflow="ellipsis",
-        ))
-    lines.append(Text(
-        f"  {glyphs().up}/{glyphs().down} move "
-        f"{glyphs().dot} space toggle {glyphs().dot} a=all {glyphs().dot} "
-        f"enter ok {glyphs().dot} q quit {glyphs().dot} ctrl-c interrupt",
-        style=MUTED,
-        no_wrap=True,
-        overflow="ellipsis",
-    ))
+        )
+    )
     return Group(*lines)
 
 
@@ -1865,9 +1868,16 @@ def checkbox_prompt(
     register_active(live, lambda: f"{title} ({len(selected)}/{n} selected)")
     try:
         while True:
-            live.update(_checkbox_renderable(
-                title, options, selected, cursor, view_start, height,
-            ))
+            live.update(
+                _checkbox_renderable(
+                    title,
+                    options,
+                    selected,
+                    cursor,
+                    view_start,
+                    height,
+                )
+            )
             try:
                 key = read_key()
             except EOFError:
@@ -1935,9 +1945,7 @@ def render_sources_table(
     pass ``err_console``.
     """
     target = console_obj or console
-    target.print(
-        f"  [bold brand]{glyphs().arrow}[/] [bold]Supported sources ({len(rows)})[/]"
-    )
+    target.print(f"  [bold brand]{glyphs().arrow}[/] [bold]Supported sources ({len(rows)})[/]")
     table = Table(
         box=None,
         show_header=True,
@@ -1981,43 +1989,53 @@ def _source_search_renderable(
         for offset, idx in enumerate(matches[view_start : view_start + height]):
             row = rows[idx]
             is_cursor = view_start + offset == cursor
-            lines.append(Text.assemble(
-                ("  ", ""),
-                (f"{glyphs().arrow} " if is_cursor else "  ", ""),
-                (row.domain.ljust(domain_width), "bold white" if is_cursor else "white"),
-                (f"   {row.origin}", MUTED),
+            lines.append(
+                Text.assemble(
+                    ("  ", ""),
+                    (f"{glyphs().arrow} " if is_cursor else "  ", ""),
+                    (row.domain.ljust(domain_width), "bold white" if is_cursor else "white"),
+                    (f"   {row.origin}", MUTED),
+                    no_wrap=True,
+                    overflow="ellipsis",
+                )
+            )
+    else:
+        lines.append(
+            Text(
+                f'  No matches for "{query}"',
+                style=MUTED,
                 no_wrap=True,
                 overflow="ellipsis",
-            ))
-    else:
-        lines.append(Text(
-            f"  No matches for \"{query}\"",
-            style=MUTED,
+            )
+        )
+    lines.append(
+        Text.assemble(
+            ("  ", ""),
+            (f"/ {query}", "bold white"),
+            (glyphs().cursor, INFO),
             no_wrap=True,
             overflow="ellipsis",
-        ))
-    lines.append(Text.assemble(
-        ("  ", ""),
-        (f"/ {query}", "bold white"),
-        (glyphs().cursor, INFO),
-        no_wrap=True,
-        overflow="ellipsis",
-    ))
+        )
+    )
     if query:
         filtered = len(rows) - len(matches)
-        lines.append(Text(
-            f"  {filtered} filtered out",
+        lines.append(
+            Text(
+                f"  {filtered} filtered out",
+                style=MUTED,
+                no_wrap=True,
+                overflow="ellipsis",
+            )
+        )
+    lines.append(
+        Text(
+            f"  {glyphs().up}{glyphs().down} move {glyphs().dot} type to filter "
+            f"{glyphs().dot} esc clear {glyphs().dot} q quit",
             style=MUTED,
             no_wrap=True,
             overflow="ellipsis",
-        ))
-    lines.append(Text(
-        f"  {glyphs().up}{glyphs().down} move {glyphs().dot} type to filter "
-        f"{glyphs().dot} esc clear {glyphs().dot} q quit",
-        style=MUTED,
-        no_wrap=True,
-        overflow="ellipsis",
-    ))
+        )
+    )
     return Group(*lines)
 
 
@@ -2060,9 +2078,16 @@ def source_search(
     register_active(live, lambda: f"Sources: {len(matches)}/{len(rows)}")
     try:
         while True:
-            live.update(_source_search_renderable(
-                rows, matches, query, cursor, view_start, height,
-            ))
+            live.update(
+                _source_search_renderable(
+                    rows,
+                    matches,
+                    query,
+                    cursor,
+                    view_start,
+                    height,
+                )
+            )
             try:
                 key = read_key()
             except EOFError:
@@ -2089,8 +2114,13 @@ def source_search(
             if key in ("up", "down"):
                 if not matches:
                     continue
-                cursor = max(cursor - 1, 0) if key == "up" else min(
-                    cursor + 1, len(matches) - 1,
+                cursor = (
+                    max(cursor - 1, 0)
+                    if key == "up"
+                    else min(
+                        cursor + 1,
+                        len(matches) - 1,
+                    )
                 )
                 if cursor < view_start:
                     view_start = cursor
@@ -2267,12 +2297,14 @@ class Pipeline:
             self._spin_task = None
         await asyncio.sleep(FINAL_FRAME_DELAY)
         if self._live:
-            self._live.update(Text.assemble(
-                ("  ", ""),
-                (glyph, glyph_style),
-                (" ", ""),
-                (message, "bold white"),
-            ))
+            self._live.update(
+                Text.assemble(
+                    ("  ", ""),
+                    (glyph, glyph_style),
+                    (" ", ""),
+                    (message, "bold white"),
+                )
+            )
             self._live.refresh()
             self._live.stop()
             self._live = None
@@ -2327,9 +2359,7 @@ class _RowSink:
     async def succeed(self, message: str) -> None:
         self._activity.finish_row(self._key, ok=True, message=message)
         self._activity.refresh_now()
-        self._print_durable(
-            f"  [bold {SUCCESS}]{glyphs().success}[/] {esc(message)}"
-        )
+        self._print_durable(f"  [bold {SUCCESS}]{glyphs().success}[/] {esc(message)}")
 
     async def fail(self, message: str) -> None:
         self._activity.finish_row(self._key, ok=False, message=message)
@@ -2494,9 +2524,7 @@ class Activity:
         self._batch_total = total
         self._update()
 
-    def finish_row(
-        self, key: str, *, ok: bool = True, message: str = "", pages: int = 0
-    ) -> None:
+    def finish_row(self, key: str, *, ok: bool = True, message: str = "", pages: int = 0) -> None:
         """Retire a row into the completed section of the live area."""
         st = self._rows.get(key)
         if st is None or st.status == "done":
@@ -2648,10 +2676,7 @@ class Activity:
                 parts.append((f"  {glyphs().bullet}  ", MUTED))
                 parts.append((format_speed_fixed(speed), BRAND))
                 if frac_done > 0 and frac_total > frac_done:
-
-                    eta = _batch_eta(
-                        states, frac_done, frac_total, nbytes, speed
-                    )
+                    eta = _batch_eta(states, frac_done, frac_total, nbytes, speed)
                     if eta is not None:
                         parts.append((f"  {glyphs().bullet}  ETA ", MUTED))
                         parts.append((format_remaining_fixed(eta), BRAND))
@@ -2681,11 +2706,7 @@ class Activity:
                 meta.append(format_bytes(st.bytes))
             if st.result:
                 meta.append(st.result)
-            if (
-                st.finished_at
-                and st.started_at
-                and st.finished_at - st.started_at >= 1.0
-            ):
+            if st.finished_at and st.started_at and st.finished_at - st.started_at >= 1.0:
                 meta.append(_format_duration(st.finished_at - st.started_at))
             if meta:
                 line.append(f"  {glyphs().bullet}  ", style=MUTED)
@@ -2788,32 +2809,23 @@ def print_chapter_preview(
     n = len(chapters)
     have_count = 0
     if marks_enabled:
-        have_count = sum(
-            1 for c in chapters
-            if normalize_url_key(c.get("url") or "") in have_urls
-        )
+        have_count = sum(1 for c in chapters if normalize_url_key(c.get("url") or "") in have_urls)
     new_count = n - have_count
 
     _console = err_console if JSON_MODE else _active_console()
     _console.print()
     chapters_word = "chapter" if total == 1 else "chapters"
     header = (
-        f"  [bold]Series:[/] [white]{esc(series_title)}[/]  "
-        f"[{MUTED}]({total} {chapters_word})[/]"
+        f"  [bold]Series:[/] [white]{esc(series_title)}[/]  [{MUTED}]({total} {chapters_word})[/]"
     )
     if marks_enabled:
         if have_count:
-            header += (
-                f"  [bold {SUCCESS}]{have_count} downloaded[/] "
-                f"[{MUTED}]{glyphs().bullet}[/]"
-            )
+            header += f"  [bold {SUCCESS}]{have_count} downloaded[/] [{MUTED}]{glyphs().bullet}[/]"
         header += f"  [bold {INFO}]{new_count} new[/]"
     _console.print(header)
 
     if marks_enabled and new_count == 0:
-        err_console.print(
-            f"  [bold {SUCCESS}]{glyphs().success}[/] [bold]Series up to date.[/]"
-        )
+        err_console.print(f"  [bold {SUCCESS}]{glyphs().success}[/] [bold]Series up to date.[/]")
         _console.print()
         return
 
@@ -2823,9 +2835,7 @@ def print_chapter_preview(
     table.add_column("#", style=MUTED, width=4)
     table.add_column("Title", style="white")
 
-    shown = (
-        list(range(n)) if n <= 6 else [0, 1, 2, n - 3, n - 2, n - 1]
-    )
+    shown = list(range(n)) if n <= 6 else [0, 1, 2, n - 3, n - 2, n - 1]
     prev = -1
     for i in shown:
         if prev >= 0 and i > prev + 1:
@@ -2873,9 +2883,7 @@ def print_failure_recap(failures: list[tuple[str, str]]) -> None:
     grouped = _group_by_reason(failures)
     for reason, labels in grouped.items():
         count = f"  [{MUTED}]x{len(labels)}[/]" if len(labels) > 1 else ""
-        _console.print(
-            f"    [{ERROR}]{glyphs().bullet}[/] [white]{esc(reason)}[/]{count}"
-        )
+        _console.print(f"    [{ERROR}]{glyphs().bullet}[/] [white]{esc(reason)}[/]{count}")
         for label in labels:
             _console.print(f"      [{MUTED}]{esc(label)}[/]")
     _console.print()
@@ -2895,9 +2903,7 @@ def print_partial_recap(partials: list[tuple[str, str]]) -> None:
     grouped = _group_by_reason(partials)
     for reason, labels in grouped.items():
         count = f"  [{MUTED}]x{len(labels)}[/]" if len(labels) > 1 else ""
-        _console.print(
-            f"    [{WARNING}]{glyphs().bullet}[/] [white]{esc(reason)}[/]{count}"
-        )
+        _console.print(f"    [{WARNING}]{glyphs().bullet}[/] [white]{esc(reason)}[/]{count}")
         for label in labels:
             _console.print(f"      [{MUTED}]{esc(label)}[/]")
     _console.print()
@@ -2918,10 +2924,10 @@ def print_table(title: str | None, columns: list[str], rows: list[list]) -> None
 
 def format_bytes(n: int) -> str:
     """Format a byte count as a human-readable size (e.g. ``2.3 MB``)."""
-    if n >= 1024 ** 3:
-        return f"{n / 1024 ** 3:.1f} GB"
-    if n >= 1024 ** 2:
-        return f"{n / 1024 ** 2:.0f} MB"
+    if n >= 1024**3:
+        return f"{n / 1024**3:.1f} GB"
+    if n >= 1024**2:
+        return f"{n / 1024**2:.0f} MB"
     if n >= 1024:
         return f"{n / 1024:.0f} KB"
     return f"{n} B"
@@ -3052,11 +3058,10 @@ def print_parser_help(parser: argparse.ArgumentParser) -> None:
         if a.help == argparse.SUPPRESS:
             continue
         flags = ", ".join(a.option_strings)
-        choices_str = (
-            ", ".join(str(c) for c in a.choices) if a.choices else None
+        choices_str = ", ".join(str(c) for c in a.choices) if a.choices else None
+        _help_opt_row(
+            flags, _arg_metavar(a), a.help or "", default=_arg_default(a), choices=choices_str
         )
-        _help_opt_row(flags, _arg_metavar(a), a.help or "",
-                       default=_arg_default(a), choices=choices_str)
     for a in help_options:
         flags = ", ".join(a.option_strings)
         _help_opt_row(flags, "", a.help or "")
@@ -3075,13 +3080,15 @@ def print_help() -> None:
     """Print the built-in help screen (full ``--help`` version)."""
     console.print()
 
-    _help_usage([
-        "comic-dl [OPTIONS]",
-        "comic-dl [URL]",
-        "comic-dl -u <URL> [OPTIONS]",
-        "comic-dl -f <FILE> [OPTIONS]",
-        "comic-dl help <COMMAND>",
-    ])
+    _help_usage(
+        [
+            "comic-dl [OPTIONS]",
+            "comic-dl [URL]",
+            "comic-dl -u <URL> [OPTIONS]",
+            "comic-dl -f <FILE> [OPTIONS]",
+            "comic-dl help <COMMAND>",
+        ]
+    )
 
     console.print("Download comic and manga galleries from supported sites and compile")
     console.print("them into CBZ, ZIP, and CBT archives.")
@@ -3120,7 +3127,8 @@ def print_help() -> None:
 
     _help_header("Inspect & integrate")
     _help_opt_row(
-        "--list-sources", "[--json] [--plugin] [QUERY]",
+        "--list-sources",
+        "[--json] [--plugin] [QUERY]",
         "Search supported sites (TTY: interactive)",
     )
     _help_opt_row("completion", "bash|zsh|fish", "Print a shell completion script")
@@ -3133,7 +3141,8 @@ def print_help() -> None:
     _help_opt_row("-o, --output", "<DIR>", "Output directory", default="~/Downloads/comic-dl")
     _help_opt_row("--force", "", "Overwrite existing CBZ files")
     _help_opt_row(
-        "--dry-run", "",
+        "--dry-run",
+        "",
         "Resolve each URL and preview what would download/skip/redownload",
     )
     _help_opt_row("--json", "", "Emit machine-readable JSON on stdout; disables prompts")
@@ -3146,21 +3155,27 @@ def print_help() -> None:
     _help_opt_row("-c, --concurrency", "<N>", "Parallel page downloads per chapter", default="5")
     _help_opt_row("--parallel", "<N>", "Max URLs in flight across a batch (1-16)", default="5")
     _help_opt_row(
-        "--chapter-parallel", "<N>",
-        "Max chapters of a series downloading at once (1-8)", default="1",
+        "--chapter-parallel",
+        "<N>",
+        "Max chapters of a series downloading at once (1-8)",
+        default="1",
     )
     _help_opt_row(
-        "--chapters", "<SPEC>",
+        "--chapters",
+        "<SPEC>",
         "Chapters to download in a series (all, or 1-3,5 ranges)",
     )
     _help_opt_row(
-        "--compress", "<MODE>",
+        "--compress",
+        "<MODE>",
         "CBZ compression: stored (default), deflate, deflate:0-9",
         default="stored",
     )
     _help_opt_row(
-        "--format", "<FMT>",
-        "Archive format", default="cbz",
+        "--format",
+        "<FMT>",
+        "Archive format",
+        default="cbz",
         choices="cbz, zip, cbt",
     )
     _help_opt_row("--max-image-size", "<SIZE>", "Maximum size per image", default="100MB")
@@ -3172,19 +3187,24 @@ def print_help() -> None:
 
     _help_header("HTTP & politeness")
     _help_opt_row(
-        "--impersonate", "<PROFILE>",
-        "TLS/HTTP impersonation profile", default="chrome146",
+        "--impersonate",
+        "<PROFILE>",
+        "TLS/HTTP impersonation profile",
+        default="chrome146",
     )
     _help_opt_row(
-        "--solver", "<MODE>",
-        "Cloudflare challenge solver", default="auto",
+        "--solver",
+        "<MODE>",
+        "Cloudflare challenge solver",
+        default="auto",
         choices="auto, impersonation, webview, off",
     )
     _help_opt_row("--no-cookie", "", "Disable the persistent cookie jar for this run")
     _help_opt_row("--no-rate", "", "Disable per-site rate limiting for this run")
     _help_opt_row("--no-cache", "", "Disable the on-disk scrape response cache for this run")
     _help_opt_row(
-        "--no-generic", "",
+        "--no-generic",
+        "",
         "Disable the generic fallback scraper (unknown hosts report Unsupported URL)",
     )
     console.print()
@@ -3194,8 +3214,10 @@ def print_help() -> None:
     _help_opt_row("-v, -vv, -vvv", "", "Increase diagnostic verbosity (see below)")
     _help_opt_row("--no-banner", "", "Suppress the ASCII brand banner (shown only on a terminal)")
     _help_opt_row(
-        "--color", "<MODE>",
-        "Control ANSI colors", default="auto",
+        "--color",
+        "<MODE>",
+        "Control ANSI colors",
+        default="auto",
         choices="auto, always, never",
     )
     _help_opt_row("--no-color", "", "Disable ANSI colors (alias for --color never)")
@@ -3219,7 +3241,9 @@ def print_help() -> None:
 
     # ── Footer ──────────────────────────────────────────────────
     _help_pointer("Run [bold]comic-dl help <command>[/] for help on a specific command.")
-    _help_pointer("Full reference: https://github.com/fallen020/comic-dl/blob/main/docs/reference/cli.md")
+    _help_pointer(
+        "Full reference: https://github.com/fallen020/comic-dl/blob/main/docs/reference/cli.md"
+    )
     console.print()
     _help_header("Exit status")
     console.print("  0  success")
@@ -3236,13 +3260,15 @@ def print_help_summary() -> None:
     """
     console.print()
 
-    _help_usage([
-        "comic-dl [OPTIONS]",
-        "comic-dl [URL]",
-        "comic-dl -u <URL> [OPTIONS]",
-        "comic-dl -f <FILE> [OPTIONS]",
-        "comic-dl help <COMMAND>",
-    ])
+    _help_usage(
+        [
+            "comic-dl [OPTIONS]",
+            "comic-dl [URL]",
+            "comic-dl -u <URL> [OPTIONS]",
+            "comic-dl -f <FILE> [OPTIONS]",
+            "comic-dl help <COMMAND>",
+        ]
+    )
 
     console.print("Download comic and manga galleries from supported sites and compile")
     console.print("them into CBZ, ZIP, and CBT archives.")
@@ -3290,16 +3316,17 @@ def print_help_summary() -> None:
     _help_opt_row("--chapter-parallel", "<N>", "Max chapters downloading at once", default="1")
     _help_opt_row("--chapters", "<SPEC>", "Chapters to download (all, or 1-3,5)")
     _help_opt_row("--compress", "<MODE>", "CBZ compression", default="stored")
-    _help_opt_row("--format", "<FMT>", "Archive format", default="cbz",
-                   choices="cbz, zip, cbt")
+    _help_opt_row("--format", "<FMT>", "Archive format", default="cbz", choices="cbz, zip, cbt")
     _help_opt_row("--max-image-size", "<SIZE>", "Maximum size per image", default="100MB")
     _help_opt_row("--max-size", "<SIZE>", "Maximum total download size")
     console.print()
 
     _help_header("HTTP & politeness")
     _help_opt_row(
-        "--impersonate", "<PROFILE>",
-        "TLS/HTTP impersonation profile", default="chrome146",
+        "--impersonate",
+        "<PROFILE>",
+        "TLS/HTTP impersonation profile",
+        default="chrome146",
     )
     _help_opt_row("--solver", "<MODE>", "Cloudflare challenge solver", default="auto")
     _help_opt_row("--no-cookie", "", "Disable the persistent cookie jar")

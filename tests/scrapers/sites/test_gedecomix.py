@@ -27,9 +27,7 @@ from tests.helpers import MockSession as _MockSession
 
 class TestUrlPatterns:
     def test_valid_chapter_urls(self):
-        assert is_chapter_url(
-            "https://gedecomix.com/porncomic/hell-village/5-hell-village-ch-05/"
-        )
+        assert is_chapter_url("https://gedecomix.com/porncomic/hell-village/5-hell-village-ch-05/")
         assert is_chapter_url(
             "https://gedecomix.com/porncomic/unethical-hacker-indiantgstories/unethical-hacker/"
         )
@@ -63,19 +61,26 @@ class TestImageUrlCleaning:
         assert _clean_image_url(url) == url
 
     def test_strips_resize_suffix(self):
-        assert _clean_image_url(
-            "https://gedecomix.com/static/WP-manga/data/2d091f66d7f80e270/page2-768x768.webp"
-        ) == "https://gedecomix.com/static/WP-manga/data/2d091f66d7f80e270/page2.webp"
+        assert (
+            _clean_image_url(
+                "https://gedecomix.com/static/WP-manga/data/2d091f66d7f80e270/page2-768x768.webp"
+            )
+            == "https://gedecomix.com/static/WP-manga/data/2d091f66d7f80e270/page2.webp"
+        )
 
     def test_strips_cover_resize(self):
-        assert _clean_image_url(
-            "https://gedecomix.com/static/2026/06/Hell-Village-My-Sweet-Seduction-386x556.webp"
-        ) == "https://gedecomix.com/static/2026/06/Hell-Village-My-Sweet-Seduction.webp"
+        assert (
+            _clean_image_url(
+                "https://gedecomix.com/static/2026/06/Hell-Village-My-Sweet-Seduction-386x556.webp"
+            )
+            == "https://gedecomix.com/static/2026/06/Hell-Village-My-Sweet-Seduction.webp"
+        )
 
     def test_strips_query_string(self):
-        assert _clean_image_url(
-            "https://gedecomix.com/static/WP-manga/data/hash/page1.webp?w=800"
-        ) == "https://gedecomix.com/static/WP-manga/data/hash/page1.webp"
+        assert (
+            _clean_image_url("https://gedecomix.com/static/WP-manga/data/hash/page1.webp?w=800")
+            == "https://gedecomix.com/static/WP-manga/data/hash/page1.webp"
+        )
 
 
 class TestGetImageExt:
@@ -100,10 +105,13 @@ class TestTitleExtraction:
         </head><body></body></html>
         """
         soup = BeautifulSoup(html, "lxml")
-        idx = {f"prop:{k}": v for k, v in {
-            "og:title": ["Unethical Hacker - Unethical Hacker - GEDE Comix"],
-            "og:site_name": ["GEDE Comix"],
-        }.items()}
+        idx = {
+            f"prop:{k}": v
+            for k, v in {
+                "og:title": ["Unethical Hacker - Unethical Hacker - GEDE Comix"],
+                "og:site_name": ["GEDE Comix"],
+            }.items()
+        }
         series, chapter = _extract_titles(soup, idx)
         assert series == "Unethical Hacker"
         assert chapter == "Unethical Hacker"
@@ -211,14 +219,15 @@ class TestChapterNumber:
         assert _extract_chapter_number("My Comic") is None
 
     def test_from_slug_prefix(self):
-        assert _chapter_number_from_slug(
-            "https://gedecomix.com/porncomic/series/5-ch-05/"
-        ) == "5"
+        assert _chapter_number_from_slug("https://gedecomix.com/porncomic/series/5-ch-05/") == "5"
 
     def test_from_slug_no_prefix(self):
-        assert _chapter_number_from_slug(
-            "https://gedecomix.com/porncomic/series/what-i-did-to-become-famous/"
-        ) is None
+        assert (
+            _chapter_number_from_slug(
+                "https://gedecomix.com/porncomic/series/what-i-did-to-become-famous/"
+            )
+            is None
+        )
 
 
 class TestImageExtraction:
@@ -389,7 +398,8 @@ class TestGedecomixScraper:
         scraper = GedecomixScraper()
         with pytest.raises(ValueError, match="category/tag listing"):
             await scraper.scrape(
-                "https://gedecomix.com/comics-tag/feminization/", session,
+                "https://gedecomix.com/comics-tag/feminization/",
+                session,
             )
 
     @pytest.mark.asyncio
@@ -399,7 +409,8 @@ class TestGedecomixScraper:
         scraper = GedecomixScraper()
         with pytest.raises(ValueError, match="No images found"):
             await scraper.scrape(
-                "https://gedecomix.com/porncomic/series/chapter/", session,
+                "https://gedecomix.com/porncomic/series/chapter/",
+                session,
             )
 
     @pytest.mark.asyncio
@@ -450,10 +461,7 @@ class TestGedecomixScraper:
 
         session = _MockSession(handler)
         scraper = GedecomixScraper()
-        url = (
-            "https://gedecomix.com/porncomic/hell-village/"
-            "5-hell-village-ch-05/"
-        )
+        url = "https://gedecomix.com/porncomic/hell-village/5-hell-village-ch-05/"
         await scraper.scrape(url, session)
         assert "hell-village" in scraper._series_cache
         await scraper.scrape(url, session)
@@ -504,7 +512,8 @@ class TestGedecomixScraper:
         scraper = GedecomixScraper()
         with pytest.raises(ValueError, match="category/tag listing"):
             await scraper.scrape_series(
-                "https://gedecomix.com/comics-tag/feminization/", session,
+                "https://gedecomix.com/comics-tag/feminization/",
+                session,
             )
 
     @pytest.mark.asyncio
@@ -519,5 +528,6 @@ class TestGedecomixScraper:
         scraper = GedecomixScraper()
         with pytest.raises(ValueError, match="No chapters found"):
             await scraper.scrape_series(
-                "https://gedecomix.com/porncomic/some-series/", session,
+                "https://gedecomix.com/porncomic/some-series/",
+                session,
             )

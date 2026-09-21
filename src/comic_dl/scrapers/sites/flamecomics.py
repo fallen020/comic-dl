@@ -37,13 +37,9 @@ DOMAIN = "flamecomics.xyz"
 BASE = "https://flamecomics.xyz"
 CDN = "https://cdn.flamecomics.xyz"
 
-SERIES_PATTERN = re.compile(
-    r"^https?://(?:www\.)?flamecomics\.xyz/series/(\d+)/?$"
-)
+SERIES_PATTERN = re.compile(r"^https?://(?:www\.)?flamecomics\.xyz/series/(\d+)/?$")
 
-CHAPTER_PATTERN = re.compile(
-    r"^https?://(?:www\.)?flamecomics\.xyz/series/(\d+)/([a-f0-9]+)/?$"
-)
+CHAPTER_PATTERN = re.compile(r"^https?://(?:www\.)?flamecomics\.xyz/series/(\d+)/([a-f0-9]+)/?$")
 
 _NEXT_DATA_SEL = 'script#__NEXT_DATA__[type="application/json"]'
 _ASSETS_PREFIX = "/assets/read/"
@@ -106,31 +102,26 @@ class FlameScraper(BaseScraper):
             return cached
         data: dict = {}
         try:
-            response = await BaseScraper._timeout_get(
-                f"{BASE}/series/{series_id}/", client
-            )
+            response = await BaseScraper._timeout_get(f"{BASE}/series/{series_id}/", client)
             response.raise_for_status()
             soup = BeautifulSoup(response.text, "lxml")
             nd = self._find_next_data(soup)
             if nd:
-                data = (
-                    nd.get("props", {})
-                    .get("pageProps", {})
-                    .get("series", {})
-                )
+                data = nd.get("props", {}).get("pageProps", {}).get("series", {})
         # Enrichment is best-effort.
         except Exception as exc:
             vlog(
                 DIAGNOSTIC,
-                f"series enrichment unavailable for {series_id}: "
-                f"{type(exc).__name__}",
+                f"series enrichment unavailable for {series_id}: {type(exc).__name__}",
                 tag=TAG_SCRAPE,
             )
         self._series_cache[series_id] = data
         return data
 
     async def _scrape_chapter(
-        self, url: str, client: AsyncSession,
+        self,
+        url: str,
+        client: AsyncSession,
     ) -> ScrapedChapter:
         soup = await self._fetch(url, client)
         idx = meta_index(soup)
@@ -149,9 +140,7 @@ class FlameScraper(BaseScraper):
         year: int | None = None
         series_id: str | None = None
         description = meta_get(idx, "og:description", "description", "twitter:description")
-        cover_url = BaseScraper.clean_image_url(
-            meta_get(idx, "og:image", "twitter:image")
-        )
+        cover_url = BaseScraper.clean_image_url(meta_get(idx, "og:image", "twitter:image"))
         site_name = meta_get(idx, "og:site_name")
 
         # Priority 1: __NEXT_DATA__ — present on most chapter pages
@@ -202,16 +191,12 @@ class FlameScraper(BaseScraper):
             raw_type = series_data.get("type") or chapter_data.get("type")
             if raw_type:
                 # Manga reads right-to-left; manhwa/manhua/webtoon left-to-right.
-                reading_direction = (
-                    "rtl" if str(raw_type).strip().lower() == "manga" else "ltr"
-                )
+                reading_direction = "rtl" if str(raw_type).strip().lower() == "manga" else "ltr"
 
             # The site's own CDN filename is authoritative; og:image can
             # carry a stale social-preview thumbnail, so it stays fallback.
             cover = series_data.get("cover", "") or chapter_data.get("cover", "")
-            sid_cover = series_data.get("series_id") or chapter_data.get(
-                "series_id"
-            )
+            sid_cover = series_data.get("series_id") or chapter_data.get("series_id")
             if cover and sid_cover:
                 cover_url = f"{CDN}/uploads/images/series/{sid_cover}/{cover}"
 
@@ -237,7 +222,7 @@ class FlameScraper(BaseScraper):
                 name = ld.get("name", "")
                 if not chapter_title:
                     if series_title and name.startswith(series_title):
-                        chapter_title = name[len(series_title):].lstrip(" -")
+                        chapter_title = name[len(series_title) :].lstrip(" -")
                     else:
                         chapter_title = name
 
@@ -247,8 +232,7 @@ class FlameScraper(BaseScraper):
                         authors = [raw.get("name", "")]
                     elif isinstance(raw, list):
                         authors = [
-                            a.get("name", "") if isinstance(a, dict) else str(a)
-                            for a in raw
+                            a.get("name", "") if isinstance(a, dict) else str(a) for a in raw
                         ]
 
                 if not artists:
@@ -257,8 +241,7 @@ class FlameScraper(BaseScraper):
                         artists = [raw.get("name", "")]
                     elif isinstance(raw, list):
                         artists = [
-                            a.get("name", "") if isinstance(a, dict) else str(a)
-                            for a in raw
+                            a.get("name", "") if isinstance(a, dict) else str(a) for a in raw
                         ]
 
                 if not genres:
@@ -366,9 +349,7 @@ class FlameScraper(BaseScraper):
                     raw_type = series.get("type")
                     if isinstance(raw_type, str) and raw_type:
                         # Manga reads right-to-left; manhwa/manhua/webtoon left-to-right.
-                        reading_direction = (
-                            "rtl" if raw_type.strip().lower() == "manga" else "ltr"
-                        )
+                        reading_direction = "rtl" if raw_type.strip().lower() == "manga" else "ltr"
 
         return ScrapedChapter(
             info=ChapterInfo(
@@ -392,7 +373,9 @@ class FlameScraper(BaseScraper):
         )
 
     async def _scrape_series(
-        self, url: str, client: AsyncSession,
+        self,
+        url: str,
+        client: AsyncSession,
     ) -> SeriesMetadata:
         soup = await self._fetch(url, client)
         idx = meta_index(soup)
@@ -433,17 +416,15 @@ class FlameScraper(BaseScraper):
             chapter_str = str(ch.get("chapter", ""))
             ch_title = ch.get("title") or ""
             episode_no = canonical_chapter_number(chapter_str)
-            title = (
-                f"Ch. {episode_no} - {ch_title}"
-                if ch_title
-                else f"Ch. {episode_no}"
-            )
+            title = f"Ch. {episode_no} - {ch_title}" if ch_title else f"Ch. {episode_no}"
             ch_url = f"{BASE}/series/{series_id}/{token}"
-            chapters.append({
-                "title": title,
-                "url": ch_url,
-                "episode_no": episode_no or title,
-            })
+            chapters.append(
+                {
+                    "title": title,
+                    "url": ch_url,
+                    "episode_no": episode_no or title,
+                }
+            )
 
         if not chapters:
             raise no_chapters_error()
@@ -454,11 +435,13 @@ class FlameScraper(BaseScraper):
         # end of the list instead of depending on the server's order.
         chapters.sort(
             key=lambda item: (
-                0,
-                float(item["episode_no"]),
-            )
-            if item["episode_no"].replace(".", "", 1).isdigit()
-            else (1, 0),
+                (
+                    0,
+                    float(item["episode_no"]),
+                )
+                if item["episode_no"].replace(".", "", 1).isdigit()
+                else (1, 0)
+            ),
         )
 
         return SeriesMetadata(

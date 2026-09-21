@@ -85,8 +85,11 @@ class TestPostMetadata:
 
     def test_service_fields(self):
         m = PostMetadata(
-            series_title="S", chapter_title="C",
-            service="e-hentai", user_id="123", post_id="abc",
+            series_title="S",
+            chapter_title="C",
+            service="e-hentai",
+            user_id="123",
+            post_id="abc",
         )
         assert m.service == "e-hentai"
         assert m.user_id == "123"

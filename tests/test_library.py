@@ -93,8 +93,11 @@ class TestUpserts:
         lib = Library(tmp_path / "lib.db")
         lib.open()
         lib.upsert_series(
-            "webtoons.com:1", title="T", source="https://x/",
-            source_site="webtoons.com", relative_path="T",
+            "webtoons.com:1",
+            title="T",
+            source="https://x/",
+            source_site="webtoons.com",
+            relative_path="T",
         )
         lib.set_last_checked("webtoons.com:1")
         lib.set_last_updated("webtoons.com:1")
@@ -132,9 +135,7 @@ class TestUpserts:
         lib.upsert_series("s", title="S")
         lib.upsert_chapter("s", url="https://EXAMPLE.com/Path/", cbz="C.cbz")
         with sqlite3.connect(str(tmp_path / "lib.db")) as conn:
-            stored = conn.execute(
-                "SELECT url FROM chapters WHERE series_id = 's'"
-            ).fetchone()[0]
+            stored = conn.execute("SELECT url FROM chapters WHERE series_id = 's'").fetchone()[0]
         assert stored == normalize_url("https://EXAMPLE.com/Path/")
         assert stored == "https://example.com/Path"
         lib.close()
@@ -372,20 +373,38 @@ class TestReadMethods:
             ]
         ):
             lib.upsert_series(
-                sid, title=title, source="https://x/",
-                source_site=site, relative_path=title,
+                sid,
+                title=title,
+                source="https://x/",
+                source_site=site,
+                relative_path=title,
             )
         lib.upsert_chapter(
-            "e-hentai.org:aaa", url="https://e-hentai.org/g/aaa/1/",
-            chapter_no="1", title="Ch 1", cbz="1.cbz", size_bytes=100, page_count=5,
+            "e-hentai.org:aaa",
+            url="https://e-hentai.org/g/aaa/1/",
+            chapter_no="1",
+            title="Ch 1",
+            cbz="1.cbz",
+            size_bytes=100,
+            page_count=5,
         )
         lib.upsert_chapter(
-            "e-hentai.org:aaa", url="https://e-hentai.org/g/aaa/2/",
-            chapter_no="2", title="Ch 2", cbz="2.cbz", size_bytes=200, page_count=6,
+            "e-hentai.org:aaa",
+            url="https://e-hentai.org/g/aaa/2/",
+            chapter_no="2",
+            title="Ch 2",
+            cbz="2.cbz",
+            size_bytes=200,
+            page_count=6,
         )
         lib.upsert_chapter(
-            "webtoons.com:ccc", url="https://webtoons.com/ep/3",
-            chapter_no="3", title="Ch 3", cbz="3.cbz", size_bytes=300, page_count=7,
+            "webtoons.com:ccc",
+            url="https://webtoons.com/ep/3",
+            chapter_no="3",
+            title="Ch 3",
+            cbz="3.cbz",
+            size_bytes=300,
+            page_count=7,
         )
 
     def test_list_series_counts_and_sizes(self, tmp_path):
@@ -444,16 +463,14 @@ class TestReadMethods:
     def test_find_series_by_source_url(self, tmp_path):
         lib = self._lib(tmp_path)
         lib.upsert_series(
-            "webtoons.com:10482", title="Lodoss",
-            source=normalize_url(
-                "https://www.webtoons.com/en/action/list?title_no=10482"
-            ),
-            source_site="webtoons.com", relative_path="Lodoss",
+            "webtoons.com:10482",
+            title="Lodoss",
+            source=normalize_url("https://www.webtoons.com/en/action/list?title_no=10482"),
+            source_site="webtoons.com",
+            relative_path="Lodoss",
         )
         # A trailing slash on the path (but not the query) is normalized away.
-        match = lib.find_series(
-            "https://www.webtoons.com/en/action/list/?title_no=10482"
-        )
+        match = lib.find_series("https://www.webtoons.com/en/action/list/?title_no=10482")
         assert len(match) == 1
         assert match[0]["series_id"] == "webtoons.com:10482"
         lib.close()
@@ -496,9 +513,7 @@ class TestReadMethods:
         lib = self._lib(tmp_path)
         self._seed(lib)
         with sqlite3.connect(str(tmp_path / "lib.db")) as conn:
-            conn.execute(
-                "UPDATE chapters SET downloaded_at = '2026-01-01T00:00:00'"
-            )
+            conn.execute("UPDATE chapters SET downloaded_at = '2026-01-01T00:00:00'")
         later = lib.chapters_since("2025-12-31T23:59:59")
         assert len(later) == 3
         none = lib.chapters_since("2026-01-01T00:00:01")
@@ -557,16 +572,10 @@ class TestSchemaMigration:
         with sqlite3.connect(str(db)) as conn:
             assert conn.execute("PRAGMA user_version").fetchone()[0] == 3
             tables = {
-                r[0]
-                for r in conn.execute(
-                    "SELECT name FROM sqlite_master WHERE type='table'"
-                )
+                r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
             }
             assert "downloads" in tables
-            cols = {
-                r[1]
-                for r in conn.execute("PRAGMA table_info(series)").fetchall()
-            }
+            cols = {r[1] for r in conn.execute("PRAGMA table_info(series)").fetchall()}
             assert {"source_host", "source_id"} <= cols
         lib.close()
 
@@ -641,9 +650,7 @@ class TestUrlHelpers:
         assert path == "/series/ch-1/?x=1"
 
     def test_rebase_url_swaps_host_keeps_path(self):
-        rebased = rebase_url(
-            "https://old.fsicomics.com/series/ch-1/?x=1", "new.fsicomics.com"
-        )
+        rebased = rebase_url("https://old.fsicomics.com/series/ch-1/?x=1", "new.fsicomics.com")
         assert rebased.startswith("https://new.fsicomics.com/series/ch-1/?x=1")
 
     def test_rebase_url_empty(self):
@@ -665,12 +672,8 @@ class TestStandaloneDownloads:
 
     def test_upsert_download_round_trip_normalizes(self, tmp_path):
         lib = self._open(tmp_path)
-        lib.upsert_download(
-            "https://e-hentai.org/g/a/1/", "Series/Ep 1.cbz", "cbz"
-        )
-        lib.upsert_download(
-            "https://e-hentai.org/g/a/1/", "Series/Ep 1.cbz", "cbz"
-        )
+        lib.upsert_download("https://e-hentai.org/g/a/1/", "Series/Ep 1.cbz", "cbz")
+        lib.upsert_download("https://e-hentai.org/g/a/1/", "Series/Ep 1.cbz", "cbz")
         (tmp_path / "Series").mkdir(parents=True, exist_ok=True)
         (tmp_path / "Series" / "Ep 1.cbz").write_bytes(b"\x00")
         with sqlite3.connect(str(library_path(tmp_path))) as conn:
@@ -684,16 +687,10 @@ class TestStandaloneDownloads:
         sdir = tmp_path / "Alpha"
         sdir.mkdir()
         _make_cbz(sdir / "1.cbz")
-        lib.upsert_series(
-            "s:1", title="Alpha", source="https://x/", relative_path="Alpha"
-        )
+        lib.upsert_series("s:1", title="Alpha", source="https://x/", relative_path="Alpha")
         lib.upsert_chapter("s:1", url="https://x/ep/1", cbz="1.cbz", title="Ch 1")
-        lib.upsert_download(
-            "https://pawchive.pw/u/1/post/2", "Alpha/note.md", "md"
-        )
-        (sdir / "note.md").write_text(
-            "# n\n", encoding="utf-8"
-        )
+        lib.upsert_download("https://pawchive.pw/u/1/post/2", "Alpha/note.md", "md")
+        (sdir / "note.md").write_text("# n\n", encoding="utf-8")
         index = lib.downloaded_index(tmp_path)
         assert index[normalize_url("https://x/ep/1")] == sdir / "1.cbz"
         assert index[normalize_url("https://pawchive.pw/u/1/post/2")] == sdir / "note.md"
@@ -703,9 +700,7 @@ class TestStandaloneDownloads:
         lib = self._open(tmp_path)
         sdir = tmp_path / "Alpha"
         sdir.mkdir()
-        lib.upsert_series(
-            "s:1", title="Alpha", source="https://x/", relative_path="Alpha"
-        )
+        lib.upsert_series("s:1", title="Alpha", source="https://x/", relative_path="Alpha")
         lib.upsert_chapter("s:1", url="https://x/ep/1", cbz="gone.cbz")
         lib.upsert_download("https://x/solo", "Alpha/solo.cbz", "cbz")
         assert lib.downloaded_index(tmp_path) == {}
@@ -740,10 +735,9 @@ class TestThreadedAccess:
             except Exception as exc:  # pragma: no cover - failure path
                 errors.append(exc)
 
-        threads = [
-            threading.Thread(target=writer, args=(n,))
-            for n in range(4)
-        ] + [threading.Thread(target=reader) for _ in range(2)]
+        threads = [threading.Thread(target=writer, args=(n,)) for n in range(4)] + [
+            threading.Thread(target=reader) for _ in range(2)
+        ]
         for t in threads:
             t.start()
         for t in threads:

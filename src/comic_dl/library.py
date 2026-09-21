@@ -166,7 +166,8 @@ class Library:
         try:
             self._db_path.parent.mkdir(parents=True, exist_ok=True)
             conn = sqlite3.connect(
-                str(self._db_path), check_same_thread=False,
+                str(self._db_path),
+                check_same_thread=False,
             )
             conn.execute("PRAGMA foreign_keys = ON")
             conn.execute("PRAGMA busy_timeout = 5000")
@@ -208,9 +209,7 @@ class Library:
         reliable source metadata is recorded on old rows); it is filled on
         the next ``upsert_series``.
         """
-        existing = {
-            row[1] for row in conn.execute("PRAGMA table_info(series)").fetchall()
-        }
+        existing = {row[1] for row in conn.execute("PRAGMA table_info(series)").fetchall()}
         for name, decl in (("source_host", "TEXT"), ("source_id", "TEXT")):
             if name not in existing:
                 conn.execute(f"ALTER TABLE series ADD COLUMN {name} {decl}")
@@ -353,9 +352,7 @@ class Library:
                 ("SELECT * FROM series WHERE series_id = ?", q),
             ]
             if q.lower().startswith(("http://", "https://")):
-                candidates.append(
-                    ("SELECT * FROM series WHERE source = ?", normalize_url(q))
-                )
+                candidates.append(("SELECT * FROM series WHERE source = ?", normalize_url(q)))
             candidates.extend(
                 (
                     ("SELECT * FROM series WHERE title = ? COLLATE NOCASE", q),
@@ -428,9 +425,7 @@ class Library:
         if not self.available:
             return False
         try:
-            cur = self._db.execute(
-                "DELETE FROM series WHERE series_id = ?", (series_id,)
-            )
+            cur = self._db.execute("DELETE FROM series WHERE series_id = ?", (series_id,))
             self._db.commit()
             return cur.rowcount > 0
         except sqlite3.Error as exc:
@@ -480,9 +475,7 @@ class Library:
             )
             self._db.commit()
         except sqlite3.Error as exc:
-            raise LibraryError(
-                f"Failed to record series {series_id}: {exc}"
-            ) from exc
+            raise LibraryError(f"Failed to record series {series_id}: {exc}") from exc
 
     @_serialized
     def upsert_chapter(
@@ -529,9 +522,7 @@ class Library:
             )
             self._db.commit()
         except sqlite3.Error as exc:
-            raise LibraryError(
-                f"Failed to record chapter {url}: {exc}"
-            ) from exc
+            raise LibraryError(f"Failed to record chapter {url}: {exc}") from exc
 
     @_serialized
     def set_last_checked(self, series_id: str, ts: str | None = None) -> None:
@@ -605,9 +596,7 @@ class Library:
                 )
             self._db.commit()
         except sqlite3.Error as exc:
-            raise LibraryError(
-                f"Failed to restore series {series['series_id']}: {exc}"
-            ) from exc
+            raise LibraryError(f"Failed to restore series {series['series_id']}: {exc}") from exc
 
     @_serialized
     def upsert_download(self, url: str, path: str, kind: str = "cbz") -> None:
@@ -632,9 +621,7 @@ class Library:
             )
             self._db.commit()
         except sqlite3.Error as exc:
-            raise LibraryError(
-                f"Failed to record download {url}: {exc}"
-            ) from exc
+            raise LibraryError(f"Failed to record download {url}: {exc}") from exc
 
     @_serialized
     def downloaded_index(self, output_dir: Path) -> dict[str, Path]:
@@ -662,9 +649,7 @@ class Library:
                     key = normalize_url_key(url)
                     if key:
                         index[key] = path
-            for row in self._db.execute(
-                "SELECT url, path, kind FROM downloads"
-            ).fetchall():
+            for row in self._db.execute("SELECT url, path, kind FROM downloads").fetchall():
                 path = output_dir / row["path"]
                 if path.is_file():
                     key = normalize_url_key(row["url"])
@@ -689,9 +674,7 @@ class Library:
             )
             self._db.commit()
         except sqlite3.Error as exc:
-            raise LibraryError(
-                f"Failed to update series {series_id}: {exc}"
-            ) from exc
+            raise LibraryError(f"Failed to update series {series_id}: {exc}") from exc
 
     @staticmethod
     def _chapter_label(ch: dict) -> str:

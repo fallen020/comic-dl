@@ -39,9 +39,17 @@ from .base import (
 # WordPress archive/taxonomy pages carry these exact body classes; single
 # comic/chapter posts carry `single` + `postid-<n>` plus prefixed classes
 # like `tax-wp-manga-tag-<slug>`, which never match as exact tokens.
-ARCHIVE_BODY_CLASSES = frozenset({
-    "archive", "category", "tag", "tax", "term", "search", "error404",
-})
+ARCHIVE_BODY_CLASSES = frozenset(
+    {
+        "archive",
+        "category",
+        "tag",
+        "tax",
+        "term",
+        "search",
+        "error404",
+    }
+)
 
 _POSTID_CLASS_RE = re.compile(r"\bpostid-(\d+)")
 
@@ -56,9 +64,7 @@ def _body_classes(soup: BeautifulSoup) -> set[str]:
     body = soup.select_one("body")
     if body is None:
         return set()
-    return {
-        str(c) for c in (body.get("class") or []) if isinstance(c, str)
-    }
+    return {str(c) for c in (body.get("class") or []) if isinstance(c, str)}
 
 
 def is_archive_page(soup: BeautifulSoup) -> bool:
@@ -115,11 +121,7 @@ def extract_meta_rows(soup: BeautifulSoup) -> dict[str, list[str]]:
         value_el = item.select_one(".summary-content")
         if value_el is None:
             continue
-        values = [
-            a.get_text(strip=True)
-            for a in value_el.select("a")
-            if a.get_text(strip=True)
-        ]
+        values = [a.get_text(strip=True) for a in value_el.select("a") if a.get_text(strip=True)]
         if not values:
             raw = value_el.get_text(separator=",", strip=True)
             values = [v.strip() for v in raw.split(",") if v.strip()]
@@ -138,7 +140,8 @@ def rows_get(rows: dict[str, list[str]], *labels: str) -> list[str]:
 
 
 def rows_first_prefixed(
-    rows: dict[str, list[str]], prefix: str,
+    rows: dict[str, list[str]],
+    prefix: str,
 ) -> str | None:
     """First value of the first row whose key starts with ``prefix``.
 
@@ -243,7 +246,9 @@ class MadaraScraper(BaseScraper):
         raise NotImplementedError
 
     async def _series_page_data(
-        self, slug: str, client: AsyncSession,
+        self,
+        slug: str,
+        client: AsyncSession,
     ) -> dict:
         cached = self._series_cache.get(slug)
         if cached is not None:
@@ -251,7 +256,8 @@ class MadaraScraper(BaseScraper):
         data: dict = {}
         try:
             response = await BaseScraper._timeout_get(
-                self._series_page_url(slug), client,
+                self._series_page_url(slug),
+                client,
             )
             response.raise_for_status()
             soup = BeautifulSoup(response.text, "lxml")
@@ -260,8 +266,7 @@ class MadaraScraper(BaseScraper):
         except Exception as exc:
             vlog(
                 DIAGNOSTIC,
-                f"series enrichment unavailable for {slug}: "
-                f"{type(exc).__name__}",
+                f"series enrichment unavailable for {slug}: {type(exc).__name__}",
                 tag=TAG_SCRAPE,
             )
         self._series_cache[slug] = data
@@ -353,7 +358,10 @@ class MadaraSeriesSiteScraper(MadaraScraper):
         return m.group(1) if m else None
 
     async def _chapter_links(
-        self, soup: BeautifulSoup, client: AsyncSession, series_page_url: str,
+        self,
+        soup: BeautifulSoup,
+        client: AsyncSession,
+        series_page_url: str,
     ) -> list[tuple[str, str]]:
         """``(href, label)`` pairs for the series chapter list.
 
@@ -388,7 +396,9 @@ class MadaraSeriesSiteScraper(MadaraScraper):
         return await self._scrape_series(url, client)
 
     async def _scrape_chapter(
-        self, url: str, client: AsyncSession,
+        self,
+        url: str,
+        client: AsyncSession,
     ) -> ScrapedChapter:
         soup, _ = await self.fetch_html_raw(url, client)
 
@@ -407,7 +417,7 @@ class MadaraSeriesSiteScraper(MadaraScraper):
             if h1_text:
                 chapter_title = h1_text
         if series_title and chapter_title.startswith(series_title):
-            chapter_title = chapter_title[len(series_title):].lstrip(" -").strip()
+            chapter_title = chapter_title[len(series_title) :].lstrip(" -").strip()
         if not chapter_title:
             title_tag = soup.select_one("title")
             chapter_title = title_tag.get_text(strip=True) if title_tag else ""
@@ -424,15 +434,15 @@ class MadaraSeriesSiteScraper(MadaraScraper):
 
         return ScrapedChapter(
             info=ChapterInfo(**info),
-            source=SourceInfo(
-                url=url, service=self.domain, post_id=extract_post_id(soup)
-            ),
+            source=SourceInfo(url=url, service=self.domain, post_id=extract_post_id(soup)),
             images=images,
             cover_url=series.get("cover_url", ""),
         )
 
     async def _scrape_series(
-        self, url: str, client: AsyncSession,
+        self,
+        url: str,
+        client: AsyncSession,
     ) -> SeriesMetadata:
         soup = await self.fetch_html(url, client)
         idx = meta_index(soup)
@@ -447,7 +457,9 @@ class MadaraSeriesSiteScraper(MadaraScraper):
 
         marker = f"/{self.series_segment}/{series_slug}/{self.chapter_path_marker}"
         for href, raw_title in await self._chapter_links(
-            soup, client, self._series_page_url(series_slug),
+            soup,
+            client,
+            self._series_page_url(series_slug),
         ):
             if href in seen_urls:
                 continue
@@ -457,11 +469,13 @@ class MadaraSeriesSiteScraper(MadaraScraper):
             if marker not in href:
                 continue
             seen_urls.add(href)
-            chapters.append({
-                "title": raw_title or f"Chapter {number}",
-                "url": urljoin(url, href),
-                "episode_no": number,
-            })
+            chapters.append(
+                {
+                    "title": raw_title or f"Chapter {number}",
+                    "url": urljoin(url, href),
+                    "episode_no": number,
+                }
+            )
 
         if not chapters:
             raise no_chapters_error()

@@ -111,9 +111,7 @@ class TestUrlPatterns:
 
     def test_chapter_number(self):
         assert _chapter_number_from_url(CHAPTER_URL) == "1"
-        assert _chapter_number_from_url(
-            "https://kodokustudio.com/manhua/x/capitulo-25"
-        ) == "25"
+        assert _chapter_number_from_url("https://kodokustudio.com/manhua/x/capitulo-25") == "25"
         assert _chapter_number_from_url(SERIES_URL) is None
 
 
@@ -132,8 +130,7 @@ class TestExtraction:
         assert len(images) == 3
         # leading whitespace in the src attribute is stripped
         assert images[0].url == (
-            "https://i0.wp.com/kodokustudio.com/wp-content/uploads/"
-            "WP-manga/data/d06/ep1_001.jpeg"
+            "https://i0.wp.com/kodokustudio.com/wp-content/uploads/WP-manga/data/d06/ep1_001.jpeg"
         )
         assert [i.page_number for i in images] == [1, 2, 3]
 
@@ -177,12 +174,19 @@ class TestKodokuStudioScraper:
 
     @pytest.mark.asyncio
     async def test_scrape_chapter_no_images_raises(self):
-        page = CHAPTER_PAGE.replace(
-            '<img src=" https://i0.wp.com/kodokustudio.com/wp-content/uploads/WP-manga/data/d06/ep1_001.jpeg?ssl=1"', ""
-        ).replace(
-            '<img src=" https://i0.wp.com/kodokustudio.com/wp-content/uploads/WP-manga/data/d06/ep1_002.jpeg?ssl=1"', ""
-        ).replace(
-            '<img src=" https://i0.wp.com/kodokustudio.com/wp-content/uploads/WP-manga/data/d06/ep1_003.jpeg?ssl=1"', ""
+        page = (
+            CHAPTER_PAGE.replace(
+                '<img src=" https://i0.wp.com/kodokustudio.com/wp-content/uploads/WP-manga/data/d06/ep1_001.jpeg?ssl=1"',
+                "",
+            )
+            .replace(
+                '<img src=" https://i0.wp.com/kodokustudio.com/wp-content/uploads/WP-manga/data/d06/ep1_002.jpeg?ssl=1"',
+                "",
+            )
+            .replace(
+                '<img src=" https://i0.wp.com/kodokustudio.com/wp-content/uploads/WP-manga/data/d06/ep1_003.jpeg?ssl=1"',
+                "",
+            )
         )
 
         def handler(url):
@@ -225,9 +229,7 @@ class TestKodokuStudioScraper:
         assert series.title_no == SLUG
         assert [c["episode_no"] for c in series.chapters] == ["1", "2", "3"]
         assert series.chapters[0]["title"] == "Capítulo 1"
-        assert series.chapters[-1]["url"] == (
-            f"https://kodokustudio.com/manhua/{SLUG}/capitulo-3/"
-        )
+        assert series.chapters[-1]["url"] == (f"https://kodokustudio.com/manhua/{SLUG}/capitulo-3/")
         # the foreign-series link did not leak in
         assert "outra-serie" not in " ".join(c["url"] for c in series.chapters)
 

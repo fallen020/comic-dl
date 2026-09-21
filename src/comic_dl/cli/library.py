@@ -127,36 +127,49 @@ def _build_parser(cmd: str) -> argparse.ArgumentParser:
         description="",
     )
     parser.add_argument(
-        "-o", "--output", type=Path, default=None,
+        "-o",
+        "--output",
+        type=Path,
+        default=None,
         help="Library root directory (default: per-user downloads folder)",
     )
     if cmd in ("list", "info", "latest"):
         parser.add_argument(
-            "--json", action="store_true",
+            "--json",
+            action="store_true",
             help="Emit machine-readable JSON on stdout",
         )
     if cmd in ("list", "latest"):
         parser.add_argument(
-            "--source", dest="source", default=None,
+            "--source",
+            dest="source",
+            default=None,
             help="Only show series/chapters from this source domain",
         )
     if cmd == "latest":
         parser.add_argument(
-            "-n", "--days", type=int, default=7,
+            "-n",
+            "--days",
+            type=int,
+            default=7,
             help="Show chapters downloaded in the last N days (default: 7)",
         )
     if cmd in ("remove", "restore"):
         parser.add_argument(
-            "--dry-run", action="store_true",
+            "--dry-run",
+            action="store_true",
             help="Show what would happen without changing anything",
         )
         parser.add_argument(
-            "--json", action="store_true",
+            "--json",
+            action="store_true",
             help="Emit machine-readable JSON on stdout",
         )
     if cmd == "remove":
         parser.add_argument(
-            "-y", "--yes", action="store_true",
+            "-y",
+            "--yes",
+            action="store_true",
             help="Skip the confirmation prompt",
         )
     if cmd in ("info", "remove", "restore"):
@@ -190,32 +203,42 @@ def run_library_command(cmd: str, argv: list[str]) -> int:
     except OSError as exc:
         print_error(f"Cannot open library at {library_path(args.output)}.")
         print_dim(
-            f"{exc.strerror or exc}. Or omit -o to use the default "
-            f"({configured_output_dir()})."
+            f"{exc.strerror or exc}. Or omit -o to use the default ({configured_output_dir()})."
         )
         return EXIT_USAGE
     try:
         _purge_trash(args.output)
         if cmd == "list":
             return _cmd_list(
-                library, args.output,
-                as_json=args.json, source=args.source,
+                library,
+                args.output,
+                as_json=args.json,
+                source=args.source,
             )
         if cmd == "info":
             return _cmd_info(
-                library, args.output, args.series,
+                library,
+                args.output,
+                args.series,
                 as_json=args.json,
             )
         if cmd == "latest":
             return _cmd_latest(library, args, as_json=args.json)
         if cmd == "remove":
             return _cmd_remove(
-                library, args.output, args.series,
-                yes=args.yes, dry_run=args.dry_run, as_json=args.json,
+                library,
+                args.output,
+                args.series,
+                yes=args.yes,
+                dry_run=args.dry_run,
+                as_json=args.json,
             )
         if cmd == "restore":
             return _cmd_restore(
-                library, args.output, args.series, dry_run=args.dry_run,
+                library,
+                args.output,
+                args.series,
+                dry_run=args.dry_run,
                 as_json=args.json,
             )
         return EXIT_USAGE
@@ -224,6 +247,7 @@ def run_library_command(cmd: str, argv: list[str]) -> int:
 
 
 # ── list ───────────────────────────────────────────────────────
+
 
 def _cmd_list(
     library: Library,
@@ -255,9 +279,13 @@ def _cmd_list(
             }
             for s in series
         ]
-        console.print(json.dumps(
-            {"schema_version": JSON_SCHEMA_VERSION, "series": payload}, indent=2,
-        ), soft_wrap=True)
+        console.print(
+            json.dumps(
+                {"schema_version": JSON_SCHEMA_VERSION, "series": payload},
+                indent=2,
+            ),
+            soft_wrap=True,
+        )
         return EXIT_OK
     if not series:
         if source is not None:
@@ -293,6 +321,7 @@ def _cmd_list(
 
 
 # ── info ───────────────────────────────────────────────────────
+
 
 def _cmd_info(
     library: Library,
@@ -370,20 +399,20 @@ def _cmd_info(
             reason = f"cbz not found at {series_dir / cbz}"
         if reason:
             unverified.append((ch, reason))
-        rows.append([
-            f"[{mark_style}]{mark}[/]",
-            esc(ch.get("chapter_no") or ""),
-            esc(ch.get("title") or ""),
-            str(ch["page_count"]) if ch.get("page_count") is not None else "",
-            format_bytes(ch["size_bytes"]) if ch.get("size_bytes") else "",
-            ch.get("downloaded_at") or "",
-        ])
+        rows.append(
+            [
+                f"[{mark_style}]{mark}[/]",
+                esc(ch.get("chapter_no") or ""),
+                esc(ch.get("title") or ""),
+                str(ch["page_count"]) if ch.get("page_count") is not None else "",
+                format_bytes(ch["size_bytes"]) if ch.get("size_bytes") else "",
+                ch.get("downloaded_at") or "",
+            ]
+        )
     print_table(None, ["Verified", "#", "Chapter", "Pages", "Size", "Downloaded"], rows)
     if unverified:
         err_console.print()
-        err_console.print(
-            f"  [{MUTED}]{len(unverified)} chapter(s) not verified:[/]"
-        )
+        err_console.print(f"  [{MUTED}]{len(unverified)} chapter(s) not verified:[/]")
         for ch, reason in unverified:
             err_console.print(
                 f"    [{ERROR}]{glyphs().fail}[/] "
@@ -394,6 +423,7 @@ def _cmd_info(
 
 
 # ── latest ─────────────────────────────────────────────────────
+
 
 def _cmd_latest(
     library: Library,
@@ -411,11 +441,7 @@ def _cmd_latest(
     cutoff = datetime.now(UTC) - timedelta(days=args.days)
     chapters = library.chapters_since(cutoff.isoformat(timespec="seconds"))
     if args.source is not None:
-        allowed = {
-            s["series_id"]
-            for s in library.list_series()
-            if _matches_source(s, args.source)
-        }
+        allowed = {s["series_id"] for s in library.list_series() if _matches_source(s, args.source)}
         chapters = [c for c in chapters if c["series_id"] in allowed]
     if as_json:
         payload = [
@@ -431,15 +457,18 @@ def _cmd_latest(
             }
             for c in chapters
         ]
-        console.print(json.dumps(
-            {"schema_version": JSON_SCHEMA_VERSION, "chapters": payload}, indent=2,
-        ), soft_wrap=True)
+        console.print(
+            json.dumps(
+                {"schema_version": JSON_SCHEMA_VERSION, "chapters": payload},
+                indent=2,
+            ),
+            soft_wrap=True,
+        )
         return EXIT_OK
     if not chapters:
         if args.source is not None:
             print_dim(
-                f"No chapters from '{args.source}' downloaded in the "
-                f"last {args.days} day(s).",
+                f"No chapters from '{args.source}' downloaded in the last {args.days} day(s).",
                 console_obj=console,
             )
             _print_source_suggestion(args.source)
@@ -468,6 +497,7 @@ def _cmd_latest(
 
 
 # ── remove ─────────────────────────────────────────────────────
+
 
 def _cmd_remove(
     library: Library,
@@ -505,15 +535,21 @@ def _cmd_remove(
 
     if dry_run:
         if as_json:
-            console.print(json.dumps({
-                "schema_version": JSON_SCHEMA_VERSION,
-                "dry_run": True,
-                "series_id": s["series_id"],
-                "title": s["title"],
-                "directory": str(series_dir),
-                "chapter_count": len(chapters),
-                "size_bytes": total_size,
-            }, indent=2), soft_wrap=True)
+            console.print(
+                json.dumps(
+                    {
+                        "schema_version": JSON_SCHEMA_VERSION,
+                        "dry_run": True,
+                        "series_id": s["series_id"],
+                        "title": s["title"],
+                        "directory": str(series_dir),
+                        "chapter_count": len(chapters),
+                        "size_bytes": total_size,
+                    },
+                    indent=2,
+                ),
+                soft_wrap=True,
+            )
         else:
             console.print()
             print_header(f"Remove series: {s['title']}")
@@ -582,22 +618,29 @@ def _cmd_remove(
     else:
         print_warning("Could not update the library database.")
     if as_json:
-        console.print(json.dumps({
-            "schema_version": JSON_SCHEMA_VERSION,
-            "series_id": s["series_id"],
-            "title": s["title"],
-            "directory": str(series_dir),
-            "chapter_count": len(chapters),
-            "size_bytes": total_size,
-            "trashed_to": str(dest),
-            "directory_moved": moved,
-        }, indent=2), soft_wrap=True)
+        console.print(
+            json.dumps(
+                {
+                    "schema_version": JSON_SCHEMA_VERSION,
+                    "series_id": s["series_id"],
+                    "title": s["title"],
+                    "directory": str(series_dir),
+                    "chapter_count": len(chapters),
+                    "size_bytes": total_size,
+                    "trashed_to": str(dest),
+                    "directory_moved": moved,
+                },
+                indent=2,
+            ),
+            soft_wrap=True,
+        )
     elif not as_json:
         print_dim(f"Trash is emptied automatically after {TRASH_TTL_DAYS} days.")
     return EXIT_OK
 
 
 # ── restore ────────────────────────────────────────────────────
+
 
 def _cmd_restore(
     library: Library,
@@ -620,9 +663,7 @@ def _cmd_restore(
     if len(matches) > 1:
         print_error(f"'{query}' matches multiple trashed series:")
         for meta in matches:
-            print_dim(
-                f"  {meta['series']['series_id']}  {meta['series']['title']}"
-            )
+            print_dim(f"  {meta['series']['series_id']}  {meta['series']['title']}")
         print_dim("Use a series ID to disambiguate.")
         return EXIT_USAGE
 
@@ -647,14 +688,20 @@ def _cmd_restore(
     console.print()
     if as_json:
         if dry_run:
-            console.print(json.dumps({
-                "schema_version": JSON_SCHEMA_VERSION,
-                "dry_run": True,
-                "series_id": s["series_id"],
-                "title": s["title"],
-                "directory": str(series_dir),
-                "chapter_count": len(chapters),
-            }, indent=2), soft_wrap=True)
+            console.print(
+                json.dumps(
+                    {
+                        "schema_version": JSON_SCHEMA_VERSION,
+                        "dry_run": True,
+                        "series_id": s["series_id"],
+                        "title": s["title"],
+                        "directory": str(series_dir),
+                        "chapter_count": len(chapters),
+                    },
+                    indent=2,
+                ),
+                soft_wrap=True,
+            )
             return EXIT_OK
     else:
         print_header(f"Restore series: {s['title']}")
@@ -687,14 +734,20 @@ def _cmd_restore(
     library.restore_series(s, chapters)
     matches[0]["_sidecar"].unlink(missing_ok=True)
     if as_json:
-        console.print(json.dumps({
-            "schema_version": JSON_SCHEMA_VERSION,
-            "series_id": s["series_id"],
-            "title": s["title"],
-            "directory": str(series_dir),
-            "chapter_count": len(chapters),
-            "directory_restored": restored_dir,
-        }, indent=2), soft_wrap=True)
+        console.print(
+            json.dumps(
+                {
+                    "schema_version": JSON_SCHEMA_VERSION,
+                    "series_id": s["series_id"],
+                    "title": s["title"],
+                    "directory": str(series_dir),
+                    "chapter_count": len(chapters),
+                    "directory_restored": restored_dir,
+                },
+                indent=2,
+            ),
+            soft_wrap=True,
+        )
     else:
         print_success("Restored to library.")
         print_dim(f"Trash is emptied automatically after {TRASH_TTL_DAYS} days.")
@@ -702,6 +755,7 @@ def _cmd_restore(
 
 
 # ── helpers ────────────────────────────────────────────────────
+
 
 def _resolve_series(library: Library, query: str) -> dict | None:
     matches = library.find_series(query)
@@ -769,10 +823,19 @@ def _write_trash_sidecar(
     try:
         payload = {
             "entry": entry_name,
-            "series": {k: series.get(k) for k in (
-                "series_id", "title", "source", "source_site",
-                "relative_path", "last_checked", "last_updated", "created_at",
-            )},
+            "series": {
+                k: series.get(k)
+                for k in (
+                    "series_id",
+                    "title",
+                    "source",
+                    "source_site",
+                    "relative_path",
+                    "last_checked",
+                    "last_updated",
+                    "created_at",
+                )
+            },
             "chapters": chapters,
         }
         (trash / f"{entry_name}{RESTORE_SIDECAR_SUFFIX}").write_text(

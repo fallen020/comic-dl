@@ -59,7 +59,9 @@ class TestConfiguredOutputDir:
     def test_falls_back_to_default(self, monkeypatch, tmp_path):
         _patch_paths(monkeypatch, tmp_path)
         # no config file -> falls back to default_output_dir
-        monkeypatch.setattr(cfgmodule, "default_output_dir", lambda: Path("/home/me/Downloads/comic-dl"))
+        monkeypatch.setattr(
+            cfgmodule, "default_output_dir", lambda: Path("/home/me/Downloads/comic-dl")
+        )
         assert cfgmodule.configured_output_dir() == Path("/home/me/Downloads/comic-dl")
 
 
@@ -91,16 +93,28 @@ class TestCLIPrecedence:
         assert args.output == outdir
         assert args.concurrency == 3
         assert args.max_image_size == 50 * 1024 * 1024
-        assert args.max_size == 1024 ** 3
+        assert args.max_size == 1024**3
 
     def test_flag_overrides_config(self, monkeypatch, tmp_path):
         conf_dir = tmp_path / "cfg"
         flag_out = tmp_path / "flag"
         conf = {"output": str(conf_dir), "concurrency": 3}
         self._cli(
-            monkeypatch, conf, conf_dir,
-            ["-u", "https://e-hentai.org/g/1/a/", "-o", str(flag_out),
-             "-c", "9", "--max-image-size", "5MB", "--max-size", "1KB"],
+            monkeypatch,
+            conf,
+            conf_dir,
+            [
+                "-u",
+                "https://e-hentai.org/g/1/a/",
+                "-o",
+                str(flag_out),
+                "-c",
+                "9",
+                "--max-image-size",
+                "5MB",
+                "--max-size",
+                "1KB",
+            ],
         )
         _, args = parse_urls()
         assert args.output == flag_out
@@ -117,7 +131,9 @@ class TestCLIPrecedence:
     def test_format_from_config(self, monkeypatch, tmp_path):
         outdir = tmp_path / "dl"
         self._cli(
-            monkeypatch, {"archive": {"format": "zip"}}, outdir,
+            monkeypatch,
+            {"archive": {"format": "zip"}},
+            outdir,
             ["-u", "https://e-hentai.org/g/1/a/"],
         )
         _, args = parse_urls()
@@ -126,7 +142,9 @@ class TestCLIPrecedence:
     def test_format_normalized_from_config(self, monkeypatch, tmp_path):
         outdir = tmp_path / "dl"
         self._cli(
-            monkeypatch, {"archive": {"format": "CBT"}}, outdir,
+            monkeypatch,
+            {"archive": {"format": "CBT"}},
+            outdir,
             ["-u", "https://e-hentai.org/g/1/a/"],
         )
         _, args = parse_urls()
@@ -135,7 +153,9 @@ class TestCLIPrecedence:
     def test_format_flag_overrides_config(self, monkeypatch, tmp_path):
         outdir = tmp_path / "dl"
         self._cli(
-            monkeypatch, {"archive": {"format": "zip"}}, outdir,
+            monkeypatch,
+            {"archive": {"format": "zip"}},
+            outdir,
             ["-u", "https://e-hentai.org/g/1/a/", "--format", "cbt"],
         )
         _, args = parse_urls()
@@ -144,7 +164,9 @@ class TestCLIPrecedence:
     def test_bad_format_config_is_a_usage_error(self, monkeypatch, tmp_path):
         outdir = tmp_path / "dl"
         self._cli(
-            monkeypatch, {"archive": {"format": "rar"}}, outdir,
+            monkeypatch,
+            {"archive": {"format": "rar"}},
+            outdir,
             ["-u", "https://e-hentai.org/g/1/a/"],
         )
         with pytest.raises(SystemExit) as exc_info:
@@ -154,7 +176,9 @@ class TestCLIPrecedence:
     def test_bad_format_flag_is_a_usage_error(self, monkeypatch, tmp_path):
         outdir = tmp_path / "dl"
         self._cli(
-            monkeypatch, {}, outdir,
+            monkeypatch,
+            {},
+            outdir,
             ["-u", "https://e-hentai.org/g/1/a/", "--format", "rar"],
         )
         with pytest.raises(SystemExit) as exc_info:
@@ -185,7 +209,9 @@ class TestCLIPrecedence:
         assert args.parallel == 5
 
         self._cli(
-            monkeypatch, {}, outdir,
+            monkeypatch,
+            {},
+            outdir,
             ["-u", "https://e-hentai.org/g/1/a/", "--parallel", "16"],
         )
         _, args = parse_urls()
@@ -194,9 +220,19 @@ class TestCLIPrecedence:
     def test_http_flags_apply_runtime_overrides(self, monkeypatch, tmp_path):
         outdir = tmp_path / "dl"
         self._cli(
-            monkeypatch, {}, outdir,
-            ["-u", "https://e-hentai.org/g/1/a/", "--impersonate", "chrome131",
-             "--solver", "off", "--no-cookie", "--no-rate"],
+            monkeypatch,
+            {},
+            outdir,
+            [
+                "-u",
+                "https://e-hentai.org/g/1/a/",
+                "--impersonate",
+                "chrome131",
+                "--solver",
+                "off",
+                "--no-cookie",
+                "--no-rate",
+            ],
         )
         _, args = parse_urls()
         assert args.impersonate == "chrome131"
@@ -205,6 +241,7 @@ class TestCLIPrecedence:
         assert args.no_rate is True
         try:
             from comic_dl.config import _RUNTIME_HTTP
+
             assert _RUNTIME_HTTP["impersonate"] == "chrome131"
             assert _RUNTIME_HTTP["solver"] == "off"
             assert _RUNTIME_HTTP["cookie-jar"] is False
@@ -215,7 +252,9 @@ class TestCLIPrecedence:
     def test_unknown_impersonate_warns_and_falls_back(self, monkeypatch, tmp_path, capsys):
         outdir = tmp_path / "dl"
         self._cli(
-            monkeypatch, {}, outdir,
+            monkeypatch,
+            {},
+            outdir,
             ["-u", "https://e-hentai.org/g/1/a/", "--impersonate", "netscape9"],
         )
         try:
@@ -229,7 +268,9 @@ class TestCLIPrecedence:
     def test_deprecated_impersonate_warns_but_kept(self, monkeypatch, tmp_path, capsys):
         outdir = tmp_path / "dl"
         self._cli(
-            monkeypatch, {}, outdir,
+            monkeypatch,
+            {},
+            outdir,
             ["-u", "https://e-hentai.org/g/1/a/", "--impersonate", "chrome99"],
         )
         try:
@@ -263,7 +304,9 @@ class TestCLIPrecedence:
     def test_rate_disabled_warns(self, monkeypatch, tmp_path, capsys):
         outdir = tmp_path / "dl"
         self._cli(
-            monkeypatch, {}, outdir,
+            monkeypatch,
+            {},
+            outdir,
             ["-u", "https://e-hentai.org/g/1/a/", "--no-rate"],
         )
         try:
@@ -276,7 +319,9 @@ class TestCLIPrecedence:
     def test_valid_impersonate_no_warning(self, monkeypatch, tmp_path, capsys):
         outdir = tmp_path / "dl"
         self._cli(
-            monkeypatch, {}, outdir,
+            monkeypatch,
+            {},
+            outdir,
             ["-u", "https://e-hentai.org/g/1/a/", "--impersonate", "chrome146"],
         )
         try:
@@ -315,7 +360,8 @@ class TestEffectiveConfig:
     def test_sources_merge_is_recursive(self, monkeypatch, tmp_path):
         _patch_paths(monkeypatch, tmp_path)
         (tmp_path / "config.toml").write_text(
-            '[sources."other.example"]\nrate = 2.5\n', encoding="utf-8",
+            '[sources."other.example"]\nrate = 2.5\n',
+            encoding="utf-8",
         )
         eff = cfgmodule.effective_config()
         assert eff["sources"]["other.example"]["rate"] == 2.5
@@ -395,21 +441,23 @@ class TestConfigValidationWarnings:
     """Bad values degrade to defaults (consumers handle them) but must produce
     a visible warning at load time instead of silently shifting behavior."""
 
-    def test_warns_for_wrong_types_ranges_enums_and_unknown_keys(self, monkeypatch, tmp_path, capsys):
+    def test_warns_for_wrong_types_ranges_enums_and_unknown_keys(
+        self, monkeypatch, tmp_path, capsys
+    ):
         _patch_paths(monkeypatch, tmp_path)
         (tmp_path / "config.toml").write_text(
-            'output = 5\n'
-            'parallel = 99\n'
+            "output = 5\n"
+            "parallel = 99\n"
             'concurrency = "three"\n'
-            'bogus_top = 1\n'
-            '[http]\n'
+            "bogus_top = 1\n"
+            "[http]\n"
             'solver = "nope"\n'
             'cache = "yes"\n'
-            'mystery = 1\n'
-            '[archive]\n'
+            "mystery = 1\n"
+            "[archive]\n"
             'format = "rar"\n'
             '[sources."kagane.to"]\n'
-            'rate = -1\n'
+            "rate = -1\n"
             'mode = "sometimes"\n',
             encoding="utf-8",
         )
@@ -418,7 +466,7 @@ class TestConfigValidationWarnings:
         assert "config" in err
         # Warnings are capped at six problems per config with a (N more)
         # marker; assert the visible ones and the truncation hint.
-        for needle in ['output', 'parallel', 'concurrency', 'bogus_top', 'solver', 'cache']:
+        for needle in ["output", "parallel", "concurrency", "bogus_top", "solver", "cache"]:
             assert needle in err, f"missing validation warning for {needle}"
         assert "more" in err
 
@@ -426,14 +474,15 @@ class TestConfigValidationWarnings:
         """The shipped DEFAULT_CONFIG_TOML must round-trip warning-free."""
         _patch_paths(monkeypatch, tmp_path)
         (tmp_path / "config.toml").write_text(
-            cfgmodule.DEFAULT_CONFIG_TOML, encoding="utf-8",
+            cfgmodule.DEFAULT_CONFIG_TOML,
+            encoding="utf-8",
         )
         assert cfgmodule.load_config() != {}
         assert capsys.readouterr().err == ""
 
     def test_validation_warns_once_per_parse(self, monkeypatch, tmp_path, capsys):
         _patch_paths(monkeypatch, tmp_path)
-        (tmp_path / "config.toml").write_text('bogus = 1\n', encoding="utf-8")
+        (tmp_path / "config.toml").write_text("bogus = 1\n", encoding="utf-8")
         cfgmodule.load_config()
         cap1 = capsys.readouterr()
         cfgmodule.load_config()  # cache hit -> no re-parse, no re-warning
@@ -448,7 +497,7 @@ class TestConfigSnapshot:
 
     def test_unchanged_file_is_not_reparsed(self, monkeypatch, tmp_path, capsys):
         _patch_paths(monkeypatch, tmp_path)
-        (tmp_path / "config.toml").write_text('concurrency = 5\n', encoding="utf-8")
+        (tmp_path / "config.toml").write_text("concurrency = 5\n", encoding="utf-8")
         assert cfgmodule.load_config()["concurrency"] == 5
         cap1 = capsys.readouterr()
         cfgmodule.load_config()
@@ -458,12 +507,12 @@ class TestConfigSnapshot:
     def test_edited_file_is_picked_up(self, monkeypatch, tmp_path):
         _patch_paths(monkeypatch, tmp_path)
         path = tmp_path / "config.toml"
-        path.write_text('concurrency = 5\n', encoding="utf-8")
+        path.write_text("concurrency = 5\n", encoding="utf-8")
         assert cfgmodule.load_config()["concurrency"] == 5
         # Different length, not just a different digit: the snapshot cache
         # keys on (mtime_ns, size), and coarse-timestamp filesystems can
         # report an unchanged mtime for two writes in the same tick.
-        path.write_text('concurrency = 7  # raised\n', encoding="utf-8")
+        path.write_text("concurrency = 7  # raised\n", encoding="utf-8")
         assert cfgmodule.load_config()["concurrency"] == 7
 
     def test_reload_config_forces_reparse(self, monkeypatch, tmp_path):
@@ -535,8 +584,7 @@ class TestHostAwareHttpSetting:
     def test_host_table_beats_http_map(self, monkeypatch, tmp_path):
         _patch_paths(monkeypatch, tmp_path)
         (tmp_path / "config.toml").write_text(
-            '[http]\nrate = { "kagane.to" = 1.5 }\n'
-            '[sources."kagane.to"]\nrate = 0.8\n',
+            '[http]\nrate = { "kagane.to" = 1.5 }\n[sources."kagane.to"]\nrate = 0.8\n',
             encoding="utf-8",
         )
         assert cfgmodule.http_setting("rate", {}, host="kagane.to") == 0.8
@@ -544,22 +592,20 @@ class TestHostAwareHttpSetting:
     def test_host_missing_falls_back_to_http(self, monkeypatch, tmp_path):
         _patch_paths(monkeypatch, tmp_path)
         (tmp_path / "config.toml").write_text(
-            '[http]\nrate = { "kagane.to" = 1.5 }\n', encoding="utf-8",
+            '[http]\nrate = { "kagane.to" = 1.5 }\n',
+            encoding="utf-8",
         )
-        assert cfgmodule.http_setting("rate", {}, host="other.example") == {
-            "kagane.to": 1.5
-        }
+        assert cfgmodule.http_setting("rate", {}, host="other.example") == {"kagane.to": 1.5}
 
     def test_runtime_override_beats_host_table(self, monkeypatch, tmp_path):
         _patch_paths(monkeypatch, tmp_path)
         (tmp_path / "config.toml").write_text(
-            '[sources."kagane.to"]\nrate = 0.8\n', encoding="utf-8",
+            '[sources."kagane.to"]\nrate = 0.8\n',
+            encoding="utf-8",
         )
         cfgmodule.set_runtime_http(**{"rate": {"kagane.to": 9.0}})
         try:
-            assert cfgmodule.http_setting("rate", {}, host="kagane.to") == {
-                "kagane.to": 9.0
-            }
+            assert cfgmodule.http_setting("rate", {}, host="kagane.to") == {"kagane.to": 9.0}
         finally:
             cfgmodule._RUNTIME_HTTP.clear()
 
@@ -582,7 +628,8 @@ class TestDefaultConfigParity:
     def test_written_default_round_trips_through_parser(self, monkeypatch, tmp_path):
         _patch_paths(monkeypatch, tmp_path)
         (tmp_path / "config.toml").write_text(
-            cfgmodule.DEFAULT_CONFIG_TOML, encoding="utf-8",
+            cfgmodule.DEFAULT_CONFIG_TOML,
+            encoding="utf-8",
         )
         conf = cfgmodule.load_config()
         assert conf["output"] == "~/Downloads/comic-dl"

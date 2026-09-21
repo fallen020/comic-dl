@@ -191,12 +191,10 @@ class TestManhwazScraper:
 
     @pytest.mark.asyncio
     async def test_scrape_chapter_no_images_raises(self):
-        page = CHAPTER_PAGE.replace(
-            f'<img id="image-0" src="{IMG}6a85f8738a610.jpg"', ""
-        ).replace(
-            f'<img id="image-1" src="{IMG}6a85f87369457.jpg"', ""
-        ).replace(
-            f'<img id="image-2" src="{IMG}6a85f8736b92d.jpg"', ""
+        page = (
+            CHAPTER_PAGE.replace(f'<img id="image-0" src="{IMG}6a85f8738a610.jpg"', "")
+            .replace(f'<img id="image-1" src="{IMG}6a85f87369457.jpg"', "")
+            .replace(f'<img id="image-2" src="{IMG}6a85f8736b92d.jpg"', "")
         )
 
         def handler(url):

@@ -173,7 +173,7 @@ Every `--json` payload includes a `schema_version` field (currently `1`).
 | `comic-dl info <S> --json` | `{"schema_version": 1, ..., "chapters": [...]}` |
 | `comic-dl --list-sources --json` | `{"schema_version": 1, "sources": [...]}` |
 | `comic-dl -u <URL> --json` | `{"schema_version": 1, "url": ..., "status": "success"\|"failed"\|"skipped", ...}` |
-| `comic-dl -f <FILE> --json` | `{"schema_version": 1, "urls": [...], "succeeded": N, "skipped": N, "failed": N}` |
+| `comic-dl -f <FILE> --json` | `{"schema_version": 1, "urls": [...], "succeeded": N, "skipped": N, "failed": N, "partial": N}` |
 | `comic-dl update <S> --json` | `{"schema_version": 1, "checked": N, "changed": N, "skipped": N, "failed": [...], "series": [...]}` |
 
 `--json` implies non-interactive mode and uses the same exit codes as the

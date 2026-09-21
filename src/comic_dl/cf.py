@@ -30,7 +30,10 @@ def solver_mode(host: str | None = None) -> str:
         return mode
     global_mode = http_setting("solver", default="auto")
     if isinstance(global_mode, str) and global_mode in {
-        "auto", "impersonation", "webview", "off",
+        "auto",
+        "impersonation",
+        "webview",
+        "off",
     }:
         return global_mode
     return "auto"

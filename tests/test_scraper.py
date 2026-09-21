@@ -16,7 +16,7 @@ from comic_dl.scrapers.sites.pawchive import (
 
 
 def _soup(html: str) -> BeautifulSoup:
-    return BeautifulSoup(html, 'lxml')
+    return BeautifulSoup(html, "lxml")
 
 
 class TestExtractSeriesAndChapter:
@@ -289,6 +289,7 @@ class TestExtractMeta:
 
 class TestScrapePost:
     pytestmark = pytest.mark.asyncio
+
     async def test_no_images_raises(self):
         html = """
         <html>
@@ -443,6 +444,7 @@ class TestScrapePost:
             async def get(self, url, **kwargs):
                 from curl_cffi.requests import Response as CurlResponse
                 from curl_cffi.requests.exceptions import HTTPError as CurlHTTPError
+
                 resp = CurlResponse()
                 resp.status_code = 404
                 raise CurlHTTPError("not found", response=resp)
@@ -567,7 +569,9 @@ class TestTimeoutGetCache:
         class MockClient:
             async def get(self, url, **kwargs):
                 calls.append((url, kwargs))
-                if "If-None-Match" in (kwargs.get("headers") or {}) or "If-Modified-Since" in (kwargs.get("headers") or {}):
+                if "If-None-Match" in (kwargs.get("headers") or {}) or "If-Modified-Since" in (
+                    kwargs.get("headers") or {}
+                ):
                     r = Resp("")
                     r.status_code = 304
                     return r
@@ -655,9 +659,7 @@ class TestTimeoutGetCache:
                 return Resp()
 
         await BaseScraper._timeout_get(self.url, MockClient(), method="POST")
-        assert cache._cache_root().is_dir() is False or not any(
-            cache._cache_root().glob("*.dat")
-        )
+        assert cache._cache_root().is_dir() is False or not any(cache._cache_root().glob("*.dat"))
 
     async def test_cache_never_serves_unvalidated_url(self, monkeypatch):
         """Security invariant: the cache is consulted only after
@@ -681,9 +683,7 @@ class TestTimeoutGetCache:
         async def _block(url):
             raise RequestBlockedError(f"blocked {url!r}")
 
-        monkeypatch.setattr(
-            "comic_dl.scrapers.base.validate_request_url_async", _block
-        )
+        monkeypatch.setattr("comic_dl.scrapers.base.validate_request_url_async", _block)
         calls = []
         client = self._client(calls)
         with pytest.raises(RequestBlockedError):

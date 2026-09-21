@@ -425,9 +425,7 @@ def _validate_config(path: Path, data: dict[str, Any]) -> None:
                     if isinstance(table, dict):
                         _validate_table("[sources]", table, problems)
                     else:
-                        problems.append(
-                            f'[sources."{host}"]: expected a table, got {table!r}'
-                        )
+                        problems.append(f'[sources."{host}"]: expected a table, got {table!r}')
             else:
                 _validate_table(f"[{key}]", value, problems)
         elif isinstance(value, dict):
@@ -458,9 +456,7 @@ def _validate_table(label: str, table: dict[str, Any], problems: list[str]) -> N
             problems.append(f"{label} key {key!r} is not recognized")
             continue
         if not _check_rule(rule, value):
-            problems.append(
-                f"{label} {key!r}: expected {_describe(rule)}, got {value!r}"
-            )
+            problems.append(f"{label} {key!r}: expected {_describe(rule)}, got {value!r}")
 
 
 def _check_rule(rule: Any, value: Any) -> bool:

@@ -27,9 +27,7 @@ from ..registry import register_scraper
 DOMAIN = "kodokustudio.com"
 BASE = "https://kodokustudio.com"
 
-_SERIES_PATH_RE = re.compile(
-    r"^https?://(?:www\.)?kodokustudio\.com/manhua/[^/]+/?$"
-)
+_SERIES_PATH_RE = re.compile(r"^https?://(?:www\.)?kodokustudio\.com/manhua/[^/]+/?$")
 _CHAPTER_PATH_RE = re.compile(
     r"^https?://(?:www\.)?kodokustudio\.com/manhua/[^/]+/capitulo-[^/]+/?$"
 )

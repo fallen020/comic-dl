@@ -97,7 +97,8 @@ class TestErrorKindTaxonomy:
 class TestParseUrlsExitCodes:
     def test_invalid_scheme_is_usage(self, monkeypatch, capsys):
         monkeypatch.setattr(
-            "sys.argv", ["prog", "--url", "/tmp/not/a/url"],
+            "sys.argv",
+            ["prog", "--url", "/tmp/not/a/url"],
         )
         with pytest.raises(SystemExit) as exc_info:
             parse_urls()
@@ -105,7 +106,8 @@ class TestParseUrlsExitCodes:
 
     def test_missing_file_is_usage(self, monkeypatch):
         monkeypatch.setattr(
-            "sys.argv", ["prog", "--file", "/nonexistent/urls.txt"],
+            "sys.argv",
+            ["prog", "--file", "/nonexistent/urls.txt"],
         )
         with pytest.raises(SystemExit) as exc_info:
             parse_urls()
@@ -194,9 +196,13 @@ class TestLibraryExitCodes:
     def test_invalid_days_is_usage(self, tmp_path):
         root = tmp_path / "dl"
         root.mkdir()
-        assert run_library_command(
-            "latest", ["-o", str(root), "--days", "0"],
-        ) == EXIT_USAGE
+        assert (
+            run_library_command(
+                "latest",
+                ["-o", str(root), "--days", "0"],
+            )
+            == EXIT_USAGE
+        )
 
 
 class TestReportError:
@@ -234,7 +240,9 @@ class TestReportError:
 
     def test_context_and_hint(self, capsys):
         code = report_error(
-            ValueError("boom"), context="Failed: https://x", hint="Try again.",
+            ValueError("boom"),
+            context="Failed: https://x",
+            hint="Try again.",
         )
         err = capsys.readouterr().err
         assert code == EXIT_ERROR
@@ -310,7 +318,8 @@ class TestMainExitCodes:
         from comic_dl.cli import main
 
         monkeypatch.setattr(
-            "sys.argv", ["prog", "--url", "/tmp/not/a/url"],
+            "sys.argv",
+            ["prog", "--url", "/tmp/not/a/url"],
         )
         with pytest.raises(SystemExit) as exc_info:
             await main()
@@ -324,6 +333,7 @@ class TestMainExitCodes:
         # list on an empty dir returns EXIT_OK ("Library is empty"); the
         # point is that the flag is not rejected as unrecognized (exit 2).
         monkeypatch.setattr(
-            "sys.argv", ["prog", "list", "-o", str(tmp_path), "-vv"],
+            "sys.argv",
+            ["prog", "list", "-o", str(tmp_path), "-vv"],
         )
         assert await main() == EXIT_OK

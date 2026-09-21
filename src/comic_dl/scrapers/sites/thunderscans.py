@@ -37,9 +37,7 @@ from ..registry import register_scraper
 DOMAIN = "en-thunderscans.com"
 BASE = "https://en-thunderscans.com"
 
-_SERIES_PATH_RE = re.compile(
-    r"^https?://(?:www\.)?en-thunderscans\.com/comics/[^/]+/?$"
-)
+_SERIES_PATH_RE = re.compile(r"^https?://(?:www\.)?en-thunderscans\.com/comics/[^/]+/?$")
 
 _CHAPTER_PATH_RE = re.compile(
     r"^https?://(?:www\.)?en-thunderscans\.com/[^/]+-chapter-\d+(?:[-.]\d+)*/?$"
@@ -222,7 +220,7 @@ def _extract_chapter_title(soup: BeautifulSoup, series_title: str) -> str:
     h1 = soup.select_one("h1.entry-title")
     chapter_title = h1.get_text(" ", strip=True) if h1 is not None else ""
     if series_title and chapter_title.startswith(series_title):
-        rest = chapter_title[len(series_title):].lstrip(" -:").strip()
+        rest = chapter_title[len(series_title) :].lstrip(" -:").strip()
         if rest:
             return rest
     return chapter_title
@@ -282,9 +280,7 @@ class ThunderscansScraper(BaseScraper):
             return cached
         data: dict = {}
         try:
-            response = await BaseScraper._timeout_get(
-                f"{BASE}/comics/{series_slug}/", client
-            )
+            response = await BaseScraper._timeout_get(f"{BASE}/comics/{series_slug}/", client)
             response.raise_for_status()
             soup = BeautifulSoup(response.text, "lxml")
             data = _series_page(soup)
@@ -295,7 +291,9 @@ class ThunderscansScraper(BaseScraper):
         return data
 
     async def _scrape_chapter(
-        self, url: str, client: AsyncSession,
+        self,
+        url: str,
+        client: AsyncSession,
     ) -> ScrapedChapter:
         soup, raw = await self._fetch(url, client)
 
@@ -310,9 +308,7 @@ class ThunderscansScraper(BaseScraper):
         chapter_number = _chapter_number_from_url(url)
         chapter_title = _extract_chapter_title(soup, series_title)
         if not chapter_title:
-            chapter_title = (
-                f"Chapter {chapter_number}" if chapter_number else "Chapter"
-            )
+            chapter_title = f"Chapter {chapter_number}" if chapter_number else "Chapter"
 
         data = _ts_reader_index(raw)
         post_id = str(data.get("post_id") or "") if data else ""
@@ -336,7 +332,9 @@ class ThunderscansScraper(BaseScraper):
         )
 
     async def _scrape_series(
-        self, url: str, client: AsyncSession,
+        self,
+        url: str,
+        client: AsyncSession,
     ) -> SeriesMetadata:
         soup, _ = await self._fetch(url, client)
 
@@ -354,11 +352,13 @@ class ThunderscansScraper(BaseScraper):
             if not number or not href or href in seen:
                 continue
             seen.add(href)
-            chapters.append({
-                "title": _chapter_entry_title(number),
-                "url": urljoin(url, href),
-                "episode_no": number,
-            })
+            chapters.append(
+                {
+                    "title": _chapter_entry_title(number),
+                    "url": urljoin(url, href),
+                    "episode_no": number,
+                }
+            )
 
         if not chapters:
             raise no_chapters_error()
@@ -366,9 +366,8 @@ class ThunderscansScraper(BaseScraper):
         chapters.sort(key=_sort_key)
 
         return SeriesMetadata(
-            series_title=page["series_title"] or (
-                slug.replace("-", " ").title() if slug else "Untitled"
-            ),
+            series_title=page["series_title"]
+            or (slug.replace("-", " ").title() if slug else "Untitled"),
             description=page["description"],
             cover_url=page["cover_url"],
             title_no=slug,

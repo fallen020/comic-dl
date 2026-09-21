@@ -93,12 +93,13 @@ class TestCookieJarList:
         jar.store_cookiejar(
             [
                 _FakeCookie(
-                    "sf", "tok", ".kagane.to", secure=True,
+                    "sf",
+                    "tok",
+                    ".kagane.to",
+                    secure=True,
                     expires=int(time.time()) + 3600,
                 ),
-                _FakeCookie(
-                    "plain", "ok", ".kagane.to", expires=int(time.time()) + 3600
-                ),
+                _FakeCookie("plain", "ok", ".kagane.to", expires=int(time.time()) + 3600),
             ]
         )
         assert "sf" not in jar.cookies_for("kagane.to", https=False)
@@ -112,15 +113,21 @@ class TestCookieJarList:
         jar.store_cookiejar(
             [
                 _FakeCookie(
-                    "evil", "v", ".com",
+                    "evil",
+                    "v",
+                    ".com",
                     expires=int(time.time()) + 3600,
                 ),
                 _FakeCookie(
-                    "tenant", "leak", ".github.io",
+                    "tenant",
+                    "leak",
+                    ".github.io",
                     expires=int(time.time()) + 3600,
                 ),
                 _FakeCookie(
-                    "ok", "fine", ".kagane.to",
+                    "ok",
+                    "fine",
+                    ".kagane.to",
                     expires=int(time.time()) + 3600,
                 ),
             ]
@@ -138,15 +145,21 @@ class TestCookieJarList:
         jar.store_cookiejar(
             [
                 _FakeCookie(
-                    "leak", "v", ".workers.dev",
+                    "leak",
+                    "v",
+                    ".workers.dev",
                     expires=int(time.time()) + 3600,
                 ),
                 _FakeCookie(
-                    "bucket", "v", ".s3.amazonaws.com",
+                    "bucket",
+                    "v",
+                    ".s3.amazonaws.com",
                     expires=int(time.time()) + 3600,
                 ),
                 _FakeCookie(
-                    "ok", "fine", ".example.com",
+                    "ok",
+                    "fine",
+                    ".example.com",
                     expires=int(time.time()) + 3600,
                 ),
             ]
@@ -164,15 +177,21 @@ class TestCookieJarList:
         jar.store_cookiejar(
             [
                 _FakeCookie(
-                    "si", "v", ".intranet",
+                    "si",
+                    "v",
+                    ".intranet",
                     expires=int(time.time()) + 3600,
                 ),
                 _FakeCookie(
-                    "tld", "v", ".com",
+                    "tld",
+                    "v",
+                    ".com",
                     expires=int(time.time()) + 3600,
                 ),
                 _FakeCookie(
-                    "local", "v", ".localhost",
+                    "local",
+                    "v",
+                    ".localhost",
                     expires=int(time.time()) + 3600,
                 ),
             ]
@@ -191,11 +210,15 @@ class TestCookieJarList:
         jar.store_cookiejar(
             [
                 _FakeCookie(
-                    "sk", "suffix", ".kagane.to",
+                    "sk",
+                    "suffix",
+                    ".kagane.to",
                     expires=int(time.time()) + 3600,
                 ),
                 _FakeCookie(
-                    "sk", "specific", ".api.kagane.to",
+                    "sk",
+                    "specific",
+                    ".api.kagane.to",
                     expires=int(time.time()) + 3600,
                 ),
             ]
@@ -215,9 +238,7 @@ class TestCookieJarList:
             [_FakeCookie("sk", "token", ".kagane.to", expires=int(time.time()) + 3600)]
         )
         assert "sk" in jar.cookies_for("kagane.to")
-        jar.store_cookiejar(
-            [_FakeCookie("sk", "", ".kagane.to", expires=int(time.time()) - 10)]
-        )
+        jar.store_cookiejar([_FakeCookie("sk", "", ".kagane.to", expires=int(time.time()) - 10)])
         assert "sk" not in jar.cookies_for("kagane.to")
         assert len(jar) == 0
         assert jar.list() == []
@@ -254,11 +275,10 @@ class TestCookieJarList:
         jar.set("kagane.to", "sk", "v")
         assert {r["host"] for r in jar.list()} == {"localhost", "kagane.to"}
 
-    @pytest.mark.skipif(
-        sys.platform == "win32", reason="owner-only mode bits are POSIX-only"
-    )
+    @pytest.mark.skipif(sys.platform == "win32", reason="owner-only mode bits are POSIX-only")
     def test_store_created_owner_only(self, tmp_path):
         import stat
+
         db = tmp_path / "cookies.db"
         jar = CookieJar(db)
         jar.set("kagane.to", "cf_clearance", "secret")
@@ -266,12 +286,11 @@ class TestCookieJarList:
         mode = stat.S_IMODE(db.stat().st_mode)
         assert mode == 0o600
 
-    @pytest.mark.skipif(
-        sys.platform == "win32", reason="owner-only mode bits are POSIX-only"
-    )
+    @pytest.mark.skipif(sys.platform == "win32", reason="owner-only mode bits are POSIX-only")
     def test_restrict_perms_repairs_loose_file(self, tmp_path):
         import os
         import stat
+
         db = tmp_path / "cookies.db"
         db.write_bytes(b"")  # pre-create with default umask perms
         os.chmod(db, 0o644)
@@ -286,9 +305,7 @@ class TestCookieShortCircuit:
 
     def test_absorb_skips_jar_without_set_cookie(self, monkeypatch):
         called = []
-        monkeypatch.setattr(
-            httpmodule, "get_jar", lambda: (called.append(1), object())[1]
-        )
+        monkeypatch.setattr(httpmodule, "get_jar", lambda: (called.append(1), object())[1])
         client = Mock()
         client.cookies.jar = object()
         httpmodule.absorb_response_cookies(client, {"Content-Type": "text/html"})
@@ -317,9 +334,7 @@ class TestCookieShortCircuit:
         jar = CookieJar(tmp_path / "cookies.db")
         jar.set("kagane.to", "sk", "v1")
         monkeypatch.setattr(httpmodule, "get_jar", lambda: jar)
-        assert httpmodule.jar_cookies_kwargs("https://kagane.to/a") == {
-            "cookies": {"sk": "v1"}
-        }
+        assert httpmodule.jar_cookies_kwargs("https://kagane.to/a") == {"cookies": {"sk": "v1"}}
         assert httpmodule.jar_cookies_kwargs("http://other.test/") == {}
 
     def test_secure_jar_cookie_skipped_over_http(self, monkeypatch, tmp_path):
@@ -329,7 +344,10 @@ class TestCookieShortCircuit:
         jar.store_cookiejar(
             [
                 _FakeCookie(
-                    "sf", "tok", ".kagane.to", secure=True,
+                    "sf",
+                    "tok",
+                    ".kagane.to",
+                    secure=True,
                     expires=int(time.time()) + 3600,
                 )
             ]
@@ -348,9 +366,7 @@ class TestChallengeDetection:
         assert looks_like_challenge(403, {"Cf-Mitigated": "challenge"})
 
     def test_body_marker(self):
-        assert looks_like_challenge(
-            403, {}, "something challenge-error-text something"
-        )
+        assert looks_like_challenge(403, {}, "something challenge-error-text something")
 
     def test_plain_error_not_challenge(self):
         assert not looks_like_challenge(403, {"Server": "nginx"})
@@ -472,9 +488,7 @@ class TestRunCookie:
         assert self._run(["ls"], tmp_path, monkeypatch) == 0
         assert "No cookies stored" in self._out(capsys)
 
-    def test_cookie_clear_requires_confirmation_noninteractive(
-        self, capsys, tmp_path, monkeypatch
-    ):
+    def test_cookie_clear_requires_confirmation_noninteractive(self, capsys, tmp_path, monkeypatch):
         """Non-TTY `cookie clear` without -y refuses (exit 130) and clears
         nothing, instead of silently wiping the jar."""
         from unittest.mock import patch
@@ -550,27 +564,36 @@ class TestRunCookie:
         out = self._out(capsys)
         payload = _json.loads(out)
         assert payload["schema_version"] == 1
-        assert any(
-            c["host"] == "e-hentai.org" and c["name"] == "sk"
-            for c in payload["cookies"]
-        )
+        assert any(c["host"] == "e-hentai.org" and c["name"] == "sk" for c in payload["cookies"])
 
     def test_cookie_set_rejects_bad_host(self, capsys, tmp_path, monkeypatch):
-        assert self._run(
-            ["set", "https://e-hentai.org/path", "sk", "v1"],
-            tmp_path, monkeypatch,
-        ) == 2
+        assert (
+            self._run(
+                ["set", "https://e-hentai.org/path", "sk", "v1"],
+                tmp_path,
+                monkeypatch,
+            )
+            == 2
+        )
         assert "Invalid cookie host" in self._out(capsys)
 
-        assert self._run(
-            ["set", "example.com:8080", "sk", "v1"],
-            tmp_path, monkeypatch,
-        ) == 2
+        assert (
+            self._run(
+                ["set", "example.com:8080", "sk", "v1"],
+                tmp_path,
+                monkeypatch,
+            )
+            == 2
+        )
 
-        assert self._run(
-            ["set", "ok.example.com", "sk", "v1"],
-            tmp_path, monkeypatch,
-        ) == 0
+        assert (
+            self._run(
+                ["set", "ok.example.com", "sk", "v1"],
+                tmp_path,
+                monkeypatch,
+            )
+            == 0
+        )
         assert "Stored cookie" in self._out(capsys)
 
     def test_cookie_ls_host_filter_json(self, capsys, tmp_path, monkeypatch):

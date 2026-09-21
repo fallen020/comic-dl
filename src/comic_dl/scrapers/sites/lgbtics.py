@@ -22,12 +22,8 @@ from ..registry import register_scraper
 DOMAIN = "lgbtics.com"
 BASE = "https://lgbtics.com"
 
-_SERIES_PATH_RE = re.compile(
-    r"^https?://(?:www\.)?lgbtics\.com/comic/[^/]+/?$"
-)
-_CHAPTER_PATH_RE = re.compile(
-    r"^https?://(?:www\.)?lgbtics\.com/comic/[^/]+/.+/?$"
-)
+_SERIES_PATH_RE = re.compile(r"^https?://(?:www\.)?lgbtics\.com/comic/[^/]+/?$")
+_CHAPTER_PATH_RE = re.compile(r"^https?://(?:www\.)?lgbtics\.com/comic/[^/]+/.+/?$")
 
 # Matches numbers in chapter slugs like "1-secretary-chapter-1-scara2b" or "chapter-25"
 _CHAPTER_NUM_RE = re.compile(r"(?:^|[-/])(\d+(?:\.\d+)?)(?:[-/]|$)", re.IGNORECASE)
@@ -161,7 +157,10 @@ class LgbticsScraper(MadaraSeriesSiteScraper):
         }
 
     async def _chapter_links(
-        self, soup: BeautifulSoup, client, series_page_url: str,
+        self,
+        soup: BeautifulSoup,
+        client,
+        series_page_url: str,
     ) -> list[tuple[str, str]]:
         """Extract chapter links without filtering by chapter_path_marker."""
         links: list[tuple[str, str]] = []

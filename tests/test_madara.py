@@ -27,10 +27,7 @@ class TestIsArchivePage:
         assert is_archive_page(_soup(html)) is True
 
     def test_single_post_is_not_archive(self):
-        html = (
-            '<body class="single post postid-123 format-standard">'
-            "<h1>t</h1></body>"
-        )
+        html = '<body class="single post postid-123 format-standard"><h1>t</h1></body>'
         assert is_archive_page(_soup(html)) is False
 
     def test_prefixed_class_does_not_match(self):
@@ -62,14 +59,16 @@ class TestCleanImageUrl:
         assert clean_image_url("https://c/x.jpg?v=2#f") == "https://c/x.jpg"
 
     def test_strip_resize_suffix(self):
-        assert clean_image_url(
-            "https://c/img-300x450.jpg", strip_resize=True,
-        ) == "https://c/img.jpg"
+        assert (
+            clean_image_url(
+                "https://c/img-300x450.jpg",
+                strip_resize=True,
+            )
+            == "https://c/img.jpg"
+        )
 
     def test_keep_resize_by_default(self):
-        assert clean_image_url("https://c/img-300x450.jpg") == (
-            "https://c/img-300x450.jpg"
-        )
+        assert clean_image_url("https://c/img-300x450.jpg") == ("https://c/img-300x450.jpg")
 
 
 class TestMetaRows:
@@ -106,9 +105,7 @@ class TestMetaRows:
         assert genres_from_rows(rows) == ["Action", "School"]
 
     def test_prefixed_lookup_absorbs_label_variants(self):
-        assert rows_first_prefixed({"status (raw)": ["Hiatus"]}, "status") == (
-            "Hiatus"
-        )
+        assert rows_first_prefixed({"status (raw)": ["Hiatus"]}, "status") == ("Hiatus")
 
 
 class TestReaderImages:
@@ -127,7 +124,8 @@ class TestReaderImages:
 
     def test_container_scope_cdn_filter_dedup_order(self):
         imgs = reader_images(
-            _soup(self.HTML), (".reading-content",),
+            _soup(self.HTML),
+            (".reading-content",),
             lambda u: u.startswith("https://cdn/"),
         )
         urls = [i.url for i in imgs]
@@ -138,11 +136,10 @@ class TestReaderImages:
         assert [i.page_number for i in imgs] == [1, 2]
 
     def test_fallback_selector_then_document(self):
-        soup = _soup('<div class="read-container">'
-                      '<img src="https://cdn/a.jpg"/>'
-                      "</div>")
+        soup = _soup('<div class="read-container"><img src="https://cdn/a.jpg"/></div>')
         imgs = reader_images(
-            soup, (".reading-content", ".read-container"),
+            soup,
+            (".reading-content", ".read-container"),
             lambda u: True,
         )
         assert [i.url for i in imgs] == ["https://cdn/a.jpg"]

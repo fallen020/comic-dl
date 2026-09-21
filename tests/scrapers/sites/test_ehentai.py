@@ -82,9 +82,7 @@ class TestExtractSeriesChapter:
         assert c == "Chapter 4"
 
     def test_artist_bracket_and_trailing_tags(self):
-        s, c = _extract_series_chapter(
-            "[Sathorix] Family Of Two (In The Limbo) [AI Generated]"
-        )
+        s, c = _extract_series_chapter("[Sathorix] Family Of Two (In The Limbo) [AI Generated]")
         assert s == "Family Of Two (In The Limbo)"
         assert c == "Family Of Two (In The Limbo)"
 
@@ -190,14 +188,13 @@ class TestExtractTagMetadata:
 
 class TestImagePageUrl:
     pytestmark = pytest.mark.asyncio
+
     async def test_bs4_parsing(self):
         """Verify _image_page_url uses BeautifulSoup (Bug F regression)."""
 
         class MockResponse:
             status_code = 200
-            text = (
-                '<html><body><img id="img" src="https://ehgt.org/123.jpg?abc"></body></html>'
-            )
+            text = '<html><body><img id="img" src="https://ehgt.org/123.jpg?abc"></body></html>'
 
             def raise_for_status(self):
                 pass
@@ -283,9 +280,7 @@ class TestGalleryUrlParsing:
         assert _gallery_parts("https://e-hentai.org/g/123/ABC123/") == (123, "abc123")
 
     def test_gallery_parts_strips_query(self):
-        assert _gallery_parts(
-            "https://e-hentai.org/g/123/abc/?g_export=download"
-        ) == (123, "abc")
+        assert _gallery_parts("https://e-hentai.org/g/123/abc/?g_export=download") == (123, "abc")
 
     def test_gallery_parts_invalid(self):
         from comic_dl.errors import ScrapeError
@@ -304,9 +299,10 @@ class TestGalleryUrlParsing:
                 _gallery_parts(url)
 
     def test_gallery_base_url_canonicalizes(self):
-        assert _gallery_base_url(
-            "https://e-hentai.org/g/123/abc/?g_export=download#top"
-        ) == "https://e-hentai.org/g/123/abc/"
+        assert (
+            _gallery_base_url("https://e-hentai.org/g/123/abc/?g_export=download#top")
+            == "https://e-hentai.org/g/123/abc/"
+        )
         assert _gallery_base_url("https://e-hentai.org/g/123/abc") == (
             "https://e-hentai.org/g/123/abc/"
         )
@@ -328,15 +324,13 @@ class TestThrottlePageDetection:
                 return Resp()
 
         with pytest.raises(_ThrottledPageError):
-            await _fetch_gallery_page(
-                "https://e-hentai.org/g/123/abc/", MockClient()
-            )
+            await _fetch_gallery_page("https://e-hentai.org/g/123/abc/", MockClient())
 
     async def test_throttle_retried_then_succeeds(self):
         attempts = [0]
         html = (
-            "<html><body><div id=\"gdt\">"
-            "<a href=\"https://e-hentai.org/s/abc/1-1\"></a>"
+            '<html><body><div id="gdt">'
+            '<a href="https://e-hentai.org/s/abc/1-1"></a>'
             "</div></body></html>"
         )
 
@@ -354,15 +348,11 @@ class TestThrottlePageDetection:
                         pass
 
                 body = (
-                    b"IP address has been temporarily banned"
-                    if attempts[0] == 1
-                    else html.encode()
+                    b"IP address has been temporarily banned" if attempts[0] == 1 else html.encode()
                 )
                 return Resp(body)
 
-        urls = await _fetch_gallery_page_with_retry(
-            "https://e-hentai.org/g/123/abc/", MockClient()
-        )
+        urls = await _fetch_gallery_page_with_retry("https://e-hentai.org/g/123/abc/", MockClient())
         assert urls == ["https://e-hentai.org/s/abc/1-1"]
         assert attempts[0] == 2
 
@@ -409,6 +399,7 @@ class TestApiGdata:
                 return MockResponse()
 
         from comic_dl.scrapers.sites.ehentai import _api_gdata
+
         with pytest.raises(ValueError, match="Gallery not found"):
             await _api_gdata(0, "token", MockClient())
 
@@ -436,6 +427,7 @@ class TestApiGdata:
 
 class TestScrapeEhentai:
     pytestmark = pytest.mark.asyncio
+
     async def test_invalid_url(self):
         with pytest.raises(ValueError, match="Invalid e-hentai"):
             await scrape_ehentai("https://example.com/g/123/abc", None)
@@ -445,7 +437,7 @@ class TestScrapeEhentai:
             {
                 "title": "My Series Part 3",
                 "filecount": "10",
-                "filesize": str(7 * 1024 ** 3),
+                "filesize": str(7 * 1024**3),
                 "rating": "4.50",
                 "tags": [],
                 "thumb": "https://ehgt.org/cover.jpg",
@@ -505,9 +497,7 @@ class TestScrapeEhentai:
                 return Resp(TestScrapeEhentai._api_response_chapter_x)
 
         scraper = EHentaiScraper()
-        skel = await scraper._gallery_skeleton(
-            "https://e-hentai.org/g/1/abc/", MockClient()
-        )
+        skel = await scraper._gallery_skeleton("https://e-hentai.org/g/1/abc/", MockClient())
         assert skel["info"].chapter_number is None
 
     _gallery_html = """
@@ -693,9 +683,9 @@ class TestFetchGalleryPageWithRetry:
     pytestmark = pytest.mark.asyncio
 
     _HTML = (
-        "<html><body><div id=\"gdt\">"
-        "<div class=\"gdt\"><a href=\"https://e-hentai.org/s/abc/1-1\">"
-        "<img src=\"https://ehgt.org/t/1.jpg\"/></a></div>"
+        '<html><body><div id="gdt">'
+        '<div class="gdt"><a href="https://e-hentai.org/s/abc/1-1">'
+        '<img src="https://ehgt.org/t/1.jpg"/></a></div>'
         "</div></body></html>"
     )
 
@@ -757,9 +747,7 @@ class TestFetchGalleryPageWithRetry:
                 raise ValueError("bad response")
 
         with pytest.raises(ValueError):
-            await _fetch_gallery_page_with_retry(
-                "https://e-hentai.org/g/123/abc/", MockClient()
-            )
+            await _fetch_gallery_page_with_retry("https://e-hentai.org/g/123/abc/", MockClient())
         assert attempts[0] == 1
 
 
@@ -812,9 +800,9 @@ class TestUtf8Decode:
         assert data["gmetadata"][0]["title"] == "Español"
 
     async def test_api_gdata_roundtrips_non_ascii_title(self, monkeypatch):
-        payload = json.dumps({
-            "gmetadata": [{"title": self.TITLE, "filecount": "1"}]
-        }).encode("utf-8")
+        payload = json.dumps({"gmetadata": [{"title": self.TITLE, "filecount": "1"}]}).encode(
+            "utf-8"
+        )
 
         from comic_dl.scrapers.base import BaseScraper
         from comic_dl.scrapers.sites.ehentai import _api_gdata
@@ -848,9 +836,7 @@ class TestUtf8Decode:
         class Resp:
             status_code = 200
             headers = {}
-            content = _json.dumps(
-                {"gmetadata": [{"title": "X", "filecount": "1"}]}
-            ).encode("utf-8")
+            content = _json.dumps({"gmetadata": [{"title": "X", "filecount": "1"}]}).encode("utf-8")
 
             def raise_for_status(self):
                 pass
@@ -912,8 +898,7 @@ class _StreamHtmlResponse:
 
 def _stream_gallery_html(num_links: int) -> str:
     links = "".join(
-        f'<a href="/s/token/123-{i}"><img src="t{i}.jpg"></a>'
-        for i in range(1, num_links + 1)
+        f'<a href="/s/token/123-{i}"><img src="t{i}.jpg"></a>' for i in range(1, num_links + 1)
     )
     return f'<html><body><div id="gdt">{links}</div></body></html>'
 
@@ -954,9 +939,7 @@ class TestIterImageItems:
         client = _StreamMockClient(num_links=4)
         items = [
             item
-            async for item in _iter_image_items(
-                "https://e-hentai.org/g/123/abc123/", 4, client
-            )
+            async for item in _iter_image_items("https://e-hentai.org/g/123/abc123/", 4, client)
         ]
         assert [i.page_number for i in items] == [1, 2, 3, 4]
         assert [i.url for i in items] == [
@@ -1001,7 +984,7 @@ class TestStreamingScrape:
             {
                 "title": "My Series Part 3",
                 "filecount": "4",
-                "filesize": str(7 * 1024 ** 3),
+                "filesize": str(7 * 1024**3),
                 "rating": "4.50",
                 "tags": [],
                 "thumb": "https://ehgt.org/cover.jpg",
@@ -1058,9 +1041,7 @@ class TestStreamingScrape:
     async def test_scrape_chapter_matches_non_streaming(self):
         scraper = EHentaiScraper()
         client = self.MockClient(num_links=2)  # type: ignore
-        chapter = await scraper._scrape_chapter(
-            "https://e-hentai.org/g/123/abc123/", client
-        )
+        chapter = await scraper._scrape_chapter("https://e-hentai.org/g/123/abc123/", client)
         assert len(chapter.images) == 2
         assert [i.page_number for i in chapter.images] == [1, 2]
 
@@ -1122,7 +1103,8 @@ class TestStaleImageRefresh:
 
         monkeypatch.setattr(eh, "_image_page_url", fake_image_page)
         item = ImageItem(
-            url="https://n/x.webp", page_number=1,
+            url="https://n/x.webp",
+            page_number=1,
             source_url="https://e-hentai.org/s/t/1",
         )
         assert await _refresh_stale_image(object(), item) is None  # type: ignore[arg-type]
@@ -1142,10 +1124,12 @@ class TestRefreshDispatch:
             def deco(fn):
                 called.append(domain)
                 return fn
+
             return deco
 
-        item = ImageItem(url="https://n/a", page_number=1,
-                         source_url="https://unregistered.example/p")
+        item = ImageItem(
+            url="https://n/a", page_number=1, source_url="https://unregistered.example/p"
+        )
         assert await refresh_image_url(None, item) is None  # type: ignore[arg-type]
         assert called == []
 
@@ -1159,8 +1143,7 @@ class TestRefreshDispatch:
             seen["host_item"] = item
             return replace(item, url="https://n/new")
 
-        item = ImageItem(url="https://n/old", page_number=3,
-                         source_url="https://dispatch.test/s/3")
+        item = ImageItem(url="https://n/old", page_number=3, source_url="https://dispatch.test/s/3")
         out = await rmod.refresh_image_url(None, item)  # type: ignore[arg-type]
         assert out is not None and out.url == "https://n/new"
         assert seen["host_item"].url == "https://n/old"
@@ -1172,8 +1155,7 @@ class TestRefreshDispatch:
         async def _same(client, item):
             return item
 
-        item = ImageItem(url="https://n/keep", page_number=1,
-                         source_url="https://same.test/s/1")
+        item = ImageItem(url="https://n/keep", page_number=1, source_url="https://same.test/s/1")
         assert await rmod.refresh_image_url(None, item) is None  # type: ignore[arg-type]
 
     async def test_refresher_exception_swallowed(self, monkeypatch):
@@ -1183,8 +1165,7 @@ class TestRefreshDispatch:
         async def _boom(client, item):
             raise RuntimeError("node exploded")
 
-        item = ImageItem(url="https://n/x", page_number=1,
-                         source_url="https://boom.test/s/1")
+        item = ImageItem(url="https://n/x", page_number=1, source_url="https://boom.test/s/1")
         assert await rmod.refresh_image_url(None, item) is None  # type: ignore[arg-type]
 
     async def test_empty_source_url_short_circuits(self):

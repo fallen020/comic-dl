@@ -41,9 +41,7 @@ from ..registry import register_scraper
 DOMAIN = "hivetoons.org"
 BASE = "https://hivetoons.org"
 
-_SERIES_PATH_RE = re.compile(
-    r"^https?://(?:www\.)?hivetoons\.org/series/[^/]+/?$"
-)
+_SERIES_PATH_RE = re.compile(r"^https?://(?:www\.)?hivetoons\.org/series/[^/]+/?$")
 
 _CHAPTER_PATH_RE = re.compile(
     r"^https?://(?:www\.)?hivetoons\.org/series/[^/]+/chapter-\d+(?:\.\d+)?/?$"
@@ -144,7 +142,7 @@ def _extract_stat(soup: BeautifulSoup, label: str) -> str | None:
         if parent is None:
             continue
         text = parent.get_text(" ", strip=True)
-        value = text[len(label):].strip()
+        value = text[len(label) :].strip()
         if value and (best is None or len(text) < len(best) + len(label)):
             best = value
     return best
@@ -216,7 +214,7 @@ def _extract_chapter_title(
         title_tag = soup.select_one("title")
         headline = title_tag.get_text(strip=True) if title_tag else ""
     if series_title and headline.startswith(series_title):
-        rest = headline[len(series_title):].lstrip(" -:").strip()
+        rest = headline[len(series_title) :].lstrip(" -:").strip()
         if rest:
             return rest
     return headline or series_title
@@ -249,25 +247,27 @@ def _embedded_chapters(raw_html: str, series_slug: str) -> list[dict]:
     chapter. Locked (paywalled) chapters are skipped.
     """
     text = html.unescape(raw_html)
-    locked = {
-        slug for slug, flag in _EMBEDDED_LOCK_RE.findall(text) if flag == "true"
-    }
+    locked = {slug for slug, flag in _EMBEDDED_LOCK_RE.findall(text) if flag == "true"}
     chapters: list[dict] = []
     seen: set[str] = set()
     for number, slug, subtitle in _EMBEDDED_CHAPTER_RE.findall(text):
         if slug in seen or slug in locked:
             continue
         seen.add(slug)
-        chapters.append({
-            "title": _chapter_entry_title(number, subtitle),
-            "url": f"{BASE}/series/{series_slug}/{slug}",
-            "episode_no": number,
-        })
+        chapters.append(
+            {
+                "title": _chapter_entry_title(number, subtitle),
+                "url": f"{BASE}/series/{series_slug}/{slug}",
+                "episode_no": number,
+            }
+        )
     return chapters
 
 
 def _linked_chapters(
-    soup: BeautifulSoup, page_url: str, series_slug: str,
+    soup: BeautifulSoup,
+    page_url: str,
+    series_slug: str,
 ) -> list[dict]:
     """Chapter entries from the series page's rendered links (fallback)."""
     chapters: list[dict] = []
@@ -284,11 +284,13 @@ def _linked_chapters(
         if number is None:
             continue
         seen_urls.add(href)
-        chapters.append({
-            "title": _chapter_entry_title(number, subtitle),
-            "url": urljoin(page_url, href),
-            "episode_no": number,
-        })
+        chapters.append(
+            {
+                "title": _chapter_entry_title(number, subtitle),
+                "url": urljoin(page_url, href),
+                "episode_no": number,
+            }
+        )
     return chapters
 
 
@@ -345,9 +347,7 @@ class HiveToonsScraper(BaseScraper):
             return cached
         data: dict = {}
         try:
-            response = await BaseScraper._timeout_get(
-                f"{BASE}/series/{series_slug}/", client
-            )
+            response = await BaseScraper._timeout_get(f"{BASE}/series/{series_slug}/", client)
             response.raise_for_status()
             soup = BeautifulSoup(response.text, "lxml")
             idx = meta_index(soup)
@@ -366,7 +366,9 @@ class HiveToonsScraper(BaseScraper):
         return data
 
     async def _scrape_chapter(
-        self, url: str, client: AsyncSession,
+        self,
+        url: str,
+        client: AsyncSession,
     ) -> ScrapedChapter:
         soup, _ = await self._fetch(url, client)
         idx = meta_index(soup)
@@ -382,9 +384,7 @@ class HiveToonsScraper(BaseScraper):
         chapter_number = _chapter_number_from_url(url)
         chapter_title = _extract_chapter_title(soup, idx, series_title)
         if not chapter_title or chapter_title == series_title:
-            chapter_title = (
-                f"Chapter {chapter_number}" if chapter_number else "Chapter"
-            )
+            chapter_title = f"Chapter {chapter_number}" if chapter_number else "Chapter"
 
         return ScrapedChapter(
             info=ChapterInfo(
@@ -405,7 +405,9 @@ class HiveToonsScraper(BaseScraper):
         )
 
     async def _scrape_series(
-        self, url: str, client: AsyncSession,
+        self,
+        url: str,
+        client: AsyncSession,
     ) -> SeriesMetadata:
         soup, raw = await self._fetch(url, client)
         idx = meta_index(soup)
@@ -431,9 +433,8 @@ class HiveToonsScraper(BaseScraper):
         chapters.sort(key=_sort_key)
 
         return SeriesMetadata(
-            series_title=series_title or (
-                title_no.replace("-", " ").title() if title_no else "Untitled"
-            ),
+            series_title=series_title
+            or (title_no.replace("-", " ").title() if title_no else "Untitled"),
             description=description,
             cover_url=cover_url,
             title_no=title_no,

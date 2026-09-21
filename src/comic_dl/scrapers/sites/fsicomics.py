@@ -35,9 +35,7 @@ from ..registry import register_scraper
 DOMAIN = "fsicomics.com"
 BASE = "https://fsicomics.com"
 
-_SERIES_PATH_RE = re.compile(
-    r"^https?://(?:www\.)?fsicomics\.com/all-porn-comics/.+"
-)
+_SERIES_PATH_RE = re.compile(r"^https?://(?:www\.)?fsicomics\.com/all-porn-comics/.+")
 
 _CHAPTER_PATH_RE = re.compile(
     r"^https?://(?:www\.)?fsicomics\.com/"
@@ -49,9 +47,7 @@ _VALID_EXTS = frozenset({"jpg", "jpeg", "png", "webp", "gif", "bmp"})
 
 _WORDPRESS_RESIZE_RE = re.compile(r"-\d+x\d+(?=\.\w+$)")
 
-_CHAPTER_NUMBER_RE = re.compile(
-    r"(?:chapter|ch)[.\s]*#?\s*(\d+)", re.IGNORECASE
-)
+_CHAPTER_NUMBER_RE = re.compile(r"(?:chapter|ch)[.\s]*#?\s*(\d+)", re.IGNORECASE)
 
 _CHAPTER_MARKER_RE = re.compile(r"-chapter-", re.IGNORECASE)
 
@@ -105,9 +101,17 @@ def is_chapter_url(url: str) -> bool:
 # comic post never does — it has `single` and `postid-<n>` plus prefixed
 # classes like `category-<slug>`/`tag-<slug>`, which won't match because the
 # set is checked as exact whitespace-delimited tokens.
-_ARCHIVE_BODY_CLASSES = frozenset({
-    "archive", "category", "tag", "tax", "term", "search", "error404",
-})
+_ARCHIVE_BODY_CLASSES = frozenset(
+    {
+        "archive",
+        "category",
+        "tag",
+        "tax",
+        "term",
+        "search",
+        "error404",
+    }
+)
 
 
 def _is_archive_page(soup: BeautifulSoup) -> bool:
@@ -115,9 +119,7 @@ def _is_archive_page(soup: BeautifulSoup) -> bool:
     body = soup.select_one("body")
     if body is None:
         return False
-    classes = {
-        str(c) for c in (body.get("class") or []) if isinstance(c, str)
-    }
+    classes = {str(c) for c in (body.get("class") or []) if isinstance(c, str)}
     return bool(classes & _ARCHIVE_BODY_CLASSES)
 
 
@@ -296,7 +298,8 @@ def _extract_publisher(soup: BeautifulSoup, idx: dict[str, list[str]] | None = N
             if node.get("@graph") and isinstance(node["@graph"], list):
                 for sub in node["@graph"]:
                     if isinstance(sub, dict) and sub.get("@type") in (
-                        "Article", "NewsArticle",
+                        "Article",
+                        "NewsArticle",
                     ):
                         node = sub
                         break
@@ -331,14 +334,17 @@ class FsicomixScraper(BaseScraper):
         return await self._scrape_series(url, client)
 
     async def _scrape_chapter(
-        self, url: str, client: AsyncSession,
+        self,
+        url: str,
+        client: AsyncSession,
     ) -> ScrapedChapter:
         soup, html = await self.fetch_html_raw(url, client)
         idx = meta_index(soup)
 
         if _is_archive_page(soup):
             raise listing_page_error(
-                "FSI Comics", f"{BASE}/{{comic-slug}}/",
+                "FSI Comics",
+                f"{BASE}/{{comic-slug}}/",
             )
 
         series_title, chapter_title = _extract_meta(soup, idx)
@@ -391,13 +397,16 @@ class FsicomixScraper(BaseScraper):
         )
 
     async def _scrape_series(
-        self, url: str, client: AsyncSession,
+        self,
+        url: str,
+        client: AsyncSession,
     ) -> SeriesMetadata:
         soup = await self.fetch_html(url, client)
 
         if _is_archive_page(soup):
             raise listing_page_error(
-                "FSI Comics", f"{BASE}/{{comic-slug}}/",
+                "FSI Comics",
+                f"{BASE}/{{comic-slug}}/",
             )
 
         idx = meta_index(soup)
@@ -450,11 +459,13 @@ class FsicomixScraper(BaseScraper):
                     continue
                 seen_urls.add(href)
                 ch_title = link.get_text(strip=True) or ""
-                chapters.append({
-                    "title": ch_title,
-                    "url": urljoin(url, href),
-                    "episode_no": str(len(chapters) + 1),
-                })
+                chapters.append(
+                    {
+                        "title": ch_title,
+                        "url": urljoin(url, href),
+                        "episode_no": str(len(chapters) + 1),
+                    }
+                )
 
         if not chapters:
             raise no_chapters_error()

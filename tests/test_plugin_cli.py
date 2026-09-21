@@ -5,7 +5,7 @@ import pytest
 from comic_dl.cli.plugins import run_plugin_command
 from comic_dl.scrapers import registry
 
-GOOD_SOURCE = '''\
+GOOD_SOURCE = """\
 from __future__ import annotations
 
 
@@ -27,9 +27,9 @@ class ExampleSource:
 
     async def scrape_series(self, url, client):
         return None
-'''
+"""
 
-CLASS_BROKEN_SOURCE = '''\
+CLASS_BROKEN_SOURCE = """\
 class BrokenSource:
     domain = 42
     capabilities = {"chapter", "nope"}
@@ -37,7 +37,7 @@ class BrokenSource:
 
     def matches_url(self, url: str) -> bool:
         return True
-'''
+"""
 
 
 @pytest.fixture

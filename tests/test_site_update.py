@@ -49,6 +49,7 @@ _FUTURE = _bump_patch(_CORE_VERSION)
 # -------------------------------------------------------------------------
 # Construction fixtures
 
+
 class _Scraper:
     """Bare scraper stand-in: the registry only touches declared attrs."""
 
@@ -62,8 +63,7 @@ def _manifest(sites: dict[str, tuple[str, str]], core: str = "0.0.3") -> SiteMan
         schema_version=1,
         core_version=core,
         sites={
-            sid: SiteRelease(version=v, minimum_core_version=mc)
-            for sid, (v, mc) in sites.items()
+            sid: SiteRelease(version=v, minimum_core_version=mc) for sid, (v, mc) in sites.items()
         },
     )
 
@@ -80,6 +80,7 @@ def real_sites():
 
 # -------------------------------------------------------------------------
 # Registry metadata
+
 
 class TestRegistryMetadata:
     def test_all_builtins_declare_metadata(self, real_sites):
@@ -120,12 +121,22 @@ class TestRegistryMetadata:
     def test_duplicate_site_id_same_domain_is_idempotent(self, monkeypatch):
         _empty_registry(monkeypatch)
         register_builtin(
-            _Scraper(), domain="a.example", capabilities={"chapter"},
-            name="A", version="1.0.0", site_id="dup-same", minimum_core_version="0.0.1",
+            _Scraper(),
+            domain="a.example",
+            capabilities={"chapter"},
+            name="A",
+            version="1.0.0",
+            site_id="dup-same",
+            minimum_core_version="0.0.1",
         )
         register_builtin(
-            _Scraper(), domain="a.example", capabilities={"chapter"},
-            name="A", version="1.0.0", site_id="dup-same", minimum_core_version="0.0.1",
+            _Scraper(),
+            domain="a.example",
+            capabilities={"chapter"},
+            name="A",
+            version="1.0.0",
+            site_id="dup-same",
+            minimum_core_version="0.0.1",
         )
 
     def test_invalid_site_version_rejected(self, monkeypatch):
@@ -152,6 +163,7 @@ class TestRegistryMetadata:
 # -------------------------------------------------------------------------
 # Manifest parsing
 
+
 class TestManifestParsing:
     def test_valid(self):
         m = SiteManifest.from_dict(
@@ -173,28 +185,33 @@ class TestManifestParsing:
         assert rel.version == "1.3.0" and rel.test_url == "https://x/pkg"
 
     def test_malformed_site_entry(self):
-        assert SiteManifest.from_dict(
-            {"schema_version": 1, "core_version": "0.0.3", "sites": {"x": "yes"}}
-        ) is None
+        assert (
+            SiteManifest.from_dict(
+                {"schema_version": 1, "core_version": "0.0.3", "sites": {"x": "yes"}}
+            )
+            is None
+        )
 
     def test_missing_core_version(self):
-        assert SiteManifest.from_dict(
-            {"schema_version": 1, "sites": {}}
-        ) is None
+        assert SiteManifest.from_dict({"schema_version": 1, "sites": {}}) is None
 
     def test_wrong_schema_version(self):
-        assert SiteManifest.from_dict(
-            {"schema_version": 2, "core_version": "0.0.3", "sites": {}}
-        ) is None
+        assert (
+            SiteManifest.from_dict({"schema_version": 2, "core_version": "0.0.3", "sites": {}})
+            is None
+        )
 
     def test_bad_version_format(self):
-        assert SiteManifest.from_dict(
-            {
-                "schema_version": 1,
-                "core_version": "0.0.3",
-                "sites": {"x": {"version": "1", "minimum_core_version": "0.0.2"}},
-            }
-        ) is None
+        assert (
+            SiteManifest.from_dict(
+                {
+                    "schema_version": 1,
+                    "core_version": "0.0.3",
+                    "sites": {"x": {"version": "1", "minimum_core_version": "0.0.2"}},
+                }
+            )
+            is None
+        )
 
     def test_non_dict(self):
         assert SiteManifest.from_dict([]) is None
@@ -202,6 +219,7 @@ class TestManifestParsing:
 
 # -------------------------------------------------------------------------
 # Status comparison
+
 
 class TestStatusFor:
     def _site(self, **kw):
@@ -234,6 +252,7 @@ class TestStatusFor:
 # -------------------------------------------------------------------------
 # Failed-download hint
 
+
 class TestUpdateHint:
     def test_empty_without_cache(self, monkeypatch):
         monkeypatch.setattr("comic_dl.site_update._read_manifest_cache", lambda: None)
@@ -259,6 +278,7 @@ class TestUpdateHint:
 
 # -------------------------------------------------------------------------
 # Commands
+
 
 class TestSiteList:
     async def test_renders_ids_and_versions(self, monkeypatch, capsys):

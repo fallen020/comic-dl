@@ -108,9 +108,7 @@ def _extract_chapter_context(
     return series_title, series_url, chapter_label
 
 
-def _extract_series_meta(
-    soup: BeautifulSoup, idx: dict[str, list[str]]
-) -> tuple[str, str, str]:
+def _extract_series_meta(soup: BeautifulSoup, idx: dict[str, list[str]]) -> tuple[str, str, str]:
     """Return ``(title, description, cover_url)`` for a series page."""
     title = ""
     og_title = meta_get(idx, "og:title")
@@ -158,7 +156,9 @@ class WeebCentralScraper(BaseScraper):
         return chapter_to_post_metadata(chapter)
 
     async def _scrape_chapter(
-        self, url: str, client: AsyncSession,
+        self,
+        url: str,
+        client: AsyncSession,
     ) -> ScrapedChapter:
         soup = await self.fetch_html(url, client)
         idx = meta_index(soup)
@@ -173,8 +173,7 @@ class WeebCentralScraper(BaseScraper):
         images = _extract_images(await self.fetch_html(images_url, client))
         if not images:
             raise ScrapeError(
-                "No images found for this WeebCentral chapter — it may be "
-                "locked or require login.",
+                "No images found for this WeebCentral chapter — it may be locked or require login.",
             )
 
         chapter_title, chapter_number = _split_chapter_label(chapter_label)
@@ -201,7 +200,9 @@ class WeebCentralScraper(BaseScraper):
         return await self._scrape_series(url, client)
 
     async def _scrape_series(
-        self, url: str, client: AsyncSession,
+        self,
+        url: str,
+        client: AsyncSession,
     ) -> SeriesMetadata:
         soup = await self.fetch_html(url, client)
         idx = meta_index(soup)
@@ -225,9 +226,7 @@ class WeebCentralScraper(BaseScraper):
         chapters = []
         for label, chapter_url in reversed(entries):
             _title, number = _split_chapter_label(label)
-            chapters.append(
-                {"title": label, "episode_no": number or label, "url": chapter_url}
-            )
+            chapters.append({"title": label, "episode_no": number or label, "url": chapter_url})
         return SeriesMetadata(
             series_title=sanitize_filename(series_title),
             chapters=chapters,

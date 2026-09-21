@@ -123,7 +123,7 @@ def _stat_value(card: Tag) -> str:
     label_el = card.select_one("span")
     label = label_el.get_text(strip=True) if label_el is not None else ""
     if text.startswith(label):
-        text = text[len(label):].strip()
+        text = text[len(label) :].strip()
     return text
 
 
@@ -157,7 +157,8 @@ def _extract_images(soup: BeautifulSoup) -> list[ImageItem]:
 
 
 def _extract_header(
-    soup: BeautifulSoup, idx: dict[str, list[str]],
+    soup: BeautifulSoup,
+    idx: dict[str, list[str]],
 ) -> tuple[str, str, str]:
     """``(series_title, series_slug, chapter_title)`` from the reader page.
 
@@ -176,7 +177,7 @@ def _extract_header(
     if h1 is not None:
         head = h1.get_text(" ", strip=True)
     if series_title and head.startswith(series_title):
-        head = head[len(series_title):].lstrip(" -:").strip()
+        head = head[len(series_title) :].lstrip(" -:").strip()
     return series_title, series_slug, head
 
 
@@ -226,9 +227,7 @@ class GenzToonsScraper(BaseScraper):
             return cached
         data: dict = {}
         try:
-            response = await BaseScraper._timeout_get(
-                f"{BASE}/series/{series_slug}/", client
-            )
+            response = await BaseScraper._timeout_get(f"{BASE}/series/{series_slug}/", client)
             response.raise_for_status()
             soup = BeautifulSoup(response.text, "lxml")
             idx = meta_index(soup)
@@ -249,7 +248,9 @@ class GenzToonsScraper(BaseScraper):
         return data
 
     async def _scrape_chapter(
-        self, url: str, client: AsyncSession,
+        self,
+        url: str,
+        client: AsyncSession,
     ) -> ScrapedChapter:
         soup, _ = await BaseScraper.fetch_html_raw(url, client)
         idx = meta_index(soup)
@@ -286,7 +287,9 @@ class GenzToonsScraper(BaseScraper):
         )
 
     async def _scrape_series(
-        self, url: str, client: AsyncSession,
+        self,
+        url: str,
+        client: AsyncSession,
     ) -> SeriesMetadata:
         soup, _ = await BaseScraper.fetch_html_raw(url, client)
         idx = meta_index(soup)
@@ -311,11 +314,13 @@ class GenzToonsScraper(BaseScraper):
             if number is None:
                 continue
             seen_urls.add(href)
-            chapters.append({
-                "title": title,
-                "url": urljoin(url, href),
-                "episode_no": number,
-            })
+            chapters.append(
+                {
+                    "title": title,
+                    "url": urljoin(url, href),
+                    "episode_no": number,
+                }
+            )
 
         if not chapters:
             raise no_chapters_error()
@@ -329,12 +334,10 @@ class GenzToonsScraper(BaseScraper):
         chapters.sort(key=_sort_key)
 
         return SeriesMetadata(
-            series_title=series_title or (
-                title_no.replace("-", " ").title() if title_no else "Untitled"
-            ),
+            series_title=series_title
+            or (title_no.replace("-", " ").title() if title_no else "Untitled"),
             description=description,
             cover_url=cover_url,
             title_no=title_no,
             chapters=chapters,
         )
-

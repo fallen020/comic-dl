@@ -54,9 +54,7 @@ def main() -> int:
         if not (DIST / name).is_file():
             errors.append(f"missing published file: dist/{name}")
 
-    pages = [
-        p for p in DIST.rglob("*.html") if "pagefind" not in p.parts
-    ]
+    pages = [p for p in DIST.rglob("*.html") if "pagefind" not in p.parts]
     if not pages:
         errors.append("no HTML pages built")
     for page in pages:
@@ -64,24 +62,18 @@ def main() -> int:
         if page.name != "404.html":
             for pattern in REQUIRED_HEAD_RES:
                 if not pattern.search(html):
-                    errors.append(
-                        f"{page.relative_to(DIST)}: missing {pattern.pattern}"
-                    )
+                    errors.append(f"{page.relative_to(DIST)}: missing {pattern.pattern}")
         for match in HREF_RE.finditer(html):
             url, frag = match.group(1), match.group(2) or ""
             target = resolve(url)
             if target is None:
-                errors.append(
-                    f"{page.relative_to(DIST)}: broken link {url}{frag}"
-                )
+                errors.append(f"{page.relative_to(DIST)}: broken link {url}{frag}")
                 continue
             if frag and frag != "#main-content":
                 anchor = frag[1:]
                 text = target.read_text()
                 if f'id="{anchor}"' not in text and f"id='{anchor}'" not in text:
-                    errors.append(
-                        f"{page.relative_to(DIST)}: broken anchor {url}{frag}"
-                    )
+                    errors.append(f"{page.relative_to(DIST)}: broken anchor {url}{frag}")
 
     for error in sorted(set(errors)):
         print(f"check-site: {error}")

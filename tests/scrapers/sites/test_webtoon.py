@@ -22,9 +22,7 @@ from comic_dl.scrapers.sites.webtoon import (
 
 class TestWebtoonPattern:
     def test_desktop_series(self):
-        m = PATTERN.match(
-            "https://www.webtoons.com/en/action/nano-machine/list?title_no=4344"
-        )
+        m = PATTERN.match("https://www.webtoons.com/en/action/nano-machine/list?title_no=4344")
         assert m
         assert m.group(1) == "en"
         assert m.group(2) == "action"
@@ -35,9 +33,7 @@ class TestWebtoonPattern:
         assert m.group(7) is None
 
     def test_mobile_series(self):
-        m = PATTERN.match(
-            "https://m.webtoons.com/en/action/nano-machine/list?title_no=4344"
-        )
+        m = PATTERN.match("https://m.webtoons.com/en/action/nano-machine/list?title_no=4344")
         assert m
         assert m.group(5) == "list"
 
@@ -77,38 +73,36 @@ class TestWebtoonPattern:
         assert m.group(5) == "viewer"
 
     def test_unicode_slug(self):
-        m = PATTERN.match(
-            "https://www.webtoons.com/en/fantasy/모험자/list?title_no=4321"
-        )
+        m = PATTERN.match("https://www.webtoons.com/en/fantasy/모험자/list?title_no=4321")
         assert m
         assert m.group(3) == "모험자"
 
     def test_non_numeric_title_no(self):
-        assert PATTERN.match(
-            "https://www.webtoons.com/en/action/s/list?title_no=abc"
-        ) is None
+        assert PATTERN.match("https://www.webtoons.com/en/action/s/list?title_no=abc") is None
 
     def test_non_numeric_episode_no(self):
-        assert PATTERN.match(
-            "https://www.webtoons.com/en/action/s/ep-1/viewer"
-            "?title_no=1&episode_no=x"
-        ) is None
+        assert (
+            PATTERN.match(
+                "https://www.webtoons.com/en/action/s/ep-1/viewer?title_no=1&episode_no=x"
+            )
+            is None
+        )
 
     def test_query_only_no_path(self):
         assert PATTERN.match("https://www.webtoons.com/?title_no=4344") is None
 
     def test_extra_path_segment_after_viewer(self):
-        assert PATTERN.match(
-            "https://www.webtoons.com/en/action/s/viewer/extra"
-            "?title_no=1&episode_no=1"
-        ) is None
+        assert (
+            PATTERN.match(
+                "https://www.webtoons.com/en/action/s/viewer/extra?title_no=1&episode_no=1"
+            )
+            is None
+        )
 
 
 class TestParseUrl:
     def test_series(self):
-        info = _parse_url(
-            "https://www.webtoons.com/en/action/nano-machine/list?title_no=4344"
-        )
+        info = _parse_url("https://www.webtoons.com/en/action/nano-machine/list?title_no=4344")
         assert info["lang"] == "en"
         assert info["action"] == "list"
         assert info["title_no"] == "4344"
@@ -135,8 +129,7 @@ class TestParseUrl:
 
     def test_extra_query_params_viewer(self):
         info = _parse_url(
-            "https://www.webtoons.com/en/action/s/ep-1/viewer"
-            "?title_no=4011&episode_no=230&foo=bar"
+            "https://www.webtoons.com/en/action/s/ep-1/viewer?title_no=4011&episode_no=230&foo=bar"
         )
         assert info["action"] == "viewer"
         assert info["episode_no"] == "230"
@@ -147,22 +140,30 @@ class TestParseUrl:
 
 class TestDetectUrlType:
     def test_series_list(self):
-        assert is_series_url(
-            "https://www.webtoons.com/en/action/nano-machine/list?title_no=4344"
-        ) is True
-        assert is_chapter_url(
-            "https://www.webtoons.com/en/action/nano-machine/list?title_no=4344"
-        ) is False
+        assert (
+            is_series_url("https://www.webtoons.com/en/action/nano-machine/list?title_no=4344")
+            is True
+        )
+        assert (
+            is_chapter_url("https://www.webtoons.com/en/action/nano-machine/list?title_no=4344")
+            is False
+        )
 
     def test_chapter_viewer(self):
-        assert is_chapter_url(
-            "https://www.webtoons.com/en/action/nano-machine/"
-            "ep-1-prologue/viewer?title_no=4344&episode_no=1"
-        ) is True
-        assert is_series_url(
-            "https://www.webtoons.com/en/action/nano-machine/"
-            "ep-1-prologue/viewer?title_no=4344&episode_no=1"
-        ) is False
+        assert (
+            is_chapter_url(
+                "https://www.webtoons.com/en/action/nano-machine/"
+                "ep-1-prologue/viewer?title_no=4344&episode_no=1"
+            )
+            is True
+        )
+        assert (
+            is_series_url(
+                "https://www.webtoons.com/en/action/nano-machine/"
+                "ep-1-prologue/viewer?title_no=4344&episode_no=1"
+            )
+            is False
+        )
 
     def test_invalid_returns_false(self):
         assert is_series_url("https://example.com") is False
@@ -170,15 +171,18 @@ class TestDetectUrlType:
 
     def test_mismatched_action_vs_query(self):
         # A list URL carrying an episode_no still classifies as a series page.
-        assert is_series_url(
-            "https://www.webtoons.com/en/action/s/list?title_no=1&episode_no=5"
-        ) is True
+        assert (
+            is_series_url("https://www.webtoons.com/en/action/s/list?title_no=1&episode_no=5")
+            is True
+        )
 
     def test_trailing_slash_classified(self):
-        assert is_chapter_url(
-            "https://www.webtoons.com/en/action/s/ep-1/viewer"
-            "?title_no=1&episode_no=1/"
-        ) is True
+        assert (
+            is_chapter_url(
+                "https://www.webtoons.com/en/action/s/ep-1/viewer?title_no=1&episode_no=1/"
+            )
+            is True
+        )
 
 
 class TestNormalizeUrl:
@@ -220,8 +224,7 @@ class TestNormalizeUrl:
 
     def test_mismatched_title_no_episode_no_preserved(self):
         result = normalize_webtoon_url(
-            "https://www.webtoons.com/en/action/other-series/"
-            "ep-9/viewer?title_no=99&episode_no=7"
+            "https://www.webtoons.com/en/action/other-series/ep-9/viewer?title_no=99&episode_no=7"
         )
         assert "title_no=99" in result
         assert "episode_no=7" in result
@@ -243,8 +246,7 @@ class TestFindJsonScript:
 
     def test_initial_state(self):
         html = (
-            '<html><script>window.__INITIAL_STATE__ = '
-            '{"episode":{"title":"Test"}}</script></html>'
+            '<html><script>window.__INITIAL_STATE__ = {"episode":{"title":"Test"}}</script></html>'
         )
         from bs4 import BeautifulSoup
 
@@ -300,7 +302,7 @@ class TestScrapeChapter:
         '<meta property="og:description" content="A great chapter">'
         '<meta property="og:image" content="https://x.com/cover.jpg">'
         '<meta property="og:url" content="https://www.webtoons.com/en/action/s/ep-1-prologue/viewer?title_no=1&episode_no=1">'
-        '<title>Prologue - Webtoon</title>'
+        "<title>Prologue - Webtoon</title>"
         "</head><body></body></html>"
     )
 
@@ -509,11 +511,7 @@ class TestScrapeChapter:
         assert meta.artists == ["Disney", "Adriano Barone"]
 
     async def test_no_images_raises(self):
-        html = (
-            "<html><head>"
-            '<meta property="og:title" content="Empty">'
-            "</head><body></body></html>"
-        )
+        html = '<html><head><meta property="og:title" content="Empty"></head><body></body></html>'
 
         class MockClient:
             async def get(self, url, **kwargs):
@@ -611,11 +609,7 @@ class TestScrapeSeries:
         assert info.chapters[1]["episode_no"] == "2"
 
     async def test_no_chapters_raises(self):
-        html = (
-            "<html><head>"
-            '<meta property="og:title" content="Empty">'
-            "</head><body></body></html>"
-        )
+        html = '<html><head><meta property="og:title" content="Empty"></head><body></body></html>'
 
         class MockClient:
             async def get(self, url, **kwargs):
@@ -640,10 +634,7 @@ class TestScrapeSeries:
         url = "https://www.webtoons.com/en/action/nano-machine/list?title_no=4344"
 
         def _ep_item(ep_no: int) -> str:
-            href = (
-                f"/en/action/nano-machine/ep-{ep_no}/viewer"
-                f"?title_no=4344&episode_no={ep_no}"
-            )
+            href = f"/en/action/nano-machine/ep-{ep_no}/viewer?title_no=4344&episode_no={ep_no}"
             return (
                 f'<li class="_episodeItem">'
                 f'<a href="{href}">'
@@ -661,7 +652,8 @@ class TestScrapeSeries:
             )
 
         page1 = _page(
-            1, 2,
+            1,
+            2,
             page_links='<a class="pg_page" href="?page=2">2</a>',
         )
         page2 = _page(3, 4)
@@ -768,7 +760,9 @@ class TestExtractChaptersFromJson:
         from bs4 import BeautifulSoup
 
         soup = BeautifulSoup(html, "lxml")
-        chapters = _extract_chapters_from_json(soup, "https://www.webtoons.com/en/s/list?title_no=1")
+        chapters = _extract_chapters_from_json(
+            soup, "https://www.webtoons.com/en/s/list?title_no=1"
+        )
         assert chapters is not None
         assert len(chapters) == 2
         assert chapters[0]["title"] == "Prologue"
@@ -790,7 +784,9 @@ class TestExtractChaptersFromJson:
         from bs4 import BeautifulSoup
 
         soup = BeautifulSoup(html, "lxml")
-        chapters = _extract_chapters_from_json(soup, "https://www.webtoons.com/en/s/list?title_no=1")
+        chapters = _extract_chapters_from_json(
+            soup, "https://www.webtoons.com/en/s/list?title_no=1"
+        )
         assert chapters is not None
         assert len(chapters) == 1
 

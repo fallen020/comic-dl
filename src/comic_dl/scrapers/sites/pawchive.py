@@ -32,7 +32,8 @@ from ..registry import register_scraper
 
 
 def _extract_series_and_chapter(
-    soup: BeautifulSoup, idx: dict[str, list[str]] | None = None,
+    soup: BeautifulSoup,
+    idx: dict[str, list[str]] | None = None,
 ) -> tuple[str, str]:
     title_span = soup.select_one("h1.post__title > span")
     full_title = title_span.get_text(strip=True) if title_span else ""
@@ -97,7 +98,8 @@ def _extract_text_content(soup: BeautifulSoup) -> str:
 
 
 def _extract_meta(
-    soup: BeautifulSoup, idx: dict[str, list[str]] | None = None,
+    soup: BeautifulSoup,
+    idx: dict[str, list[str]] | None = None,
 ) -> tuple[str, str, str]:
     idx = idx if idx is not None else meta_index(soup)
     return (
@@ -136,7 +138,9 @@ class PawchiveScraper(BaseScraper):
         return chapter_to_post_metadata(chapter)
 
     async def _scrape_chapter(
-        self, url: str, client: AsyncSession,
+        self,
+        url: str,
+        client: AsyncSession,
     ) -> ScrapedChapter:
         soup = await self.fetch_html(url, client)
         idx = meta_index(soup)
@@ -171,8 +175,7 @@ class PawchiveScraper(BaseScraper):
                     text_content=text_content,
                 )
             raise ScrapeError(
-                "No images found on this post — it may be private or "
-                "require login.",
+                "No images found on this post — it may be private or require login.",
             )
 
         if not service:

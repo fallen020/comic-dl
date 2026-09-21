@@ -81,15 +81,12 @@ def parse_chapter_selection(spec: str) -> ChapterSelection:
         return ChapterSelection(kind="quit")
     tokens = [t.strip() for t in raw.split(",") if t.strip()]
     if not tokens:
-        raise ValueError(
-            f"Invalid chapter selection {spec!r}: empty list."
-        )
+        raise ValueError(f"Invalid chapter selection {spec!r}: empty list.")
     indices: set[int] = set()
     for token in tokens:
         if token in ("a", "all", "q", "quit"):
             raise ValueError(
-                f"Invalid chapter selection {spec!r}: cannot mix "
-                f"'{token}' with a chapter list."
+                f"Invalid chapter selection {spec!r}: cannot mix '{token}' with a chapter list."
             )
         m = re.fullmatch(r"(\d+)(?:-(\d+))?", token)
         if not m:
@@ -100,9 +97,7 @@ def parse_chapter_selection(spec: str) -> ChapterSelection:
         start = int(m.group(1))
         end = int(m.group(2)) if m.group(2) is not None else start
         if end < start:
-            raise ValueError(
-                f"Invalid chapter selection {spec!r}: reversed range {token}."
-            )
+            raise ValueError(f"Invalid chapter selection {spec!r}: reversed range {token}.")
         indices.update(range(start, end + 1))
     return ChapterSelection(kind="indices", indices=frozenset(indices), by_number=True)
 
@@ -133,18 +128,14 @@ def validate_chapter_flag(spec: str) -> None:
     for token in tokens:
         if token in ("a", "all", "q", "quit"):
             raise ValueError(
-                f"Invalid --chapters value {spec!r}: cannot mix "
-                f"'{token}' with a chapter list."
+                f"Invalid --chapters value {spec!r}: cannot mix '{token}' with a chapter list."
             )
         m = re.fullmatch(r"(\d+)(?:-(\d+))?", token)
         if not m:
             raise ValueError(
-                f"Invalid --chapters value {spec!r}: {token!r} is not a "
-                f"number or range (e.g. 1-3)."
+                f"Invalid --chapters value {spec!r}: {token!r} is not a number or range (e.g. 1-3)."
             )
         start = int(m.group(1))
         end = int(m.group(2)) if m.group(2) is not None else start
         if end < start:
-            raise ValueError(
-                f"Invalid --chapters value {spec!r}: reversed range {token}."
-            )
+            raise ValueError(f"Invalid --chapters value {spec!r}: reversed range {token}.")

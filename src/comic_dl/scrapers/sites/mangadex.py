@@ -141,9 +141,7 @@ def _cover_filename(data: object) -> str:
         if not isinstance(rel, dict) or rel.get("type") != "cover_art":
             continue
         attributes = rel.get("attributes")
-        filename = (
-            attributes.get("fileName") if isinstance(attributes, dict) else None
-        )
+        filename = attributes.get("fileName") if isinstance(attributes, dict) else None
         if isinstance(filename, str) and filename.strip():
             return filename.strip()
     return ""
@@ -157,9 +155,7 @@ def _manga_fields(data: object, manga_id: str) -> dict:
     year = attributes.get("year")
     year = int(year) if isinstance(year, (int, float)) else None
     cover_filename = _cover_filename(data)
-    cover_url = (
-        f"{_UPLOADS}/covers/{manga_id}/{cover_filename}" if cover_filename else ""
-    )
+    cover_url = f"{_UPLOADS}/covers/{manga_id}/{cover_filename}" if cover_filename else ""
     return {
         "series_title": _title_of(attributes.get("title")),
         "description": _description_of(attributes.get("description")),
@@ -242,22 +238,20 @@ class MangadexScraper(BaseScraper):
         return data
 
     async def _manga_json(self, manga_id: str, client: AsyncSession) -> dict:
-        url = (
-            f"{_API}/manga/{manga_id}"
-            "?includes[]=cover_art&includes[]=author&includes[]=artist"
-        )
+        url = f"{_API}/manga/{manga_id}?includes[]=cover_art&includes[]=author&includes[]=artist"
         data = await self._api_get_json(url, client)
         return data.get("data", {})
 
     async def _scrape_chapter(
-        self, url: str, client: AsyncSession,
+        self,
+        url: str,
+        client: AsyncSession,
     ) -> ScrapedChapter:
         chapter_id = _extract_chapter_id(url)
         if not chapter_id:
             raise ScrapeError(
                 "Unsupported mangadex.org URL.",
-                hint="Expected a chapter URL like "
-                     "https://mangadex.org/chapter/{chapter-uuid}",
+                hint="Expected a chapter URL like https://mangadex.org/chapter/{chapter-uuid}",
             )
 
         chapter = await self._api_get_json(f"{_API}/chapter/{chapter_id}", client)
@@ -280,7 +274,8 @@ class MangadexScraper(BaseScraper):
             )
 
         server = await self._api_get_json(
-            f"{_API}/at-home/server/{chapter_id}", client,
+            f"{_API}/at-home/server/{chapter_id}",
+            client,
         )
         base_url = server.get("baseUrl")
         server_chapter = server.get("chapter", {})
@@ -289,9 +284,7 @@ class MangadexScraper(BaseScraper):
         data_hash = server_chapter.get("hash")
         page_files = _page_files(server)
         if not base_url or not data_hash or not page_files:
-            raise no_images_error(
-                "MangaDex's at-home server returned no pages for this chapter."
-            )
+            raise no_images_error("MangaDex's at-home server returned no pages for this chapter.")
 
         images = [
             ImageItem(
@@ -330,14 +323,15 @@ class MangadexScraper(BaseScraper):
         )
 
     async def _scrape_series(
-        self, url: str, client: AsyncSession,
+        self,
+        url: str,
+        client: AsyncSession,
     ) -> SeriesMetadata:
         manga_id = _extract_series_id(url)
         if not manga_id:
             raise ScrapeError(
                 "Unsupported mangadex.org URL.",
-                hint="Expected a series URL like "
-                     "https://mangadex.org/title/{series-uuid}",
+                hint="Expected a series URL like https://mangadex.org/title/{series-uuid}",
             )
 
         meta = _manga_fields(await self._manga_json(manga_id, client), manga_id)
@@ -366,13 +360,15 @@ class MangadexScraper(BaseScraper):
                 title = attributes.get("title") or (
                     f"Chapter {number_s}" if number_s else "Chapter"
                 )
-                chapters.append({
-                    "title": str(title),
-                    "url": f"{BASE}/chapter/{chapter_id}",
-                    "episode_no": number_s or str(title),
-                    "volume": attributes.get("volume"),
-                    "chapter": attributes.get("chapter"),
-                })
+                chapters.append(
+                    {
+                        "title": str(title),
+                        "url": f"{BASE}/chapter/{chapter_id}",
+                        "episode_no": number_s or str(title),
+                        "volume": attributes.get("volume"),
+                        "chapter": attributes.get("chapter"),
+                    }
+                )
             total = feed.get("total", 0)
             offset += _FEED_LIMIT
             if offset >= total:

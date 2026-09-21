@@ -229,9 +229,7 @@ async def test_pawchive_full_resolution_validates_redirect_hops() -> None:
         try:
             from comic_dl.scrapers.sites.pawchive import _try_full_resolution
 
-            result = await _try_full_resolution(
-                client, f"{srv.url}/thumbnail/data/x.jpg"
-            )
+            result = await _try_full_resolution(client, f"{srv.url}/thumbnail/data/x.jpg")
             assert result == f"{srv.url}/data/x.jpg"
             assert srv.hits == ["/data/x.jpg", "/y"]
         finally:
@@ -248,9 +246,7 @@ async def test_probe_size_refuses_private_redirect_hop() -> None:
     async with FakeHttpServer(routes) as srv:
         client = NetHttpClient(srv.host, srv.port)
         monkeypatching = pytest.MonkeyPatch()
-        monkeypatching.setattr(
-            downloader, "validate_request_url_async", _fake_permissive
-        )
+        monkeypatching.setattr(downloader, "validate_request_url_async", _fake_permissive)
         try:
             size = await downloader._probe_image_size(client, f"{srv.url}/img", 5.0)
             assert size == 0
@@ -268,12 +264,8 @@ async def test_probe_size_follows_validated_redirects() -> None:
     async with FakeHttpServer(routes) as srv:
         client = NetHttpClient(srv.host, srv.port)
         monkeypatching = pytest.MonkeyPatch()
-        monkeypatching.setattr(
-            downloader, "validate_request_url_async", _fake_permissive
-        )
-        monkeypatching.setattr(
-            downloader, "resolve_redirect_url_async", _fake_resolve
-        )
+        monkeypatching.setattr(downloader, "validate_request_url_async", _fake_permissive)
+        monkeypatching.setattr(downloader, "resolve_redirect_url_async", _fake_resolve)
         try:
             size = await downloader._probe_image_size(client, f"{srv.url}/img", 5.0)
             assert size == 2048
@@ -289,12 +281,8 @@ async def test_probe_size_caps_redirect_loop() -> None:
     async with FakeHttpServer(routes) as srv:
         client = NetHttpClient(srv.host, srv.port)
         monkeypatching = pytest.MonkeyPatch()
-        monkeypatching.setattr(
-            downloader, "validate_request_url_async", _fake_permissive
-        )
-        monkeypatching.setattr(
-            downloader, "resolve_redirect_url_async", _fake_resolve
-        )
+        monkeypatching.setattr(downloader, "validate_request_url_async", _fake_permissive)
+        monkeypatching.setattr(downloader, "resolve_redirect_url_async", _fake_resolve)
         try:
             size = await downloader._probe_image_size(client, f"{srv.url}/r", 5.0)
             assert size == 0

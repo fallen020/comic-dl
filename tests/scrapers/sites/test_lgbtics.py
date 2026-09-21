@@ -221,14 +221,11 @@ class TestLgbticsScraper:
 
     @pytest.mark.asyncio
     async def test_scrape_chapter_no_images_raises(self):
-        page = CHAPTER_PAGE.replace(
-            f'<img id="image-0" src=" {IMG_BASE}001---Image.webp"', ""
-        ).replace(
-            f'<img id="image-1" src=" {IMG_BASE}002---Image.webp"', ""
-        ).replace(
-            f'<noscript><img src=" {IMG_BASE}003---Image.webp"', ""
-        ).replace(
-            f'data-src=" {IMG_BASE}003---Image.webp"', 'data-src=""'
+        page = (
+            CHAPTER_PAGE.replace(f'<img id="image-0" src=" {IMG_BASE}001---Image.webp"', "")
+            .replace(f'<img id="image-1" src=" {IMG_BASE}002---Image.webp"', "")
+            .replace(f'<noscript><img src=" {IMG_BASE}003---Image.webp"', "")
+            .replace(f'data-src=" {IMG_BASE}003---Image.webp"', 'data-src=""')
         )
 
         def handler(url):

@@ -175,8 +175,7 @@ class TestExtraction:
 
     def test_series_title_from_og_fallback(self):
         soup = BeautifulSoup(
-            '<html><head><meta property="og:title" content="Eleceed"/>'
-            "</head><body></body></html>",
+            '<html><head><meta property="og:title" content="Eleceed"/></head><body></body></html>',
             "lxml",
         )
         assert _extract_series_title(soup, meta_index(soup)) == "Eleceed"
@@ -198,9 +197,7 @@ class TestExtraction:
         assert _extract_rating(soup) == 5.0
 
     def test_placeholder_values_are_skipped(self):
-        page = SERIES_PAGE.replace(">Qi Productions<", ">Unknown<").replace(
-            ">2018<", ">N/A<"
-        )
+        page = SERIES_PAGE.replace(">Qi Productions<", ">Unknown<").replace(">2018<", ">N/A<")
         soup = BeautifulSoup(page, "lxml")
         assert _extract_authors(soup) == []
         assert _extract_year(soup) is None
@@ -326,4 +323,3 @@ class TestQiMangaScraper:
         scraper = QiMangaScraper()
         with pytest.raises(ValueError, match="No chapters found"):
             await scraper.scrape_series(SERIES_URL, session)
-

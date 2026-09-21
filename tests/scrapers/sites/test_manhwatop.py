@@ -224,14 +224,13 @@ class TestManhwaTopScraper:
 
     @pytest.mark.asyncio
     async def test_scrape_chapter_no_images_raises(self):
-        page = CHAPTER_PAGE.replace(
-            f'data-src="{IMG_BASE}ch_330_1.jpg"', 'data-src=""'
-        ).replace(
-            f'data-src="{IMG_BASE}ch_330_2.jpg"', 'data-src=""'
-        ).replace(
-            f'data-src="{IMG_BASE}ch_330_3.jpg"', 'data-src=""'
-        ).replace(
-            'src="https://manhwatop.com/wp-content/themes/madara/images/loading6.svg"', 'src=""'
+        page = (
+            CHAPTER_PAGE.replace(f'data-src="{IMG_BASE}ch_330_1.jpg"', 'data-src=""')
+            .replace(f'data-src="{IMG_BASE}ch_330_2.jpg"', 'data-src=""')
+            .replace(f'data-src="{IMG_BASE}ch_330_3.jpg"', 'data-src=""')
+            .replace(
+                'src="https://manhwatop.com/wp-content/themes/madara/images/loading6.svg"', 'src=""'
+            )
         )
 
         def handler(url):

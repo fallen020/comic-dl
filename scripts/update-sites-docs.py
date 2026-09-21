@@ -76,15 +76,8 @@ def _entries() -> list:
     known = set(by_domain) | set(SITE_META)
     unknown = set(by_domain) - set(SITE_META)
     if unknown:
-        raise SystemExit(
-            "SITE_META is missing entries for: "
-            + ", ".join(sorted(unknown))
-        )
-    return [
-        (domain, by_domain[domain])
-        for domain in sorted(known)
-        if domain in by_domain
-    ]
+        raise SystemExit("SITE_META is missing entries for: " + ", ".join(sorted(unknown)))
+    return [(domain, by_domain[domain]) for domain in sorted(known) if domain in by_domain]
 
 
 def _yes(flag: bool) -> str:
@@ -140,7 +133,7 @@ def _splice(text: str, start: str, end: str, body: list[str]) -> str:
     lines = text.splitlines()
     si = lines.index(start)
     ei = lines.index(end)
-    return "\n".join([*lines[:si + 1], "", *body, "", *lines[ei:]]) + "\n"
+    return "\n".join([*lines[: si + 1], "", *body, "", *lines[ei:]]) + "\n"
 
 
 def generate() -> dict:
@@ -169,9 +162,7 @@ def main(argv: list[str]) -> int:
     args = parser.parse_args(argv)
 
     rendered = generate()
-    out_of_date = [
-        path for path, text in rendered.items() if Path(path).read_text() != text
-    ]
+    out_of_date = [path for path, text in rendered.items() if Path(path).read_text() != text]
     if args.check:
         if out_of_date:
             print(

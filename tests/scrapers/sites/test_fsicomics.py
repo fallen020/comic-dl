@@ -41,7 +41,9 @@ class TestUrlPatterns:
 
     def test_valid_series_urls(self):
         assert is_series_url("https://fsicomics.com/all-porn-comics/3d-porn-comics/tlameteotl/")
-        assert is_series_url("https://fsicomics.com/all-porn-comics/indian-porn-comics/savita-bhabhi-english/")
+        assert is_series_url(
+            "https://fsicomics.com/all-porn-comics/indian-porn-comics/savita-bhabhi-english/"
+        )
 
     def test_invalid_series_urls(self):
         assert not is_series_url("")
@@ -51,20 +53,30 @@ class TestUrlPatterns:
 
 class TestImageUrlCleaning:
     def test_no_resize_suffix(self):
-        assert _clean_image_url("https://fsicomics.com/wp-content/uploads/2026/07/img-001.webp") == \
-               "https://fsicomics.com/wp-content/uploads/2026/07/img-001.webp"
+        assert (
+            _clean_image_url("https://fsicomics.com/wp-content/uploads/2026/07/img-001.webp")
+            == "https://fsicomics.com/wp-content/uploads/2026/07/img-001.webp"
+        )
 
     def test_strips_resize_suffix(self):
-        assert _clean_image_url("https://fsicomics.com/wp-content/uploads/2026/07/img-001-768x768.webp") == \
-               "https://fsicomics.com/wp-content/uploads/2026/07/img-001.webp"
+        assert (
+            _clean_image_url(
+                "https://fsicomics.com/wp-content/uploads/2026/07/img-001-768x768.webp"
+            )
+            == "https://fsicomics.com/wp-content/uploads/2026/07/img-001.webp"
+        )
 
     def test_strips_large_resize(self):
-        assert _clean_image_url("https://fsicomics.com/wp-content/uploads/2026/07/img-001-150x96.webp") == \
-               "https://fsicomics.com/wp-content/uploads/2026/07/img-001.webp"
+        assert (
+            _clean_image_url("https://fsicomics.com/wp-content/uploads/2026/07/img-001-150x96.webp")
+            == "https://fsicomics.com/wp-content/uploads/2026/07/img-001.webp"
+        )
 
     def test_strips_query_string(self):
-        assert _clean_image_url("https://fsicomics.com/wp-content/uploads/2026/07/img-001.webp?w=800") == \
-               "https://fsicomics.com/wp-content/uploads/2026/07/img-001.webp"
+        assert (
+            _clean_image_url("https://fsicomics.com/wp-content/uploads/2026/07/img-001.webp?w=800")
+            == "https://fsicomics.com/wp-content/uploads/2026/07/img-001.webp"
+        )
 
 
 class TestGetImageExt:
@@ -82,7 +94,9 @@ class TestGetImageExt:
 
 class TestMetaExtraction:
     def test_extracts_from_title(self):
-        html = "<html><head><title>Comic Name - Artist - FSIComics</title></head><body></body></html>"
+        html = (
+            "<html><head><title>Comic Name - Artist - FSIComics</title></head><body></body></html>"
+        )
         soup = BeautifulSoup(html, "lxml")
         series, chapter = _extract_meta(soup)
         assert series == "Artist"
@@ -140,51 +154,76 @@ class TestMetaExtraction:
 
 class TestDeriveSeriesTitle:
     def test_groups_chapter_by_series_and_artist(self):
-        assert _derive_series_title(
-            "https://fsicomics.com/family-debt-chapter-1-traplust/",
-            "Family Debt Chapter 1 \u2013 TRAPLust",
-        ) == "Family Debt - TRAPLust"
+        assert (
+            _derive_series_title(
+                "https://fsicomics.com/family-debt-chapter-1-traplust/",
+                "Family Debt Chapter 1 \u2013 TRAPLust",
+            )
+            == "Family Debt - TRAPLust"
+        )
 
     def test_artist_casing_from_title(self):
-        assert _derive_series_title(
-            "https://fsicomics.com/the-elven-prince-chapter-2-traplust",
-            "The Elven Prince Chapter 2 \u2013 TRAPLust",
-        ) == "The Elven Prince - TRAPLust"
+        assert (
+            _derive_series_title(
+                "https://fsicomics.com/the-elven-prince-chapter-2-traplust",
+                "The Elven Prince Chapter 2 \u2013 TRAPLust",
+            )
+            == "The Elven Prince - TRAPLust"
+        )
 
     def test_artist_from_slug_when_title_has_no_dash(self):
-        assert _derive_series_title(
-            "https://fsicomics.com/deal-with-devil-chapter-3-traplust/",
-            "Deal With Devil Chapter 3",
-        ) == "Deal With Devil - Traplust"
+        assert (
+            _derive_series_title(
+                "https://fsicomics.com/deal-with-devil-chapter-3-traplust/",
+                "Deal With Devil Chapter 3",
+            )
+            == "Deal With Devil - Traplust"
+        )
 
     def test_artist_from_title_when_slug_has_no_number_tail(self):
-        assert _derive_series_title(
-            "https://fsicomics.com/friends-with-benefits-chapter-1-traplust/",
-            "Friends With Benefits \u2013 TRAPLust",
-        ) == "Friends With Benefits - TRAPLust"
+        assert (
+            _derive_series_title(
+                "https://fsicomics.com/friends-with-benefits-chapter-1-traplust/",
+                "Friends With Benefits \u2013 TRAPLust",
+            )
+            == "Friends With Benefits - TRAPLust"
+        )
 
     def test_no_marker_returns_empty(self):
-        assert _derive_series_title(
-            "https://fsicomics.com/my-comic/", "My Comic",
-        ) == ""
+        assert (
+            _derive_series_title(
+                "https://fsicomics.com/my-comic/",
+                "My Comic",
+            )
+            == ""
+        )
 
     def test_marker_is_case_insensitive(self):
-        assert _derive_series_title(
-            "https://fsicomics.com/family-debt-CHAPTER-2-traplust/",
-            "Family Debt Chapter 2",
-        ) == "Family Debt - Traplust"
+        assert (
+            _derive_series_title(
+                "https://fsicomics.com/family-debt-CHAPTER-2-traplust/",
+                "Family Debt Chapter 2",
+            )
+            == "Family Debt - Traplust"
+        )
 
     def test_multi_digit_chapter_number(self):
-        assert _derive_series_title(
-            "https://fsicomics.com/family-debt-chapter-10-traplust/",
-            "Family Debt Chapter 10 \u2013 TRAPLust",
-        ) == "Family Debt - TRAPLust"
+        assert (
+            _derive_series_title(
+                "https://fsicomics.com/family-debt-chapter-10-traplust/",
+                "Family Debt Chapter 10 \u2013 TRAPLust",
+            )
+            == "Family Debt - TRAPLust"
+        )
 
     def test_series_only_when_no_artist(self):
-        assert _derive_series_title(
-            "https://fsicomics.com/family-debt-chapter-1/",
-            "Family Debt Chapter 1",
-        ) == "Family Debt"
+        assert (
+            _derive_series_title(
+                "https://fsicomics.com/family-debt-chapter-1/",
+                "Family Debt Chapter 1",
+            )
+            == "Family Debt"
+        )
 
 
 class TestChapterNumber:
@@ -368,7 +407,8 @@ class TestFsicomixScraper:
         session = _MockSession(lambda url: _MockResponse(html))
         scraper = FsicomixScraper()
         chapter = await scraper._scrape_chapter(
-            "https://fsicomics.com/my-comic/", session,
+            "https://fsicomics.com/my-comic/",
+            session,
         )
         assert len(chapter.images) == 1
 
@@ -391,7 +431,8 @@ class TestFsicomixScraper:
         session = _MockSession(lambda url: _MockResponse(html))
         scraper = FsicomixScraper()
         chapter = await scraper._scrape_chapter(
-            "https://fsicomics.com/my-comic/", session,
+            "https://fsicomics.com/my-comic/",
+            session,
         )
         assert chapter.info.publisher == "Super Melons"
 
@@ -415,7 +456,8 @@ class TestFsicomixScraper:
         session = _MockSession(lambda url: _MockResponse(html))
         scraper = FsicomixScraper()
         chapter = await scraper._scrape_chapter(
-            "https://fsicomics.com/my-comic/", session,
+            "https://fsicomics.com/my-comic/",
+            session,
         )
         assert chapter.info.publisher == "Super Melons"
 
@@ -483,7 +525,8 @@ class TestFsicomixScraper:
         session = _MockSession(lambda url: _MockResponse(html))
         scraper = FsicomixScraper()
         chapter = await scraper._scrape_chapter(
-            "https://fsicomics.com/my-comic/", session,
+            "https://fsicomics.com/my-comic/",
+            session,
         )
 
         assert chapter.info.series_title == "Cool Artist"
@@ -511,7 +554,8 @@ class TestFsicomixScraper:
         session = _MockSession(lambda url: _MockResponse(html))
         scraper = FsicomixScraper()
         chapter = await scraper._scrape_chapter(
-            "https://fsicomics.com/my-comic/", session,
+            "https://fsicomics.com/my-comic/",
+            session,
         )
 
         assert chapter.info.chapter_title == "My Comic"
@@ -532,7 +576,8 @@ class TestFsicomixScraper:
         session = _MockSession(lambda url: _MockResponse(html))
         scraper = FsicomixScraper()
         chapter = await scraper._scrape_chapter(
-            "https://fsicomics.com/my-comic/", session,
+            "https://fsicomics.com/my-comic/",
+            session,
         )
 
         assert chapter.source.post_id == "828652"
@@ -553,7 +598,8 @@ class TestFsicomixScraper:
         session = _MockSession(lambda url: _MockResponse(html))
         scraper = FsicomixScraper()
         chapter = await scraper._scrape_chapter(
-            "https://fsicomics.com/my-comic/", session,
+            "https://fsicomics.com/my-comic/",
+            session,
         )
 
         assert chapter.source.post_id == "987654"
@@ -572,21 +618,18 @@ class TestFsicomixScraper:
         session = _MockSession(lambda url: _MockResponse(html))
         scraper = FsicomixScraper()
         chapter = await scraper._scrape_chapter(
-            "https://fsicomics.com/my-comic/", session,
+            "https://fsicomics.com/my-comic/",
+            session,
         )
 
         assert chapter.source.post_id == ""
 
     def test_extract_post_id_from_body_class(self):
-        soup = BeautifulSoup(
-            '<body class="single single-post postid-828652 x">', "lxml"
-        )
+        soup = BeautifulSoup('<body class="single single-post postid-828652 x">', "lxml")
         assert _extract_post_id(soup) == "828652"
 
     def test_extract_post_id_from_element_id(self):
-        soup = BeautifulSoup(
-            '<div id="post-987654"></div>', "lxml"
-        )
+        soup = BeautifulSoup('<div id="post-987654"></div>', "lxml")
         assert _extract_post_id(soup) == "987654"
 
     def test_extract_post_id_returns_empty(self):
@@ -611,7 +654,8 @@ class TestFsicomixScraper:
         session = _MockSession(lambda url: _MockResponse(html))
         scraper = FsicomixScraper()
         chapter = await scraper._scrape_chapter(
-            "https://fsicomics.com/family-debt-chapter-1-traplust/", session,
+            "https://fsicomics.com/family-debt-chapter-1-traplust/",
+            session,
         )
 
         assert chapter.info.series_title == "Family Debt-TRAPLust"

@@ -27,7 +27,7 @@ from comic_dl.webview_solver import _emit_stream, _handle_request, _xhr_js
 class TestXhrJsEscaping:
     def test_method_url_headers_body_are_json_escaped(self):
         js = _xhr_js(
-            'GET',
+            "GET",
             'https://example.com/a?q="x"',
             {"X-Odd": 'say "hi" \\ back'},
             'body "text"',
@@ -69,8 +69,7 @@ class _FakeWindow:
 class TestHandleRequest:
     def test_maps_payload_into_response(self):
         window = _FakeWindow(
-            '{"status": 200, "headers": {"content-type": "image/jpeg"}, '
-            '"body_b64": "aGVsbG8="}'
+            '{"status": 200, "headers": {"content-type": "image/jpeg"}, "body_b64": "aGVsbG8="}'
         )
         resp = _handle_request(window, {"id": 7, "url": "https://x/"}, "https://x")
         assert resp == {
@@ -106,16 +105,15 @@ class TestHandleRequest:
     def test_dict_body_is_flattened_to_json_string(self):
         window = _FakeWindow('{"status": 200}')
         _handle_request(
-            window, {"id": 1, "url": "https://x/", "method": "POST", "body": {"a": 1}},
+            window,
+            {"id": 1, "url": "https://x/", "method": "POST", "body": {"a": 1}},
             "https://x",
         )
         assert 'xhr.send("{\\"a\\": 1}");' in window.calls[0]
 
     def test_cross_origin_request_is_blocked(self):
         window = _FakeWindow('{"status": 200}')
-        resp = _handle_request(
-            window, {"id": 2, "url": "https://evil.example/x"}, "https://x"
-        )
+        resp = _handle_request(window, {"id": 2, "url": "https://evil.example/x"}, "https://x")
         assert resp["status"] == 0
         assert "cross-origin" in resp["error"]
 
@@ -124,9 +122,7 @@ class TestHandleRequest:
         # through charset=x-user-defined and maps code points straight to
         # bytes (sync XHR cannot use responseType=arraybuffer).
         window = _FakeWindow('{"status": 200, "body_b64": "AAEC/w=="}')
-        _handle_request(
-            window, {"id": 5, "url": "https://x/", "stream": True}, "https://x"
-        )
+        _handle_request(window, {"id": 5, "url": "https://x/", "stream": True}, "https://x")
         js = window.calls[0]
         assert "x-user-defined" in js
         assert "& 0xFF" in js
@@ -293,9 +289,7 @@ class TestWebViewSessionWireProtocol:
             assert status == 200
             assert headers == {"x-fake": "yes"}
             assert body == b"ok:GET"
-            _, _, body = await sess.request(
-                "POST", "https://example.com/sub", body="payload"
-            )
+            _, _, body = await sess.request("POST", "https://example.com/sub", body="payload")
             assert body == b"ok:POST"
         finally:
             await sess.close()

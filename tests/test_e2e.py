@@ -59,9 +59,11 @@ def _patch_chapter_scraper(monkeypatch, overrides):
 
     monkeypatch.setattr("comic_dl.cli.get_chapter_scraper", lookup)
 
+
 # ===========================================================================
 # CLI & ARGUMENT PARSING
 # ===========================================================================
+
 
 class TestHelpFlag:
     def test_long_help(self, monkeypatch):
@@ -151,7 +153,9 @@ class TestFileArgument:
 
 class TestOutputArgument:
     def test_short_output(self, monkeypatch, tmp_path):
-        monkeypatch.setattr("sys.argv", ["prog", "-u", "https://example.com/", "-o", str(tmp_path / "out")])
+        monkeypatch.setattr(
+            "sys.argv", ["prog", "-u", "https://example.com/", "-o", str(tmp_path / "out")]
+        )
         _, args = parse_urls()
         assert args.output == tmp_path / "out"
 
@@ -188,12 +192,16 @@ class TestFlags:
             parse_urls()
 
     def test_max_image_size(self, monkeypatch):
-        monkeypatch.setattr("sys.argv", ["prog", "-u", "https://example.com/", "--max-image-size", "1048576"])
+        monkeypatch.setattr(
+            "sys.argv", ["prog", "-u", "https://example.com/", "--max-image-size", "1048576"]
+        )
         _, args = parse_urls()
         assert args.max_image_size == 1048576
 
     def test_max_size(self, monkeypatch):
-        monkeypatch.setattr("sys.argv", ["prog", "-u", "https://example.com/", "--max-size", "52428800"])
+        monkeypatch.setattr(
+            "sys.argv", ["prog", "-u", "https://example.com/", "--max-size", "52428800"]
+        )
         _, args = parse_urls()
         assert args.max_size == 52428800
 
@@ -203,18 +211,18 @@ class TestFlags:
             parse_urls()
 
     def test_multiple_urls_via_repeated(self, monkeypatch):
-        monkeypatch.setattr("sys.argv", ["prog", "--url", "https://a.com/", "--url", "https://b.com/"])
+        monkeypatch.setattr(
+            "sys.argv", ["prog", "--url", "https://a.com/", "--url", "https://b.com/"]
+        )
         # argparse stores the last value; just verify no crash
         urls, _ = parse_urls()
         assert len(urls) == 1
 
 
-
-
-
 # ===========================================================================
 # URL VALIDATION
 # ===========================================================================
+
 
 class TestValidateUrl:
     def test_valid_webtoon_series(self):
@@ -231,19 +239,18 @@ class TestValidateUrl:
 
 class TestIsValidWebtoonUrl:
     def test_desktop_series(self):
-        assert is_valid_webtoon_url(
-            "https://www.webtoons.com/en/action/s/list?title_no=1"
-        ) is True
+        assert is_valid_webtoon_url("https://www.webtoons.com/en/action/s/list?title_no=1") is True
 
     def test_mobile_series(self):
-        assert is_valid_webtoon_url(
-            "https://m.webtoons.com/en/action/s/list?title_no=1"
-        ) is True
+        assert is_valid_webtoon_url("https://m.webtoons.com/en/action/s/list?title_no=1") is True
 
     def test_desktop_chapter(self):
-        assert is_valid_webtoon_url(
-            "https://www.webtoons.com/en/action/s/ep-1/viewer?title_no=1&episode_no=1"
-        ) is True
+        assert (
+            is_valid_webtoon_url(
+                "https://www.webtoons.com/en/action/s/ep-1/viewer?title_no=1&episode_no=1"
+            )
+            is True
+        )
 
     def test_no_query(self):
         assert is_valid_webtoon_url("https://www.webtoons.com/en/action/s/list") is False
@@ -280,6 +287,7 @@ class TestIsValidPawchiveUrl:
 # ===========================================================================
 # WEBTOON PARSING
 # ===========================================================================
+
 
 class TestNormalizeEpisodeTitle:
     def test_basic_episode(self):
@@ -360,6 +368,7 @@ class TestStripTrailingNoise:
 # WEBTOON SCRAPING (with mocked data)
 # ===========================================================================
 
+
 class TestScrapeWebtoonChapter:
     pytestmark = pytest.mark.asyncio
 
@@ -375,8 +384,10 @@ class TestScrapeWebtoonChapter:
                 class Resp:
                     status_code = 200
                     text = html
+
                     def raise_for_status(self):
                         pass
+
                 return Resp()
 
         with pytest.raises(ValueError, match="No images found"):
@@ -401,8 +412,10 @@ class TestScrapeWebtoonSeries:
                 class Resp:
                     status_code = 200
                     text = html
+
                     def raise_for_status(self):
                         pass
+
                 return Resp()
 
         with pytest.raises(ValueError, match="No chapters found"):
@@ -416,6 +429,7 @@ class TestScrapeWebtoonSeries:
 # CBZ INTEGRITY TESTS
 # ===========================================================================
 
+
 class TestCbzIntegrity:
     """Open generated CBZ files to verify they are valid and readable."""
 
@@ -423,19 +437,28 @@ class TestCbzIntegrity:
         import zipfile
 
         from comic_dl.utils import image_source_name
+
         with tempfile.TemporaryDirectory() as td:
             tmp = Path(td) / "tmp"
             tmp.mkdir()
-            (tmp / image_source_name(1, "http://x.com/1.jpg")).write_bytes(b'\xff\xd8\xff')
-            (tmp / image_source_name(2, "http://x.com/2.png")).write_bytes(b'\x89PNG\r\n\x1a\n')
+            (tmp / image_source_name(1, "http://x.com/1.jpg")).write_bytes(b"\xff\xd8\xff")
+            (tmp / image_source_name(2, "http://x.com/2.png")).write_bytes(b"\x89PNG\r\n\x1a\n")
             images = [
-                ImageItem(url="http://x.com/1.jpg", page_number=1, filename=image_source_name(1, "http://x.com/1.jpg")),
-                ImageItem(url="http://x.com/2.png", page_number=2, filename=image_source_name(2, "http://x.com/2.png")),
+                ImageItem(
+                    url="http://x.com/1.jpg",
+                    page_number=1,
+                    filename=image_source_name(1, "http://x.com/1.jpg"),
+                ),
+                ImageItem(
+                    url="http://x.com/2.png",
+                    page_number=2,
+                    filename=image_source_name(2, "http://x.com/2.png"),
+                ),
             ]
             cbz = Path(td) / "test.cbz"
             create_archive(images, tmp, cbz, "S", "C")
 
-            with zipfile.ZipFile(cbz, 'r') as zf:
+            with zipfile.ZipFile(cbz, "r") as zf:
                 assert zf.testzip() is None
                 names = zf.namelist()
                 assert len(names) >= 3
@@ -445,6 +468,7 @@ class TestCbzIntegrity:
         import zipfile
 
         from comic_dl.utils import image_source_name
+
         with tempfile.TemporaryDirectory() as td:
             tmp = Path(td) / "tmp"
             tmp.mkdir()
@@ -452,14 +476,12 @@ class TestCbzIntegrity:
             for i in range(1, 4):
                 url = f"http://x.com/{i}.jpg"
                 src_name = image_source_name(i, url)
-                (tmp / src_name).write_bytes(b'\xff\xd8\xff' + bytes([i]))
-                images.append(
-                    ImageItem(url=url, page_number=i, filename=src_name)
-                )
+                (tmp / src_name).write_bytes(b"\xff\xd8\xff" + bytes([i]))
+                images.append(ImageItem(url=url, page_number=i, filename=src_name))
             cbz = Path(td) / "test.cbz"
             create_archive(images, tmp, cbz, "S", "C")
 
-            with zipfile.ZipFile(cbz, 'r') as zf:
+            with zipfile.ZipFile(cbz, "r") as zf:
                 names = zf.namelist()
                 img_names = [n for n in names if n != "ComicInfo.xml"]
                 assert img_names == ["Page_0001.jpeg", "Page_0002.jpeg", "Page_0003.jpeg"]
@@ -468,6 +490,7 @@ class TestCbzIntegrity:
 # ===========================================================================
 # E2E PROCESS URL (with mocked data)
 # ===========================================================================
+
 
 class TestProcessUrlE2E:
     pytestmark = pytest.mark.asyncio
@@ -478,7 +501,6 @@ class TestProcessUrlE2E:
                 url="https://example.com/bad",
                 output_dir=Path(td),
                 concurrency=5,
-
                 force=False,
             )
         assert status == "failed"
@@ -501,15 +523,17 @@ class TestProcessUrlE2E:
         async def mock_download(images, dest_dir, *args, **kwargs):
             dest_dir.mkdir(parents=True, exist_ok=True)
             for img in images:
-                (dest_dir / img.filename).write_bytes(b'\xff\xd8\xff')
+                (dest_dir / img.filename).write_bytes(b"\xff\xd8\xff")
             return set()
 
         monkeypatch.setattr("comic_dl.downloader.download_httpx", mock_download)
 
         class MockWebtoon:
             domain = "www.webtoons.com"
+
             async def scrape(self, url, client):
                 return await mock_scrape(url, client)
+
         _patch_chapter_scraper(monkeypatch, {"webtoons.com": MockWebtoon()})
 
         with tempfile.TemporaryDirectory() as td:
@@ -518,7 +542,6 @@ class TestProcessUrlE2E:
                 url="https://www.webtoons.com/en/action/s/ep-1/viewer?title_no=1&episode_no=1",
                 output_dir=out,
                 concurrency=5,
-
                 force=False,
                 quiet=True,
             )
@@ -530,13 +553,15 @@ class TestProcessUrlE2E:
     async def test_skip_existing_cbz(self, monkeypatch):
         async def mock_scrape(url, client):
             return PostMetadata(
-                series_title="S", chapter_title="C",
+                series_title="S",
+                chapter_title="C",
                 images=[ImageItem(url="http://x.com/1", page_number=1, filename="p.jpg")],
             )
 
         class _Mock:
             async def scrape(self, url, client):
                 return await mock_scrape(url, client)
+
         _patch_chapter_scraper(monkeypatch, {"pawchive.pw": _Mock()})
 
         with tempfile.TemporaryDirectory() as td:
@@ -549,7 +574,6 @@ class TestProcessUrlE2E:
                 url="https://pawchive.pw/p/user/1/post/2/",
                 output_dir=out,
                 concurrency=1,
-
                 force=False,
                 quiet=True,
             )
@@ -558,14 +582,15 @@ class TestProcessUrlE2E:
     async def test_force_overwrites_cbz(self, monkeypatch):
         async def mock_scrape(url, client):
             return PostMetadata(
-                series_title="S", chapter_title="C",
+                series_title="S",
+                chapter_title="C",
                 images=[ImageItem(url="http://x.com/1", page_number=1, filename="p.jpg")],
             )
 
         async def mock_download(images, dest_dir, *args, **kwargs):
             dest_dir.mkdir(parents=True, exist_ok=True)
             for img in images:
-                (dest_dir / img.filename).write_bytes(b'\xff\xd8\xff')
+                (dest_dir / img.filename).write_bytes(b"\xff\xd8\xff")
             return set()
 
         monkeypatch.setattr("comic_dl.downloader.download_httpx", mock_download)
@@ -573,6 +598,7 @@ class TestProcessUrlE2E:
         class _Mock:
             async def scrape(self, url, client):
                 return await mock_scrape(url, client)
+
         _patch_chapter_scraper(monkeypatch, {"pawchive.pw": _Mock()})
 
         with tempfile.TemporaryDirectory() as td:
@@ -585,7 +611,6 @@ class TestProcessUrlE2E:
                 url="https://pawchive.pw/p/user/1/post/2/",
                 output_dir=out,
                 concurrency=1,
-
                 force=True,
                 quiet=True,
             )
@@ -607,6 +632,7 @@ class TestTextOnlyPostE2E:
         class _Mock:
             async def scrape(self, url, client):
                 return await mock_scrape(url, client)
+
         _patch_chapter_scraper(monkeypatch, {"pawchive.pw": _Mock()})
 
         with tempfile.TemporaryDirectory() as td:
@@ -629,6 +655,7 @@ class TestTextOnlyPostE2E:
             )
 
             from comic_dl.cli import _build_downloaded_index
+
             index = _build_downloaded_index(out)
             assert index[normalize_url("https://pawchive.pw/p/user/1/post/2/")] == md
 
@@ -644,6 +671,7 @@ class TestTextOnlyPostE2E:
         class _Mock:
             async def scrape(self, url, client):
                 return await mock_scrape(url, client)
+
         _patch_chapter_scraper(monkeypatch, {"pawchive.pw": _Mock()})
 
         with tempfile.TemporaryDirectory() as td:
@@ -667,6 +695,7 @@ class TestTextOnlyPostE2E:
 # WEBTOON SERIES PROCESSING (with mocked data)
 # ===========================================================================
 
+
 class TestProcessWebtoonSeriesE2E:
     pytestmark = pytest.mark.asyncio
 
@@ -674,8 +703,16 @@ class TestProcessWebtoonSeriesE2E:
         from comic_dl.models import SeriesMetadata
 
         chapters_data = [
-            {"title": "Chapter 1", "episode_no": "1", "url": "https://webtoons.com/en/action/s/ep-1/viewer?title_no=1&episode_no=1"},
-            {"title": "Chapter 2", "episode_no": "2", "url": "https://webtoons.com/en/action/s/ep-2/viewer?title_no=1&episode_no=2"},
+            {
+                "title": "Chapter 1",
+                "episode_no": "1",
+                "url": "https://webtoons.com/en/action/s/ep-1/viewer?title_no=1&episode_no=1",
+            },
+            {
+                "title": "Chapter 2",
+                "episode_no": "2",
+                "url": "https://webtoons.com/en/action/s/ep-2/viewer?title_no=1&episode_no=2",
+            },
         ]
 
         async def mock_scrape_series(url, client):
@@ -693,8 +730,12 @@ class TestProcessWebtoonSeriesE2E:
                 series_title="Test Series",
                 chapter_title=f"Chapter {ep_no}",
                 images=[
-                    ImageItem(url=f"http://x.com/{ep_no}/1", page_number=1, filename=f"p{ep_no}_1.jpg"),
-                    ImageItem(url=f"http://x.com/{ep_no}/2", page_number=2, filename=f"p{ep_no}_2.jpg"),
+                    ImageItem(
+                        url=f"http://x.com/{ep_no}/1", page_number=1, filename=f"p{ep_no}_1.jpg"
+                    ),
+                    ImageItem(
+                        url=f"http://x.com/{ep_no}/2", page_number=2, filename=f"p{ep_no}_2.jpg"
+                    ),
                 ],
                 total_pages=2,
             )
@@ -703,15 +744,18 @@ class TestProcessWebtoonSeriesE2E:
             images = args[0]
             dest_dir = args[1]
             for img in images:
-                (dest_dir / img.filename).write_bytes(b'\xff\xd8\xff')
+                (dest_dir / img.filename).write_bytes(b"\xff\xd8\xff")
             return set()
 
         class MockWebtoon:
             domain = "www.webtoons.com"
+
             async def scrape_series(self, url, client):
                 return await mock_scrape_series(url, client)
+
             async def scrape(self, url, client):
                 return await mock_scrape_chapter(url, client)
+
         mock_scraper = MockWebtoon()
 
         monkeypatch.setattr("comic_dl.downloader.download_httpx", mock_download)
@@ -722,7 +766,6 @@ class TestProcessWebtoonSeriesE2E:
                 url="https://www.webtoons.com/en/action/s/list?title_no=1",
                 output_dir=Path(td),
                 concurrency=5,
-
                 force=False,
                 quiet=True,
             )
@@ -760,22 +803,28 @@ class TestSeriesCoverAndNomedia:
                 cover_url="https://example.com/cover.jpg",
                 title_no="1",
                 chapters=[
-                    {"title": "Chapter 1", "episode_no": "1",
-                     "url": "https://webtoons.com/...ep-1..."},
+                    {
+                        "title": "Chapter 1",
+                        "episode_no": "1",
+                        "url": "https://webtoons.com/...ep-1...",
+                    },
                 ],
             )
 
         async def mock_scrape_chapter(url, client):
             return PostMetadata(
-                series_title="Test Series", chapter_title="Chapter 1",
+                series_title="Test Series",
+                chapter_title="Chapter 1",
                 images=[ImageItem(url="http://x.com/1", page_number=1, filename="p.jpg")],
                 total_pages=1,
             )
 
         class MockWebtoon:
             domain = "www.webtoons.com"
+
             async def scrape_series(self, url, client):
                 return await mock_scrape_series(url, client)
+
             async def scrape(self, url, client):
                 return await mock_scrape_chapter(url, client)
 
@@ -808,7 +857,8 @@ class TestSeriesCoverAndNomedia:
 
         async def mock_scrape(url, client):
             return PostMetadata(
-                series_title="S", chapter_title="C",
+                series_title="S",
+                chapter_title="C",
                 cover_url="https://example.com/cover.jpg",
                 images=[ImageItem(url="http://x.com/1", page_number=1, filename="p.jpg")],
                 total_pages=1,
@@ -816,6 +866,7 @@ class TestSeriesCoverAndNomedia:
 
         class MockWebtoon:
             domain = "www.webtoons.com"
+
             async def scrape(self, url, client):
                 return await mock_scrape(url, client)
 
@@ -872,8 +923,12 @@ class TestSeriesSameTitleCollision:
                 series_title="Test Series",
                 chapter_title="Chapter 3",
                 images=[
-                    ImageItem(url=f"http://x.com/{post_id}/1", page_number=1, filename=f"p{post_id}_1.jpg"),
-                    ImageItem(url=f"http://x.com/{post_id}/2", page_number=2, filename=f"p{post_id}_2.jpg"),
+                    ImageItem(
+                        url=f"http://x.com/{post_id}/1", page_number=1, filename=f"p{post_id}_1.jpg"
+                    ),
+                    ImageItem(
+                        url=f"http://x.com/{post_id}/2", page_number=2, filename=f"p{post_id}_2.jpg"
+                    ),
                 ],
                 total_pages=2,
                 post_id=post_id,
@@ -896,7 +951,7 @@ class TestSeriesSameTitleCollision:
             dest_dir = args[1]
             dest_dir.mkdir(parents=True, exist_ok=True)
             for img in images:
-                (dest_dir / img.filename).write_bytes(b'\xff\xd8\xff')
+                (dest_dir / img.filename).write_bytes(b"\xff\xd8\xff")
             return set()
 
         monkeypatch.setattr("comic_dl.downloader.download_httpx", mock_download)
@@ -934,6 +989,7 @@ class TestSeriesSameTitleCollision:
 # ===========================================================================
 # INCREMENTAL SERIES UPDATES (SQLite library)
 # ===========================================================================
+
 
 class TestSeriesIncrementalUpdates:
     """Repeated series runs must reuse prior downloads via the library DB,
@@ -993,7 +1049,7 @@ class TestSeriesIncrementalUpdates:
             dest_dir = args[1]
             dest_dir.mkdir(parents=True, exist_ok=True)
             for img in images:
-                (dest_dir / img.filename).write_bytes(b'\xff\xd8\xff')
+                (dest_dir / img.filename).write_bytes(b"\xff\xd8\xff")
             return set()
 
         monkeypatch.setattr("comic_dl.downloader.download_httpx", mock_download)
@@ -1015,12 +1071,8 @@ class TestSeriesIncrementalUpdates:
         db = tmp_path / ".comic-dl" / "library.db"
         assert db.exists()
         with sqlite3.connect(str(db)) as conn:
-            rows = conn.execute(
-                "SELECT url, cbz FROM chapters ORDER BY url"
-            ).fetchall()
-            series = conn.execute(
-                "SELECT series_id, source_site FROM series"
-            ).fetchall()
+            rows = conn.execute("SELECT url, cbz FROM chapters ORDER BY url").fetchall()
+            series = conn.execute("SELECT series_id, source_site FROM series").fetchall()
         assert len(rows) == 2
         assert {r[0] for r in rows} == {
             "https://fsicomics.com/series-ep-1",
@@ -1072,7 +1124,14 @@ class TestSeriesIncrementalUpdates:
         log.clear()
 
         def chapters_with_new():
-            return [*self._chapters(), {"title": "Chapter 3", "episode_no": "3", "url": "https://fsicomics.com/series-ep-3/"}]
+            return [
+                *self._chapters(),
+                {
+                    "title": "Chapter 3",
+                    "episode_no": "3",
+                    "url": "https://fsicomics.com/series-ep-3/",
+                },
+            ]
 
         async def mock_scrape_chapter(url, client):
             log.append(url)
@@ -1132,9 +1191,7 @@ class TestSeriesIncrementalUpdates:
         assert "1 had new chapters" in out
 
         with sqlite3.connect(str(tmp_path / ".comic-dl" / "library.db")) as conn:
-            rows = conn.execute(
-                "SELECT url FROM chapters ORDER BY url"
-            ).fetchall()
+            rows = conn.execute("SELECT url FROM chapters ORDER BY url").fetchall()
         assert len(rows) == 3
 
 
@@ -1142,14 +1199,13 @@ class TestSeriesIncrementalUpdates:
 # CHAPTER SELECTION (--chapters flag + interactive checkbox path)
 # ===========================================================================
 
+
 class TestSeriesChapterSelection:
     """Chapter selection must filter downloads for a 4-chapter mock series."""
 
     pytestmark = pytest.mark.asyncio
 
-    URLS: tuple[str, ...] = tuple(
-        f"https://fsicomics.com/series-ep-{i}/" for i in range(1, 5)
-    )
+    URLS: tuple[str, ...] = tuple(f"https://fsicomics.com/series-ep-{i}/" for i in range(1, 5))
 
     def _chapters(self):
         return [
@@ -1241,6 +1297,7 @@ class TestSeriesChapterSelection:
         ok = await self._run(monkeypatch, tmp_path, log, force=True, chapters_spec="3")
         assert ok
         assert log == [self.URLS[2]]
+
     async def test_interactive_cancel_writes_nothing(self, monkeypatch, tmp_path):
         log = []
         monkeypatch.setattr("comic_dl.cli._prompt_chapter_selection", lambda *a, **k: None)
@@ -1278,7 +1335,11 @@ class TestSeriesChapterSelection:
 
         monkeypatch.setattr("comic_dl.cli._prompt_chapter_selection", fake_prompt)
         ok = await self._run(
-            monkeypatch, tmp_path, log, chapters_spec="2", interactive=True,
+            monkeypatch,
+            tmp_path,
+            log,
+            chapters_spec="2",
+            interactive=True,
         )
         assert ok
         assert not called["prompt"]
@@ -1288,6 +1349,7 @@ class TestSeriesChapterSelection:
 # ===========================================================================
 # PROGRESS BAR UI TESTS
 # ===========================================================================
+
 
 class TestMakeDownloadProgress:
     def test_columns_configured(self):
@@ -1304,6 +1366,7 @@ class TestMakeDownloadProgress:
     def test_eta_column_hides_on_complete(self):
 
         from rich.progress import Progress
+
         p = Progress()
         column = ETA()
         with p:
@@ -1317,6 +1380,7 @@ class TestMakeDownloadProgress:
     def test_eta_column_shows_during_progress(self):
 
         from rich.progress import Progress
+
         p = Progress()
         column = ETA()
         with p:
@@ -1338,28 +1402,36 @@ class TestMakeSpinner:
 # ERROR HANDLING - NETWORK FAILURE SIMULATION
 # ===========================================================================
 
+
 class TestNetworkErrorHandling:
     pytestmark = pytest.mark.asyncio
 
     async def test_http_404_error(self):
         """404 should NOT be retried; file should be added to failed set."""
+
         class MockResponse:
             status_code = 404
             headers = {}
+
             def raise_for_status(self):
                 raise CurlHTTPError("404")
+
             async def aiter_content(self, chunk_size=None):
-                yield b''
+                yield b""
+
             async def __aenter__(self):
                 return self
+
             async def __aexit__(self, *args):
                 pass
 
         class MockClient:
             def stream(self, method, url, **kwargs):
                 return MockResponse()
+
             async def __aenter__(self):
                 return self
+
             async def __aexit__(self, *args):
                 pass
 
@@ -1370,29 +1442,36 @@ class TestNetworkErrorHandling:
 
     async def test_http_429_retry_then_succeed(self):
         from curl_cffi.requests import Response as CurlResponse
+
         call_count = [0]
 
         class MockResponse:
             status_code = 200
             headers = {"content-length": "3", "content-type": "image/jpeg"}
+
             def raise_for_status(self):
                 call_count[0] += 1
                 if call_count[0] == 1:
                     resp = CurlResponse()
                     resp.status_code = 429
                     raise CurlHTTPError("too many", response=resp)
+
             async def aiter_content(self, chunk_size=None):
-                yield b'\xff\xd8\xff'
+                yield b"\xff\xd8\xff"
+
             async def __aenter__(self):
                 return self
+
             async def __aexit__(self, *args):
                 pass
 
         class MockClient:
             def stream(self, method, url, **kwargs):
                 return MockResponse()
+
             async def __aenter__(self):
                 return self
+
             async def __aexit__(self, *args):
                 pass
 
@@ -1407,6 +1486,7 @@ class TestNetworkErrorHandling:
 # ===========================================================================
 # EDGE CASES
 # ===========================================================================
+
 
 class TestEdgeCases:
     def test_zero_byte_image_handling(self):
@@ -1432,6 +1512,7 @@ class TestEdgeCases:
 # PERFORMANCE / SCALING CHECKS
 # ===========================================================================
 
+
 class TestPerformance:
     def test_sanitize_filename_long_input(self):
         """Should handle very long filenames without crashing."""
@@ -1452,6 +1533,7 @@ class TestPerformance:
     def test_create_archive_many_pages(self):
         """Creating a CBZ with many pages should not crash."""
         from comic_dl.utils import image_source_name
+
         with tempfile.TemporaryDirectory() as td:
             tmp = Path(td) / "tmp"
             tmp.mkdir()
@@ -1459,10 +1541,8 @@ class TestPerformance:
             for i in range(1, 101):
                 url = f"http://x.com/{i}.jpg"
                 src_name = image_source_name(i, url)
-                (tmp / src_name).write_bytes(b'\xff\xd8\xff' + bytes([i % 256]) + bytes([i // 256]))
-                images.append(
-                    ImageItem(url=url, page_number=i, filename=src_name)
-                )
+                (tmp / src_name).write_bytes(b"\xff\xd8\xff" + bytes([i % 256]) + bytes([i // 256]))
+                images.append(ImageItem(url=url, page_number=i, filename=src_name))
             cbz = Path(td) / "test.cbz"
             added, skipped = create_archive(images, tmp, cbz, "S", "C")
             assert added == 100
@@ -1472,6 +1552,7 @@ class TestPerformance:
 # ===========================================================================
 # SERIES PARTIAL-CHAPTER ACCOUNTING
 # ===========================================================================
+
 
 class TestSeriesPartialChapterAccounting:
     """A chapter whose CBZ is saved but missing pages must be classified as
@@ -1492,10 +1573,8 @@ class TestSeriesPartialChapterAccounting:
                 cover_url="",
                 title_no="1",
                 chapters=[
-                    {"title": "Chapter 1", "episode_no": "1",
-                     "url": "https://fsicomics.com/ep-1/"},
-                    {"title": "Chapter 2", "episode_no": "2",
-                     "url": "https://fsicomics.com/ep-2/"},
+                    {"title": "Chapter 1", "episode_no": "1", "url": "https://fsicomics.com/ep-1/"},
+                    {"title": "Chapter 2", "episode_no": "2", "url": "https://fsicomics.com/ep-2/"},
                 ],
             )
 
@@ -1562,9 +1641,7 @@ class TestSeriesPartialChapterAccounting:
         assert (series / "Chapter 2.cbz").exists()
         assert (series / "Chapter 2.cbz.partial").exists()
 
-    async def test_summary_shows_partial_not_success(
-        self, monkeypatch, tmp_path, capsys
-    ):
+    async def test_summary_shows_partial_not_success(self, monkeypatch, tmp_path, capsys):
         ok, _stats = await self._run(monkeypatch, tmp_path, quiet=False)
         assert not ok
         captured = capsys.readouterr()
@@ -1572,9 +1649,7 @@ class TestSeriesPartialChapterAccounting:
         assert "Download incomplete" in captured.out
         assert "Downloaded : 0 chapters" in captured.out
 
-    async def test_summary_loses_success_verdict_on_interrupt(
-        self, monkeypatch, tmp_path, capsys
-    ):
+    async def test_summary_loses_success_verdict_on_interrupt(self, monkeypatch, tmp_path, capsys):
         """A graceful stop mid-download must not print 'Download complete'."""
         request_stop()
         try:

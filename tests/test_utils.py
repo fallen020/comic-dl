@@ -41,7 +41,7 @@ class TestSanitizeFilename:
         assert len(result) <= 200
 
     def test_all_invalid(self):
-        assert sanitize_filename("<>:\"/\\|?*") == "untitled"
+        assert sanitize_filename('<>:"/\\|?*') == "untitled"
 
     def test_control_chars_stripped(self):
         assert sanitize_filename("a\x00b\x01c\x1f") == "abc"
@@ -166,14 +166,11 @@ class TestIsValidWebtoonUrl:
 
     def test_valid_desktop_chapter(self):
         assert is_valid_webtoon_url(
-            "https://www.webtoons.com/en/action/nano-machine/ep-1/"
-            "viewer?title_no=4344&episode_no=1"
+            "https://www.webtoons.com/en/action/nano-machine/ep-1/viewer?title_no=4344&episode_no=1"
         )
 
     def test_valid_mobile(self):
-        assert is_valid_webtoon_url(
-            "https://m.webtoons.com/en/action/s/list?title_no=1"
-        )
+        assert is_valid_webtoon_url("https://m.webtoons.com/en/action/s/list?title_no=1")
 
     def test_invalid_domain(self):
         assert not is_valid_webtoon_url("https://example.com")
@@ -210,76 +207,76 @@ class TestIsValidEhentaiUrl:
 
 class TestVerifyImageBytes:
     def test_jpeg(self):
-        assert verify_image_bytes(b'\xff\xd8\xff\xe0\x00\x10JFIF\x00') == 'jpeg'
+        assert verify_image_bytes(b"\xff\xd8\xff\xe0\x00\x10JFIF\x00") == "jpeg"
 
     def test_png(self):
-        assert verify_image_bytes(b'\x89PNG\r\n\x1a\n') == 'png'
+        assert verify_image_bytes(b"\x89PNG\r\n\x1a\n") == "png"
 
     def test_gif87(self):
-        assert verify_image_bytes(b'GIF87a') == 'gif'
+        assert verify_image_bytes(b"GIF87a") == "gif"
 
     def test_gif89(self):
-        assert verify_image_bytes(b'GIF89a') == 'gif'
+        assert verify_image_bytes(b"GIF89a") == "gif"
 
     def test_webp(self):
-        data = b'RIFF\x00\x00\x00\x00WEBP'
-        assert verify_image_bytes(data) == 'webp'
-        data2 = b'RIFF' + b'\x00' * 4 + b'WEBP'
-        assert verify_image_bytes(data2) == 'webp'
+        data = b"RIFF\x00\x00\x00\x00WEBP"
+        assert verify_image_bytes(data) == "webp"
+        data2 = b"RIFF" + b"\x00" * 4 + b"WEBP"
+        assert verify_image_bytes(data2) == "webp"
 
     def test_bmp(self):
-        assert verify_image_bytes(b'BM\x00\x00') == 'bmp'
+        assert verify_image_bytes(b"BM\x00\x00") == "bmp"
 
     def test_ico(self):
-        assert verify_image_bytes(b'\x00\x00\x01\x00') == 'ico'
+        assert verify_image_bytes(b"\x00\x00\x01\x00") == "ico"
 
     def test_empty(self):
-        assert verify_image_bytes(b'') is None
+        assert verify_image_bytes(b"") is None
 
     def test_unknown(self):
-        assert verify_image_bytes(b'\x00\x01\x02\x03') is None
+        assert verify_image_bytes(b"\x00\x01\x02\x03") is None
 
     def test_riff_not_webp(self):
         # AVI starts with RIFF but is not WEBP
-        avi_header = b'RIFF\x00\x00\x00\x00AVI '
+        avi_header = b"RIFF\x00\x00\x00\x00AVI "
         assert verify_image_bytes(avi_header) is None
 
     def test_riff_too_short(self):
-        data = b'RIFF\x00\x00\x00'
+        data = b"RIFF\x00\x00\x00"
         assert len(data) < 12
         assert verify_image_bytes(data) is None
 
 
 class TestVerifyImageFile:
     def test_jpeg_file(self):
-        with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as f:
-            f.write(b'\xff\xd8\xff\xe0\x00\x10JFIF\x00')
+        with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as f:
+            f.write(b"\xff\xd8\xff\xe0\x00\x10JFIF\x00")
             p = Path(f.name)
         try:
-            assert verify_image_file(p) == 'jpeg'
+            assert verify_image_file(p) == "jpeg"
         finally:
             p.unlink(missing_ok=True)
 
     def test_png_file(self):
-        with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as f:
-            f.write(b'\x89PNG\r\n\x1a\n')
+        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as f:
+            f.write(b"\x89PNG\r\n\x1a\n")
             p = Path(f.name)
         try:
-            assert verify_image_file(p) == 'png'
+            assert verify_image_file(p) == "png"
         finally:
             p.unlink(missing_ok=True)
 
     def test_webp_file(self):
-        with tempfile.NamedTemporaryFile(suffix='.webp', delete=False) as f:
-            f.write(b'RIFF\x00\x00\x00\x00WEBP')
+        with tempfile.NamedTemporaryFile(suffix=".webp", delete=False) as f:
+            f.write(b"RIFF\x00\x00\x00\x00WEBP")
             p = Path(f.name)
         try:
-            assert verify_image_file(p) == 'webp'
+            assert verify_image_file(p) == "webp"
         finally:
             p.unlink(missing_ok=True)
 
     def test_empty_file(self):
-        with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as f:
+        with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as f:
             p = Path(f.name)
         try:
             assert verify_image_file(p) is None
@@ -290,7 +287,7 @@ class TestVerifyImageFile:
         assert verify_image_file(Path("/nonexistent/file.jpg")) is None
 
     def test_non_image_file(self):
-        with tempfile.NamedTemporaryFile(suffix='.txt', delete=False, mode='w') as f:
+        with tempfile.NamedTemporaryFile(suffix=".txt", delete=False, mode="w") as f:
             f.write("hello world")
             p = Path(f.name)
         try:
@@ -300,8 +297,8 @@ class TestVerifyImageFile:
 
     def test_riff_not_webp(self):
         """Bug A regression: RIFF files that are not WebP should not match."""
-        with tempfile.NamedTemporaryFile(suffix='.avi', delete=False) as f:
-            f.write(b'RIFF\x00\x00\x00\x00AVI ')
+        with tempfile.NamedTemporaryFile(suffix=".avi", delete=False) as f:
+            f.write(b"RIFF\x00\x00\x00\x00AVI ")
             p = Path(f.name)
         try:
             assert verify_image_file(p) is None
@@ -309,31 +306,31 @@ class TestVerifyImageFile:
             p.unlink(missing_ok=True)
 
     def test_bmp_file(self):
-        with tempfile.NamedTemporaryFile(suffix='.bmp', delete=False) as f:
-            f.write(b'BM\x00\x00')
+        with tempfile.NamedTemporaryFile(suffix=".bmp", delete=False) as f:
+            f.write(b"BM\x00\x00")
             p = Path(f.name)
         try:
-            assert verify_image_file(p) == 'bmp'
+            assert verify_image_file(p) == "bmp"
         finally:
             p.unlink(missing_ok=True)
 
     def test_ico_file(self):
-        with tempfile.NamedTemporaryFile(suffix='.ico', delete=False) as f:
-            f.write(b'\x00\x00\x01\x00')
+        with tempfile.NamedTemporaryFile(suffix=".ico", delete=False) as f:
+            f.write(b"\x00\x00\x01\x00")
             p = Path(f.name)
         try:
-            assert verify_image_file(p) == 'ico'
+            assert verify_image_file(p) == "ico"
         finally:
             p.unlink(missing_ok=True)
 
     def test_only_reads_header(self):
         """Bug D regression: should not read entire file into memory."""
-        long_data = b'\xff\xd8\xff' + b'\x00' * 1000000
-        with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as f:
+        long_data = b"\xff\xd8\xff" + b"\x00" * 1000000
+        with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as f:
             f.write(long_data)
             p = Path(f.name)
         try:
-            assert verify_image_file(p) == 'jpeg'
+            assert verify_image_file(p) == "jpeg"
         finally:
             p.unlink(missing_ok=True)
 

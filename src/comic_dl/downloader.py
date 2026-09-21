@@ -135,12 +135,12 @@ async def _close_response(inner: object) -> None:
 # challenge solving is handled separately by the CF solver.
 _HUMANE_MAX_RETRIES = 3
 _HUMANE_BACKOFF_BASE = 1.0  # seconds
-_HUMANE_BACKOFF_MAX = 4.0   # cap
+_HUMANE_BACKOFF_MAX = 4.0  # cap
 
 
 def _humane_backoff_delay(attempt: int) -> float:
     """Exponential backoff with ±20% jitter, capped."""
-    delay = min(_HUMANE_BACKOFF_BASE * (2 ** attempt), _HUMANE_BACKOFF_MAX)
+    delay = min(_HUMANE_BACKOFF_BASE * (2**attempt), _HUMANE_BACKOFF_MAX)
     jitter = delay * BACKOFF_JITTER
     return delay + random.uniform(-jitter, jitter)  # nosec B311
 
@@ -338,9 +338,7 @@ async def _open_stream(
         # Redirect loop past the cap.
         if inner is not None:
             await _close_response(inner)
-        raise RequestBlockedError(
-            f"too many redirects ({MAX_REDIRECTS}) while following {url!r}"
-        )
+        raise RequestBlockedError(f"too many redirects ({MAX_REDIRECTS}) while following {url!r}")
 
     return await _retry_blocked(_stream_once, url)
 
@@ -415,8 +413,12 @@ async def download_cover_to(
     if client is None:
         referer = referer_headers(referer_url) if referer_url else {}
         return await download_cover_to(
-            url, dest_path, client=_shared_cover_client(),
-            referer_url=referer_url, force=force, _base_headers=referer,
+            url,
+            dest_path,
+            client=_shared_cover_client(),
+            referer_url=referer_url,
+            force=force,
+            _base_headers=referer,
         )
     try:
         headers: dict[str, str] = dict(_base_headers or {})
@@ -430,7 +432,10 @@ async def download_cover_to(
             )
 
         resp = await _open_stream(
-            client, url, headers=headers, log_level=DIAGNOSTIC,
+            client,
+            url,
+            headers=headers,
+            log_level=DIAGNOSTIC,
         )
         try:
             if resp.status_code == 304:
@@ -550,7 +555,6 @@ class PipelineResult:
     failed_reasons: dict[str, str] = field(default_factory=dict)
 
 
-
 # --- Retry helpers ---
 
 # 509 is e-hentai's H@H "Bandwidth Limit Exceeded" throttle response, served
@@ -596,7 +600,7 @@ def _backoff_delay(
     retry in lockstep (thundering herd). The default stays deterministic for
     tests and callers that want exact scheduling.
     """
-    delay = min(base * (2 ** attempt), max_delay)
+    delay = min(base * (2**attempt), max_delay)
     if jitter:
         # Retry-spacing jitter is not a security boundary (secrets.py would be
         # wrong here); deterministic `random` is exactly right for de-syncing
@@ -746,9 +750,7 @@ def _retry_after_wait_seconds(headers: Mapping[str, Any] | None) -> float | None
     """
     if not headers:
         return None
-    raw = next(
-        (v for k, v in headers.items() if k.lower() == "retry-after"), None
-    )
+    raw = next((v for k, v in headers.items() if k.lower() == "retry-after"), None)
     if raw is None:
         return None
     try:
@@ -779,9 +781,7 @@ async def _refresh_stale_link(client: AsyncSession, item: ImageItem) -> ImageIte
         # Lazy import: keeps the downloader decoupled from scraper modules.
         from .scrapers.refresh import refresh_image_url
 
-        refreshed = await asyncio.wait_for(
-            refresh_image_url(client, item), timeout=REFRESH_TIMEOUT
-        )
+        refreshed = await asyncio.wait_for(refresh_image_url(client, item), timeout=REFRESH_TIMEOUT)
     except TimeoutError:
         trace(f"refresh: {item.filename} — source-page fetch timed out")
         return None
@@ -794,6 +794,7 @@ async def _refresh_stale_link(client: AsyncSession, item: ImageItem) -> ImageIte
 
 
 # --- image download engine (curl_cffi) ---
+
 
 async def _try_resume(
     item: ImageItem,
@@ -906,10 +907,7 @@ async def _stream_to_disk(
                 if bytes_cb is not None:
                     pending += len(chunk)
                     now = time.monotonic()
-                    if (
-                        pending >= BYTE_FLUSH_CHUNK
-                        or now - last_flush >= BYTE_FLUSH_INTERVAL
-                    ):
+                    if pending >= BYTE_FLUSH_CHUNK or now - last_flush >= BYTE_FLUSH_INTERVAL:
                         bytes_cb(pending)
                         pending = 0
                         last_flush = now
@@ -966,28 +964,47 @@ async def download_httpx(
         _session_kwargs: dict[str, Any] = http_client_args()
         if images:
             from urllib.parse import urlsplit
+
             first_host = urlsplit(images[0].url).hostname
             if first_host:
                 _session_kwargs = http_client_args(host=first_host)
         _session_kwargs["max_clients"] = concurrency + 2
         async with AsyncSession(**_session_kwargs) as _client:
             failed, _ = await _run_downloads(
-                _aiter_list(images), dest_dir, sem, progress_cb, _client,
-                max_image_size, max_total_size, bytes_cb,
-                total_pages=len(images), activity_cb=activity_cb,
+                _aiter_list(images),
+                dest_dir,
+                sem,
+                progress_cb,
+                _client,
+                max_image_size,
+                max_total_size,
+                bytes_cb,
+                total_pages=len(images),
+                activity_cb=activity_cb,
                 stream_formats=stream_formats,
-                download_timeout=download_timeout, max_attempts=max_attempts,
-                failure_labels=failure_labels, on_state=on_state,
+                download_timeout=download_timeout,
+                max_attempts=max_attempts,
+                failure_labels=failure_labels,
+                on_state=on_state,
             )
             return failed
     else:
         failed, _ = await _run_downloads(
-            _aiter_list(images), dest_dir, sem, progress_cb, client,
-            max_image_size, max_total_size, bytes_cb,
-            total_pages=len(images), activity_cb=activity_cb,
+            _aiter_list(images),
+            dest_dir,
+            sem,
+            progress_cb,
+            client,
+            max_image_size,
+            max_total_size,
+            bytes_cb,
+            total_pages=len(images),
+            activity_cb=activity_cb,
             stream_formats=stream_formats,
-            download_timeout=download_timeout, max_attempts=max_attempts,
-            failure_labels=failure_labels, on_state=on_state,
+            download_timeout=download_timeout,
+            max_attempts=max_attempts,
+            failure_labels=failure_labels,
+            on_state=on_state,
         )
         return failed
 
@@ -1022,18 +1039,36 @@ async def download_httpx_iter(
         _session_kwargs["max_clients"] = concurrency + 2
         async with AsyncSession(**_session_kwargs) as _client:
             return await _run_downloads(
-                images, dest_dir, sem, progress_cb, _client,
-                max_image_size, max_total_size, bytes_cb, activity_cb=activity_cb,
+                images,
+                dest_dir,
+                sem,
+                progress_cb,
+                _client,
+                max_image_size,
+                max_total_size,
+                bytes_cb,
+                activity_cb=activity_cb,
                 stream_formats=stream_formats,
-                download_timeout=download_timeout, max_attempts=max_attempts,
-                failure_labels=failure_labels, on_state=on_state,
+                download_timeout=download_timeout,
+                max_attempts=max_attempts,
+                failure_labels=failure_labels,
+                on_state=on_state,
             )
     return await _run_downloads(
-        images, dest_dir, sem, progress_cb, client,
-        max_image_size, max_total_size, bytes_cb, activity_cb=activity_cb,
+        images,
+        dest_dir,
+        sem,
+        progress_cb,
+        client,
+        max_image_size,
+        max_total_size,
+        bytes_cb,
+        activity_cb=activity_cb,
         stream_formats=stream_formats,
-        download_timeout=download_timeout, max_attempts=max_attempts,
-        failure_labels=failure_labels, on_state=on_state,
+        download_timeout=download_timeout,
+        max_attempts=max_attempts,
+        failure_labels=failure_labels,
+        on_state=on_state,
     )
 
 
@@ -1153,9 +1188,7 @@ async def _run_downloads(
                 if cooldown_until > now:
                     if activity_cb is not None:
                         activity_cb(f"Waiting for server{glyphs().ellipsis}")
-                    await asyncio.sleep(
-                        min(cooldown_until - now, SHARED_COOLDOWN_CAP)
-                    )
+                    await asyncio.sleep(min(cooldown_until - now, SHARED_COOLDOWN_CAP))
                 host = _host_of(item.url)
                 if host_parked(host, loop.time()):
                     # Parked node: fail fast WITHOUT taking a semaphore slot
@@ -1191,9 +1224,7 @@ async def _run_downloads(
                             f"resume: {item.filename} — {part_path.stat().st_size} "
                             f"bytes of partial data, continuing{glyphs().ellipsis}"
                         )
-                        resumed = await _try_resume(
-                            item, part_path, client, max_image_size
-                        )
+                        resumed = await _try_resume(item, part_path, client, max_image_size)
                         if resumed is True:
                             size = part_path.stat().st_size
                             consumed_bytes[0] += size
@@ -1215,15 +1246,11 @@ async def _run_downloads(
 
                     try:
                         fmt = await asyncio.wait_for(
-                            _stream_to_disk(
-                                item, part_path, client, max_image_size, bytes_cb
-                            ),
+                            _stream_to_disk(item, part_path, client, max_image_size, bytes_cb),
                             timeout=download_timeout,
                         )
                     except TimeoutError as e:
-                        raise DownloadTimeout(
-                            item.filename, download_timeout
-                        ) from e
+                        raise DownloadTimeout(item.filename, download_timeout) from e
                 size = part_path.stat().st_size
                 consumed_bytes[0] += size
                 _clear_partial(part_path)
@@ -1264,9 +1291,7 @@ async def _run_downloads(
                 return
             except Exception as exc:
                 if _is_transport_failure(exc):
-                    record_transport_failure(
-                        host, asyncio.get_running_loop().time()
-                    )
+                    record_transport_failure(host, asyncio.get_running_loop().time())
                 if not _is_retryable(exc) or attempt >= max_attempts - 1:
                     part_path.unlink(missing_ok=True)
                     _clear_partial(part_path)
@@ -1331,6 +1356,7 @@ async def _run_downloads(
 
 
 # --- Verification ---
+
 
 def verify_downloads(
     images: list[ImageItem],
@@ -1454,9 +1480,7 @@ async def _probe_image_size(c: AsyncSession, url: str, timeout: float) -> int:
         except RequestBlockedError:
             return 0
         try:
-            resp = await asyncio.wait_for(
-                c.head(current, allow_redirects=False), timeout=timeout
-            )
+            resp = await asyncio.wait_for(c.head(current, allow_redirects=False), timeout=timeout)
         # Advisory probe — HEAD failures are non-fatal; fall through to Range GET.
         except Exception:  # nosec
             resp = None
@@ -1540,6 +1564,7 @@ def _probe_size_hint(resp: Any) -> int | None:
 
 
 # --- Download Pipeline ---
+
 
 def _engine_tuning() -> tuple[float, int]:
     """Per-image hard timeout and attempt budget from ``[http]`` config.
@@ -1625,9 +1650,7 @@ async def _announce_pack(
     while True:
         n = state["n"]
         if n != last and n:
-            await stage(
-                f"{series_prefix}Creating CBZ archive... {n}/{state['total']} pages"
-            )
+            await stage(f"{series_prefix}Creating CBZ archive... {n}/{state['total']} pages")
             last = n
         if pack_task.done():
             return
@@ -1696,9 +1719,7 @@ class DownloadPipeline:
         if rate_limiting_enabled():
             self._concurrency = min(requested, MAX_PIPELINE_CONCURRENCY)
         else:
-            self._concurrency = min(
-                requested, MAX_PIPELINE_CONCURRENCY, PAGE_PARALLEL_CEILING
-            )
+            self._concurrency = min(requested, MAX_PIPELINE_CONCURRENCY, PAGE_PARALLEL_CEILING)
         self._concurrency_clamped = self._concurrency < requested
         self._max_image_size = max_image_size
         self._max_total_size = max_total_size
@@ -1788,7 +1809,7 @@ class DownloadPipeline:
             elif pipe is not None:
                 await pipe.fail(message)
 
-        async with (pipe if pipe is not None else contextlib.nullcontext()):
+        async with pipe if pipe is not None else contextlib.nullcontext():
             if not self._images and self._images_iter is None:
                 await bad_message(f"{series_prefix}No downloadable images found")
                 return PipelineResult(ok=False, error="no downloadable images found")
@@ -1812,9 +1833,22 @@ class DownloadPipeline:
             finally:
                 self._bytes_cb = None
             if not self._quiet and failed:
-                print_error(
-                    f"{series_prefix}{len(failed)} pages failed to download"
-                )
+                # Name the exact pages + reasons instead of a bare count, so
+                # the user knows which files to re-fetch. The size is bounded
+                # like the verify block below.
+                names = sorted(failed)
+                if len(names) <= 5:
+                    for fname in names:
+                        reason = self._failure_labels.get(fname, "download failed")
+                        print_error(f"{series_prefix}{fname}: {reason}")
+                else:
+                    first_five = [
+                        f"{n}: {self._failure_labels.get(n, 'download failed')}" for n in names[:5]
+                    ]
+                    print_error_block(
+                        f"{series_prefix}{len(names)} pages failed to download (showing first 5):",
+                        first_five,
+                    )
             images = self._current_images()
 
             await clear_progress()
@@ -1828,14 +1862,10 @@ class DownloadPipeline:
                     # A download that failed already carries its own label
                     # (HTTP status, timeout, ...); the verify pass on the same
                     # file can only add a redundant "missing".
-                    self._failure_labels.setdefault(
-                        fname, f"verification: {reason}"
-                    )
+                    self._failure_labels.setdefault(fname, f"verification: {reason}")
                 # Report only files that reached disk but failed verification;
                 # download failures were already counted and answered above.
-                verify_only = {
-                    n: r for n, r in verify_errors.items() if n not in failed
-                }
+                verify_only = {n: r for n, r in verify_errors.items() if n not in failed}
                 names = list(verify_only.keys())
                 if not self._quiet and names:
                     if len(names) <= 5:
@@ -1859,9 +1889,7 @@ class DownloadPipeline:
                 vlog(
                     DIAGNOSTIC,
                     "page failures: "
-                    + ", ".join(
-                        f"{label} x{n}" for label, n in sorted(tally.items())
-                    ),
+                    + ", ".join(f"{label} x{n}" for label, n in sorted(tally.items())),
                     tag=TAG_DOWNLOAD,
                 )
 
@@ -1924,7 +1952,8 @@ class DownloadPipeline:
             except ValueError as e:
                 await bad_message(f"Archive error: {e}")
                 return PipelineResult(
-                    ok=False, error=f"Archive error: {e}",
+                    ok=False,
+                    error=f"Archive error: {e}",
                     failed_images=failed,
                     failed_reasons=dict(self._failure_labels),
                 )
@@ -1942,7 +1971,7 @@ class DownloadPipeline:
                 pass
 
             label = series_prefix or ""
-            if self._announce_saved:
+            if self._announce_saved and not failed:
                 await ok_message(f"{label}Saved: {self._cbz_path.name}{suffix}")
 
             return PipelineResult(
@@ -1959,9 +1988,7 @@ class DownloadPipeline:
     def _get_manifest(self) -> ChapterManifest:
         """The chapter's on-disk state manifest (created on first use)."""
         if self._manifest is None:
-            self._manifest = ChapterManifest(
-                self._tmp_dir / MANIFEST_NAME, chapter_id=self._url
-            )
+            self._manifest = ChapterManifest(self._tmp_dir / MANIFEST_NAME, chapter_id=self._url)
         return self._manifest
 
     def _manifest_recorder(
@@ -2000,41 +2027,54 @@ class DownloadPipeline:
         if not failed or not self._pass2_enabled:
             return failed
         items = [
-            im for im in images
+            im
+            for im in images
             if im.filename in failed
             and self._failure_labels.get(im.filename) != "exceeds max total size"
         ]
         if not items:
             return failed
         if activity_cb is not None:
-            activity_cb(
-                f"Retrying {len(items)} failed page(s) at low concurrency..."
-            )
+            activity_cb(f"Retrying {len(items)} failed page(s) at low concurrency...")
         # Pass 2 reuse of the pass-1 session is deliberate: same cookies and
         # TLS fingerprint, so a WAF that threw pass-1 out stays challenged.
         try:
             if client is not None:
                 return await download_httpx(
-                    items, self._tmp_dir, self._pass2_concurrency,
-                    None, client=client, max_image_size=self._max_image_size,
-                    max_total_size=self._max_total_size, bytes_cb=bytes_cb,
-                    activity_cb=activity_cb, stream_formats=stream_formats,
+                    items,
+                    self._tmp_dir,
+                    self._pass2_concurrency,
+                    None,
+                    client=client,
+                    max_image_size=self._max_image_size,
+                    max_total_size=self._max_total_size,
+                    bytes_cb=bytes_cb,
+                    activity_cb=activity_cb,
+                    stream_formats=stream_formats,
                     download_timeout=self._pass2_timeout,
                     max_attempts=self._pass2_attempts,
-                    failure_labels=self._failure_labels, on_state=on_state,
+                    failure_labels=self._failure_labels,
+                    on_state=on_state,
                 )
             if self._pass2_impersonate:
                 client_kwargs = {**client_kwargs, "impersonate": self._pass2_impersonate}
             session_kwargs = {**client_kwargs, "max_clients": self._pass2_concurrency * 2}
             async with AsyncSession(**session_kwargs) as c:
                 return await download_httpx(
-                    items, self._tmp_dir, self._pass2_concurrency,
-                    None, client=c, max_image_size=self._max_image_size,
-                    max_total_size=self._max_total_size, bytes_cb=bytes_cb,
-                    activity_cb=activity_cb, stream_formats=stream_formats,
+                    items,
+                    self._tmp_dir,
+                    self._pass2_concurrency,
+                    None,
+                    client=c,
+                    max_image_size=self._max_image_size,
+                    max_total_size=self._max_total_size,
+                    bytes_cb=bytes_cb,
+                    activity_cb=activity_cb,
+                    stream_formats=stream_formats,
                     download_timeout=self._pass2_timeout,
                     max_attempts=self._pass2_attempts,
-                    failure_labels=self._failure_labels, on_state=on_state,
+                    failure_labels=self._failure_labels,
+                    on_state=on_state,
                 )
         except Exception:
             return failed
@@ -2051,43 +2091,76 @@ class DownloadPipeline:
         on_state = self._manifest_recorder()
         if self._images_iter is not None:
             failed = await self._download_stream(
-                client_kwargs, progress_cb, bytes_cb, activity_cb,
-                stream_formats=stream_formats, on_state=on_state,
+                client_kwargs,
+                progress_cb,
+                bytes_cb,
+                activity_cb,
+                stream_formats=stream_formats,
+                on_state=on_state,
             )
             failed = await self._retry_pass2(
-                failed, self._resolved_images, client_kwargs,
-                bytes_cb, activity_cb, stream_formats, on_state,
+                failed,
+                self._resolved_images,
+                client_kwargs,
+                bytes_cb,
+                activity_cb,
+                stream_formats,
+                on_state,
             )
         elif self._client is not None:
             failed = await download_httpx(
-                self._images, self._tmp_dir, self._concurrency,
-                progress_cb, client=self._client, max_image_size=self._max_image_size,
-                max_total_size=self._max_total_size, bytes_cb=bytes_cb,
-                activity_cb=activity_cb, stream_formats=stream_formats,
+                self._images,
+                self._tmp_dir,
+                self._concurrency,
+                progress_cb,
+                client=self._client,
+                max_image_size=self._max_image_size,
+                max_total_size=self._max_total_size,
+                bytes_cb=bytes_cb,
+                activity_cb=activity_cb,
+                stream_formats=stream_formats,
                 download_timeout=self._download_timeout,
                 max_attempts=self._max_attempts,
-                failure_labels=self._failure_labels, on_state=on_state,
+                failure_labels=self._failure_labels,
+                on_state=on_state,
             )
             failed = await self._retry_pass2(
-                failed, self._images, client_kwargs,
-                bytes_cb, activity_cb, stream_formats, on_state,
+                failed,
+                self._images,
+                client_kwargs,
+                bytes_cb,
+                activity_cb,
+                stream_formats,
+                on_state,
                 client=self._client,
             )
         else:
             session_kwargs = {**client_kwargs, "max_clients": self._concurrency * 2}
             async with AsyncSession(**session_kwargs) as c:
                 failed = await download_httpx(
-                    self._images, self._tmp_dir, self._concurrency,
-                    progress_cb, client=c, max_image_size=self._max_image_size,
-                    max_total_size=self._max_total_size, bytes_cb=bytes_cb,
-                    activity_cb=activity_cb, stream_formats=stream_formats,
+                    self._images,
+                    self._tmp_dir,
+                    self._concurrency,
+                    progress_cb,
+                    client=c,
+                    max_image_size=self._max_image_size,
+                    max_total_size=self._max_total_size,
+                    bytes_cb=bytes_cb,
+                    activity_cb=activity_cb,
+                    stream_formats=stream_formats,
                     download_timeout=self._download_timeout,
                     max_attempts=self._max_attempts,
-                    failure_labels=self._failure_labels, on_state=on_state,
+                    failure_labels=self._failure_labels,
+                    on_state=on_state,
                 )
             failed = await self._retry_pass2(
-                failed, self._images, client_kwargs,
-                bytes_cb, activity_cb, stream_formats, on_state,
+                failed,
+                self._images,
+                client_kwargs,
+                bytes_cb,
+                activity_cb,
+                stream_formats,
+                on_state,
             )
         self._stream_formats = stream_formats
         return failed
@@ -2105,25 +2178,39 @@ class DownloadPipeline:
             raise RuntimeError("_download_stream called without an images iterator")
         if self._client is not None:
             failed, resolved = await download_httpx_iter(
-                self._images_iter, self._tmp_dir, self._concurrency,
-                progress_cb, client=self._client, max_image_size=self._max_image_size,
-                max_total_size=self._max_total_size, bytes_cb=bytes_cb,
-                activity_cb=activity_cb, stream_formats=stream_formats,
+                self._images_iter,
+                self._tmp_dir,
+                self._concurrency,
+                progress_cb,
+                client=self._client,
+                max_image_size=self._max_image_size,
+                max_total_size=self._max_total_size,
+                bytes_cb=bytes_cb,
+                activity_cb=activity_cb,
+                stream_formats=stream_formats,
                 download_timeout=self._download_timeout,
                 max_attempts=self._max_attempts,
-                failure_labels=self._failure_labels, on_state=on_state,
+                failure_labels=self._failure_labels,
+                on_state=on_state,
             )
         else:
             session_kwargs = {**client_kwargs, "max_clients": self._concurrency * 2}
             async with AsyncSession(**session_kwargs) as c:
                 failed, resolved = await download_httpx_iter(
-                    self._images_iter, self._tmp_dir, self._concurrency,
-                    progress_cb, client=c, max_image_size=self._max_image_size,
-                    max_total_size=self._max_total_size, bytes_cb=bytes_cb,
-                    activity_cb=activity_cb, stream_formats=stream_formats,
+                    self._images_iter,
+                    self._tmp_dir,
+                    self._concurrency,
+                    progress_cb,
+                    client=c,
+                    max_image_size=self._max_image_size,
+                    max_total_size=self._max_total_size,
+                    bytes_cb=bytes_cb,
+                    activity_cb=activity_cb,
+                    stream_formats=stream_formats,
                     download_timeout=self._download_timeout,
                     max_attempts=self._max_attempts,
-                    failure_labels=self._failure_labels, on_state=on_state,
+                    failure_labels=self._failure_labels,
+                    on_state=on_state,
                 )
         self._resolved_images = resolved
         return failed

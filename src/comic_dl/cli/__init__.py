@@ -297,10 +297,7 @@ def _prompt_chapter_selection(
         1 for c in chapters if normalize_url_key(c.get("url") or "") in have_urls
     )
     total_word = "chapter" if len(chapters) == 1 else "chapters"
-    title = (
-        f"Select chapters — {series_title} "
-        f"({len(chapters)} {total_word}, {new_count} new)"
-    )
+    title = f"Select chapters — {series_title} ({len(chapters)} {total_word}, {new_count} new)"
     return checkbox_prompt(title, options)
 
 
@@ -422,8 +419,7 @@ def _read_urls_from_file_indexed(path: Path) -> list[tuple[str, int]] | None:
                 if not _validate_list_url(raw):
                     if len(raw) > MAX_URL_LENGTH:
                         print_warning(
-                            f"{path}:{idx}: skipping URL longer than "
-                            f"{MAX_URL_LENGTH} characters"
+                            f"{path}:{idx}: skipping URL longer than {MAX_URL_LENGTH} characters"
                         )
                     else:
                         print_warning(
@@ -437,10 +433,7 @@ def _read_urls_from_file_indexed(path: Path) -> list[tuple[str, int]] | None:
                 seen.add(key)
                 urls.append((raw, idx))
                 if len(urls) >= MAX_URLS_PER_RUN:
-                    print_warning(
-                        f"{path}: stopping at {MAX_URLS_PER_RUN} URLs "
-                        f"(--file limit)."
-                    )
+                    print_warning(f"{path}: stopping at {MAX_URLS_PER_RUN} URLs (--file limit).")
                     break
     except (OSError, UnicodeDecodeError):
         return None
@@ -501,8 +494,7 @@ def _resolve_archive_path(
         if not force and post_id and f"{base_stem} ({post_id})" in existing:
             if not quiet:
                 print_skipped(
-                    f"Already exists: "
-                    f"{existing[f'{base_stem} ({post_id})'].name} — skipping."
+                    f"Already exists: {existing[f'{base_stem} ({post_id})'].name} — skipping."
                 )
             return None
         return base
@@ -510,9 +502,7 @@ def _resolve_archive_path(
     picked = existing[base_stem]
     if _is_partial(picked):
         if not quiet:
-            print_skipped(
-                f"{picked.name} was incomplete. Re-downloading missing pages."
-            )
+            print_skipped(f"{picked.name} was incomplete. Re-downloading missing pages.")
         return picked
 
     if _cbz_source_url(picked).rstrip("/") == url.rstrip("/"):
@@ -524,10 +514,7 @@ def _resolve_archive_path(
         disambig_stem = f"{base_stem} ({post_id})"
         if disambig_stem in existing:
             if not quiet:
-                print_skipped(
-                    f"Already exists: "
-                    f"{existing[disambig_stem].name} — skipping."
-                )
+                print_skipped(f"Already exists: {existing[disambig_stem].name} — skipping.")
             return None
         return series_dir / f"{disambig_stem}{ext}"
 
@@ -603,9 +590,7 @@ def _restore_pages_from_archive(archive_path: Path, dest_dir: Path) -> int:
         if archive_path.suffix.lower() == ".cbt":
             with tarfile.open(archive_path) as tf:
                 for info in tf.getmembers():
-                    if not info.isfile() or not _acceptable(
-                        info.name, info.size
-                    ):
+                    if not info.isfile() or not _acceptable(info.name, info.size):
                         continue
                     src = tf.extractfile(info)
                     if src is None:
@@ -729,8 +714,7 @@ def _build_downloaded_index(output_dir: Path) -> dict[str, Path]:
             continue
         stripped = first.strip()
         if not (
-            stripped.startswith(_TEXT_SOURCE_PREFIX)
-            and stripped.endswith(_TEXT_SOURCE_SUFFIX)
+            stripped.startswith(_TEXT_SOURCE_PREFIX) and stripped.endswith(_TEXT_SOURCE_SUFFIX)
         ):
             continue
         url = stripped[len(_TEXT_SOURCE_PREFIX) : -len(_TEXT_SOURCE_SUFFIX)].strip()
@@ -816,28 +800,22 @@ def _apply_config(args: argparse.Namespace) -> None:
     if args.parallel is None:
         args.parallel = _conf_int(conf.get("parallel"), 5, key="parallel")
     if args.chapter_parallel is None:
-        args.chapter_parallel = _conf_int(
-            conf.get("chapter_parallel"), 1, key="chapter_parallel"
-        )
+        args.chapter_parallel = _conf_int(conf.get("chapter_parallel"), 1, key="chapter_parallel")
     if args.max_image_size is None:
         args.max_image_size = _conf_size(
-            conf.get("max_image_size"), 100 * 1024 * 1024, key="max-image-size",
+            conf.get("max_image_size"),
+            100 * 1024 * 1024,
+            key="max-image-size",
         )
     if args.max_size is None:
         args.max_size = _conf_size(conf.get("max_size"), 0)
     if getattr(args, "compress", None) is None:
         archive_cfg = conf.get("archive")
-        cfg_compression = (
-            archive_cfg.get("compression")
-            if isinstance(archive_cfg, dict)
-            else None
-        )
+        cfg_compression = archive_cfg.get("compression") if isinstance(archive_cfg, dict) else None
         args.compress = cfg_compression if isinstance(cfg_compression, str) else "stored"
     if getattr(args, "format", None) is None:
         archive_cfg = conf.get("archive")
-        cfg_format = (
-            archive_cfg.get("format") if isinstance(archive_cfg, dict) else None
-        )
+        cfg_format = archive_cfg.get("format") if isinstance(archive_cfg, dict) else None
         args.format = cfg_format if isinstance(cfg_format, str) else "cbz"
 
     # Runtime HTTP overrides from CLI flags: apply whatever the user explicitly
@@ -926,12 +904,14 @@ def _build_first_stage_parser() -> ComicArgumentParser:
 
     source = parser.add_mutually_exclusive_group()
     source.add_argument(
-        "--url", "-u",
+        "--url",
+        "-u",
         metavar="URL",
         help="Download a single gallery URL",
     )
     source.add_argument(
-        "--file", "-f",
+        "--file",
+        "-f",
         type=Path,
         metavar="FILE",
         help="Download URLs from a text file (errors cite file:line)",
@@ -945,14 +925,16 @@ def _build_first_stage_parser() -> ComicArgumentParser:
     )
 
     parser.add_argument(
-        "--output", "-o",
+        "--output",
+        "-o",
         type=Path,
         default=None,
         metavar="DIR",
         help="Output directory (default: ~/Downloads/comic-dl)",
     )
     parser.add_argument(
-        "--concurrency", "-c",
+        "--concurrency",
+        "-c",
         type=int,
         default=None,
         metavar="N",
@@ -1075,12 +1057,14 @@ def _build_first_stage_parser() -> ComicArgumentParser:
     )
     verbosity = parser.add_mutually_exclusive_group()
     verbosity.add_argument(
-        "--quiet", "-q",
+        "--quiet",
+        "-q",
         action="store_true",
         help="Suppress progress and status output",
     )
     verbosity.add_argument(
-        "-v", "--verbose",
+        "-v",
+        "--verbose",
         action="count",
         default=0,
         help="Increase diagnostic verbosity (-v, -vv, -vvv)",
@@ -1112,10 +1096,7 @@ def _build_first_stage_parser() -> ComicArgumentParser:
         type=Path,
         default=None,
         metavar="PATH",
-        help=(
-            "Path to a custom config.toml (overrides $COMIC_DL_CONFIG and "
-            "the default location)"
-        ),
+        help=("Path to a custom config.toml (overrides $COMIC_DL_CONFIG and the default location)"),
     )
     config_src.add_argument(
         "--no-config",
@@ -1158,15 +1139,11 @@ def parse_urls() -> tuple[list[str], argparse.Namespace]:
     positional_url = getattr(args, "positional_url", None)
     if positional_url is not None:
         if args.url is not None:
-            print_error(
-                "Provide a URL either as a positional argument or with "
-                "-u/--url, not both."
-            )
+            print_error("Provide a URL either as a positional argument or with -u/--url, not both.")
             sys.exit(EXIT_USAGE)
         if args.file is not None:
             print_error(
-                "Provide a URL either as a positional argument or with "
-                "-f/--file, not both."
+                "Provide a URL either as a positional argument or with -f/--file, not both."
             )
             sys.exit(EXIT_USAGE)
         # Route the positional through the same -u validation and download path.
@@ -1243,10 +1220,7 @@ def parse_urls() -> tuple[list[str], argparse.Namespace]:
             )
             sys.exit(EXIT_USAGE)
         if len(raw) > MAX_URL_LENGTH:
-            print_error(
-                f"URL exceeds the {MAX_URL_LENGTH}-character maximum "
-                f"({len(raw)} chars)."
-            )
+            print_error(f"URL exceeds the {MAX_URL_LENGTH}-character maximum ({len(raw)} chars).")
             sys.exit(EXIT_USAGE)
         urls = [raw]
     elif args.file:
@@ -1263,16 +1237,11 @@ def parse_urls() -> tuple[list[str], argparse.Namespace]:
             sys.exit(EXIT_USAGE)
         url_origins = {url: f"{args.file}:{n}" for url, n in indexed}
         if not args.quiet:
-            print_dim(
-                f"Loaded {len(urls)} URL"
-                f"{'s' if len(urls) != 1 else ''} from {args.file}"
-            )
+            print_dim(f"Loaded {len(urls)} URL{'s' if len(urls) != 1 else ''} from {args.file}")
     else:
         if not _is_interactive_output():
             print_error("No URL or URL list file provided.")
-            print_dim(
-                "Give a URL with -u/--url, or a URL list file with -f/--file."
-            )
+            print_dim("Give a URL with -u/--url, or a URL list file with -f/--file.")
             sys.exit(EXIT_USAGE)
         try:
             raw = Prompt.ask("[bold]Enter a gallery URL or URL list file[/]")
@@ -1297,8 +1266,7 @@ def parse_urls() -> tuple[list[str], argparse.Namespace]:
         elif raw.startswith(("http://", "https://")):
             if len(raw) > MAX_URL_LENGTH:
                 print_error(
-                    f"URL exceeds the {MAX_URL_LENGTH}-character maximum "
-                    f"({len(raw)} chars)."
+                    f"URL exceeds the {MAX_URL_LENGTH}-character maximum ({len(raw)} chars)."
                 )
                 sys.exit(EXIT_USAGE)
             urls = [raw]
@@ -1313,16 +1281,12 @@ def parse_urls() -> tuple[list[str], argparse.Namespace]:
                     sys.exit(EXIT_USAGE)
                 urls = [guessed]
             else:
-                print_error(
-                    f"'{raw}' is neither a readable URL list file "
-                    "nor an http(s) URL."
-                )
+                print_error(f"'{raw}' is neither a readable URL list file nor an http(s) URL.")
                 sys.exit(EXIT_USAGE)
 
     if len(urls) > MAX_URLS_PER_RUN:
         print_error(
-            f"Too many URLs for one run: {len(urls)} exceeds the "
-            f"{MAX_URLS_PER_RUN}-URL maximum."
+            f"Too many URLs for one run: {len(urls)} exceeds the {MAX_URLS_PER_RUN}-URL maximum."
         )
         sys.exit(EXIT_USAGE)
 
@@ -1334,6 +1298,7 @@ def parse_urls() -> tuple[list[str], argparse.Namespace]:
 
 
 _T = TypeVar("_T")
+
 
 async def _with_spinner(desc: str, quiet: bool, coro: Coroutine[None, None, _T]) -> _T:
     if quiet:
@@ -1474,10 +1439,14 @@ async def _run_list_sources(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--json", action="store_true", help="emit JSON for scripting")
     parser.add_argument(
-        "--plugin", action="store_true", help="only third-party (plugin) sources",
+        "--plugin",
+        action="store_true",
+        help="only third-party (plugin) sources",
     )
     parser.add_argument(
-        "query", nargs="?", default=None,
+        "query",
+        nargs="?",
+        default=None,
         help="filter by substring match on domain or name",
     )
     args = parser.parse_args(list(sys.argv[1:] if argv is None else argv))
@@ -1492,9 +1461,13 @@ async def _run_list_sources(argv: list[str] | None = None) -> int:
 
     if args.json:
         payload = [{"domain": r.domain, "origin": r.origin} for r in rows]
-        console.print(json.dumps(
-            {"schema_version": JSON_SCHEMA_VERSION, "sources": payload}, indent=2,
-        ), soft_wrap=True)
+        console.print(
+            json.dumps(
+                {"schema_version": JSON_SCHEMA_VERSION, "sources": payload},
+                indent=2,
+            ),
+            soft_wrap=True,
+        )
         return EXIT_OK
 
     if _is_interactive_output() and rows:
@@ -1655,13 +1628,11 @@ _CHAPTER_URL_GUARDS: dict[str, _ChapterUrlGuard] = {
     ),
     "kagane.to": _ChapterUrlGuard(
         is_kagane_chapter_url,
-        "https://kagane.to/series/{series}/reader/{book} "
-        "or https://kagane.to/series/{series}/",
+        "https://kagane.to/series/{series}/reader/{book} or https://kagane.to/series/{series}/",
     ),
     "weebcentral.com": _ChapterUrlGuard(
         is_weebcentral_chapter_url,
-        "https://weebcentral.com/chapters/{id} "
-        "or https://weebcentral.com/series/{id}/{slug}",
+        "https://weebcentral.com/chapters/{id} or https://weebcentral.com/series/{id}/{slug}",
     ),
 }
 
@@ -1745,8 +1716,7 @@ async def process_url(
     if guard is not None:
         if not guard.check(url):
             return _fail(
-                f"Unsupported URL for domain '{domain}'. "
-                f"Expected format: {guard.expected}"
+                f"Unsupported URL for domain '{domain}'. Expected format: {guard.expected}"
             )
         if guard.normalize is not None:
             url = guard.normalize(url)
@@ -1807,7 +1777,11 @@ async def process_url(
     trace(f"dispatch: {domain} → chapter scraper {type(scraper).__name__}")
 
     async with _chapter_activity(
-        activity, row_key, quiet=quiet, label=label, url=url,
+        activity,
+        row_key,
+        quiet=quiet,
+        label=label,
+        url=url,
     ) as main:
         async with AsyncSession(**_with_referer(url)) as client:
             stream_mode = bool(getattr(scraper, "streaming_images", False))
@@ -1848,9 +1822,7 @@ async def process_url(
                         last_error = e
                         await asyncio.sleep((1.0 + attempt) * 0.5)
                         continue
-                    return _fail(
-                        "Could not connect to the server. Check your internet connection."
-                    )
+                    return _fail("Could not connect to the server. Check your internet connection.")
                 except ScrapeTimeout as e:
                     if attempt < 2:
                         if not quiet:
@@ -1886,8 +1858,7 @@ async def process_url(
                 encoding="utf-8",
             )
             print_warning(
-                "This post is text-only (no images). "
-                f"Saved the post content as {md_name}."
+                f"This post is text-only (no images). Saved the post content as {md_name}."
             )
             if library is not None:
                 with contextlib.suppress(ValueError):
@@ -1911,9 +1882,7 @@ async def process_url(
             and meta.total_pages is not None
             and len(meta.images) != meta.total_pages
         ):
-            print_warning(
-                f"Expected {meta.total_pages} page(s), extracted {len(meta.images)}"
-            )
+            print_warning(f"Expected {meta.total_pages} page(s), extracted {len(meta.images)}")
 
         for w in meta.warnings:
             print_warning(w)
@@ -1938,7 +1907,13 @@ async def process_url(
         )
 
         cbz_path = _resolve_archive_path(
-            series_dir, meta.chapter_title, url, meta.post_id, force, quiet, fmt,
+            series_dir,
+            meta.chapter_title,
+            url,
+            meta.post_id,
+            force,
+            quiet,
+            fmt,
         )
         if cbz_path is None:
             return "skipped", ""
@@ -1991,9 +1966,7 @@ async def process_url(
             # The probe is display-only, so overlap it with the local disk
             # check + tmp-dir setup instead of stalling the download on it.
             probe_task = asyncio.create_task(
-                _probe_estimate_display(
-                    meta.images, url, quiet, known_size=meta.estimated_size
-                )
+                _probe_estimate_display(meta.images, url, quiet, known_size=meta.estimated_size)
             )
         else:
             probe_task = None
@@ -2011,6 +1984,7 @@ async def process_url(
         pipeline_start = time.monotonic()
         if stream_mode:
             async with AsyncSession(**_with_referer(url)) as stream_client:
+
                 async def _run_stream_once() -> Any:
                     return await DownloadPipeline(
                         images=[],
@@ -2063,8 +2037,7 @@ async def process_url(
         )
         vlog(
             DIAGNOSTIC,
-            f"{meta.chapter_title}: downloaded "
-            f"{total - len(result.failed_images)}/{total} images",
+            f"{meta.chapter_title}: downloaded {total - len(result.failed_images)}/{total} images",
             tag=TAG_DOWNLOAD,
         )
 
@@ -2085,7 +2058,7 @@ async def process_url(
                 )
                 if stats is not None:
                     stats.output_path = str(cbz_path)
-                    stats.chapters_downloaded = 1
+                    stats.chapters_partial = 1
                     stats.bytes = result.cbz_size
                     stats.missing_pages = len(result.failed_images)
                     stats.total_pages = total
@@ -2151,7 +2124,7 @@ async def _process_series(
         else:
             act = Activity(quiet=quiet)
             main_key, chapters_key = "main", "chapters"
-        async with (act if activity is None else contextlib.nullcontext()):
+        async with act if activity is None else contextlib.nullcontext():
             main = act.row(main_key)
 
             session_kwargs = {**_with_referer(url)}
@@ -2247,7 +2220,10 @@ async def _process_series(
                 else:
                     main.stage("Checking downloaded chapters...")
                     have_urls = await asyncio.to_thread(
-                        library.build_have_set, series_id, series_dir, chapters,
+                        library.build_have_set,
+                        series_id,
+                        series_dir,
+                        chapters,
                     )
                     for idx, ch in enumerate(chapters, start=1):
                         if normalize_url_key(ch.get("url") or "") in have_urls:
@@ -2262,7 +2238,10 @@ async def _process_series(
                 verbose = VERBOSITY >= VERBOSE
                 if not quiet and activity is None and not (single_new and not verbose):
                     print_chapter_preview(
-                        chapters, total_chapters, series_title, have_urls=have_urls,
+                        chapters,
+                        total_chapters,
+                        series_title,
+                        have_urls=have_urls,
                     )
                 elif single_new and not quiet and activity is None:
                     ch = new_items[0][1]
@@ -2276,16 +2255,16 @@ async def _process_series(
                     act.pause()
                     try:
                         selected = _prompt_chapter_selection(
-                            chapters, series_title, have_urls,
+                            chapters,
+                            series_title,
+                            have_urls,
                         )
                     finally:
                         act.resume()
                     selection = (
                         ChapterSelection(kind="quit")
                         if selected is None
-                        else ChapterSelection(
-                            kind="indices", indices=frozenset(selected)
-                        )
+                        else ChapterSelection(kind="indices", indices=frozenset(selected))
                     )
                 else:
                     selection = ChapterSelection(kind="all")
@@ -2307,16 +2286,13 @@ async def _process_series(
                                 f"{series_title}."
                             )
                         new_items = [
-                            it for it in new_items
-                            if any(
-                                chapter_matches_number(it[1], n) for n in wanted
-                            )
+                            it
+                            for it in new_items
+                            if any(chapter_matches_number(it[1], n) for n in wanted)
                         ]
                     else:
                         selected_numbers = selection.indices or frozenset()
-                        new_items = [
-                            it for it in new_items if it[0] in selected_numbers
-                        ]
+                        new_items = [it for it in new_items if it[0] in selected_numbers]
                     if not quiet and activity is None:
                         sel = len(new_items)
                         word = "chapter" if sel == 1 else "chapters"
@@ -2353,9 +2329,9 @@ async def _process_series(
                 if library.available:
                     relative_path = ""
                     with contextlib.suppress(ValueError):
-                        relative_path = series_dir.resolve().relative_to(
-                            output_dir.resolve()
-                        ).as_posix()
+                        relative_path = (
+                            series_dir.resolve().relative_to(output_dir.resolve()).as_posix()
+                        )
                     library.upsert_series(
                         series_id,
                         title=series_title,
@@ -2421,13 +2397,11 @@ async def _process_series(
                         meta = None
                         scrape_error: str | None = None
                         for attempt in range(3):
-                            sink.stage(
-                                f"Fetching chapter {ch['episode_no']} metadata..."
-                            )
+                            sink.stage(f"Fetching chapter {ch['episode_no']} metadata...")
                             if attempt:
                                 sink.set_activity(
-                                f"waiting for server{glyphs().ellipsis} retry {attempt + 1}/3"
-                            )
+                                    f"waiting for server{glyphs().ellipsis} retry {attempt + 1}/3"
+                                )
                             try:
                                 meta = await scraper.scrape(ch_url, client)
                                 break
@@ -2465,9 +2439,7 @@ async def _process_series(
                                 print_error_detail(f"[{idx}/{total_chapters}] {ch_label}", str(e))
                                 break
                             except RequestBlockedError as e:
-                                print_error_detail(
-                                    f"[{idx}/{total_chapters}] {ch_label}", str(e)
-                                )
+                                print_error_detail(f"[{idx}/{total_chapters}] {ch_label}", str(e))
                                 break
 
                         if meta is None:
@@ -2488,7 +2460,12 @@ async def _process_series(
                             return "failed", 1, (ch_label, "no images found")
 
                         cbz_path = _resolve_archive_path(
-                            series_dir, ch_label, ch_url, meta.post_id, force, quiet,
+                            series_dir,
+                            ch_label,
+                            ch_url,
+                            meta.post_id,
+                            force,
+                            quiet,
                             fmt,
                         )
                         if cbz_path is None:
@@ -2501,16 +2478,13 @@ async def _process_series(
                             restored = _restore_pages_from_archive(cbz_path, tmp_dir)
                             if restored > 0 and not quiet:
                                 print_dim(
-                                    f"Resuming: {restored} of {total_pages} "
-                                    "pages already on disk."
+                                    f"Resuming: {restored} of {total_pages} pages already on disk."
                                 )
 
                         estimate = _estimate_download_bytes(meta.estimated_size)
                         ok = _check_disk_space(series_dir, estimate)
                         if not ok:
-                            act.finish_row(
-                                row_key, ok=False, message="insufficient disk space"
-                            )
+                            act.finish_row(row_key, ok=False, message="insufficient disk space")
                             return "failed", 1, (ch_label, "insufficient disk space")
 
                         pipeline_start = time.monotonic()
@@ -2535,8 +2509,7 @@ async def _process_series(
                         ).run(series_prefix=f"[{idx}/{total_chapters}] ")
                         vlog(
                             DIAGNOSTIC,
-                            f"Chapter {ch['episode_no']}: "
-                            f"{time.monotonic() - pipeline_start:.1f}s",
+                            f"Chapter {ch['episode_no']}: {time.monotonic() - pipeline_start:.1f}s",
                             tag=TAG_TIMING,
                         )
                         vlog(
@@ -2565,10 +2538,8 @@ async def _process_series(
                                     size_bytes=result.cbz_size,
                                     page_count=result.cbz_pages,
                                 )
-                                message = (
-                                    f"{len(result.failed_images)}/{total_pages} "
-                                    "pages missing"
-                                )
+                                message = f"{len(result.failed_images)}/{total_pages} pages missing"
+                                act.finish_row(row_key, ok=False, message=message)
                                 return "partial", result.cbz_size, (ch_label, message)
                             last_meta_by_idx[idx] = meta
                             _state_manifest_path(cbz_path).unlink(missing_ok=True)
@@ -2593,9 +2564,7 @@ async def _process_series(
                 async def _run_chapter(idx: int, ch: dict) -> None:
                     results_by_idx[idx] = await _process_one_chapter(idx, ch)
 
-                await asyncio.gather(
-                    *(_run_chapter(idx, ch) for idx, ch in new_items)
-                )
+                await asyncio.gather(*(_run_chapter(idx, ch) for idx, ch in new_items))
 
                 for idx, _ch in new_items:
                     status, count, payload = results_by_idx[idx]
@@ -2833,9 +2802,7 @@ def _open_library(output_dir: Path) -> Library | None:
         return None
 
 
-def _redownload_estimate(
-    urls: list[str], index: dict[str, Path]
-) -> tuple[int, int]:
+def _redownload_estimate(urls: list[str], index: dict[str, Path]) -> tuple[int, int]:
     """Count existing local chapters a ``--force`` run would re-fetch.
 
     Walks each already-downloaded series directory reachable from ``index``
@@ -2882,9 +2849,7 @@ _SERIES_URL_CHECKERS = {
 }
 
 
-def _series_url_checker(
-    domain: str, series_scraper: object | None
-) -> Callable[[str], bool] | None:
+def _series_url_checker(domain: str, series_scraper: object | None) -> Callable[[str], bool] | None:
     """Series-URL predicate for ``domain``, static map then scraper's own.
 
     The static map covers the handful of built-ins whose series grammar
@@ -2899,9 +2864,7 @@ def _series_url_checker(
     return checker
 
 
-def _classify_preview_entry(
-    entry: dict, url: str, index: dict[str, Path], force: bool
-) -> dict:
+def _classify_preview_entry(entry: dict, url: str, index: dict[str, Path], force: bool) -> dict:
     """Tag a preview entry with its download action, mirroring live logic.
 
     Chapter URLs classify against the local ``index`` (skip / redownload /
@@ -2923,9 +2886,7 @@ def _classify_preview_entry(
     return entry
 
 
-async def _preview_url(
-    url: str, index: dict[str, Path], force: bool
-) -> dict:
+async def _preview_url(url: str, index: dict[str, Path], force: bool) -> dict:
     """Resolve ``url`` into a dry-run preview entry without writing anything.
 
     Fetches only the metadata a real run would (chapter or series title and
@@ -2955,9 +2916,7 @@ async def _preview_url(
             entry["kind"] = "series"
             entry["title"] = (info.series_title or "").strip()
             chapters = getattr(info, "chapters", None) or []
-            entry["detail"] = f"{len(chapters)} chapter" + (
-                "s" if len(chapters) != 1 else ""
-            )
+            entry["detail"] = f"{len(chapters)} chapter" + ("s" if len(chapters) != 1 else "")
             entry["pages"] = len(chapters)
             return _classify_preview_entry(entry, url, index, force)
         scraper = get_chapter_scraper(domain)
@@ -2987,16 +2946,13 @@ async def _preview_url(
         if scraper is None:
             entry["action"] = "error"
             entry["detail"] = (
-                f"Unsupported URL for domain {domain!r}." if domain
-                else "Unsupported URL."
+                f"Unsupported URL for domain {domain!r}." if domain else "Unsupported URL."
             )
             return entry
         async with AsyncSession(**_with_referer(url)) as client:
             meta = await scraper.scrape(url, client)
         entry["kind"] = "chapter"
-        entry["title"] = (
-            (meta.chapter_title or meta.series_title or "").strip()
-        )
+        entry["title"] = (meta.chapter_title or meta.series_title or "").strip()
         pages = meta.total_pages or len(getattr(meta, "images", None) or [])
         entry["detail"] = f"{pages} page" + ("s" if pages != 1 else "")
         entry["pages"] = pages
@@ -3034,9 +2990,7 @@ async def _preview_url(
     return _classify_preview_entry(entry, url, index, force)
 
 
-def _dry_run_dest(
-    entry: dict, args: argparse.Namespace, index: dict[str, Path]
-) -> Path | None:
+def _dry_run_dest(entry: dict, args: argparse.Namespace, index: dict[str, Path]) -> Path | None:
     """Best-effort destination a live run would write for ``entry``.
 
     Reuses the live archive-path resolver so the preview shows the sanitized
@@ -3086,9 +3040,13 @@ def _report_dry_run(
     the payload.
     """
     if args.json:
-        console.print(json.dumps(
-            {"schema_version": JSON_SCHEMA_VERSION, "urls": entries}, indent=2,
-        ), soft_wrap=True)
+        console.print(
+            json.dumps(
+                {"schema_version": JSON_SCHEMA_VERSION, "urls": entries},
+                indent=2,
+            ),
+            soft_wrap=True,
+        )
         return EXIT_OK
 
     out = _active_console()
@@ -3096,8 +3054,10 @@ def _report_dry_run(
     compress = getattr(args, "compress", "stored") or "stored"
     compression_suffix = "" if compress == "stored" else f" [{compress}]"
 
-    print_dim(f"Concurrency: {args.parallel} URLs in parallel "
-              f"{glyphs().bullet} {args.concurrency} page workers")
+    print_dim(
+        f"Concurrency: {args.parallel} URLs in parallel "
+        f"{glyphs().bullet} {args.concurrency} page workers"
+    )
 
     counts = {"download": 0, "skip": 0, "redownload": 0, "error": 0}
     for entry in entries:
@@ -3111,9 +3071,7 @@ def _report_dry_run(
         if entry.get("error"):
             out.print(f"{head}  ({esc(entry['error'])})")
         elif entry["action"] == "skip":
-            out.print(
-                f"{head}  (already downloaded as {esc(entry['existing'])})"
-            )
+            out.print(f"{head}  (already downloaded as {esc(entry['existing'])})")
         elif entry["kind"]:
             dest = _dry_run_dest(entry, args, index)
             dest_suffix = ""
@@ -3147,8 +3105,7 @@ def _report_dry_run(
     )
 
     est_bytes = sum(
-        e.get("size") or 0 for e in entries
-        if e.get("action") in ("download", "redownload")
+        e.get("size") or 0 for e in entries if e.get("action") in ("download", "redownload")
     )
     if est_bytes > 0:
         out.print(f"Estimated total: ~{format_bytes(est_bytes)}")
@@ -3164,9 +3121,7 @@ def _report_dry_run(
     return EXIT_OK
 
 
-async def _run_dry_run(
-    urls: list[str], args: argparse.Namespace, index: dict[str, Path]
-) -> int:
+async def _run_dry_run(urls: list[str], args: argparse.Namespace, index: dict[str, Path]) -> int:
     """Preview a run without writing anything.
 
     Resolves each URL asynchronously — chapter vs series, the displayed
@@ -3187,12 +3142,7 @@ async def _run_dry_run(
         async with sem:
             return await _preview_url(u, index, args.force)
 
-    overlay = (
-        bool(urls)
-        and not args.json
-        and not args.quiet
-        and console.is_terminal
-    )
+    overlay = bool(urls) and not args.json and not args.quiet and console.is_terminal
     if overlay:
         async with Activity() as act:
             main = act.row("main")
@@ -3206,7 +3156,8 @@ async def _run_dry_run(
             pending: set[asyncio.Task[dict]] = set(tasks.values())
             while pending:
                 done, pending = await asyncio.wait(
-                    pending, return_when=asyncio.FIRST_COMPLETED,
+                    pending,
+                    return_when=asyncio.FIRST_COMPLETED,
                 )
                 for fut_task in done:
                     url = task_to_url[fut_task]
@@ -3266,6 +3217,7 @@ async def _run_urls(urls: list[str], args: argparse.Namespace) -> int:
     succeeded = 0
     skipped = 0
     failed_batch: list[str] = []
+    partial_batch: list[str] = []
 
     interactive = (
         not args.json
@@ -3316,8 +3268,7 @@ async def _run_urls(urls: list[str], args: argparse.Namespace) -> int:
             )
             try:
                 answer = Prompt.ask(
-                    f"Redownload {chapters} existing chapters across "
-                    f"{total} URLs?",
+                    f"Redownload {chapters} existing chapters across {total} URLs?",
                     choices=["y", "n"],
                     default="n",
                     console=err_console,
@@ -3344,9 +3295,7 @@ async def _run_urls(urls: list[str], args: argparse.Namespace) -> int:
         # One shared Live for the whole batch: each URL gets its own labeled
         # row, so URLs run in parallel without the UI gate serializing them.
         batch_act = (
-            Activity(quiet=False)
-            if not args.quiet and not args.json and total > 1
-            else None
+            Activity(quiet=False) if not args.quiet and not args.json and total > 1 else None
         )
 
         def _label_for(url: str) -> str:
@@ -3361,12 +3310,11 @@ async def _run_urls(urls: list[str], args: argparse.Namespace) -> int:
             for i, u in enumerate(urls):
                 label = _label_for(u)
                 tag = f"[{i + 1}/{total}] " if batch_parallel > 1 else ""
-                batch_act.add_queued_row(
-                    label or f"url-{i}", label=f"{tag}{label or u}"
-                )
+                batch_act.add_queued_row(label or f"url-{i}", label=f"{tag}{label or u}")
 
         async def _process_one(url: str, idx: int) -> None:
             nonlocal succeeded, skipped, failed_batch, failed_details, batch_quit
+            nonlocal partial_batch
             async with sem:
                 if stop_requested():
                     return
@@ -3380,8 +3328,7 @@ async def _run_urls(urls: list[str], args: argparse.Namespace) -> int:
                         batch_act.finish_row(row_key, ok=True, message="already downloaded")
                     if not args.quiet:
                         print_skipped(
-                            f"Already exists: {existing.name} — skipping."
-                            f"{_url_origin(args, url)}"
+                            f"Already exists: {existing.name} — skipping.{_url_origin(args, url)}"
                         )
                     ordered_results[idx] = _url_result(
                         url,
@@ -3431,7 +3378,7 @@ async def _run_urls(urls: list[str], args: argparse.Namespace) -> int:
                         stats.status = "skipped"
                         print_skipped(f"Skipped: {url}{_url_origin(args, url)}")
                     elif status == "partial":
-                        failed_batch.append(url)
+                        partial_batch.append(url)
                         stats.status = "partial"
                         if not args.quiet:
                             print_partial_block(
@@ -3470,13 +3417,9 @@ async def _run_urls(urls: list[str], args: argparse.Namespace) -> int:
                     message, code = _classify(exc)
                     if VERBOSITY >= TRACE:
                         print_traceback(exc)
-                    failed_details.append(
-                        (f"Failed: {url}{_url_origin(args, url)}", message)
-                    )
+                    failed_details.append((f"Failed: {url}{_url_origin(args, url)}", message))
                     if batch_act is not None:
-                        batch_act.finish_row(
-                            row_key, ok=False, message=message
-                        )
+                        batch_act.finish_row(row_key, ok=False, message=message)
                     # A status branch (partial/failed) may already have
                     # recorded the URL before this exception escaped; do not
                     # paste the same URL into the tally twice.
@@ -3499,9 +3442,7 @@ async def _run_urls(urls: list[str], args: argparse.Namespace) -> int:
             # Print a single batch header before the shared Live opens, so the
             # per-URL rows stay cleanly attributed below it.
             console.print()
-            print_header(
-                f"Processing {total} URLs ({batch_parallel} in parallel)"
-            )
+            print_header(f"Processing {total} URLs ({batch_parallel} in parallel)")
             console.print()
             async with batch_act:
                 await asyncio.gather(*(_process_one(u, i) for i, u in enumerate(urls)))
@@ -3535,9 +3476,7 @@ async def _run_urls(urls: list[str], args: argparse.Namespace) -> int:
                 name = Path(out).name if out else "archive"
                 where = f" {glyphs().dash} {args.output}" if args.output else ""
                 suffix = (
-                    f" ({format_bytes_fixed(done.get('bytes', 0))})"
-                    if done.get("bytes")
-                    else ""
+                    f" ({format_bytes_fixed(done.get('bytes', 0))})" if done.get("bytes") else ""
                 )
                 print_success(f"Downloaded: {name}{suffix}{where}")
         json_results = [ordered_results[i] for i in range(len(urls)) if i in ordered_results]
@@ -3555,14 +3494,13 @@ async def _run_urls(urls: list[str], args: argparse.Namespace) -> int:
                 "succeeded": succeeded,
                 "skipped": skipped,
                 "failed": len(failed_batch),
+                "partial": len(partial_batch),
             }
         console.print(json.dumps(payload, indent=2), soft_wrap=True)
-        return EXIT_ERROR if failed_batch else EXIT_OK
+        return EXIT_ERROR if (failed_batch or partial_batch) else EXIT_OK
 
     if total > 1:
-        chapters = sum(
-            r.get("chapters_downloaded") or 0 for r in ordered_results.values()
-        )
+        chapters = sum(r.get("chapters_downloaded") or 0 for r in ordered_results.values())
         batch_bytes = sum(r.get("bytes") or 0 for r in ordered_results.values())
         elapsed_secs = time.monotonic() - batch_started
         # Batch runs carry a grand-total footer; the heavy Rule divider is for
@@ -3570,15 +3508,21 @@ async def _run_urls(urls: list[str], args: argparse.Namespace) -> int:
         if not getattr(args, "urls_from_file", False):
             console.print(Rule(style="dim"))
         print_batch_summary(
-            succeeded, skipped, len(failed_batch), failed_batch,
+            succeeded,
+            skipped,
+            len(failed_batch),
+            failed_batch,
             chapters=chapters,
             total_bytes=batch_bytes,
             elapsed_secs=elapsed_secs,
             failure_details=failed_details,
+            incomplete=len(partial_batch),
         )
         console.print()
 
-    if failed_batch:
+    if failed_batch or partial_batch:
+        if getattr(args, "urls_from_file", False) and not args.json:
+            print_dim(f"Rerun to retry: comic-dl -f {args.file}")
         return EXIT_ERROR
     _maybe_first_run_hint(args, succeeded + skipped)
     return EXIT_OK
@@ -3594,16 +3538,16 @@ async def _run_self(argv: list[str]) -> int:
     if first in ("-h", "--help", "-?"):
         pass  # fall through; parse_args prints help and exits 0
     elif first.startswith("-"):
-        canonical = {"--version": "comic-dl self version",
-                     "--update": "comic-dl self update"}.get(first)
+        canonical = {"--version": "comic-dl self version", "--update": "comic-dl self update"}.get(
+            first
+        )
         print_error(f"unexpected option '{first}'.")
         if canonical:
             print_dim(f"Hint: use '{canonical}'.")
         else:
             hint = suggest(
                 first,
-                ["--help", "-h", "--check", "-y", "--yes", "--channel",
-                 "--version", "--update"],
+                ["--help", "-h", "--check", "-y", "--yes", "--channel", "--version", "--update"],
             )
             if hint is not None and hint != first:
                 print_dim(f"Did you mean: {hint}?")
@@ -3626,23 +3570,31 @@ async def _run_self(argv: list[str]) -> int:
         description="Check the installation source and update comic-dl through its owner.",
     )
     sub = parser.add_subparsers(
-        dest="action", required=True, parser_class=ComicArgumentParser,
+        dest="action",
+        required=True,
+        parser_class=ComicArgumentParser,
     )
     sub.add_parser("version", help="print the installed version")
     sub.add_parser("site", help="inspect and update per-site adapter support")
     update = sub.add_parser(
-        "update", help="check for updates and install them through the package manager",
+        "update",
+        help="check for updates and install them through the package manager",
     )
     update.add_argument(
-        "--check", action="store_true",
+        "--check",
+        action="store_true",
         help="check only; install or change nothing",
     )
     update.add_argument(
-        "-y", "--yes", action="store_true",
+        "-y",
+        "--yes",
+        action="store_true",
         help="skip the confirmation prompt",
     )
     update.add_argument(
-        "--channel", default="beta", choices=("beta",),
+        "--channel",
+        default="beta",
+        choices=("beta",),
         help="release channel (only 'beta' is available today)",
     )
     try:
@@ -3670,18 +3622,22 @@ async def _run_self_site(argv: list[str]) -> int:
         description="Inspect and update per-site adapter support.",
     )
     sub = parser.add_subparsers(
-        dest="action", required=True, parser_class=ComicArgumentParser,
+        dest="action",
+        required=True,
+        parser_class=ComicArgumentParser,
     )
     lst = sub.add_parser("list", help="list installed site adapters and their versions")
     lst.add_argument("--json", action="store_true", help="emit machine-readable JSON")
     chk = sub.add_parser(
-        "check", help="compare installed adapters against the latest release manifest",
+        "check",
+        help="compare installed adapters against the latest release manifest",
     )
     chk.add_argument("site", nargs="?", help="site id (all sites when omitted)")
     chk.add_argument("--live", action="store_true", help="run a live check for one site")
     chk.add_argument("--json", action="store_true", help="emit machine-readable JSON")
     upd = sub.add_parser(
-        "update", help="update site support (bundled adapters update with the core)",
+        "update",
+        help="update site support (bundled adapters update with the core)",
     )
     upd.add_argument("site", nargs="?", help="site id (with --all when omitted)")
     upd.add_argument("--all", action="store_true", help="update every outdated site")
@@ -3694,12 +3650,8 @@ async def _run_self_site(argv: list[str]) -> int:
     if args.action == "list":
         return await run_site_list_command(json_mode=args.json)
     if args.action == "check":
-        return await run_site_check_command(
-            target=args.site, live=args.live, json_mode=args.json
-        )
-    return await run_site_update_command(
-        target=args.site, all_sites=args.all, yes=args.yes
-    )
+        return await run_site_check_command(target=args.site, live=args.live, json_mode=args.json)
+    return await run_site_update_command(target=args.site, all_sites=args.all, yes=args.yes)
 
 
 async def _run_update(argv: list[str]) -> int:
@@ -3715,14 +3667,21 @@ async def _run_update(argv: list[str]) -> int:
     ``last_checked`` / ``last_updated`` are refreshed for free.
     """
     parser = ComicArgumentParser(
-        prog="comic-dl update", description="Download new chapters for tracked series.",
+        prog="comic-dl update",
+        description="Download new chapters for tracked series.",
     )
     parser.add_argument(
-        "-o", "--output", type=Path, default=None,
+        "-o",
+        "--output",
+        type=Path,
+        default=None,
         help="Library root directory (default: per-user downloads folder)",
     )
     parser.add_argument(
-        "-c", "--concurrency", type=int, default=5,
+        "-c",
+        "--concurrency",
+        type=int,
+        default=5,
         help="Max parallel chapter downloads (default: 5)",
     )
     parser.add_argument(
@@ -3732,13 +3691,17 @@ async def _run_update(argv: list[str]) -> int:
         help="Max chapters of a series downloading at once (1-8; default 1)",
     )
     parser.add_argument(
-        "-p", "--parallel",
+        "-p",
+        "--parallel",
         type=int,
         default=1,
         help="Max series updating at once (1-16; default 1)",
     )
     parser.add_argument(
-        "-q", "--quiet", action="store_true", help="Suppress progress output",
+        "-q",
+        "--quiet",
+        action="store_true",
+        help="Suppress progress output",
     )
     parser.add_argument(
         "--compress",
@@ -3756,13 +3719,12 @@ async def _run_update(argv: list[str]) -> int:
         choices=("cbz", "zip", "cbt"),
         default=None,
         metavar="FORMAT",
-        help=(
-            "Archive format: cbz (default) | zip | cbt. Overrides "
-            "[archive] format"
-        ),
+        help=("Archive format: cbz (default) | zip | cbt. Overrides [archive] format"),
     )
     parser.add_argument(
-        "--json", action="store_true", help="Emit machine-readable JSON on stdout",
+        "--json",
+        action="store_true",
+        help="Emit machine-readable JSON on stdout",
     )
     parser.add_argument(
         "target",
@@ -3816,10 +3778,7 @@ async def _run_update(argv: list[str]) -> int:
 
         if args.target.strip().lower() == "all":
             rows = library.list_series()
-            series = [
-                (s["series_id"], s["title"], s.get("source") or "")
-                for s in rows
-            ]
+            series = [(s["series_id"], s["title"], s.get("source") or "") for s in rows]
             if not series:
                 print_dim("Library is empty — nothing to update.")
                 return EXIT_OK
@@ -3853,7 +3812,10 @@ async def _run_update(argv: list[str]) -> int:
             return f"series-{idx}"
 
         async def _update_one(
-            series_id: str, title: str, source: str, idx: int,
+            series_id: str,
+            title: str,
+            source: str,
+            idx: int,
         ) -> None:
             nonlocal checked, changed, skipped, failed
             async with sem:
@@ -3864,7 +3826,9 @@ async def _run_update(argv: list[str]) -> int:
                     print_warning(f"No source URL recorded for '{title}'; skipping.")
                     skipped += 1
                     results[idx] = {
-                        "series_id": series_id, "title": title, "status": "skipped",
+                        "series_id": series_id,
+                        "title": title,
+                        "status": "skipped",
                     }
                     if batch_act is not None:
                         batch_act.finish_row(row_key, ok=False, message="no source URL")
@@ -3885,12 +3849,12 @@ async def _run_update(argv: list[str]) -> int:
                         if kind == "series":
                             scraper = generic
                 if scraper is None:
-                    print_warning(
-                        f"No series page endpoint for '{title}' ({domain}); skipping."
-                    )
+                    print_warning(f"No series page endpoint for '{title}' ({domain}); skipping.")
                     skipped += 1
                     results[idx] = {
-                        "series_id": series_id, "title": title, "status": "skipped",
+                        "series_id": series_id,
+                        "title": title,
+                        "status": "skipped",
                     }
                     if batch_act is not None:
                         batch_act.finish_row(row_key, ok=False, message="no series endpoint")
@@ -3918,7 +3882,9 @@ async def _run_update(argv: list[str]) -> int:
                 except Exception as exc:
                     failed.append(title)
                     results[idx] = {
-                        "series_id": series_id, "title": title, "status": "failed",
+                        "series_id": series_id,
+                        "title": title,
+                        "status": "failed",
                     }
                     if batch_act is not None:
                         batch_act.finish_row(row_key, ok=False, message="failed")
@@ -3979,23 +3945,27 @@ async def _run_update(argv: list[str]) -> int:
             return EXIT_INTERRUPTED
 
         if args.json:
-            console.print(json.dumps({
-                "schema_version": JSON_SCHEMA_VERSION,
-                "checked": checked,
-                "changed": changed,
-                "skipped": skipped,
-                "failed": failed,
-                "series": results,
-            }, indent=2), soft_wrap=True)
+            console.print(
+                json.dumps(
+                    {
+                        "schema_version": JSON_SCHEMA_VERSION,
+                        "checked": checked,
+                        "changed": changed,
+                        "skipped": skipped,
+                        "failed": failed,
+                        "series": results,
+                    },
+                    indent=2,
+                ),
+                soft_wrap=True,
+            )
             return EXIT_ERROR if failed else EXIT_OK
 
         console.print(Rule(style="dim"))
         if args.quiet:
             return EXIT_ERROR if failed else EXIT_OK
         if checked:
-            print_success(
-                f"Checked {checked} series, {changed} had new chapters."
-            )
+            print_success(f"Checked {checked} series, {changed} had new chapters.")
         if skipped:
             print_dim(f"Skipped {skipped} series (no source or no series endpoint).")
         if failed:
@@ -4038,17 +4008,23 @@ def _run_cookie(argv: list[str]) -> int:
         description="Inspect or clear the persistent cookie jar.",
     )
     sub = parser.add_subparsers(
-        dest="action", required=True, parser_class=ComicArgumentParser,
+        dest="action",
+        required=True,
+        parser_class=ComicArgumentParser,
     )
     ls = sub.add_parser(
-        "ls", help="list stored cookies (optionally for one host)",
+        "ls",
+        help="list stored cookies (optionally for one host)",
     )
     ls.add_argument("host", nargs="?", default=None)
     ls.add_argument(
-        "--json", action="store_true", help="emit machine-readable JSON on stdout",
+        "--json",
+        action="store_true",
+        help="emit machine-readable JSON on stdout",
     )
     st = sub.add_parser(
-        "set", help="store a cookie for a host",
+        "set",
+        help="store a cookie for a host",
     )
     st.add_argument("host", help="host (e.g. kagane.to)")
     st.add_argument("name", help="cookie name (e.g. cf_clearance)")
@@ -4060,7 +4036,8 @@ def _run_cookie(argv: list[str]) -> int:
         help="expiry as a Unix epoch timestamp (default: session/never)",
     )
     cl = sub.add_parser(
-        "clear", help="clear cookies (optionally for one host)",
+        "clear",
+        help="clear cookies (optionally for one host)",
     )
     cl.add_argument("host", nargs="?", default=None)
     cl.add_argument("-y", "--yes", action="store_true", help="skip the confirmation prompt")
@@ -4076,10 +4053,13 @@ def _run_cookie(argv: list[str]) -> int:
     if args.action == "ls":
         rows = jar.list(args.host)
         if args.json:
-            console.print(json.dumps(
-                {"schema_version": JSON_SCHEMA_VERSION, "cookies": rows},
-                indent=2,
-            ), soft_wrap=True)
+            console.print(
+                json.dumps(
+                    {"schema_version": JSON_SCHEMA_VERSION, "cookies": rows},
+                    indent=2,
+                ),
+                soft_wrap=True,
+            )
             return EXIT_OK
         if not rows:
             if args.host:
@@ -4092,8 +4072,10 @@ def _run_cookie(argv: list[str]) -> int:
         else:
             print_success(f"{len(rows)} cookie(s) stored:")
         for r in rows:
-            expiry = "session" if r["expires"] is None else (
-                datetime.fromtimestamp(r["expires"], UTC).strftime("%Y-%m-%d %H:%M UTC")
+            expiry = (
+                "session"
+                if r["expires"] is None
+                else (datetime.fromtimestamp(r["expires"], UTC).strftime("%Y-%m-%d %H:%M UTC"))
             )
             print_dim(f"  {r['host']}  {r['name']}  (path={r['path']}, expires={expiry})")
         return EXIT_OK
@@ -4105,16 +4087,10 @@ def _run_cookie(argv: list[str]) -> int:
             return EXIT_USAGE
         jar.set(args.host, args.name, args.value, expires=args.expires)
         if args.expires is None:
-            print_success(
-                f"Stored cookie '{args.name}' for '{args.host}' (session/never)."
-            )
+            print_success(f"Stored cookie '{args.name}' for '{args.host}' (session/never).")
         else:
-            when = datetime.fromtimestamp(args.expires, UTC).strftime(
-                "%Y-%m-%d %H:%M UTC"
-            )
-            print_success(
-                f"Stored cookie '{args.name}' for '{args.host}' (expires {when})."
-            )
+            when = datetime.fromtimestamp(args.expires, UTC).strftime("%Y-%m-%d %H:%M UTC")
+            print_success(f"Stored cookie '{args.name}' for '{args.host}' (expires {when}).")
         print_warning("Note: the value stays in your shell history.")
         return EXIT_OK
 
@@ -4145,14 +4121,18 @@ def _run_cache(argv: list[str]) -> int:
         description="Inspect or clear the on-disk scrape response cache.",
     )
     sub = parser.add_subparsers(
-        dest="action", required=True, parser_class=ComicArgumentParser,
+        dest="action",
+        required=True,
+        parser_class=ComicArgumentParser,
     )
     cl = sub.add_parser(
-        "clear", help="delete every cached scrape response",
+        "clear",
+        help="delete every cached scrape response",
     )
     cl.add_argument("-y", "--yes", action="store_true", help="skip the confirmation prompt")
     sub.add_parser(
-        "status", help="show the cache location, TTL, and entry count",
+        "status",
+        help="show the cache location, TTL, and entry count",
     )
 
     try:
@@ -4231,22 +4211,28 @@ def _run_config(argv: list[str]) -> int:
         description="Locate, inspect, or manage the config.toml file.",
     )
     sub = parser.add_subparsers(
-        dest="action", parser_class=ComicArgumentParser,
+        dest="action",
+        parser_class=ComicArgumentParser,
     )
     sub.add_parser("path", help="print the effective config file path")
     sub.add_parser(
-        "show", help="print the resolved effective configuration (defaults + file)",
+        "show",
+        help="print the resolved effective configuration (defaults + file)",
     )
     sub.add_parser("list", help="print effective values as TOML to stdout")
     sub.add_parser("validate", help="parse the config and report problems")
     init = sub.add_parser(
-        "init", help="write a documented default config file (refuses to overwrite)",
+        "init",
+        help="write a documented default config file (refuses to overwrite)",
     )
     init.add_argument(
-        "--force", action="store_true", help="overwrite an existing config file",
+        "--force",
+        action="store_true",
+        help="overwrite an existing config file",
     )
     sub.add_parser(
-        "edit", help="open the config file in $VISUAL/$EDITOR (creates if missing)",
+        "edit",
+        help="open the config file in $VISUAL/$EDITOR (creates if missing)",
     )
     try:
         args = parser.parse_args(argv)
@@ -4330,8 +4316,7 @@ def _toml_dump(data: dict[str, Any]) -> str:
             for k, v in value.items():
                 if isinstance(v, dict):
                     inner = ", ".join(
-                        f"{_toml_key(str(kk))} = {_toml_scalar(vv)}"
-                        for kk, vv in v.items()
+                        f"{_toml_key(str(kk))} = {_toml_scalar(vv)}" for kk, vv in v.items()
                     )
                     lines.append(f"{_toml_key(k)} = {{ {inner} }}")
                 else:
@@ -4364,34 +4349,30 @@ def _validate_config(path: Path) -> int:
         if key in data:
             v = data[key]
             if isinstance(v, bool) or not isinstance(v, int) or v < 1:
-                problems.append(
-                    f"{key}: expected an integer >= 1, got {v!r}"
-                )
+                problems.append(f"{key}: expected an integer >= 1, got {v!r}")
     for key in ("max_image_size", "max_size"):
         if key in data:
             v = data[key]
             if isinstance(v, bool) or not isinstance(v, (int, str)):
-                problems.append(
-                    f"{key}: expected a size like '100MB' or bytes, got {v!r}"
-                )
+                problems.append(f"{key}: expected a size like '100MB' or bytes, got {v!r}")
             elif isinstance(v, str):
                 try:
                     _parse_size(v)
                 except (ValueError, argparse.ArgumentTypeError):
-                    problems.append(
-                        f"{key}: unparseable size {v!r}"
-                    )
+                    problems.append(f"{key}: unparseable size {v!r}")
 
     http = data.get("http")
     if isinstance(http, dict):
         if "impersonate" in http and not isinstance(http["impersonate"], str):
             problems.append("http.impersonate: expected a string")
         if "solver" in http and http["solver"] not in {
-            "auto", "impersonation", "webview", "off",
+            "auto",
+            "impersonation",
+            "webview",
+            "off",
         }:
             problems.append(
-                f"http.solver: expected auto|impersonation|webview|off, got "
-                f"{http['solver']!r}"
+                f"http.solver: expected auto|impersonation|webview|off, got {http['solver']!r}"
             )
         for key in ("cookie-jar", "cache", "rate-enabled"):
             if key in http and not isinstance(http[key], bool):
@@ -4401,9 +4382,7 @@ def _validate_config(path: Path) -> int:
             or not isinstance(http["cache-ttl"], int)
             or http["cache-ttl"] < 1
         ):
-            problems.append(
-                f"http.cache-ttl: expected an integer >= 1, got {http['cache-ttl']!r}"
-            )
+            problems.append(f"http.cache-ttl: expected an integer >= 1, got {http['cache-ttl']!r}")
         if "cache-max-entries" in http and (
             isinstance(http["cache-max-entries"], bool)
             or not isinstance(http["cache-max-entries"], int)
@@ -4426,9 +4405,7 @@ def _validate_config(path: Path) -> int:
     archive = data.get("archive")
     if isinstance(archive, dict):
         if "format" in archive and archive["format"] not in {"cbz", "zip", "cbt"}:
-            problems.append(
-                f"archive.format: expected cbz|zip|cbt, got {archive['format']!r}"
-            )
+            problems.append(f"archive.format: expected cbz|zip|cbt, got {archive['format']!r}")
         if "compression" in archive:
             try:
                 parse_compression(archive["compression"])
@@ -4443,13 +4420,9 @@ def _validate_config(path: Path) -> int:
                 continue
             rate = table.get("rate")
             if rate is not None and (
-                isinstance(rate, bool)
-                or not isinstance(rate, (int, float))
-                or rate <= 0
+                isinstance(rate, bool) or not isinstance(rate, (int, float)) or rate <= 0
             ):
-                problems.append(
-                    f"sources[{host!r}].rate: expected a positive number, got {rate!r}"
-                )
+                problems.append(f"sources[{host!r}].rate: expected a positive number, got {rate!r}")
 
     if problems:
         for problem in problems:
@@ -4496,8 +4469,17 @@ def _completion_commands() -> list[str]:
     """Top-level command names, for completion candidates."""
     return sorted(
         set(_LIBRARY_COMMANDS)
-        | {"update", "self", "list-sources", "cookie", "cache",
-           "config", "plugin", "completion", "help"}
+        | {
+            "update",
+            "self",
+            "list-sources",
+            "cookie",
+            "cache",
+            "config",
+            "plugin",
+            "completion",
+            "help",
+        }
     )
 
 
@@ -4507,8 +4489,7 @@ def _completion_script(shell: str) -> str:
     flags = " ".join(_completion_global_flags())
     commands = " ".join(_completion_commands())
     update_flags = (
-        "-o --output -c --concurrency --chapter-parallel -q --quiet "
-        "--compress --format --json"
+        "-o --output -c --concurrency --chapter-parallel -q --quiet --compress --format --json"
     )
     self_flags = "version update site --check -y --yes --channel"
     self_site_flags = "list check update --live --json --all -y --yes"
@@ -4774,9 +4755,7 @@ async def main() -> int:
         # feed the command words into URL parsing and fetch junk hosts.
         # Reject loudly instead of silently misdispatching.
         _known = set(_completion_commands())
-        _cmd_pos = next(
-            (i for i, a in enumerate(argv) if a in _known), None
-        )
+        _cmd_pos = next((i for i, a in enumerate(argv) if a in _known), None)
         if argv and _cmd_pos is not None and _cmd_pos > 0:
             err_console.print(
                 f"  [bold {ERROR}]{glyphs().err}[/] error: unexpected flag(s) "
@@ -4803,31 +4782,19 @@ async def main() -> int:
             if command == "plugin":
                 sub = argv[1] if len(argv) > 1 else ""
                 if sub in ("list", "validate", "scaffold"):
-                    return await asyncio.to_thread(
-                        run_plugin_command, sub, argv[2:]
-                    )
-                return await asyncio.to_thread(
-                    run_plugin_command, "list", ["--help"]
-                )
+                    return await asyncio.to_thread(run_plugin_command, sub, argv[2:])
+                return await asyncio.to_thread(run_plugin_command, "list", ["--help"])
             if command == "completion":
                 return await asyncio.to_thread(_run_completion, argv[1:])
             if command == "list-sources" or "--list-sources" in argv:
-                marker = (
-                    argv.index("--list-sources")
-                    if "--list-sources" in argv
-                    else 0
-                )
-                return await _run_list_sources(
-                    argv[:marker] + argv[marker + 1:]
-                )
+                marker = argv.index("--list-sources") if "--list-sources" in argv else 0
+                return await _run_list_sources(argv[:marker] + argv[marker + 1 :])
             if command == "cookie":
                 return await asyncio.to_thread(_run_cookie, argv[1:])
             if command == "cache":
                 return await asyncio.to_thread(_run_cache, argv[1:])
             if command in _LIBRARY_COMMANDS:
-                return await asyncio.to_thread(
-                    run_library_command, command, argv[1:]
-                )
+                return await asyncio.to_thread(run_library_command, command, argv[1:])
             if raw_command and not raw_command.startswith("-") and not _looks_like_url(raw_command):
                 return _unknown_command(raw_command)
 

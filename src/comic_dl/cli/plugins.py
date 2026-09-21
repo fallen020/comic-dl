@@ -74,8 +74,14 @@ def _cmd_list(argv: list[str]) -> int:
             for e in entries
         ]
         payload.extend(
-            {"domain": "<unloadable>", "name": name, "version": "",
-             "capabilities": [], "priority": 0, "broken": reason}
+            {
+                "domain": "<unloadable>",
+                "name": name,
+                "version": "",
+                "capabilities": [],
+                "priority": 0,
+                "broken": reason,
+            }
             for name, reason in sorted(errors.items())
         )
         console.print(
@@ -89,7 +95,7 @@ def _cmd_list(argv: list[str]) -> int:
 
     if not entries and not errors:
         print_dim("No third-party sources installed.")
-        print_dim('See docs/usage/plugins.md to install or write one.')
+        print_dim("See docs/usage/plugins.md to install or write one.")
         return EXIT_OK
 
     for e in entries:
@@ -131,10 +137,7 @@ def _cmd_validate(argv: list[str]) -> int:
 
     findings = [_check_class(cls) for cls in _source_classes(module)]
     if not findings:
-        print_warning(
-            f"No Source classes found in {path} "
-            "(no 'domain' attribute on any class)."
-        )
+        print_warning(f"No Source classes found in {path} (no 'domain' attribute on any class).")
         return EXIT_ERROR
 
     bad = False
@@ -196,8 +199,7 @@ def _check_class(cls: type) -> _Finding:
         unknown = sorted(set(caps) - VALID_CAPABILITIES)
         if unknown:
             problems.append(
-                f"capabilities: unknown {unknown}; expected one of "
-                f"{sorted(VALID_CAPABILITIES)}"
+                f"capabilities: unknown {unknown}; expected one of {sorted(VALID_CAPABILITIES)}"
             )
         caps = set(caps)
 
@@ -232,7 +234,7 @@ def _check_class(cls: type) -> _Finding:
     return _Finding(source=source, problems=problems)
 
 
-_SCAFFOLD_PYPROJECT = '''\
+_SCAFFOLD_PYPROJECT = """\
 [project]
 name = "{pkg}"
 version = "0.1.0"
@@ -249,7 +251,7 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["comic_dl_{pkg}"]
-'''
+"""
 
 _SCAFFOLD_SOURCE = '''\
 """Scraper plugin for {domain} (chapter-only).
@@ -301,10 +303,12 @@ def _cmd_scaffold(argv: list[str]) -> int:
         description="Scaffold a new scraper plugin package in the current directory.",
     )
     parser.add_argument(
-        "name", help="plugin package name (e.g. mysite)",
+        "name",
+        help="plugin package name (e.g. mysite)",
     )
     parser.add_argument(
-        "--domain", default="example.com",
+        "--domain",
+        default="example.com",
         help="site host the plugin scrapes (default: example.com)",
     )
     try:
@@ -331,16 +335,15 @@ def _cmd_scaffold(argv: list[str]) -> int:
         class_name = "".join(part.title() for part in pkg.split("_")) + "Source"
         (root / "pyproject.toml").write_text(
             _SCAFFOLD_PYPROJECT.format(
-                pkg=pkg, domain=args.domain,
+                pkg=pkg,
+                domain=args.domain,
                 entry_name=pkg.replace("_", "-"),
                 class_name=class_name,
             ),
             encoding="utf-8",
         )
         (pkg_dir / "source.py").write_text(
-            _SCAFFOLD_SOURCE.format(
-                pkg=pkg, domain=args.domain, class_name=class_name
-            ),
+            _SCAFFOLD_SOURCE.format(pkg=pkg, domain=args.domain, class_name=class_name),
             encoding="utf-8",
         )
     except OSError as exc:

@@ -37,13 +37,15 @@ class BlockVerdict:
 
 # Cloudflare markers
 _CF_SERVER = frozenset({"cloudflare", "cloudflare-nginx"})
-_CF_HEADERS = frozenset({
-    "cf-ray",
-    "cf-mitigated",
-    "cf-chl-bypass",
-    "cf-request-id",
-    "server",
-})
+_CF_HEADERS = frozenset(
+    {
+        "cf-ray",
+        "cf-mitigated",
+        "cf-chl-bypass",
+        "cf-request-id",
+        "server",
+    }
+)
 _CF_BODY_MARKERS = (
     "challenge-error-title",
     "challenge-error-text",
@@ -85,12 +87,18 @@ _TURNSTILE_MARKERS = (
 )
 
 # WAF vendor markers
-_DATADOME_MARKERS = frozenset({"datadome", "dd-", "x-datadome"})
+_DATADOME_MARKERS = frozenset({"datadome", "x-datadome", "x-dd-"})
 _AKAMAI_MARKERS = frozenset({"_abck", "sensor_data", "akamai", "akamaihd", "bm_sz", "bm_sv"})
-_PERIMETERX_MARKERS = frozenset({
-    "_px3", "_pxhd", "_pxvid", "/api/v2/collector",
-    "perimeterx", "px-captcha",
-})
+_PERIMETERX_MARKERS = frozenset(
+    {
+        "_px3",
+        "_pxhd",
+        "_pxvid",
+        "/api/v2/collector",
+        "perimeterx",
+        "px-captcha",
+    }
+)
 _KASADA_MARKERS = frozenset({"x-kpsdk-", "kasada", "kpsdk", "cd_", "ct_"})
 _IMPERVA_MARKERS = frozenset({"incap_ses", "visid_incap", "nlbi_", "imperva", "incapsula"})
 
@@ -253,6 +261,29 @@ def _detect_waf_vendor(headers: dict[str, str], cookies: set[str], body: str) ->
     return None
 
 
+_MEDIA_CONTENT_TYPES = (
+    "image/",
+    "video/",
+    "audio/",
+    "font/",
+    "application/pdf",
+    "application/octet-stream",
+    "application/zip",
+    "application/epub",
+    "application/cbz",
+)
+
+
+def _is_media_payload(headers: dict[str, str]) -> bool:
+    """True when a response is a binary media payload, not a challenge page.
+
+    Classify only on the response's own ``content-type``; a vendor marker in
+    an ETag or an oversized binary body must never be read as a block.
+    """
+    content_type = headers.get("content-type", "").split(";")[0].strip().lower()
+    return any(content_type.startswith(p) for p in _MEDIA_CONTENT_TYPES)
+
+
 def _is_honeypot(body: str, expected_selectors: list[str] | None = None) -> bool:
     """Heuristic: 200-OK page that lacks expected content markers.
 
@@ -297,6 +328,19 @@ def classify_block(
     cookies = _get_cookies_for_host(url)
 
     trace(f"antibot: classifying {status} for {urlsplit(url).hostname or 'unknown'}")
+
+    # A successful binary/media payload is never an antibot challenge. Image
+    # ETags frequently contain vendor-fingerprint substrings (e.g. DataDome's
+    # "dd-") and large media bodies would trip the honeypot size heuristic, so
+    # gate the whole classifier on content type before any marker matching.
+    if 200 <= status < 300 and _is_media_payload(h):
+        return BlockVerdict(
+            vendor="none",
+            kind="none",
+            reason=None,
+            challenge=None,
+            honeypot=False,
+        )
 
     # 1. Cloudflare detection (most common)
     server = h.get("server", "").strip()

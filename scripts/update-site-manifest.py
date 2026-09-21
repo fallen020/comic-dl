@@ -50,7 +50,7 @@ def build_manifest() -> dict:
         if entry.version in ("", "builtin"):
             raise SystemExit(
                 f"built-in scraper {entry.site_id} declares no version; "
-                "add `version = \"X.Y.Z\"` to the scraper class."
+                'add `version = "X.Y.Z"` to the scraper class.'
             )
         sites[entry.site_id] = {
             "version": entry.version,

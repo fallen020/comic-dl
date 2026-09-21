@@ -37,9 +37,7 @@ from .scrapers.base import BaseScraper
 from .ui import print_dim, print_error, print_success, print_warning
 from .utils import http_client_args
 
-GITHUB_API_RELEASES_LATEST = (
-    "https://api.github.com/repos/fallen020/comic-dl/releases/latest"
-)
+GITHUB_API_RELEASES_LATEST = "https://api.github.com/repos/fallen020/comic-dl/releases/latest"
 GITHUB_RELEASES_PAGE = "https://github.com/fallen020/comic-dl/releases"
 
 #: Package artifacts ship per release; extension + arch select the right one.
@@ -106,8 +104,13 @@ def compare_versions(installed: str, latest: str) -> int:
     prerelease build sorts below the release with the same number, so it
     never reports "up to date" against a published version.
     """
-    return (1 if _version_key(installed) > _version_key(latest)
-            else -1 if _version_key(installed) < _version_key(latest) else 0)
+    return (
+        1
+        if _version_key(installed) > _version_key(latest)
+        else -1
+        if _version_key(installed) < _version_key(latest)
+        else 0
+    )
 
 
 def parse_version(raw: str) -> tuple[int, ...]:
@@ -161,9 +164,7 @@ def detect_installation() -> InstallationInfo:
     """
     exe = Path(sys.executable).resolve()
     if getattr(sys, "frozen", False):
-        return InstallationInfo(
-            InstallKind.BINARY, exe, writable=_writable(exe.parent)
-        )
+        return InstallationInfo(InstallKind.BINARY, exe, writable=_writable(exe.parent))
 
     script = _console_script() or exe
     owner = _os_package_owner(script)
@@ -201,9 +202,7 @@ def detect_installation() -> InstallationInfo:
     # System Python (prefix == base_prefix, not a user install): pip here may
     # need privileges we must not assume. Report rather than guess means the
     # update path instructs instead of risking a half-managed environment.
-    return InstallationInfo(
-        InstallKind.PIP, script, location=location, writable=False
-    )
+    return InstallationInfo(InstallKind.PIP, script, location=location, writable=False)
 
 
 def select_asset(release: ReleaseInfo, kind: InstallKind) -> tuple[str, str] | None:
@@ -236,7 +235,8 @@ def select_asset(release: ReleaseInfo, kind: InstallKind) -> tuple[str, str] | N
     if suffix is None:
         return None
     candidates = {
-        name: url for name, url in release.assets.items()
+        name: url
+        for name, url in release.assets.items()
         if name.endswith(suffix) and (kind is not InstallKind.PACMAN or _ARCH_SUFFIX in name)
     }
     if not candidates:
@@ -405,9 +405,7 @@ def _update_uv(latest: str, yes: bool) -> int:
     return EXIT_ERROR
 
 
-async def _install_package(
-    info: InstallationInfo, release: ReleaseInfo, latest: str
-) -> int:
+async def _install_package(info: InstallationInfo, release: ReleaseInfo, latest: str) -> int:
     """Download the matching package artifact and hand it to a privileged
     install; every failure instructs instead of leaving the system touched."""
     asset = select_asset(release, info.kind)
@@ -452,9 +450,7 @@ async def _install_package(
     return EXIT_ERROR
 
 
-def _request_confirmation(
-    yes: bool, question: str, *, says_interactive_no: str
-) -> int | None:
+def _request_confirmation(yes: bool, question: str, *, says_interactive_no: str) -> int | None:
     """Exit code to return because confirmation was absent/refused, else None.
 
     ``yes`` skips the prompt. A non-interactive run without ``--yes`` refuses
