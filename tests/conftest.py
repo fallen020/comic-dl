@@ -64,9 +64,15 @@ def _reset_cli_globals(tmp_path):
     cache.set_cache_dir(tmp_path / "http-cache")
     downloader.reset_host_breaker()
     utils.clear_dns_cache()
-    before = (ui_module.console.no_color, ui_module.err_console.no_color)
-    ui_module.console.no_color = True
-    ui_module.err_console.no_color = True
+    consoles = (ui_module.console, ui_module.err_console)
+    before = [
+        (c.no_color, c._force_terminal, c._color_system) for c in consoles
+    ]
+    # Full "never" pin (not just no_color): macOS CI resolves the captured
+    # pipe as a terminal, and bare no_color still leaves bold/underline
+    # codes spliced inside asserted phrases. Tests asserting color override
+    # explicitly via apply_color_mode.
+    ui_module.set_no_color(True)
     config._RUNTIME_DOWNLOAD.clear()
     yield
     config.set_config_path(None)
@@ -75,5 +81,8 @@ def _reset_cli_globals(tmp_path):
     config._RUNTIME_DOWNLOAD.clear()
     config._WARNED_BAD_CONFIG = False
     ui_module.set_json_mode(False)
-    ui_module.console.no_color, ui_module.err_console.no_color = before
+    for c, (no_color, force_terminal, color_system) in zip(consoles, before, strict=True):
+        c.no_color = no_color
+        c._force_terminal = force_terminal
+        c._color_system = color_system
     cache.set_cache_dir(None)
