@@ -29,7 +29,7 @@ comic-dl self site check --json
 `check` downloads the latest release manifest and reports per site:
 
 ```text
-Site support check (21)
+Site support check (30)
 SITE           VERSION   AVAILABLE   STATUS
 manga-example  1.2.0     1.3.0       update available
 comic-example  2.0.1     2.0.1       up to date
