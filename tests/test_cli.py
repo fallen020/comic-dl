@@ -4513,6 +4513,21 @@ class TestSingleUrlVerdict:
         assert code == EXIT_OK
         assert "Downloaded: Ch.cbz" in out
 
+    def test_success_size_not_padded(self, monkeypatch, capsys):
+        async def _ok(**kwargs):
+            stats = kwargs["stats"]
+            stats.status = "success"
+            stats.output_path = "/tmp/out/Series/Ch.cbz"
+            stats.bytes = 36 * 1024 * 1024
+            return "downloaded", "Ch.cbz"
+
+        self._setup(monkeypatch)
+        monkeypatch.setattr(cli, "process_url", _ok)
+        code = asyncio.run(cli._run_urls(["https://a.com/1"], self._args()))
+        out = capsys.readouterr().out.replace("\n", "")
+        assert code == EXIT_OK
+        assert "Downloaded: Ch.cbz (36 MB)" in out
+
     def test_partial_no_success_verdict(self, monkeypatch, capsys):
         async def _partial(**kwargs):
             stats = kwargs["stats"]

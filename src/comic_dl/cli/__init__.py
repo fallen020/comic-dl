@@ -163,7 +163,6 @@ from ..ui import (
     err_console,
     flush_debug_file,
     format_bytes,
-    format_bytes_fixed,
     get_ui_gate,
     glyphs,
     is_interactive,
@@ -3492,9 +3491,7 @@ async def _run_urls(urls: list[str], args: argparse.Namespace) -> int:
                 out = done.get("output_path") or ""
                 name = Path(out).name if out else "archive"
                 where = f" {glyphs().dash} {args.output}" if args.output else ""
-                suffix = (
-                    f" ({format_bytes_fixed(done.get('bytes', 0))})" if done.get("bytes") else ""
-                )
+                suffix = f" ({format_bytes(done.get('bytes', 0))})" if done.get("bytes") else ""
                 print_success(f"Downloaded: {name}{suffix}{where}")
         json_results = [ordered_results[i] for i in range(len(urls)) if i in ordered_results]
     finally:
