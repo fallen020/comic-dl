@@ -576,6 +576,11 @@ class GenericScraper(BaseScraper):
 
         images = _extract_gallery_images(soup, url)
         if not images:
+            if not urlparse(url).path.rstrip("/"):
+                raise no_images_error(
+                    hint="This looks like a site homepage, not a gallery — "
+                    "provide a series or chapter URL.",
+                )
             raise no_images_error()
 
         idx = meta_index(soup)

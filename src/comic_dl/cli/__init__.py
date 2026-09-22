@@ -1843,7 +1843,8 @@ async def process_url(
                         continue
                     return _fail(f"Failed to fetch metadata: {e}")
                 except ValueError as e:
-                    return _fail(f"Failed to process gallery: {e}")
+                    hint = getattr(e, "hint", "")
+                    return _fail(f"Failed to process gallery: {e}" + (f" {hint}" if hint else ""))
                 except Exception as e:
                     if VERBOSITY >= TRACE:
                         print_traceback(e)
@@ -2989,6 +2990,9 @@ async def _preview_url(url: str, index: dict[str, Path], force: bool) -> dict:
         entry["detail"] = ""
         entry["action"] = "error"
         entry["error"] = str(exc) or "The page could not be processed."
+        hint = getattr(exc, "hint", "")
+        if hint:
+            entry["error"] += f" {hint}"
         return entry
     except Exception as exc:
         entry["kind"] = ""

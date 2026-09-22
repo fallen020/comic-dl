@@ -612,6 +612,17 @@ class TestGenericScraperScrape:
         with pytest.raises(ValueError):
             await scraper.scrape(url, client)
 
+    @pytest.mark.asyncio
+    async def test_homepage_hints_gallery_url(self):
+        from comic_dl.errors import ScrapeError
+
+        scraper = GenericScraper()
+        url = "https://manga.example.com/"
+        client = _FakeClient({url: _FakeResp(EMPTY_HTML)})
+        with pytest.raises(ScrapeError) as exc_info:
+            await scraper.scrape(url, client)
+        assert "homepage" in exc_info.value.hint
+
 
 class TestGenericScraperDetect:
     @pytest.mark.asyncio
