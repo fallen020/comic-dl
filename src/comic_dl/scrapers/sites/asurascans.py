@@ -187,7 +187,29 @@ def _extract_year(soup: BeautifulSoup) -> int | None:
     return None
 
 
+_DESCRIPTION_BODY_SEL = "#description-text"
+
+
+def _extract_full_description(soup: BeautifulSoup) -> str:
+    """Full synopsis from the series page body, not the truncated meta tags.
+
+    Asura truncates every JSON-LD/open-graph description to a ~200 char
+    mid-word cut; the complete text lives only in the ``#description-text``
+    block's ``<p>`` nodes, which are kept as separate paragraphs.
+    """
+    el = soup.select_one(_DESCRIPTION_BODY_SEL)
+    if el is None:
+        return ""
+    paragraphs = [p.get_text(strip=True) for p in el.find_all("p")]
+    if paragraphs:
+        return "\n\n".join(paragraphs)
+    return el.get_text(" ", strip=True)
+
+
 def _extract_description(soup: BeautifulSoup, idx: dict[str, list[str]]) -> str:
+    body = _extract_full_description(soup)
+    if body:
+        return body
     meta = _extract_meta(soup)
     if meta.get("description"):
         return meta["description"]
@@ -318,10 +340,11 @@ class AsurascansScraper(BaseScraper):
             response = await BaseScraper._timeout_get(f"{BASE}/comics/{series_slug}", client)
             response.raise_for_status()
             soup = BeautifulSoup(response.text, "lxml")
+            idx = meta_index(soup)
             meta = _extract_meta(soup)
             data = {
                 "series_title": meta.get("series_title", ""),
-                "description": meta.get("description", ""),
+                "description": _extract_description(soup, idx),
                 "cover_url": meta.get("cover_url", ""),
                 "genres": meta.get("genres", []),
                 "authors": meta.get("authors", []),
@@ -388,7 +411,7 @@ class AsurascansScraper(BaseScraper):
             artists = artists or series.get("artists", [])
             status = series.get("status")
             community_rating = community_rating or series.get("community_rating")
-            description = description or series.get("description", "")
+            description = series.get("description", "") or description
 
         return ScrapedChapter(
             info=ChapterInfo(
@@ -421,7 +444,7 @@ class AsurascansScraper(BaseScraper):
         meta = _extract_meta(soup)
 
         series_title = meta.get("series_title") or _extract_series_title(soup, idx)
-        description = meta.get("description") or _extract_description(soup, idx)
+        description = _extract_description(soup, idx) or meta.get("description", "")
         cover_url = meta.get("cover_url") or _extract_cover(soup, idx)
         title_no = _series_slug_from_url(url)
 

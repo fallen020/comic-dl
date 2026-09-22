@@ -9,6 +9,7 @@ from comic_dl.scrapers.sites.asurascans import (
     _chapter_number_from_slug,
     _clean_image_url,
     _extract_chapter_title,
+    _extract_description,
     _extract_images,
     _extract_lang,
     _extract_meta,
@@ -19,6 +20,7 @@ from comic_dl.scrapers.sites.asurascans import (
     _series_slug_from_url,
     is_chapter_url,
     is_series_url,
+    meta_index,
 )
 from tests.helpers import MockResponse as _MockResponse
 from tests.helpers import MockSession as _MockSession
@@ -202,6 +204,35 @@ class TestMetaExtraction:
         soup = BeautifulSoup("<html><body></body></html>", "lxml")
         assert _extract_status(soup) is None
 
+    def test_description_uses_full_body_not_truncated_meta(self):
+        html = f"""
+        <html><head>
+            <meta property="og:description" content="A once-in-an-era psychopath as a ho..."/>
+            <script type="application/ld+json">{SERIES_JSONLD}</script>
+        </head><body>
+        <div id="description-text">
+            <p>Full paragraph one with the real synopsis.</p>
+            <p>Full paragraph two without truncation.</p>
+        </div>
+        </body></html>
+        """
+        soup = BeautifulSoup(html, "lxml")
+        desc = _extract_description(soup, {})
+        assert (
+            desc
+            == "Full paragraph one with the real synopsis.\n\nFull paragraph two without truncation."
+        )
+        assert "ho..." not in desc
+
+    def test_description_falls_back_to_meta_without_body(self):
+        html = """
+        <html><head>
+            <meta property="og:description" content="Meta only summary"/>
+        </head><body></body></html>
+        """
+        soup = BeautifulSoup(html, "lxml")
+        assert _extract_description(soup, meta_index(soup)) == "Meta only summary"
+
     def test_premium_page_detected(self):
         html = """
         <html><head>
@@ -317,6 +348,31 @@ class TestAsurascansScraper:
     </body></html>
     """
 
+    SERIES_PAGE_FULL_DESC = f"""
+    <html lang="en"><head>
+        <title>Murim Psychopath | Asura Scans</title>
+        <meta property="og:title" content="Murim Psychopath"/>
+        <meta property="og:image" content="{COVER}"/>
+        <meta property="og:description"
+              content="A once-in-an-era psychopath fell into the Murim as a ho..."/>
+        <script type="application/ld+json">{SERIES_JSONLD}</script>
+    </head><body>
+    <div id="description-text">
+        <p>Full paragraph one, never truncated by the site.</p>
+        <p>Full paragraph two with the rest of the synopsis.</p>
+    </div>
+    <div class="stats">
+        <div class="card"><div class="label">Status</div><div>ongoing</div></div>
+    </div>
+    <div class="chapter-list">
+        <a href="{_CH}3">Chapter 3<span>1 week ago</span></a>
+        <a href="{_CH}2">Chapter 2<span>2 weeks ago</span></a>
+        <a href="{_CH}1">Chapter 1<span>3 weeks ago</span></a>
+        <a href="{_CH}0">First Chapter</a>
+    </div>
+    </body></html>
+    """
+
     CHAPTER_PAGE = f"""
     <html lang="en"><head>
         <title>Murim Psychopath Chapter 1 - Read Online | Asura Scans</title>
@@ -388,7 +444,7 @@ class TestAsurascansScraper:
     async def test_scrape_chapter_with_enrichment(self):
         def handler(url):
             if url.endswith("/comics/murim-psychopath-00dcbf97"):
-                return _MockResponse(self.SERIES_PAGE)
+                return _MockResponse(self.SERIES_PAGE_FULL_DESC)
             return _MockResponse(self.CHAPTER_PAGE)
 
         session = _MockSession(handler)
@@ -411,7 +467,10 @@ class TestAsurascansScraper:
         assert meta.genres == ["Action", "Adventure", "Crazy MC", "Fantasy", "Murim"]
         assert meta.status == "ongoing"
         assert meta.community_rating == 9.6
-        assert meta.description.startswith("A once-in-an-era psychopath")
+        assert meta.description == (
+            "Full paragraph one, never truncated by the site.\n\n"
+            "Full paragraph two with the rest of the synopsis."
+        )
         assert meta.total_pages == 3
         assert len(meta.images) == 3
 
@@ -479,7 +538,7 @@ class TestAsurascansScraper:
 
     @pytest.mark.asyncio
     async def test_scrape_series(self):
-        session = _MockSession(lambda url: _MockResponse(self.SERIES_PAGE))
+        session = _MockSession(lambda url: _MockResponse(self.SERIES_PAGE_FULL_DESC))
         scraper = AsurascansScraper()
         series = await scraper.scrape_series(
             "https://asurascans.com/comics/murim-psychopath-00dcbf97",
@@ -487,7 +546,10 @@ class TestAsurascansScraper:
         )
 
         assert series.series_title == "Murim Psychopath"
-        assert series.description.startswith("A once-in-an-era psychopath")
+        assert series.description == (
+            "Full paragraph one, never truncated by the site.\n\n"
+            "Full paragraph two with the rest of the synopsis."
+        )
         assert series.cover_url == COVER
         assert series.title_no == "murim-psychopath-00dcbf97"
         assert len(series.chapters) == 4
