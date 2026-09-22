@@ -65,6 +65,8 @@ def _reset_cli_globals(tmp_path):
     downloader.reset_host_breaker()
     utils.clear_dns_cache()
     before = (ui_module.console.no_color, ui_module.err_console.no_color)
+    ui_module.console.no_color = True
+    ui_module.err_console.no_color = True
     config._RUNTIME_DOWNLOAD.clear()
     yield
     config.set_config_path(None)
