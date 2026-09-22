@@ -7,6 +7,11 @@
       "status": "supported",
       "version": "1.0.0"
     },
+    "divascans": {
+      "minimum_core_version": "0.0.2",
+      "status": "supported",
+      "version": "1.0.0"
+    },
     "e-hentai": {
       "minimum_core_version": "0.0.2",
       "status": "supported",
@@ -32,7 +37,17 @@
       "status": "supported",
       "version": "1.0.0"
     },
+    "hdporncomics": {
+      "minimum_core_version": "0.0.2",
+      "status": "supported",
+      "version": "1.0.0"
+    },
     "hivetoons": {
+      "minimum_core_version": "0.0.2",
+      "status": "supported",
+      "version": "1.0.0"
+    },
+    "imhentai": {
       "minimum_core_version": "0.0.2",
       "status": "supported",
       "version": "1.0.0"
@@ -62,12 +77,22 @@
       "status": "supported",
       "version": "1.0.0"
     },
+    "manhuato": {
+      "minimum_core_version": "0.0.2",
+      "status": "supported",
+      "version": "1.0.0"
+    },
     "manhwatop": {
       "minimum_core_version": "0.0.2",
       "status": "supported",
       "version": "1.0.0"
     },
     "manhwaz": {
+      "minimum_core_version": "0.0.2",
+      "status": "supported",
+      "version": "1.0.0"
+    },
+    "nyxscans": {
       "minimum_core_version": "0.0.2",
       "status": "supported",
       "version": "1.0.0"
@@ -87,12 +112,32 @@
       "status": "supported",
       "version": "1.0.0"
     },
+    "tapas": {
+      "minimum_core_version": "0.0.2",
+      "status": "supported",
+      "version": "1.0.0"
+    },
     "thunderscans": {
       "minimum_core_version": "0.0.2",
       "status": "supported",
       "version": "1.0.0"
     },
     "toonily": {
+      "minimum_core_version": "0.0.2",
+      "status": "supported",
+      "version": "1.0.0"
+    },
+    "toonverse": {
+      "minimum_core_version": "0.0.2",
+      "status": "supported",
+      "version": "1.0.0"
+    },
+    "valirscans": {
+      "minimum_core_version": "0.0.2",
+      "status": "supported",
+      "version": "1.0.0"
+    },
+    "vortexscans": {
       "minimum_core_version": "0.0.2",
       "status": "supported",
       "version": "1.0.0"

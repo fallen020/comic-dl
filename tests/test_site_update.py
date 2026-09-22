@@ -84,7 +84,11 @@ def real_sites():
 
 class TestRegistryMetadata:
     def test_all_builtins_declare_metadata(self, real_sites):
-        assert len(real_sites) == 21
+        from comic_dl.scrapers import list_sources
+
+        builtin_domains = {e.domain for e in list_sources() if e.builtin}
+        assert builtin_domains, "expected built-in sources"
+        assert {s.domain for s in real_sites} == builtin_domains
 
     def test_site_ids_unique(self, real_sites):
         ids = [s.site_id for s in real_sites]

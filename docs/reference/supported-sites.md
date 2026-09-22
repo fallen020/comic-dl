@@ -1,6 +1,6 @@
 # Supported Sites
 
-The 21 built-in scrapers shipped with comic-dl. The live registry — including
+The 30 built-in scrapers shipped with comic-dl. The live registry — including
 any third-party plugins — is shown by `comic-dl --list-sources`.
 
 ## Sites
@@ -9,6 +9,8 @@ any third-party plugins — is shown by `comic-dl --list-sources`.
 | :--- | :----- | :---------- | :------- | :----- |
 | **Asura Scans** | `asurascans.com` | `/comics/{series}/` | — | Yes |
 | **Asura Scans** | `asurascans.com` | `/comics/{series}/chapter/{n}` | Yes | — |
+| **DivaScans** | `divascans.org` | `/series/comic/{slug}/` | — | Yes |
+| **DivaScans** | `divascans.org` | `/series/comic/{slug}/chapter/{n}` | Yes | — |
 | **E-Hentai** | `e-hentai.org` | `/g/{gid}/{token}/` | Yes | — |
 | **Thunderscans** | `en-thunderscans.com` | `/comics/{slug}/` | — | Yes |
 | **Thunderscans** | `en-thunderscans.com` | `/{slug}-chapter-{n}/` | Yes | — |
@@ -20,8 +22,11 @@ any third-party plugins — is shown by `comic-dl --list-sources`.
 | **GEDE Comix** | `gedecomix.com` | `/porncomic/{series}/{chapter}/` | Yes | — |
 | **GenzToons** | `genztoons.org` | `/series/{slug}/` | — | Yes |
 | **GenzToons** | `genztoons.org` | `/chapter/{uid}/` | Yes | — |
+| **HD Porn Comics** | `hdporncomics.com` | `/{slug}-sex-comic/` | Yes | — |
 | **HiveToons** | `hivetoons.org` | `/series/{slug}/` | — | Yes |
 | **HiveToons** | `hivetoons.org` | `/series/{slug}/chapter-{n}/` | Yes | — |
+| **IMHentai** | `imhentai.xxx` | `/gallery/{id}/` | — | — |
+| **IMHentai** | `imhentai.xxx` | `/view/{id}/{n}/` | Yes | — |
 | **Kagane** | `kagane.to` | `/series/{id}/` | — | Yes |
 | **Kagane** | `kagane.to` | `/series/{id}/reader/{book}` | Yes | — |
 | **Kingofshojo** | `kingofshojo.com` | `/{slug}-chapter-{n}/` | Yes | — |
@@ -31,17 +36,29 @@ any third-party plugins — is shown by `comic-dl --list-sources`.
 | **LGBTics** | `lgbtics.com` | `/comic/{slug}/{chapter}/` | Yes | — |
 | **MangaDex** | `mangadex.org` | `/title/{manga-uuid} or /manga/{manga-uuid}` | — | Yes |
 | **MangaDex** | `mangadex.org` | `/chapter/{chapter-uuid}` | Yes | — |
+| **ManhuaTo** | `manhuato.com` | `/manhua/{slug}/` | — | Yes |
+| **ManhuaTo** | `manhuato.com` | `/manhua/{slug}/chapter-{n}-ch{id}` | Yes | — |
 | **ManhwaTop** | `manhwatop.com` | `/manga/{slug}/` | — | Yes |
 | **ManhwaTop** | `manhwatop.com` | `/manga/{slug}/chapter-{n}/` | Yes | — |
 | **Manhwaz** | `manhwaz.com` | `/webtoon/{slug}` | — | Yes |
 | **Manhwaz** | `manhwaz.com` | `/webtoon/{slug}/chapter-{n}` | Yes | — |
+| **Nyx Scans** | `nyxscans.com` | `/series/{slug}/` | — | Yes |
+| **Nyx Scans** | `nyxscans.com` | `/series/{slug}/chapter-{n}` | Yes | — |
 | **Pawchive** | `pawchive.pw` | `/{service}/user/{id}/post/{id}/` | Yes | — |
 | **QiScans** | `qimanga.com` | `/series/{slug}` | — | Yes |
 | **QiScans** | `qimanga.com` | `/series/{slug}/chapter-{n}` | Yes | — |
 | **StoneScape** | `stonescape.xyz` | `/series/{slug}` | — | Yes |
 | **StoneScape** | `stonescape.xyz` | `/series/{slug}/ch-{n}` | Yes | — |
+| **Tapas** | `tapas.io` | `/series/{slug}` | — | Yes |
+| **Tapas** | `tapas.io` | `/episode/{id}` | Yes | — |
 | **Toonily** | `toonily.com` | `/serie/{slug}/` | — | Yes |
 | **Toonily** | `toonily.com` | `/serie/{slug}/chapter-{n}/` | Yes | — |
+| **ToonVerse** | `toonverse.net` | `/series/{slug}/` | — | Yes |
+| **ToonVerse** | `toonverse.net` | `/read/{slug}/{n}` | Yes | — |
+| **ValirScans** | `valirscans.org` | `/series/comic/{slug}/` | — | Yes |
+| **ValirScans** | `valirscans.org` | `/series/comic/{slug}/chapter/{n}` | Yes | — |
+| **Vortex Scans** | `vortexscans.org` | `/series/{slug}/` | — | Yes |
+| **Vortex Scans** | `vortexscans.org` | `/series/{slug}/chapter-{n}` | Yes | — |
 | **WEBTOON** | `webtoons.com` | `/{lang}/{category}/{title}/list?title_no={id}` | — | Yes |
 | **WEBTOON** | `webtoons.com` | `/{lang}/{category}/{title}/ep-{n}/viewer?title_no={id}&episode_no={n}` | Yes | — |
 | **WeebCentral** | `weebcentral.com` | `/series/{id}/{slug}` | — | Yes |
@@ -49,14 +66,14 @@ any third-party plugins — is shown by `comic-dl --list-sources`.
 
 ## Per-site features
 
-| Feature | Asura Scans | E-Hentai | Thunderscans | FlameComics | FSIComics | GEDE Comix | GenzToons | HiveToons | Kagane | Kingofshojo | KodokuStudio | LGBTics | MangaDex | ManhwaTop | Manhwaz | Pawchive | QiScans | StoneScape | Toonily | WEBTOON | WeebCentral |
-| :------ | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- |
-| Individual posts/chapters | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| Series chapter listing | Yes | — | Yes | Yes | Yes | Yes | Yes | Yes | Yes | — | Yes | Yes | Yes | Yes | Yes | — | Yes | Yes | Yes | Yes | Yes |
-| Image dedup (SHA-256) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| Download resume | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| Concurrent downloads | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| Chapter title from tags | — | Yes | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | Yes | — |
+| Feature | Asura Scans | DivaScans | E-Hentai | Thunderscans | FlameComics | FSIComics | GEDE Comix | GenzToons | HD Porn Comics | HiveToons | IMHentai | Kagane | Kingofshojo | KodokuStudio | LGBTics | MangaDex | ManhuaTo | ManhwaTop | Manhwaz | Nyx Scans | Pawchive | QiScans | StoneScape | Tapas | Toonily | ToonVerse | ValirScans | Vortex Scans | WEBTOON | WeebCentral |
+| :------ | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- |
+| Individual posts/chapters | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Series chapter listing | Yes | Yes | — | Yes | Yes | Yes | Yes | Yes | — | Yes | — | Yes | — | Yes | Yes | Yes | Yes | Yes | Yes | Yes | — | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Image dedup (SHA-256) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Download resume | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Concurrent downloads | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Chapter title from tags | — | — | Yes | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | Yes | — |
 
 ## Site notes
 

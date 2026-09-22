@@ -1,11 +1,11 @@
 ---
 title: Supported Sites
-description: The 21 built-in scrapers supported by comic-dl, their URL patterns, and per-site notes.
+description: The 30 built-in scrapers supported by comic-dl, their URL patterns, and per-site notes.
 order: 520
 section: Reference
 ---
 
-The 21 built-in scrapers shipped with comic-dl. The live registry — including any third-party plugins — is shown by `comic-dl --list-sources`.
+The 30 built-in scrapers shipped with comic-dl. The live registry — including any third-party plugins — is shown by `comic-dl --list-sources`.
 
 ## Sites
 
@@ -13,6 +13,8 @@ The 21 built-in scrapers shipped with comic-dl. The live registry — including 
 | :--- | :----- | :---------- | :------- | :----- |
 | **Asura Scans** | `asurascans.com` | `/comics/{series}/` | — | <Badge status="supported" /> |
 | **Asura Scans** | `asurascans.com` | `/comics/{series}/chapter/{n}` | <Badge status="supported" /> | — |
+| **DivaScans** | `divascans.org` | `/series/comic/{slug}/` | — | <Badge status="supported" /> |
+| **DivaScans** | `divascans.org` | `/series/comic/{slug}/chapter/{n}` | <Badge status="supported" /> | — |
 | **E-Hentai** | `e-hentai.org` | `/g/{gid}/{token}/` | <Badge status="supported" /> | — |
 | **Thunderscans** | `en-thunderscans.com` | `/comics/{slug}/` | — | <Badge status="supported" /> |
 | **Thunderscans** | `en-thunderscans.com` | `/{slug}-chapter-{n}/` | <Badge status="supported" /> | — |
@@ -24,8 +26,11 @@ The 21 built-in scrapers shipped with comic-dl. The live registry — including 
 | **GEDE Comix** | `gedecomix.com` | `/porncomic/{series}/{chapter}/` | <Badge status="supported" /> | — |
 | **GenzToons** | `genztoons.org` | `/series/{slug}/` | — | <Badge status="supported" /> |
 | **GenzToons** | `genztoons.org` | `/chapter/{uid}/` | <Badge status="supported" /> | — |
+| **HD Porn Comics** | `hdporncomics.com` | `/{slug}-sex-comic/` | <Badge status="supported" /> | — |
 | **HiveToons** | `hivetoons.org` | `/series/{slug}/` | — | <Badge status="supported" /> |
 | **HiveToons** | `hivetoons.org` | `/series/{slug}/chapter-{n}/` | <Badge status="supported" /> | — |
+| **IMHentai** | `imhentai.xxx` | `/gallery/{id}/` | — | — |
+| **IMHentai** | `imhentai.xxx` | `/view/{id}/{n}/` | <Badge status="supported" /> | — |
 | **Kagane** | `kagane.to` | `/series/{id}/` | — | <Badge status="supported" /> |
 | **Kagane** | `kagane.to` | `/series/{id}/reader/{book}` | <Badge status="supported" /> | — |
 | **Kingofshojo** | `kingofshojo.com` | `/{slug}-chapter-{n}/` | <Badge status="supported" /> | — |
@@ -35,17 +40,29 @@ The 21 built-in scrapers shipped with comic-dl. The live registry — including 
 | **LGBTics** | `lgbtics.com` | `/comic/{slug}/{chapter}/` | <Badge status="supported" /> | — |
 | **MangaDex** | `mangadex.org` | `/title/{manga-uuid} or /manga/{manga-uuid}` | — | <Badge status="supported" /> |
 | **MangaDex** | `mangadex.org` | `/chapter/{chapter-uuid}` | <Badge status="supported" /> | — |
+| **ManhuaTo** | `manhuato.com` | `/manhua/{slug}/` | — | <Badge status="supported" /> |
+| **ManhuaTo** | `manhuato.com` | `/manhua/{slug}/chapter-{n}-ch{id}` | <Badge status="supported" /> | — |
 | **ManhwaTop** | `manhwatop.com` | `/manga/{slug}/` | — | <Badge status="supported" /> |
 | **ManhwaTop** | `manhwatop.com` | `/manga/{slug}/chapter-{n}/` | <Badge status="supported" /> | — |
 | **Manhwaz** | `manhwaz.com` | `/webtoon/{slug}` | — | <Badge status="supported" /> |
 | **Manhwaz** | `manhwaz.com` | `/webtoon/{slug}/chapter-{n}` | <Badge status="supported" /> | — |
+| **Nyx Scans** | `nyxscans.com` | `/series/{slug}/` | — | <Badge status="supported" /> |
+| **Nyx Scans** | `nyxscans.com` | `/series/{slug}/chapter-{n}` | <Badge status="supported" /> | — |
 | **Pawchive** | `pawchive.pw` | `/{service}/user/{id}/post/{id}/` | <Badge status="supported" /> | — |
 | **QiScans** | `qimanga.com` | `/series/{slug}` | — | <Badge status="supported" /> |
 | **QiScans** | `qimanga.com` | `/series/{slug}/chapter-{n}` | <Badge status="supported" /> | — |
 | **StoneScape** | `stonescape.xyz` | `/series/{slug}` | — | <Badge status="supported" /> |
 | **StoneScape** | `stonescape.xyz` | `/series/{slug}/ch-{n}` | <Badge status="supported" /> | — |
+| **Tapas** | `tapas.io` | `/series/{slug}` | — | <Badge status="supported" /> |
+| **Tapas** | `tapas.io` | `/episode/{id}` | <Badge status="supported" /> | — |
 | **Toonily** | `toonily.com` | `/serie/{slug}/` | — | <Badge status="supported" /> |
 | **Toonily** | `toonily.com` | `/serie/{slug}/chapter-{n}/` | <Badge status="supported" /> | — |
+| **ToonVerse** | `toonverse.net` | `/series/{slug}/` | — | <Badge status="supported" /> |
+| **ToonVerse** | `toonverse.net` | `/read/{slug}/{n}` | <Badge status="supported" /> | — |
+| **ValirScans** | `valirscans.org` | `/series/comic/{slug}/` | — | <Badge status="supported" /> |
+| **ValirScans** | `valirscans.org` | `/series/comic/{slug}/chapter/{n}` | <Badge status="supported" /> | — |
+| **Vortex Scans** | `vortexscans.org` | `/series/{slug}/` | — | <Badge status="supported" /> |
+| **Vortex Scans** | `vortexscans.org` | `/series/{slug}/chapter-{n}` | <Badge status="supported" /> | — |
 | **WEBTOON** | `webtoons.com` | `/{lang}/{category}/{title}/list?title_no={id}` | — | <Badge status="supported" /> |
 | **WEBTOON** | `webtoons.com` | `/{lang}/{category}/{title}/ep-{n}/viewer?title_no={id}&episode_no={n}` | <Badge status="supported" /> | — |
 | **WeebCentral** | `weebcentral.com` | `/series/{id}/{slug}` | — | <Badge status="supported" /> |
@@ -53,14 +70,14 @@ The 21 built-in scrapers shipped with comic-dl. The live registry — including 
 
 ## Per-site features
 
-| Feature | Asura Scans | E-Hentai | Thunderscans | FlameComics | FSIComics | GEDE Comix | GenzToons | HiveToons | Kagane | Kingofshojo | KodokuStudio | LGBTics | MangaDex | ManhwaTop | Manhwaz | Pawchive | QiScans | StoneScape | Toonily | WEBTOON | WeebCentral |
-| :------ | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- |
-| Individual posts/chapters | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| Series chapter listing | Yes | — | Yes | Yes | Yes | Yes | Yes | Yes | Yes | — | Yes | Yes | Yes | Yes | Yes | — | Yes | Yes | Yes | Yes | Yes |
-| Image dedup (SHA-256) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| Download resume | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| Concurrent downloads | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| Chapter title from tags | — | <Badge status="supported" /> | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | <Badge status="supported" /> | — |
+| Feature | Asura Scans | DivaScans | E-Hentai | Thunderscans | FlameComics | FSIComics | GEDE Comix | GenzToons | HD Porn Comics | HiveToons | IMHentai | Kagane | Kingofshojo | KodokuStudio | LGBTics | MangaDex | ManhuaTo | ManhwaTop | Manhwaz | Nyx Scans | Pawchive | QiScans | StoneScape | Tapas | Toonily | ToonVerse | ValirScans | Vortex Scans | WEBTOON | WeebCentral |
+| :------ | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- |
+| Individual posts/chapters | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Series chapter listing | Yes | Yes | — | Yes | Yes | Yes | Yes | Yes | — | Yes | — | Yes | — | Yes | Yes | Yes | Yes | Yes | Yes | Yes | — | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Image dedup (SHA-256) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Download resume | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Concurrent downloads | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Chapter title from tags | — | — | <Badge status="supported" /> | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | <Badge status="supported" /> | — |
 
 ## Site notes
 
