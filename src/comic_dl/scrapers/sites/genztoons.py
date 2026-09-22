@@ -16,6 +16,7 @@ from urllib.parse import urljoin
 from bs4 import BeautifulSoup, Tag
 from curl_cffi.requests import AsyncSession
 
+from ...errors import ScrapeError
 from ...models import (
     ChapterInfo,
     ImageItem,
@@ -28,6 +29,7 @@ from ...models import (
 from ..base import (
     BaseScraper,
     _attr_text,
+    listing_page_error,
     meta_get,
     meta_index,
     no_chapters_error,
@@ -55,6 +57,11 @@ _UID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*\.[A-Za-z0-9]+$")
 _READER_SEL = "#pages"
 
 _STAT_LABELS = ("Author", "Artist", "Type", "Status")
+
+# Trailing site-marketing suffix on series descriptions (same line or next).
+_BOILERPLATE_SUFFIX_RE = re.compile(r"(?:\n\s*|\s+)-\s*A Standard scanlation.*$", re.DOTALL)
+
+_LOCKED_CHAPTER_RE = re.compile(r"early access chapter", re.IGNORECASE)
 
 
 def is_series_url(url: str) -> bool:
@@ -93,7 +100,10 @@ def _extract_series_title(soup: BeautifulSoup, idx: dict[str, list[str]]) -> str
 
 
 def _extract_description(soup: BeautifulSoup, idx: dict[str, list[str]]) -> str:
-    return meta_get(idx, "og:description", "twitter:description", "description")
+    """Series synopsis without the trailing site-marketing suffix."""
+    return _BOILERPLATE_SUFFIX_RE.sub(
+        "", meta_get(idx, "og:description", "twitter:description", "description")
+    ).strip()
 
 
 def _extract_cover(soup: BeautifulSoup, idx: dict[str, list[str]]) -> str:
@@ -132,11 +142,27 @@ def _extract_stats(soup: BeautifulSoup) -> dict[str, str]:
 
 
 def _extract_genres(soup: BeautifulSoup) -> list[str]:
-    return [
-        a.get_text(" ", strip=True)
-        for a in soup.select('a[href*="/series/?genre="]')
-        if a.get_text(" ", strip=True)
-    ]
+    """Genre names with quote/comma punctuation stripped.
+
+    Anchors render like ``'Action,'`` (quoted with a trailing comma), which
+    would otherwise join into ``Action,, Adventure`` downstream.
+    """
+    genres = []
+    for a in soup.select('a[href*="/series/?genre="]'):
+        name = a.get_text(" ", strip=True).strip("'\"").rstrip(",").strip()
+        if name:
+            genres.append(name)
+    return genres
+
+
+def _split_names(value: str) -> list[str]:
+    """Comma-separated card value (``Glump, Northwood``) into names."""
+    return [part.strip() for part in value.split(",") if part.strip()]
+
+
+def _is_locked_chapter(soup: BeautifulSoup) -> bool:
+    """Early-access paywall with no reader images (sign in + purchase)."""
+    return bool(_LOCKED_CHAPTER_RE.search(soup.get_text(" ", strip=True)))
 
 
 def _extract_images(soup: BeautifulSoup) -> list[ImageItem]:
@@ -232,13 +258,16 @@ class GenzToonsScraper(BaseScraper):
             soup = BeautifulSoup(response.text, "lxml")
             idx = meta_index(soup)
             stats = _extract_stats(soup)
+            genres = _extract_genres(soup)
+            if stats.get("Type") and stats["Type"] not in genres:
+                genres.append(stats["Type"])
             data = {
                 "series_title": _extract_series_title(soup, idx),
                 "description": _extract_description(soup, idx),
                 "cover_url": _extract_cover(soup, idx),
-                "genres": _extract_genres(soup),
-                "authors": [stats["Author"]] if stats.get("Author") else [],
-                "artists": [stats["Artist"]] if stats.get("Artist") else [],
+                "genres": genres,
+                "authors": _split_names(stats.get("Author", "")),
+                "artists": _split_names(stats.get("Artist", "")),
                 "status": stats.get("Status"),
             }
         # Enrichment is best-effort.
@@ -252,11 +281,19 @@ class GenzToonsScraper(BaseScraper):
         url: str,
         client: AsyncSession,
     ) -> ScrapedChapter:
+        if not is_chapter_url(url):
+            raise listing_page_error("GenzToons", f"{BASE}/series/{{slug}}/")
         soup, _ = await BaseScraper.fetch_html_raw(url, client)
         idx = meta_index(soup)
 
         images = _extract_images(soup)
         if not images:
+            if _is_locked_chapter(soup):
+                raise ScrapeError(
+                    "This is an early access chapter.",
+                    hint="Sign in and purchase it in a browser, then run again — "
+                    "locked chapters need an unlocked session.",
+                )
             raise no_images_error()
 
         series_title, series_slug, chapter_title = _extract_header(soup, idx)
@@ -291,6 +328,8 @@ class GenzToonsScraper(BaseScraper):
         url: str,
         client: AsyncSession,
     ) -> SeriesMetadata:
+        if not is_series_url(url):
+            raise listing_page_error("GenzToons", f"{BASE}/series/{{slug}}/")
         soup, _ = await BaseScraper.fetch_html_raw(url, client)
         idx = meta_index(soup)
 

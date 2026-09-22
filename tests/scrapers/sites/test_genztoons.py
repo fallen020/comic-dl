@@ -30,7 +30,7 @@ SERIES_PAGE = f"""
 <html lang="en"><head>
     <title>{SLUG.title()}</title>
     <meta property="og:title" content="Leveling Up With Skills"/>
-    <meta property="og:description" content="Kang Tae-san, the strongest human player in Easy mode..."/>
+    <meta property="og:description" content="Kang Tae-san, the strongest human player in Easy mode...&#10;- A Standard scanlation dedicated to providing the Best. - Leveling Up With Skills"/>
     <meta property="og:image" content="{COVER}"/>
 </head><body>
 <h1>Leveling Up With Skills</h1>
@@ -48,8 +48,8 @@ SERIES_PAGE = f"""
         <div class="min-h-8 ...">ongoing</div>
     </div>
 </div>
-<a href="/series/?genre=action" title="Action">Action</a>
-<a href="/series/?genre=adventure" title="Adventure">Adventure</a>
+<a href="/series/?genre=action" title="Action">'Action,'</a>
+<a href="/series/?genre=adventure" title="Adventure">'Adventure'</a>
 <div id="chapters" class="grid">
     <a href="/chapter/31ad113715e-65b3675e7d7/" title="Chapter 168" p="65b367aa760.avif">Chapter 168</a>
     <a href="/chapter/31ad113715e-65aaa5297f4/" title="Chapter 167" p="65aaa562e48.avif">Chapter 167</a>
@@ -137,6 +137,15 @@ class TestExtraction:
         }
         assert _extract_genres(soup) == ["Action", "Adventure"]
 
+    def test_description_strips_boilerplate(self):
+        from comic_dl.scrapers.base import meta_index
+        from comic_dl.scrapers.sites.genztoons import _extract_description
+
+        soup = BeautifulSoup(SERIES_PAGE, "lxml")
+        desc = _extract_description(soup, meta_index(soup))
+        assert desc.startswith("Kang Tae-san")
+        assert "A Standard scanlation" not in desc
+
     def test_images_scoped_to_reader(self):
         soup = BeautifulSoup(CHAPTER_PAGE, "lxml")
         images = _extract_images(soup)
@@ -194,7 +203,7 @@ class TestGenzToonsScraper:
         assert meta.reading_direction == "ltr"
         assert meta.service == DOMAIN
         assert meta.authors == ["Demigod"]
-        assert meta.genres == ["Action", "Adventure"]
+        assert meta.genres == ["Action", "Adventure", "manhwa"]
         assert meta.status == "ongoing"
         assert meta.description.startswith("Kang Tae-san")
         assert meta.cover_url == COVER
@@ -212,6 +221,31 @@ class TestGenzToonsScraper:
         scraper = GenzToonsScraper()
         with pytest.raises(ValueError, match="No images found"):
             await scraper.scrape(CHAPTER_URL, session)
+
+    @pytest.mark.asyncio
+    async def test_scrape_locked_chapter_raises(self):
+        from comic_dl.errors import ScrapeError
+
+        page = CHAPTER_PAGE.replace('<div id="pages">', "")
+        page = page.replace("</body>", "<p>This is an early access chapter. Sign in.</p></body>")
+
+        def handler(url):
+            return _MockResponse(page)
+
+        session = _MockSession(handler)
+        scraper = GenzToonsScraper()
+        with pytest.raises(ScrapeError, match="early access"):
+            await scraper.scrape(CHAPTER_URL, session)
+
+    @pytest.mark.asyncio
+    async def test_homepage_url_rejected(self):
+        from comic_dl.errors import ScrapeError
+
+        scraper = GenzToonsScraper()
+        with pytest.raises(ScrapeError, match="listing page"):
+            await scraper.scrape(
+                "https://genztoons.org/", _MockSession(lambda url: _MockResponse("<html></html>"))
+            )
 
     @pytest.mark.asyncio
     async def test_scrape_chapter_enrichment_failure_is_best_effort(self):
