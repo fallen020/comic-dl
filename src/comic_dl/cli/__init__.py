@@ -1478,6 +1478,8 @@ async def _run_list_sources(argv: list[str] | None = None) -> int:
                 indent=2,
             ),
             soft_wrap=True,
+            highlight=False,
+            markup=False,
         )
         return EXIT_OK
 
@@ -3057,6 +3059,8 @@ def _report_dry_run(
                 indent=2,
             ),
             soft_wrap=True,
+            highlight=False,
+            markup=False,
         )
         return EXIT_OK
 
@@ -3507,7 +3511,7 @@ async def _run_urls(urls: list[str], args: argparse.Namespace) -> int:
                 "failed": len(failed_batch),
                 "partial": len(partial_batch),
             }
-        console.print(json.dumps(payload, indent=2), soft_wrap=True)
+        console.print(json.dumps(payload, indent=2), soft_wrap=True, highlight=False, markup=False)
         return EXIT_ERROR if (failed_batch or partial_batch) else EXIT_OK
 
     if total > 1:
@@ -3969,6 +3973,8 @@ async def _run_update(argv: list[str]) -> int:
                     indent=2,
                 ),
                 soft_wrap=True,
+                highlight=False,
+                markup=False,
             )
             return EXIT_ERROR if failed else EXIT_OK
 
@@ -4071,6 +4077,8 @@ def _run_cookie(argv: list[str]) -> int:
                         indent=2,
                     ),
                     soft_wrap=True,
+                    highlight=False,
+                    markup=False,
                 )
                 return EXIT_OK
             if not rows:

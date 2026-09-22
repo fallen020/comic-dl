@@ -366,7 +366,7 @@ def _cmd_info(
                 for ch in chapters
             ],
         }
-        console.print(json.dumps(payload, indent=2), soft_wrap=True)
+        console.print(json.dumps(payload, indent=2), soft_wrap=True, highlight=False, markup=False)
         return EXIT_OK
 
     console.print()
