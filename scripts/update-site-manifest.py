@@ -16,8 +16,11 @@ copies the committed manifest into the release asset set, where
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
+import os
 import sys
+import tempfile
 from pathlib import Path
 
 # Make the package importable from a bare checkout (CI, pre-commit).
@@ -77,7 +80,7 @@ def main() -> int:
     args = parser.parse_args()
 
     payload = build_manifest()
-    body = json.dumps(payload, indent=2) + "\n"
+    body = json.dumps(payload, indent=2, sort_keys=True) + "\n"
     if args.check:
         if not MANIFEST.exists():
             print(f"error: {MANIFEST.name} is missing; run without --check to generate it")
@@ -92,7 +95,18 @@ def main() -> int:
         print("Site-support manifest OK.")
         return 0
 
-    MANIFEST.write_text(body, encoding="utf-8")
+    if MANIFEST.exists() and MANIFEST.read_text(encoding="utf-8") == body:
+        print(f"{MANIFEST.name} is up to date ({len(payload['sites'])} sites).")
+        return 0
+    fd, tmp_name = tempfile.mkstemp(dir=MANIFEST.parent, prefix=f".{MANIFEST.name}.", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(body)
+        os.replace(tmp_name, MANIFEST)
+    except OSError:
+        with contextlib.suppress(OSError):
+            os.unlink(tmp_name)
+        raise
     print(f"Wrote {MANIFEST.relative_to(_REPO)} ({len(payload['sites'])} sites).")
     return 0
 

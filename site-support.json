@@ -1,111 +1,111 @@
 {
-  "schema_version": 1,
   "core_version": "0.0.3",
+  "schema_version": 1,
   "sites": {
     "asurascans": {
-      "version": "1.0.0",
       "minimum_core_version": "0.0.2",
-      "status": "supported"
+      "status": "supported",
+      "version": "1.0.0"
     },
     "e-hentai": {
-      "version": "1.0.0",
       "minimum_core_version": "0.0.2",
-      "status": "supported"
-    },
-    "thunderscans": {
-      "version": "1.0.0",
-      "minimum_core_version": "0.0.2",
-      "status": "supported"
+      "status": "supported",
+      "version": "1.0.0"
     },
     "flamecomics": {
-      "version": "1.0.0",
       "minimum_core_version": "0.0.2",
-      "status": "supported"
+      "status": "supported",
+      "version": "1.0.0"
     },
     "fsicomics": {
-      "version": "1.0.0",
       "minimum_core_version": "0.0.2",
-      "status": "supported"
+      "status": "supported",
+      "version": "1.0.0"
     },
     "gedecomix": {
-      "version": "1.0.0",
       "minimum_core_version": "0.0.2",
-      "status": "supported"
+      "status": "supported",
+      "version": "1.0.0"
     },
     "genztoons": {
-      "version": "1.0.0",
       "minimum_core_version": "0.0.2",
-      "status": "supported"
+      "status": "supported",
+      "version": "1.0.0"
     },
     "hivetoons": {
-      "version": "1.0.0",
       "minimum_core_version": "0.0.2",
-      "status": "supported"
+      "status": "supported",
+      "version": "1.0.0"
     },
     "kagane": {
-      "version": "1.0.0",
       "minimum_core_version": "0.0.2",
-      "status": "supported"
+      "status": "supported",
+      "version": "1.0.0"
     },
     "kingofshojo": {
-      "version": "1.0.0",
       "minimum_core_version": "0.0.2",
-      "status": "supported"
+      "status": "supported",
+      "version": "1.0.0"
     },
     "kodokustudio": {
-      "version": "1.0.0",
       "minimum_core_version": "0.0.2",
-      "status": "supported"
+      "status": "supported",
+      "version": "1.0.0"
     },
     "lgbtics": {
-      "version": "1.0.0",
       "minimum_core_version": "0.0.2",
-      "status": "supported"
+      "status": "supported",
+      "version": "1.0.0"
     },
     "mangadex": {
-      "version": "1.0.0",
       "minimum_core_version": "0.0.2",
-      "status": "supported"
+      "status": "supported",
+      "version": "1.0.0"
     },
     "manhwatop": {
-      "version": "1.0.0",
       "minimum_core_version": "0.0.2",
-      "status": "supported"
+      "status": "supported",
+      "version": "1.0.0"
     },
     "manhwaz": {
-      "version": "1.0.0",
       "minimum_core_version": "0.0.2",
-      "status": "supported"
+      "status": "supported",
+      "version": "1.0.0"
     },
     "pawchive": {
-      "version": "1.0.0",
       "minimum_core_version": "0.0.2",
-      "status": "supported"
+      "status": "supported",
+      "version": "1.0.0"
     },
     "qimanga": {
-      "version": "1.0.0",
       "minimum_core_version": "0.0.2",
-      "status": "supported"
+      "status": "supported",
+      "version": "1.0.0"
     },
     "stonescape": {
-      "version": "1.0.0",
       "minimum_core_version": "0.0.2",
-      "status": "supported"
+      "status": "supported",
+      "version": "1.0.0"
+    },
+    "thunderscans": {
+      "minimum_core_version": "0.0.2",
+      "status": "supported",
+      "version": "1.0.0"
     },
     "toonily": {
-      "version": "1.0.0",
       "minimum_core_version": "0.0.2",
-      "status": "supported"
+      "status": "supported",
+      "version": "1.0.0"
     },
     "webtoon": {
-      "version": "1.0.0",
       "minimum_core_version": "0.0.2",
-      "status": "supported"
+      "status": "supported",
+      "version": "1.0.0"
     },
     "weebcentral": {
-      "version": "1.0.0",
       "minimum_core_version": "0.0.2",
-      "status": "supported"
+      "status": "supported",
+      "version": "1.0.0"
     }
   }
 }

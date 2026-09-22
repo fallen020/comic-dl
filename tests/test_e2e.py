@@ -1190,7 +1190,9 @@ class TestSeriesIncrementalUpdates:
         out = capsys.readouterr().out
         assert "1 had new chapters" in out
 
-        with contextlib.closing(sqlite3.connect(str(tmp_path / ".comic-dl" / "library.db"))) as conn:
+        with contextlib.closing(
+            sqlite3.connect(str(tmp_path / ".comic-dl" / "library.db"))
+        ) as conn:
             rows = conn.execute("SELECT url FROM chapters ORDER BY url").fetchall()
         assert len(rows) == 3
 

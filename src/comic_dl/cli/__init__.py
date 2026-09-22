@@ -585,7 +585,7 @@ def _restore_pages_from_archive(archive_path: Path, dest_dir: Path) -> int:
     count = 0
 
     def _on_disk_name(info_name: str) -> str:
-        return "page_" + info_name[len("Page_"):]
+        return "page_" + info_name[len("Page_") :]
 
     def _acceptable(info_name: str, size: int | None) -> bool:
         if not _PAGE_NAME_RE.match(info_name):
@@ -611,9 +611,7 @@ def _restore_pages_from_archive(archive_path: Path, dest_dir: Path) -> int:
                 for zinfo in zf.infolist():
                     if not _acceptable(zinfo.filename, zinfo.file_size):
                         continue
-                    (dest_dir / _on_disk_name(zinfo.filename)).write_bytes(
-                        zf.read(zinfo)
-                    )
+                    (dest_dir / _on_disk_name(zinfo.filename)).write_bytes(zf.read(zinfo))
                     count += 1
     except (BadZipFile, tarfile.TarError, OSError) as exc:
         trace(f"resume: could not restore from {archive_path.name}: {exc}")

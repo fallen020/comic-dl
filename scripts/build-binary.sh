@@ -7,4 +7,6 @@ cd "$(dirname "$0")/.."
 uv sync --extra dev --locked
 uv run scripts/write-version.py
 uv run pyinstaller --clean --noconfirm packaging/comic-dl.spec
+test -x dist/comic-dl || { echo "error: binary was not created: dist/comic-dl" >&2; exit 1; }
+./dist/comic-dl --version
 echo "Built binary into dist/."

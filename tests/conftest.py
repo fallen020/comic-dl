@@ -65,9 +65,7 @@ def _reset_cli_globals(tmp_path):
     downloader.reset_host_breaker()
     utils.clear_dns_cache()
     consoles = (ui_module.console, ui_module.err_console)
-    before = [
-        (c.no_color, c._force_terminal, c._color_system) for c in consoles
-    ]
+    before = [(c.no_color, c._force_terminal, c._color_system) for c in consoles]
     # Full "never" pin (not just no_color): macOS CI resolves the captured
     # pipe as a terminal, and bare no_color still leaves bold/underline
     # codes spliced inside asserted phrases. Tests asserting color override
