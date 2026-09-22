@@ -42,9 +42,11 @@ from ..base import (
 _CHAPTER_SLUG_RE = re.compile(r"chapter-([\d.]+)", re.IGNORECASE)
 _POST_ID_RE = re.compile(r"post:\$R\[\d+\]=\{id:(\d+),slug:\"([^\"]+)\"")
 _POST_CONTENT_RE = re.compile(r'postContent:"((?:[^"\\]|\\.)*)"')
+_GENRES_REF_RE = re.compile(r"genres:\$R\[(\d+)\]=\[")
 _HEX_ESCAPE_RE = re.compile(r"\\x([0-9a-fA-F]{2})")
-_LOCKED_BADGE_RE = re.compile(r"^\s*Locked Chapter\s*$")
+_LOCKED_BADGE_RE = re.compile(r"Locked Chapter")
 _LOCK_PRICE_RE = re.compile(r"(\d+)\s+coins", re.IGNORECASE)
+_OG_GENRES_RE = re.compile(r"Genres:\s*(.+?)\.\s*(?:Type:|$)", re.IGNORECASE | re.DOTALL)
 
 _READER_IMG_SEL = "img[data-reader-page-image]"
 _CHAPTER_LINK_SEL = 'a[href*="/chapter-"]'
@@ -115,11 +117,59 @@ def _extract_cover(soup: BeautifulSoup, idx: dict[str, list[str]]) -> str:
 
 
 def _locked_price(soup: BeautifulSoup) -> str | None:
-    """Coin price of a locked chapter, or ``None`` when not a lock wall."""
-    if soup.find(string=_LOCKED_BADGE_RE) is None:
+    """Coin price of a locked chapter, or ``None`` when not a lock wall.
+
+    The badge may be inline in a larger text node, so this matches the
+    substring — safe because callers only consult it when the page yielded
+    no images (which fails either way; this only picks the error message).
+    """
+    if not _LOCKED_BADGE_RE.search(soup.get_text(" ", strip=True)):
         return None
     m = _LOCK_PRICE_RE.search(soup.get_text(" ", strip=True))
     return m.group(1) if m else ""
+
+
+def _normalize_genre(name: str) -> str:
+    name = name.strip()
+    return name[:1].upper() + name[1:] if name else ""
+
+
+def _extract_genres(raw: str) -> list[str]:
+    """Genre names from the router stream (``genres:$R[N]=[...]``)."""
+    m = _GENRES_REF_RE.search(raw)
+    if not m:
+        return []
+    start = raw.find(f"$R[{m.group(1)}]=[", m.end())
+    if start == -1:
+        return []
+    j = start + len(m.group(1)) + 5  # at '['
+    n = len(raw)
+    depth, in_str = 0, False
+    while j < n:
+        ch = raw[j]
+        if ch == "\\" and j + 1 < n:
+            j += 2
+            continue
+        if ch == '"':
+            in_str = not in_str
+        elif not in_str and ch == "[":
+            depth += 1
+        elif not in_str and ch == "]":
+            depth -= 1
+            if depth == 0:
+                break
+        j += 1
+    blob = raw[start + len(m.group(1)) + 5 : j + 1]
+    names = re.findall(r'name:"([^"]*)"', blob)
+    return [g for g in (_normalize_genre(x) for x in names) if g]
+
+
+def _extract_genres_from_og(text: str) -> list[str]:
+    """Genre names from an ``og:description`` ``Genres: a, b.`` segment."""
+    m = _OG_GENRES_RE.search(text or "")
+    if not m:
+        return []
+    return [g for g in (_normalize_genre(x) for x in m.group(1).split(",")) if g]
 
 
 def _chapter_number(chapter: dict) -> str | None:
@@ -220,7 +270,7 @@ class VComicsScraper(BaseScraper):
     async def _scrape_chapter(self, url: str, client: AsyncSession) -> ScrapedChapter:
         if not self._is_chapter(url):
             raise listing_page_error(self.site_label or self.domain, url)
-        soup, raw = await self.fetch_html_raw(url, client)
+        soup, _raw = await self.fetch_html_raw(url, client)
         idx = meta_index(soup)
 
         images = _extract_images(soup, url)
@@ -260,12 +310,23 @@ class VComicsScraper(BaseScraper):
         if html_tag and html_tag.get("lang"):
             lang = _attr_text(html_tag.get("lang")).split("-")[0].lower()
 
+        # Reader pages carry no synopsis or genre data of their own — the
+        # og:description is SEO boilerplate ("Read … Genres: … Type: …").
+        # Enrich from the series page (disk-cached after the first fetch).
+        description = ""
+        genres = _extract_genres_from_og(meta_get(idx, "og:description"))
+        series_meta = await self._series_meta(_series_slug_from_url(url), client)
+        if series_meta:
+            description = series_meta["description"]
+            genres = series_meta["genres"] or genres
+
         return ScrapedChapter(
             info=ChapterInfo(
                 series_title=series_title or "Untitled",
                 chapter_title=chapter_title or "Chapter",
                 chapter_number=number,
-                description=_extract_description(raw, soup, idx),
+                description=description,
+                genres=genres,
                 language=lang,
                 reading_direction="ltr",
                 total_pages=len(images),
@@ -274,6 +335,21 @@ class VComicsScraper(BaseScraper):
             images=images,
             cover_url=_extract_cover(soup, idx),
         )
+
+    async def _series_meta(self, slug: str, client: AsyncSession) -> dict:
+        """Description + genres for ``slug`` from its series page (best-effort)."""
+        if not slug:
+            return {}
+        try:
+            soup, raw = await self.fetch_html_raw(f"https://{self.domain}/series/{slug}", client)
+        except Exception:
+            return {}
+        idx = meta_index(soup)
+        return {
+            "description": _extract_description(raw, soup, idx),
+            "genres": _extract_genres(raw)
+            or _extract_genres_from_og(meta_get(idx, "og:description")),
+        }
 
     async def _scrape_series(self, url: str, client: AsyncSession) -> SeriesMetadata:
         if not self._is_series(url):
@@ -291,6 +367,10 @@ class VComicsScraper(BaseScraper):
         post_id = _post_id_from_series_html(raw, slug)
         if post_id is not None:
             for entry in await self._fetch_chapters(post_id, client):
+                # Locked chapters need coins/login; like tapas/valirscans,
+                # listings cover only what anonymous runs can download.
+                if entry.get("isLocked") or entry.get("isAccessible") is False:
+                    continue
                 number = _chapter_number(entry)
                 chapter_slug = str(entry.get("slug") or "")
                 if not chapter_slug:

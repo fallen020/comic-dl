@@ -10,9 +10,12 @@ from comic_dl.scrapers.sites._vcomics import (
     _decode_rsc_string,
     _extract_cover,
     _extract_description,
+    _extract_genres,
+    _extract_genres_from_og,
     _extract_images,
     _extract_series_title,
     _locked_price,
+    _normalize_genre,
     _post_id_from_series_html,
     _series_slug_from_url,
     chapter_url_re,
@@ -40,7 +43,7 @@ SERIES_PAGE = """
 <dl><dt>Status</dt><dd>ONGOING</dd><dt>Type</dt><dd>Manhwa</dd></dl>
 <a href="/series/shadow-slave/chapter-9">Chapter 9</a>
 <a href="/series/shadow-slave/chapter-1">Chapter 1</a>
-<script>self.$R=self.$R||{};$R[96]={data:$R[97]={slug:"shadow-slave",post:$R[98]={id:611,slug:"shadow-slave",postTitle:"Shadow Slave",postContent:"\\x3Cp>Full synopsis here.\\x3C/p>"}}}}</script>
+<script>self.$R=self.$R||{};$R[96]={data:$R[97]={slug:"shadow-slave",genres:$R[7]=[],post:$R[98]={id:611,slug:"shadow-slave",postTitle:"Shadow Slave",postContent:"\\x3Cp>Full synopsis here.\\x3C/p>"}}}};$R[7]=[$R[8]={id:1,name:"Action"}]</script>
 </body></html>
 """
 
@@ -91,6 +94,34 @@ def _handler(url):
         if "skip=10" in url:
             return _MockResponse(json_data=CHAPTERS_PAGE_2)
         return _MockResponse(json_data=CHAPTERS_PAGE_1)
+    if "api/posts" in url:
+        return _MockResponse(json_data=POSTS_SEARCH)
+    return _MockResponse(CHAPTER_PAGE)
+
+
+CHAPTERS_LOCKED = {
+    "post": {
+        "chapters": [
+            {"id": 1, "slug": "chapter-1", "number": 1, "title": ""},
+            {"id": 2, "slug": "chapter-2", "number": 2, "title": "", "isLocked": True},
+            {
+                "id": 3,
+                "slug": "chapter-3",
+                "number": 3,
+                "title": "",
+                "isAccessible": False,
+            },
+        ]
+    },
+    "totalChapterCount": 3,
+}
+
+
+def _locked_handler(url):
+    if url == SERIES_URL:
+        return _MockResponse(SERIES_PAGE)
+    if "api/chapters" in url:
+        return _MockResponse(json_data=CHAPTERS_LOCKED)
     if "api/posts" in url:
         return _MockResponse(json_data=POSTS_SEARCH)
     return _MockResponse(CHAPTER_PAGE)
@@ -178,6 +209,22 @@ class TestExtraction:
         assert _locked_price(soup) == "100"
         assert _locked_price(BeautifulSoup(CHAPTER_PAGE, "lxml")) is None
 
+    def test_genres_from_tsr(self):
+        raw = (
+            'genres:$R[3]=[] $R[3]=[$R[4]={id:2,name:"shoujo "},$R[5]={id:5,name:"Slice of Life"}]'
+        )
+        assert _extract_genres(raw) == ["Shoujo", "Slice of Life"]
+        assert _extract_genres("<html></html>") == []
+
+    def test_genres_from_og(self):
+        text = "Read X Chapter 1. Genres: shoujo, romance, Slice of Life. Type: Manhwa."
+        assert _extract_genres_from_og(text) == ["Shoujo", "Romance", "Slice of Life"]
+        assert _extract_genres_from_og("no genres here") == []
+
+    def test_normalize_genre(self):
+        assert _normalize_genre("shoujo ") == "Shoujo"
+        assert _normalize_genre("") == ""
+
 
 class TestVortexScraper:
     @pytest.mark.asyncio
@@ -190,6 +237,8 @@ class TestVortexScraper:
         assert meta.chapter_number == "1"
         assert meta.total_pages == 2
         assert meta.language == "en"
+        assert meta.description == "Full synopsis here."
+        assert meta.genres == ["Action"]
 
     @pytest.mark.asyncio
     async def test_scrape_chapter_no_images_raises(self):
@@ -207,6 +256,12 @@ class TestVortexScraper:
                 "https://vortexscans.org/series/shadow-slave/chapter-23",
                 _MockSession(lambda url: _MockResponse(LOCKED_PAGE)),
             )
+
+    @pytest.mark.asyncio
+    async def test_scrape_series_skips_locked(self):
+        scraper = VortexScansScraper()
+        series = await scraper.scrape_series(SERIES_URL, _MockSession(_locked_handler))
+        assert [c["episode_no"] for c in series.chapters] == ["1"]
 
     @pytest.mark.asyncio
     async def test_homepage_url_rejected(self):
