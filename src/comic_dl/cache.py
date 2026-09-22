@@ -638,6 +638,12 @@ def clear_temp_scratch() -> int:
     return removed
 
 
+def invalidate(url: str, profile: str, extra_headers: dict[str, str]) -> None:
+    """Drop one entry (a body that proved unusable); best-effort, silent."""
+    with contextlib.suppress(RequestBlockedError, OSError):
+        _unlink_best_effort(_entry_path(url, profile, extra_headers))
+
+
 def cache_dir_path() -> Path:
     """The directory holding cache entries (for ``comic-dl cache path``)."""
     return _cache_root()

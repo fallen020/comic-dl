@@ -11,7 +11,9 @@ from curl_cffi.requests import AsyncSession
 
 from ... import webview
 from ...antibot import looks_like_challenge
+from ...cf import note_replay_dead, replay_dead
 from ...errors import ScrapeError
+from ...http import jar_cookies_for
 from ...models import (
     ChapterInfo,
     ImageItem,
@@ -215,6 +217,11 @@ class _SessionResponse:
         return json.loads(self.text)
 
 
+def _has_clearance(url: str) -> bool:
+    """True when the jar holds a ``cf_clearance`` for ``url``'s host."""
+    return "cf_clearance" in jar_cookies_for(url)
+
+
 def _is_cf_challenge_error(exc: BaseException) -> bool:
     """True when ``exc`` carries a Cloudflare challenge response.
 
@@ -266,15 +273,38 @@ class KaganeScraper(BaseScraper):
         headers: dict[str, str] | None = None,
         body: str | None = None,
     ) -> Any:
-        """Fetch a kagane API endpoint, preferring the webview session.
+        """Fetch a kagane API endpoint, preferring the stored cookie.
 
-        Kagane binds its ``cf_clearance`` to the WebKit TLS fingerprint that
-        minted it, so a harvested cookie cannot be replayed by curl_cffi. When
-        a :class:`~comic_dl.webview.WebViewSession` is available, the request
-        runs as a same-origin XHR inside the page (carrying cookies *and*
-        fingerprint). Otherwise — headless CI, webview disabled — fall back to
-        plain HTTP with the stored ``cf_clearance``, which is best-effort.
+        A jarred ``cf_clearance`` is replayed plain-HTTP first, so a fresh
+        cookie never costs a webview window — the session is only opened
+        when the replay is actually challenged. One failed probe per host
+        per run is enough: after that the session is used directly for the
+        rest of the run. Without a stored cookie the session is used
+        directly: a plain attempt would only burn a request to learn the
+        same thing. Kagane binds clearance to the minting TLS fingerprint,
+        so when the replay is challenged the request falls back to the
+        :class:`~comic_dl.webview.WebViewSession` (same-origin XHR carrying
+        cookies *and* fingerprint); otherwise — headless CI, webview
+        disabled — plain HTTP with the stored cookie is best-effort.
         """
+        json_body = json.loads(body) if body else None
+        host = (urlsplit(url).hostname or "").lower()
+        if not replay_dead(host) and _has_clearance(url):
+            resp = await BaseScraper._timeout_get(
+                url,
+                client,
+                method=method,
+                headers=headers,
+                json=json_body,
+                challenge_retry=False,
+            )
+            if not looks_like_challenge(
+                resp.status_code,
+                getattr(resp, "headers", None),
+                getattr(resp, "text", "") or "",
+            ):
+                return resp
+            note_replay_dead(host)
         if webview.session_enabled():
             try:
                 session = await webview.ensure_session(BASE)
@@ -290,7 +320,6 @@ class KaganeScraper(BaseScraper):
                 )
                 return _SessionResponse(status, resp_headers, content)
 
-        json_body = json.loads(body) if body else None
         return await BaseScraper._timeout_get(
             url,
             client,

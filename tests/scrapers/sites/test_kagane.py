@@ -168,6 +168,22 @@ def _session_disabled_by_default(monkeypatch):
     monkeypatch.setattr(kagane_module.webview, "session_enabled", lambda: False)
 
 
+@pytest.fixture(autouse=True)
+def _no_stored_clearance_by_default(monkeypatch):
+    """Isolate ``_api_fetch`` from the developer's real cookie jar.
+
+    ``_has_clearance`` reads the persistent jar; a clearance stored by a
+    real run would otherwise reroute these tests down the replay-first
+    path. Tests for that path opt in explicitly (see
+    :class:`TestApiFetchClearanceFirst`). The per-run replay memory is
+    reset for the same reason: it is module-global by design.
+    """
+    monkeypatch.setattr(kagane_module, "jar_cookies_for", lambda url: {})
+    from comic_dl import cf as cf_module
+
+    cf_module._replay_dead.clear()
+
+
 class TestUrlPatterns:
     def test_valid_series_urls(self):
         assert is_series_url(f"https://kagane.to/series/{SERIES_ID}")
@@ -539,6 +555,88 @@ class TestKaganeScraperSessionPath:
 
         assert meta.series_title == "Untitled"
         assert len(meta.images) == 3
+
+
+class TestApiFetchClearanceFirst:
+    """A stored clearance is replayed plain-HTTP before any webview opens."""
+
+    @pytest.mark.asyncio
+    async def test_plain_replay_wins_no_session_started(self, monkeypatch):
+        monkeypatch.setattr(kagane_module, "jar_cookies_for", lambda url: {"cf_clearance": "abc"})
+
+        def _boom(url):
+            raise AssertionError("webview session must not start with a fresh cookie")
+
+        monkeypatch.setattr(kagane_module.webview, "session_enabled", lambda: True)
+        monkeypatch.setattr(kagane_module.webview, "ensure_session", _boom)
+        session = _MockSession(lambda url: _MockResponse(json_data=SERIES_JSON))
+        scraper = KaganeScraper()
+        data = await scraper._series_json(SERIES_ID, session)
+        assert data["title"] == "Solo Leveling"
+        assert session.requests, "expected a plain-HTTP attempt"
+
+    @pytest.mark.asyncio
+    async def test_challenged_replay_falls_back_to_session(self, monkeypatch):
+        monkeypatch.setattr(kagane_module, "jar_cookies_for", lambda url: {"cf_clearance": "stale"})
+        challenged = _MockResponse(b"Attention Required", status=403)
+        challenged.headers = {"server": "cloudflare"}
+        session = _MockSession(lambda url: challenged)
+        global _FAKE_SESSION
+        _FAKE_SESSION = _FakeWebViewSession(lambda url: _MockResponse(json_data=SERIES_JSON))
+        monkeypatch.setattr(kagane_module.webview, "session_enabled", _session_enabled_true)
+        monkeypatch.setattr(kagane_module.webview, "ensure_session", _fake_ensure_session)
+        scraper = KaganeScraper()
+        data = await scraper._series_json(SERIES_ID, session)
+        assert data["title"] == "Solo Leveling"
+        assert _FAKE_SESSION.calls, "expected a session fallback after the challenge"
+
+    @pytest.mark.asyncio
+    async def test_no_clearance_uses_session_directly(self, monkeypatch):
+        session = _MockSession(lambda url: _MockResponse(json_data={}))
+        global _FAKE_SESSION
+        _FAKE_SESSION = _FakeWebViewSession(lambda url: _MockResponse(json_data=SERIES_JSON))
+        monkeypatch.setattr(kagane_module.webview, "session_enabled", _session_enabled_true)
+        monkeypatch.setattr(kagane_module.webview, "ensure_session", _fake_ensure_session)
+        scraper = KaganeScraper()
+        data = await scraper._series_json(SERIES_ID, session)
+        assert data["title"] == "Solo Leveling"
+        assert not session.requests, "no plain attempt without a stored cookie"
+        assert _FAKE_SESSION.calls
+
+    @pytest.mark.asyncio
+    async def test_challenged_host_skips_replay_for_rest_of_run(self, monkeypatch):
+        monkeypatch.setattr(kagane_module, "jar_cookies_for", lambda url: {"cf_clearance": "stale"})
+        challenged = _MockResponse(b"Attention Required", status=403)
+        challenged.headers = {"server": "cloudflare"}
+        session = _MockSession(lambda url: challenged)
+        global _FAKE_SESSION
+        _FAKE_SESSION = _FakeWebViewSession(lambda url: _MockResponse(json_data=SERIES_JSON))
+        monkeypatch.setattr(kagane_module.webview, "session_enabled", _session_enabled_true)
+        monkeypatch.setattr(kagane_module.webview, "ensure_session", _fake_ensure_session)
+        scraper = KaganeScraper()
+        await scraper._series_json(SERIES_ID, session)
+        first_plain_attempts = session._handler_calls
+        assert first_plain_attempts > 0
+        await scraper._series_json(SERIES_ID, session)
+        assert session._handler_calls == first_plain_attempts, (
+            "after one challenged replay the run must go straight to the session"
+        )
+
+    @pytest.mark.asyncio
+    async def test_non_challenge_403_does_not_open_session(self, monkeypatch):
+        monkeypatch.setattr(kagane_module, "jar_cookies_for", lambda url: {"cf_clearance": "abc"})
+        denied = _MockResponse(b"denied", status=403)
+        denied.headers = {"server": "nginx"}
+        session = _MockSession(lambda url: denied)
+        monkeypatch.setattr(kagane_module.webview, "session_enabled", lambda: True)
+        monkeypatch.setattr(
+            kagane_module.webview,
+            "ensure_session",
+            lambda url: (_ for _ in ()).throw(AssertionError("no session on plain 403")),
+        )
+        scraper = KaganeScraper()
+        with pytest.raises(Exception, match="HTTP Error 403"):
+            await scraper._series_json(SERIES_ID, session)
 
 
 class TestCfChallengeClassification:

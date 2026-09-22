@@ -54,6 +54,16 @@ def listing_page_error(site_name: str, example_url: str) -> ScrapeError:
 
 _JSONLD_SEL = 'script[type="application/ld+json"]'
 
+
+def _looks_like_json(body: bytes) -> bool:
+    """True when ``body`` parses as JSON (API-response shape guard)."""
+    try:
+        json.loads(body)
+    except ValueError:
+        return False
+    return True
+
+
 JSONLD_ARTICLE_TYPES = frozenset({"Article", "NewsArticle", "BlogPosting"})
 
 
@@ -182,6 +192,8 @@ class BaseScraper:
         json: object = None,
         headers: dict[str, str] | None = None,
         use_cache: bool = True,
+        challenge_retry: bool = True,
+        expect_json: bool = False,
     ):
         """Validate + fetch ``url`` bounded by a hard timeout, validating hops.
 
@@ -196,6 +208,14 @@ class BaseScraper:
 
         ``json`` sends a JSON request body (e.g. POST-only APIs); ``headers``
         merges extra request headers on top of the session defaults.
+        ``challenge_retry`` runs the Cloudflare detect-solve-retry ladder;
+        pass False for a single attempt when the caller escalates itself
+        (e.g. a scraper that prefers its stored cookie and only opens a
+        webview when the replay is actually challenged).
+        ``expect_json`` guards API callers against a poisoned entry: a
+        cached body that is not JSON is dropped and refetched, and a
+        non-JSON network body is never stored (a transient 200 HTML shell
+        must not shadow the API for the rest of the TTL).
 
         Scrape-path fetches must also satisfy the same outbound-safety
         invariant the downloader enforces on image/cover fetches: the initial
@@ -245,7 +265,12 @@ class BaseScraper:
         if cacheable:
             cached, stale_entry = cache_lookup(url, profile, extra, method=method)
             if cached is not None:
-                return cached
+                if expect_json and not _looks_like_json(bytes(cached.content or b"")):
+                    from ..cache import invalidate as cache_invalidate
+
+                    cache_invalidate(url, profile, extra)
+                else:
+                    return cached
 
         if stale_entry is not None:
             merged = dict(headers or {})
@@ -295,11 +320,19 @@ class BaseScraper:
                 f"too many redirects ({MAX_REDIRECTS}) while following {url!r}"
             )
 
-        resp = await retry_challenge_once(_fetch_once, url)
+        if challenge_retry:
+            resp = await retry_challenge_once(_fetch_once, url)
+        else:
+            resp = await _fetch_once()
         if cacheable and stale_entry is not None and resp.status_code == 304:
             cache_refresh(url, profile, extra, stale_entry, method=method)
             return CachedResponse(stale_entry)
-        if cacheable and resp.status_code == 200:
+        body = bytes(getattr(resp, "content", b"") or b"")
+        if (
+            cacheable
+            and resp.status_code == 200
+            and not (expect_json and not _looks_like_json(body))
+        ):
             cache_store(
                 url,
                 profile,
@@ -307,7 +340,7 @@ class BaseScraper:
                 method=method,
                 status=resp.status_code,
                 headers=dict(getattr(resp, "headers", None) or {}),
-                body=bytes(getattr(resp, "content", b"") or b""),
+                body=body,
             )
         return resp
 

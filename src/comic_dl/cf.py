@@ -45,6 +45,23 @@ def solver_mode(host: str | None = None) -> str:
 #: re-spawning would pop a window per blocked request.
 _failed_solves: set[str] = set()
 
+#: Hosts whose stored-cookie replay was challenged already this run. A
+#: replay can only be proven stale by trying it, but one failed probe per
+#: run is enough — after that, fingerprint-bound scrapers go straight to
+#: the webview session instead of burning a doomed plain request per call.
+_replay_dead: set[str] = set()
+
+
+def replay_dead(host: str) -> bool:
+    """True when this run already saw ``host`` challenge a cookie replay."""
+    return host.lower() in _replay_dead
+
+
+def note_replay_dead(host: str) -> None:
+    """Remember that ``host`` challenged a cookie replay (this run only)."""
+    if host:
+        _replay_dead.add(host.lower())
+
 
 async def handle_challenge(url: str, verdict: BlockVerdict | None = None) -> bool:
     """Solve or clear the challenge for ``url``'s host using an escalation ladder.

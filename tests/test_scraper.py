@@ -661,6 +661,70 @@ class TestTimeoutGetCache:
         await BaseScraper._timeout_get(self.url, MockClient(), method="POST")
         assert cache._cache_root().is_dir() is False or not any(cache._cache_root().glob("*.dat"))
 
+    async def test_expect_json_drops_poisoned_entry_and_refetches(self):
+        """A cached HTML shell for a JSON API is dropped, not served.
+
+        Regression test: a transient 200 HTML shell stored for an API URL
+        must not shadow the API for the rest of the TTL — the entry is
+        invalidated and the live JSON is fetched (and stored) instead.
+        """
+        from comic_dl.scrapers.base import BaseScraper
+
+        calls = []
+
+        class Resp:
+            status_code = 200
+            headers = {"content-type": "application/json"}
+
+            def __init__(self, text):
+                self.text = text
+                self.content = text.encode()
+
+            def raise_for_status(self):
+                pass
+
+        class MockClient:
+            async def get(self, url, **kwargs):
+                calls.append(url)
+                return Resp('{"pages": []}')
+
+        await BaseScraper._timeout_get(self.url, self._client(calls))  # stores HTML
+        assert len(calls) == 1
+        client = MockClient()
+        resp = await BaseScraper._timeout_get(self.url, client, expect_json=True)
+        assert resp.text == '{"pages": []}'
+        assert len(calls) == 2  # poisoned entry dropped, network refetched
+        resp = await BaseScraper._timeout_get(self.url, client, expect_json=True)
+        assert resp.text == '{"pages": []}'
+        assert len(calls) == 2  # replaced entry is JSON: fresh hit
+
+    async def test_expect_json_never_stores_html(self):
+        """A non-JSON network body is returned but never cached for JSON callers."""
+        from comic_dl.scrapers.base import BaseScraper
+
+        calls = []
+
+        class Resp:
+            status_code = 200
+            text = "<html>shell</html>"
+            content = b"<html>shell</html>"
+            headers = {"content-type": "text/html"}
+
+            def raise_for_status(self):
+                pass
+
+        class MockClient:
+            async def get(self, url, **kwargs):
+                calls.append(url)
+                return Resp()
+
+        client = MockClient()
+        first = await BaseScraper._timeout_get(self.url, client, expect_json=True)
+        assert first.text == "<html>shell</html>"
+        second = await BaseScraper._timeout_get(self.url, client, expect_json=True)
+        assert second.text == "<html>shell</html>"
+        assert len(calls) == 2  # nothing stored: every call reaches the network
+
     async def test_cache_never_serves_unvalidated_url(self, monkeypatch):
         """Security invariant: the cache is consulted only after
         ``validate_request_url``. Even with a warm entry on disk, a URL that
