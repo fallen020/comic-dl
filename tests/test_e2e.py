@@ -1070,7 +1070,7 @@ class TestSeriesIncrementalUpdates:
 
         db = tmp_path / ".comic-dl" / "library.db"
         assert db.exists()
-        with sqlite3.connect(str(db)) as conn:
+        with contextlib.closing(sqlite3.connect(str(db))) as conn:
             rows = conn.execute("SELECT url, cbz FROM chapters ORDER BY url").fetchall()
             series = conn.execute("SELECT series_id, source_site FROM series").fetchall()
         assert len(rows) == 2
@@ -1190,7 +1190,7 @@ class TestSeriesIncrementalUpdates:
         out = capsys.readouterr().out
         assert "1 had new chapters" in out
 
-        with sqlite3.connect(str(tmp_path / ".comic-dl" / "library.db")) as conn:
+        with contextlib.closing(sqlite3.connect(str(tmp_path / ".comic-dl" / "library.db"))) as conn:
             rows = conn.execute("SELECT url FROM chapters ORDER BY url").fetchall()
         assert len(rows) == 3
 
@@ -1307,7 +1307,7 @@ class TestSeriesChapterSelection:
         assert not (tmp_path / "Test Series").exists()
         db = tmp_path / ".comic-dl" / "library.db"
         if db.exists():
-            with sqlite3.connect(str(db)) as conn:
+            with contextlib.closing(sqlite3.connect(str(db))) as conn:
                 assert conn.execute("SELECT * FROM series").fetchall() == []
 
     async def test_interactive_selection_filters(self, monkeypatch, tmp_path):

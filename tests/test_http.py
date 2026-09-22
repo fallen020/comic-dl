@@ -85,6 +85,7 @@ class TestCookieJarList:
         assert len(jar.list()) == 1
         jar.clear()
         assert len(jar.list()) == 0
+        jar.close()
 
     def test_secure_cookie_kept_for_https_only(self, tmp_path):
         import time
@@ -105,6 +106,7 @@ class TestCookieJarList:
         assert "sf" not in jar.cookies_for("kagane.to", https=False)
         assert jar.cookies_for("kagane.to", https=False)["plain"] == "ok"
         assert jar.cookies_for("kagane.to", https=True)["sf"] == "tok"
+        jar.close()
 
     def test_store_rejects_public_suffix_hosts(self, tmp_path):
         import time
@@ -135,6 +137,7 @@ class TestCookieJarList:
         assert jar.cookies_for("victim.example.com") == {}
         assert jar.cookies_for("other.github.io") == {}
         assert jar.cookies_for("kagane.to") == {"ok": "fine"}
+        jar.close()
 
     def test_psl_blocks_unlisted_co_tenant_suffixes(self, tmp_path):
         """Full-PSL coverage: co-tenant suffixes absent from any curated short
@@ -167,6 +170,7 @@ class TestCookieJarList:
         assert jar.cookies_for("other.workers.dev") == {}
         assert jar.cookies_for("other.s3.amazonaws.com") == {}
         assert jar.cookies_for("example.com") == {"ok": "fine"}
+        jar.close()
 
     def test_single_label_intranet_host_storable(self, tmp_path):
         """A bare non-TLD intranet hostname is not a public suffix: it is safe
@@ -199,6 +203,7 @@ class TestCookieJarList:
         assert jar.cookies_for("intranet") == {"si": "v"}
         assert jar.cookies_for("com") == {}
         assert jar.cookies_for("localhost") == {"local": "v"}
+        jar.close()
 
     def test_most_specific_cookie_wins_on_name_collision(self, tmp_path):
         """RFC 6265 §5.4 ordering: the longest matching domain wins when two
@@ -226,6 +231,7 @@ class TestCookieJarList:
         assert jar.cookies_for("api.kagane.to")["sk"] == "specific"
         assert jar.cookies_for("www.kagane.to")["sk"] == "suffix"
         assert jar.cookies_for("unrelated.test") == {}
+        jar.close()
 
     def test_past_expiry_deletes_stored_cookie(self, tmp_path):
         """A server invalidation (``Expires``/``Max-Age`` in the past) must
@@ -242,6 +248,7 @@ class TestCookieJarList:
         assert "sk" not in jar.cookies_for("kagane.to")
         assert len(jar) == 0
         assert jar.list() == []
+        jar.close()
 
     def test_expired_rows_swept_on_store(self, tmp_path):
         """An expired row left by an older run is purged the next time the jar
@@ -264,6 +271,7 @@ class TestCookieJarList:
         )
         assert len(jar) == 1  # "old" swept inside the store transaction
         assert "old" not in jar.cookies_for("kagane.to")
+        jar.close()
 
     def test_set_rejects_public_suffix_host(self, tmp_path):
         jar = CookieJar(tmp_path / "cookies.db")
@@ -274,6 +282,7 @@ class TestCookieJarList:
         jar.set("localhost", "sk", "v")
         jar.set("kagane.to", "sk", "v")
         assert {r["host"] for r in jar.list()} == {"localhost", "kagane.to"}
+        jar.close()
 
     @pytest.mark.skipif(sys.platform == "win32", reason="owner-only mode bits are POSIX-only")
     def test_store_created_owner_only(self, tmp_path):
@@ -285,6 +294,7 @@ class TestCookieJarList:
         # DB and WAL sidecars must be user-readable only.
         mode = stat.S_IMODE(db.stat().st_mode)
         assert mode == 0o600
+        jar.close()
 
     @pytest.mark.skipif(sys.platform == "win32", reason="owner-only mode bits are POSIX-only")
     def test_restrict_perms_repairs_loose_file(self, tmp_path):
@@ -298,6 +308,7 @@ class TestCookieJarList:
         jar.set("kagane.to", "sk", "v")
         mode = stat.S_IMODE(db.stat().st_mode)
         assert mode == 0o600
+        jar.close()
 
 
 class TestCookieShortCircuit:
@@ -321,6 +332,7 @@ class TestCookieShortCircuit:
         client.cookies.jar = Mock()
         httpmodule.absorb_response_cookies(client, {"set-cookie": "sk=v"})
         spy.assert_called_once_with(client.cookies.jar)
+        jar.close()
 
     def test_jar_kwargs_empty_when_disabled(self, monkeypatch, tmp_path):
         _patch_paths(monkeypatch, tmp_path)
@@ -336,6 +348,7 @@ class TestCookieShortCircuit:
         monkeypatch.setattr(httpmodule, "get_jar", lambda: jar)
         assert httpmodule.jar_cookies_kwargs("https://kagane.to/a") == {"cookies": {"sk": "v1"}}
         assert httpmodule.jar_cookies_kwargs("http://other.test/") == {}
+        jar.close()
 
     def test_secure_jar_cookie_skipped_over_http(self, monkeypatch, tmp_path):
         import time
@@ -355,6 +368,7 @@ class TestCookieShortCircuit:
         monkeypatch.setattr(httpmodule, "get_jar", lambda: jar)
         assert httpmodule.jar_cookies_for("http://kagane.to/a") == {}
         assert httpmodule.jar_cookies_for("https://kagane.to/a") == {"sf": "tok"}
+        jar.close()
 
 
 class TestChallengeDetection:
@@ -477,6 +491,7 @@ class TestRunCookie:
             jar = CookieJar()
             jar.set("e-hentai.org", "sk", "v1")
             jar.set("kagane.to", "sk", "v2")
+            jar.close()
 
         assert self._run(["ls"], tmp_path, monkeypatch) == 0
         out = self._out(capsys)
@@ -499,6 +514,7 @@ class TestRunCookie:
             cd.return_value = tmp_path
             jar = CookieJar()
             jar.set("e-hentai.org", "sk", "v1")
+            jar.close()
 
         assert self._run(["clear"], tmp_path, monkeypatch, tty=False) == 130
         out = self._out(capsys)
@@ -506,7 +522,8 @@ class TestRunCookie:
         assert "-y" in out
         with patch("comic_dl.cookies.config_dir") as cd:
             cd.return_value = tmp_path
-            assert len(CookieJar().list()) == 1
+            with CookieJar() as jar:
+                assert len(jar.list()) == 1
 
     def test_cookie_clear_single_host(self, capsys, tmp_path, monkeypatch):
         from unittest.mock import patch
@@ -518,6 +535,7 @@ class TestRunCookie:
             jar = CookieJar()
             jar.set("e-hentai.org", "sk", "v1")
             jar.set("kagane.to", "sk", "v2")
+            jar.close()
 
         assert self._run(["clear", "-y", "e-hentai.org"], tmp_path, monkeypatch) == 0
         assert self._run(["ls"], tmp_path, monkeypatch) == 0
@@ -541,7 +559,8 @@ class TestRunCookie:
 
         with patch("comic_dl.cookies.config_dir") as cd:
             cd.return_value = tmp_path
-            CookieJar().set("e-hentai.org", "sk", "v1")
+            with CookieJar() as jar:
+                jar.set("e-hentai.org", "sk", "v1")
 
         assert self._run(["ls", "--json"], tmp_path, monkeypatch) == 0
         captured = capsys.readouterr()
@@ -557,8 +576,8 @@ class TestRunCookie:
 
         with patch("comic_dl.cookies.config_dir") as cd:
             cd.return_value = tmp_path
-            jar = CookieJar()
-            jar.set("e-hentai.org", "sk", "v1")
+            with CookieJar() as jar:
+                jar.set("e-hentai.org", "sk", "v1")
 
         assert self._run(["ls", "--json"], tmp_path, monkeypatch) == 0
         out = self._out(capsys)
@@ -606,6 +625,7 @@ class TestRunCookie:
             jar = CookieJar()
             jar.set("e-hentai.org", "sk", "v1")
             jar.set("kagane.to", "sk", "v2")
+            jar.close()
 
         assert self._run(["ls", "--json", "kagane.to"], tmp_path, monkeypatch) == 0
         out = self._out(capsys)

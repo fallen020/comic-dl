@@ -398,6 +398,17 @@ class CookieJar:
             self._reset_conn()
             return 0
 
+    def close(self) -> None:
+        """Release the persistent connection (idempotent)."""
+        with self._lock:
+            self._reset_conn()
+
+    def __enter__(self) -> CookieJar:
+        return self
+
+    def __exit__(self, *exc: object) -> None:
+        self.close()
+
 
 def _has_nonstandard_attr(cookie: Any, name: str) -> bool:
     method = getattr(cookie, "has_nonstandard_attr", None)

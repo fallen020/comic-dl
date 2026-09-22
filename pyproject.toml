@@ -80,6 +80,10 @@ testpaths = ["tests"]
 markers = [
   "perf: performance regression smoke test (offline, no wall-clock assertions)",
 ]
+filterwarnings = [
+  "ignore:Exception ignored in.*__del__:pytest.PytestUnraisableExceptionWarning",
+  "ignore:Proactor event loop does not implement add_reader",
+]
 
 [tool.coverage.run]
 branch = true
@@ -132,6 +136,7 @@ files = [
     "packaging/versioning.py",
     "packaging/hatch/version_hook.py",
 ]
+
 warn_unused_ignores = true
 warn_redundant_casts = true
 check_untyped_defs = true

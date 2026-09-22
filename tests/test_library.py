@@ -4,6 +4,7 @@ import io
 import sqlite3
 import tarfile
 import zipfile
+from contextlib import closing
 from pathlib import Path
 
 import pytest
@@ -49,7 +50,7 @@ class TestLibraryOpen:
         lib.open()
         assert lib.available
         assert db.exists()
-        with sqlite3.connect(str(db)) as conn:
+        with closing(sqlite3.connect(str(db))) as conn:
             assert conn.execute("PRAGMA user_version").fetchone()[0] == 3
             tables = {
                 r[0]
@@ -69,7 +70,7 @@ class TestLibraryOpen:
 
     def test_future_schema_disables_db(self, tmp_path):
         db = tmp_path / "library.db"
-        with sqlite3.connect(str(db)) as conn:
+        with closing(sqlite3.connect(str(db))) as conn:
             conn.execute("PRAGMA user_version = 999")
         lib = Library(db)
         lib.open()
@@ -101,7 +102,7 @@ class TestUpserts:
         )
         lib.set_last_checked("webtoons.com:1")
         lib.set_last_updated("webtoons.com:1")
-        with sqlite3.connect(str(tmp_path / "lib.db")) as conn:
+        with closing(sqlite3.connect(str(tmp_path / "lib.db"))) as conn:
             row = conn.execute(
                 "SELECT title, source_site, relative_path, last_checked, last_updated "
                 "FROM series WHERE series_id = 'webtoons.com:1'"
@@ -120,7 +121,7 @@ class TestUpserts:
         lib.upsert_series("s", title="S")
         lib.upsert_chapter("s", url="https://x/1/", cbz="C.cbz", size_bytes=10)
         lib.upsert_chapter("s", url="https://x/1/", cbz="C.cbz", size_bytes=20)
-        with sqlite3.connect(str(tmp_path / "lib.db")) as conn:
+        with closing(sqlite3.connect(str(tmp_path / "lib.db"))) as conn:
             rows = conn.execute(
                 "SELECT url, size_bytes FROM chapters WHERE series_id = 's'"
             ).fetchall()
@@ -134,7 +135,7 @@ class TestUpserts:
         lib.open()
         lib.upsert_series("s", title="S")
         lib.upsert_chapter("s", url="https://EXAMPLE.com/Path/", cbz="C.cbz")
-        with sqlite3.connect(str(tmp_path / "lib.db")) as conn:
+        with closing(sqlite3.connect(str(tmp_path / "lib.db"))) as conn:
             stored = conn.execute("SELECT url FROM chapters WHERE series_id = 's'").fetchone()[0]
         assert stored == normalize_url("https://EXAMPLE.com/Path/")
         assert stored == "https://example.com/Path"
@@ -147,7 +148,7 @@ class TestUpserts:
         lib.open()
         with pytest.raises(LibraryError):
             lib.upsert_chapter("missing-series", url="https://x/1/", cbz="C.cbz")
-        with sqlite3.connect(str(tmp_path / "lib.db")) as conn:
+        with closing(sqlite3.connect(str(tmp_path / "lib.db"))) as conn:
             count = conn.execute("SELECT COUNT(*) FROM chapters").fetchone()[0]
         assert count == 0
         lib.close()
@@ -157,7 +158,7 @@ class TestUpserts:
         lib.open()
         lib.upsert_series("s", title="S")
         lib.upsert_chapter("s", url="", cbz="C.cbz")
-        with sqlite3.connect(str(tmp_path / "lib.db")) as conn:
+        with closing(sqlite3.connect(str(tmp_path / "lib.db"))) as conn:
             count = conn.execute("SELECT COUNT(*) FROM chapters").fetchone()[0]
         assert count == 0
         lib.close()
@@ -512,8 +513,9 @@ class TestReadMethods:
     def test_chapters_since_filters_by_iso_cutoff(self, tmp_path):
         lib = self._lib(tmp_path)
         self._seed(lib)
-        with sqlite3.connect(str(tmp_path / "lib.db")) as conn:
+        with closing(sqlite3.connect(str(tmp_path / "lib.db"))) as conn:
             conn.execute("UPDATE chapters SET downloaded_at = '2026-01-01T00:00:00'")
+            conn.commit()
         later = lib.chapters_since("2025-12-31T23:59:59")
         assert len(later) == 3
         none = lib.chapters_since("2026-01-01T00:00:01")
@@ -549,7 +551,7 @@ class TestReadMethods:
 class TestSchemaMigration:
     def test_v1_schema_gains_downloads_table(self, tmp_path):
         db = tmp_path / "library.db"
-        with sqlite3.connect(str(db)) as conn:
+        with closing(sqlite3.connect(str(db))) as conn:
             conn.execute("PRAGMA user_version = 1")
             conn.execute(
                 """CREATE TABLE series (
@@ -566,10 +568,11 @@ class TestSchemaMigration:
                     downloaded_at TEXT,
                     PRIMARY KEY (series_id, url))"""
             )
+            conn.commit()
         lib = Library(db)
         lib.open()
         assert lib.available
-        with sqlite3.connect(str(db)) as conn:
+        with closing(sqlite3.connect(str(db))) as conn:
             assert conn.execute("PRAGMA user_version").fetchone()[0] == 3
             tables = {
                 r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
@@ -581,7 +584,7 @@ class TestSchemaMigration:
 
     def test_v2_schema_gains_source_host_and_backfills(self, tmp_path):
         db = tmp_path / "library.db"
-        with sqlite3.connect(str(db)) as conn:
+        with closing(sqlite3.connect(str(db))) as conn:
             conn.execute("PRAGMA user_version = 2")
             conn.execute(
                 """CREATE TABLE series (
@@ -607,6 +610,7 @@ class TestSchemaMigration:
                 """INSERT INTO series (series_id, title, source, relative_path)
                    VALUES ('s:1', 'Alpha', 'https://E-HENTAI.org/g/x/1', 'Alpha')"""
             )
+            conn.commit()
         lib = Library(db)
         lib.open()
         assert lib.available
@@ -614,7 +618,7 @@ class TestSchemaMigration:
         assert row is not None
         assert row["source_host"] == "e-hentai.org"
         assert row["source_id"] is None
-        with sqlite3.connect(str(db)) as conn:
+        with closing(sqlite3.connect(str(db))) as conn:
             assert conn.execute("PRAGMA user_version").fetchone()[0] == 3
         lib.close()
 
@@ -676,7 +680,7 @@ class TestStandaloneDownloads:
         lib.upsert_download("https://e-hentai.org/g/a/1/", "Series/Ep 1.cbz", "cbz")
         (tmp_path / "Series").mkdir(parents=True, exist_ok=True)
         (tmp_path / "Series" / "Ep 1.cbz").write_bytes(b"\x00")
-        with sqlite3.connect(str(library_path(tmp_path))) as conn:
+        with closing(sqlite3.connect(str(library_path(tmp_path)))) as conn:
             rows = conn.execute("SELECT url, path, kind FROM downloads").fetchall()
         assert len(rows) == 1
         assert rows[0][0] == normalize_url("https://e-hentai.org/g/a/1")

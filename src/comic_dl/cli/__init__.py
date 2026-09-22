@@ -4061,68 +4061,69 @@ def _run_cookie(argv: list[str]) -> int:
 
     jar = CookieJar()
 
-    if args.action == "ls":
-        rows = jar.list(args.host)
-        if args.json:
-            console.print(
-                json.dumps(
-                    {"schema_version": JSON_SCHEMA_VERSION, "cookies": rows},
-                    indent=2,
-                ),
-                soft_wrap=True,
-            )
-            return EXIT_OK
-        if not rows:
-            if args.host:
-                print_dim(f"No cookies stored for host '{args.host}'.")
-            else:
-                print_dim("No cookies stored.")
-            return EXIT_OK
-        if args.host:
-            print_success(f"{len(rows)} cookie(s) for '{args.host}':")
-        else:
-            print_success(f"{len(rows)} cookie(s) stored:")
-        for r in rows:
-            expiry = (
-                "session"
-                if r["expires"] is None
-                else (datetime.fromtimestamp(r["expires"], UTC).strftime("%Y-%m-%d %H:%M UTC"))
-            )
-            print_dim(f"  {r['host']}  {r['name']}  (path={r['path']}, expires={expiry})")
-        return EXIT_OK
-
-    if args.action == "set":
-        bad_host = _invalid_cookie_host(args.host)
-        if bad_host:
-            print_error(f"Invalid cookie host {args.host!r}: {bad_host}")
-            return EXIT_USAGE
-        jar.set(args.host, args.name, args.value, expires=args.expires)
-        if args.expires is None:
-            print_success(f"Stored cookie '{args.name}' for '{args.host}' (session/never).")
-        else:
-            when = datetime.fromtimestamp(args.expires, UTC).strftime("%Y-%m-%d %H:%M UTC")
-            print_success(f"Stored cookie '{args.name}' for '{args.host}' (expires {when}).")
-        print_warning("Note: the value stays in your shell history.")
-        return EXIT_OK
-
-    # clear
-    target = f" for '{args.host}'" if args.host else ""
-    if not args.yes:
-        if _is_interactive_output():
-            confirmed = Confirm.ask(f"Clear all cookies{target}?")
-            if not confirmed:
-                print_dim("Aborted.")
+    with jar:
+        if args.action == "ls":
+            rows = jar.list(args.host)
+            if args.json:
+                console.print(
+                    json.dumps(
+                        {"schema_version": JSON_SCHEMA_VERSION, "cookies": rows},
+                        indent=2,
+                    ),
+                    soft_wrap=True,
+                )
                 return EXIT_OK
-        else:
-            # Non-interactive (pipes/CI) without -y: refuse rather than
-            # silently clearing the jar — mirrors the `remove` command.
-            console.print()
-            print_error("Clearing cookies requires confirmation.")
-            print_dim("Re-run with -y to clear without a prompt.")
-            return EXIT_INTERRUPTED
-    jar.clear(args.host)
-    print_success(f"Cleared cookies{target}.")
-    return EXIT_OK
+            if not rows:
+                if args.host:
+                    print_dim(f"No cookies stored for host '{args.host}'.")
+                else:
+                    print_dim("No cookies stored.")
+                return EXIT_OK
+            if args.host:
+                print_success(f"{len(rows)} cookie(s) for '{args.host}':")
+            else:
+                print_success(f"{len(rows)} cookie(s) stored:")
+            for r in rows:
+                expiry = (
+                    "session"
+                    if r["expires"] is None
+                    else (datetime.fromtimestamp(r["expires"], UTC).strftime("%Y-%m-%d %H:%M UTC"))
+                )
+                print_dim(f"  {r['host']}  {r['name']}  (path={r['path']}, expires={expiry})")
+            return EXIT_OK
+
+        if args.action == "set":
+            bad_host = _invalid_cookie_host(args.host)
+            if bad_host:
+                print_error(f"Invalid cookie host {args.host!r}: {bad_host}")
+                return EXIT_USAGE
+            jar.set(args.host, args.name, args.value, expires=args.expires)
+            if args.expires is None:
+                print_success(f"Stored cookie '{args.name}' for '{args.host}' (session/never).")
+            else:
+                when = datetime.fromtimestamp(args.expires, UTC).strftime("%Y-%m-%d %H:%M UTC")
+                print_success(f"Stored cookie '{args.name}' for '{args.host}' (expires {when}).")
+            print_warning("Note: the value stays in your shell history.")
+            return EXIT_OK
+
+        # clear
+        target = f" for '{args.host}'" if args.host else ""
+        if not args.yes:
+            if _is_interactive_output():
+                confirmed = Confirm.ask(f"Clear all cookies{target}?")
+                if not confirmed:
+                    print_dim("Aborted.")
+                    return EXIT_OK
+            else:
+                # Non-interactive (pipes/CI) without -y: refuse rather than
+                # silently clearing the jar — mirrors the `remove` command.
+                console.print()
+                print_error("Clearing cookies requires confirmation.")
+                print_dim("Re-run with -y to clear without a prompt.")
+                return EXIT_INTERRUPTED
+        jar.clear(args.host)
+        print_success(f"Cleared cookies{target}.")
+        return EXIT_OK
 
 
 def _run_cache(argv: list[str]) -> int:

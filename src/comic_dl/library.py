@@ -163,6 +163,7 @@ class Library:
     def open(self) -> None:
         if self._conn is not None or self._disabled:
             return
+        conn: sqlite3.Connection | None = None
         try:
             self._db_path.parent.mkdir(parents=True, exist_ok=True)
             conn = sqlite3.connect(
@@ -196,6 +197,9 @@ class Library:
                 conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
             self._conn = conn
         except sqlite3.Error:
+            if conn is not None:
+                with contextlib.suppress(sqlite3.Error):
+                    conn.close()
             self._disabled = True
             self._conn = None
 
