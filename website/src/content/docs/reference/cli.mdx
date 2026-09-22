@@ -56,8 +56,9 @@ comic-dl <COMMAND> [ARGS]
 
 | Command | Description |
 | :------ | :---------- |
-| `comic-dl cache status` | Show cache location, TTL, size budget, entry count |
-| `comic-dl cache clear [-y]` | Delete all cached entries |
+| `comic-dl cache status [--json]` | Show cache location, TTL, size budget, fresh/stale split |
+| `comic-dl cache clear [-y] [--dry-run]` | Delete all cached entries (plus stray `comic-dl-*` temp dirs) |
+| `comic-dl cache prune [-y] [--dry-run]` | Delete only stale (past TTL) and orphaned cache files |
 | `comic-dl cookie ls [HOST] [--json]` | List stored cookies |
 | `comic-dl cookie set <HOST> <NAME> <VALUE>` | Store a cookie |
 | `comic-dl cookie clear [HOST] [-y]` | Clear cookies |

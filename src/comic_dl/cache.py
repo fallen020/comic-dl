@@ -49,6 +49,7 @@ import hashlib
 import json
 import os
 import re
+import shutil
 import struct
 import tempfile
 import time
@@ -66,8 +67,12 @@ _DEFAULT_TTL_HOURS = 6
 _MAX_ENTRY_AGE_HOURS = 24 * 14
 _MAX_ENTRY_BYTES = 64 * 1024 * 1024
 _DEFAULT_MAX_BYTES = 50 * 1024 * 1024
+_DEFAULT_MAX_ENTRIES = 5000
 _SWEEP_INTERVAL_SECONDS = 3600
 _TMP_STALE_SECONDS = 3600
+# Scratch-dir prefixes this project leaves in temp (chapter staging via
+# ``mkdtemp(prefix="comic-dl-")``, self-update via ``comic-dl-self-``).
+_SCRATCH_PREFIXES = ("comic-dl-", "comic-dl-self-")
 
 _CACHE_DIR_OVERRIDE: Path | None = None
 _last_sweep: float = 0.0
@@ -151,6 +156,18 @@ def cache_max_bytes() -> int:
         return parse_size_string(value)
     except ValueError:
         return _DEFAULT_MAX_BYTES
+
+
+def cache_max_entries() -> int:
+    """Advisory entry-count ceiling (``[http] cache-max-entries``, default 5000).
+
+    Display-only by design: eviction is governed by ``cache_max_bytes`` and the
+    hard drop age, not this count. An invalid value keeps the default.
+    """
+    value = http_setting("cache-max-entries", _DEFAULT_MAX_ENTRIES)
+    if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+        return _DEFAULT_MAX_ENTRIES
+    return value
 
 
 def _header_str(value: Any) -> str:
@@ -491,22 +508,133 @@ def refresh(
     _write_entry(_entry_path(url, profile, extra_headers), entry)
 
 
-def clear() -> int:
-    """Delete every cache file, including orphaned write temps; returns count."""
+def clear(on_file: Any = None) -> int:
+    """Delete every cache file, including orphaned write temps; returns count.
+
+    ``on_file`` is called after each removal so callers can drive a progress
+    bar; omitted, the call is a silent batch delete.
+    """
     root = _cache_root()
     if not root.is_dir():
         return 0
-    removed = 0
     try:
-        for path in root.iterdir():
-            if path.is_file() and path.suffix in (".dat", ".tmp"):
-                try:
-                    path.unlink()
-                    removed += 1
-                except OSError:
-                    pass
+        paths = [p for p in root.iterdir() if p.is_file() and p.suffix in (".dat", ".tmp")]
     except OSError:
-        pass
+        return 0
+    removed = 0
+    for path in paths:
+        try:
+            path.unlink()
+        except OSError:
+            continue
+        removed += 1
+        if on_file is not None:
+            on_file()
+    return removed
+
+
+def stats() -> dict[str, int]:
+    """Entry/tmp counts, total bytes, and the fresh/stale split (``cache status``).
+
+    Corrupt or oversized entries are dropped on read (they vanish from the
+    next lookup anyway) and counted as stale.
+    """
+    out = {"entries": 0, "tmp_files": 0, "bytes": 0, "fresh": 0, "stale": 0}
+    root = _cache_root()
+    if not root.is_dir():
+        return out
+    try:
+        paths = [p for p in root.iterdir() if p.is_file()]
+    except OSError:
+        return out
+    for p in paths:
+        if p.suffix == ".tmp":
+            out["tmp_files"] += 1
+            continue
+        if p.suffix != ".dat":
+            continue
+        try:
+            size = p.stat().st_size
+        except OSError:
+            continue
+        out["entries"] += 1
+        out["bytes"] += size
+        entry = _read_entry(p)
+        if entry is not None and _is_fresh(entry):
+            out["fresh"] += 1
+        else:
+            out["stale"] += 1
+    return out
+
+
+def prune() -> tuple[int, int]:
+    """Delete stale (past TTL), over-age, corrupt, and orphaned write-temp files.
+
+    Returns ``(removed, reclaimed_bytes)``. Unlike the throttled background
+    sweep, this is a deliberate run: everything not serving fresh hits goes.
+    """
+    root = _cache_root()
+    removed = 0
+    reclaimed = 0
+    if not root.is_dir():
+        return removed, reclaimed
+    try:
+        paths = [p for p in root.iterdir() if p.is_file()]
+    except OSError:
+        return removed, reclaimed
+    for p in paths:
+        try:
+            size = p.stat().st_size
+        except OSError:
+            continue
+        if p.suffix == ".tmp":
+            _unlink_best_effort(p)
+            removed += 1
+            reclaimed += size
+            continue
+        if p.suffix != ".dat":
+            continue
+        entry = _read_entry(p)
+        if entry is None or not _is_fresh(entry) or _entry_age_hours(entry) > _MAX_ENTRY_AGE_HOURS:
+            _unlink_best_effort(p)
+            removed += 1
+            reclaimed += size
+    return removed, reclaimed
+
+
+def temp_scratch_dirs() -> list[Path]:
+    """Stray ``comic-dl-*`` scratch dirs in temp (chapter staging, self-update).
+
+    Graceful runs remove their own directory on exit; these are leftovers from
+    crashed or killed runs.
+    """
+    from .config import download_setting
+
+    parents = {Path(tempfile.gettempdir())}
+    scratch = download_setting("tmp-dir", None)
+    if isinstance(scratch, str) and scratch.strip():
+        with contextlib.suppress(OSError):
+            parents.add(Path(scratch.strip()).expanduser())
+    found: list[Path] = []
+    for parent in parents:
+        try:
+            entries = list(parent.iterdir())
+        except OSError:
+            continue
+        for p in entries:
+            if p.is_dir() and p.name.startswith(_SCRATCH_PREFIXES):
+                found.append(p)
+    return found
+
+
+def clear_temp_scratch() -> int:
+    """Remove every stray scratch dir from :func:`temp_scratch_dirs`; returns count."""
+    removed = 0
+    for p in temp_scratch_dirs():
+        with contextlib.suppress(OSError):
+            shutil.rmtree(p, ignore_errors=True)
+        if not p.exists():
+            removed += 1
     return removed
 
 

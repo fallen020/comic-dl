@@ -42,7 +42,7 @@ solver = "auto"
 cookie-jar = true
 
 # On-disk scrape response cache (metadata GETs). --no-cache disables for one
-# run; inspect/clear with: comic-dl cache status|clear
+# run; inspect/clear with: comic-dl cache status|clear|prune
 cache = true
 # Hours a cached scrape response is served without a revalidation request.
 cache-ttl = 6

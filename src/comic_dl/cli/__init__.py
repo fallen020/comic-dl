@@ -4135,7 +4135,7 @@ def _run_cookie(argv: list[str]) -> int:
 
 
 def _run_cache(argv: list[str]) -> int:
-    """Manage the scrape response cache: ``cache clear`` / ``cache status``."""
+    """Manage the scrape response cache: ``cache clear`` / ``cache prune`` / ``cache status``."""
     parser = ComicArgumentParser(
         prog="comic-dl cache",
         description="Inspect or clear the on-disk scrape response cache.",
@@ -4147,52 +4147,191 @@ def _run_cache(argv: list[str]) -> int:
     )
     cl = sub.add_parser(
         "clear",
-        help="delete every cached scrape response",
+        help="delete every cached scrape response (plus stray temp dirs)",
     )
     cl.add_argument("-y", "--yes", action="store_true", help="skip the confirmation prompt")
-    sub.add_parser(
-        "status",
-        help="show the cache location, TTL, and entry count",
+    cl.add_argument("--dry-run", action="store_true", help="preview what would be removed")
+    cl.add_argument("--json", action="store_true", help="emit machine-readable JSON on stdout")
+    pr = sub.add_parser(
+        "prune",
+        help="delete only stale (past TTL) and orphaned cache files",
     )
+    pr.add_argument("-y", "--yes", action="store_true", help="skip the confirmation prompt")
+    pr.add_argument("--dry-run", action="store_true", help="preview what would be removed")
+    pr.add_argument("--json", action="store_true", help="emit machine-readable JSON on stdout")
+    st = sub.add_parser(
+        "status",
+        help="show the cache location, TTL, budget, and entry counts",
+    )
+    st.add_argument("--json", action="store_true", help="emit machine-readable JSON on stdout")
 
     try:
         args = parser.parse_args(argv)
     except SystemExit as exc:
         return exc.code if isinstance(exc.code, int) else 0
 
-    from ..cache import cache_dir_path, cache_max_bytes, cache_ttl_hours
+    from ..cache import (
+        cache_dir_path,
+        cache_enabled,
+        cache_max_bytes,
+        cache_max_entries,
+        cache_ttl_hours,
+        clear_temp_scratch,
+        temp_scratch_dirs,
+    )
     from ..cache import clear as cache_clear
+    from ..cache import prune as cache_prune
+    from ..cache import stats as cache_stats
 
     if args.action == "status":
         root = cache_dir_path()
-        count = 0
-        total = 0
-        if root.is_dir():
-            for p in root.iterdir():
-                if p.is_file() and p.suffix == ".dat":
-                    count += 1
-                    with contextlib.suppress(OSError):
-                        total += p.stat().st_size
+        info = cache_stats()
+        payload: dict[str, Any] = {
+            "schema_version": JSON_SCHEMA_VERSION,
+            "enabled": cache_enabled(),
+            "dir": str(root),
+            "ttl_hours": cache_ttl_hours(),
+            "max_bytes": cache_max_bytes(),
+            "max_entries": cache_max_entries(),
+            **info,
+            "scratch_dirs": len(temp_scratch_dirs()),
+        }
+        if args.json:
+            console.print(
+                json.dumps(payload, indent=2),
+                soft_wrap=True,
+                highlight=False,
+                markup=False,
+            )
+            return EXIT_OK
         print_success(f"Cache directory: {root}")
-        print_success(f"Cache TTL: {cache_ttl_hours()}h")
-        print_success(f"Size budget (GC trigger): {format_bytes(cache_max_bytes())}")
-        print_success(f"Stored: {count} entr{'y' if count == 1 else 'ies'}, {format_bytes(total)}")
+        print_success(f"Enabled: {'yes' if payload['enabled'] else 'no'}")
+        print_success(f"Cache TTL: {payload['ttl_hours']}h")
+        print_success(f"Size budget (GC trigger): {format_bytes(payload['max_bytes'])}")
+        print_success(
+            f"Entries: {info['entries']}/{payload['max_entries']} "
+            f"(fresh {info['fresh']}, stale {info['stale']})"
+        )
+        print_success(
+            f"Stored: {info['entries']} "
+            f"entr{'y' if info['entries'] == 1 else 'ies'}, "
+            f"{format_bytes(info['bytes'])}"
+        )
+        if info["tmp_files"]:
+            print_success(f"Orphaned write temps: {info['tmp_files']}")
+        if payload["scratch_dirs"]:
+            print_success(f"Stray temp dirs: {payload['scratch_dirs']}")
         return EXIT_OK
 
-    if not args.yes:
-        if _is_interactive_output():
-            confirmed = Confirm.ask("Clear the entire scrape response cache?")
-            if not confirmed:
-                print_dim("Aborted.")
-                return EXIT_OK
-        else:
-            console.print()
-            print_error("Clearing the cache requires confirmation.")
-            print_dim("Re-run with -y to clear without a prompt.")
-            return EXIT_INTERRUPTED
-    removed = cache_clear()
+    info = cache_stats()
+    scratch = len(temp_scratch_dirs())
+    if args.action == "prune":
+        preview = (
+            f"Prune {info['stale']} stale entr{'y' if info['stale'] == 1 else 'ies'}"
+            + (f" and {info['tmp_files']} orphaned temp file(s)" if info["tmp_files"] else "")
+            + "?"
+        )
+        if args.dry_run:
+            print_dim(
+                f"Dry run: would remove {info['stale']} stale "
+                f"entr{'y' if info['stale'] == 1 else 'ies'}"
+                + (f" and {info['tmp_files']} orphaned temp file(s)" if info["tmp_files"] else "")
+                + "."
+            )
+            return EXIT_OK
+        blocked = _request_cache_confirmation(args.yes, preview)
+        if blocked is not None:
+            return blocked
+        removed, reclaimed = cache_prune()
+        if args.json:
+            payload = {
+                "schema_version": JSON_SCHEMA_VERSION,
+                "removed": removed,
+                "reclaimed_bytes": reclaimed,
+            }
+            console.print(
+                json.dumps(payload, indent=2),
+                soft_wrap=True,
+                highlight=False,
+                markup=False,
+            )
+            return EXIT_OK
+        print_success(f"Pruned {removed} file(s), reclaimed {format_bytes(reclaimed)}.")
+        return EXIT_OK
+
+    preview = (
+        f"Clear {info['entries']} cached entr{'y' if info['entries'] == 1 else 'ies'} "
+        f"({format_bytes(info['bytes'])})"
+        + (f" and {scratch} stray temp dir(s)" if scratch else "")
+        + "?"
+    )
+    if args.dry_run:
+        print_dim(
+            f"Dry run: would clear {info['entries']} cached "
+            f"entr{'y' if info['entries'] == 1 else 'ies'} ({format_bytes(info['bytes'])})"
+            + (f" and {scratch} stray temp dir(s)" if scratch else "")
+            + "."
+        )
+        return EXIT_OK
+    blocked = _request_cache_confirmation(args.yes, preview)
+    if blocked is not None:
+        return blocked
+    total = info["entries"] + info["tmp_files"]
+    if is_interactive() and total > 0:
+        from rich.progress import BarColumn, Progress, TextColumn
+
+        from ..ui import BRAND, MUTED
+
+        with Progress(
+            BarColumn(complete_style=BRAND, finished_style=BRAND, style=MUTED),
+            TextColumn(" {task.completed}/{task.total} files"),
+            console=err_console,
+            transient=True,
+        ) as progress:
+            task = progress.add_task("Clearing cache", total=total)
+            removed = cache_clear(on_file=lambda: progress.advance(task))
+    else:
+        removed = cache_clear()
+    temp_removed = clear_temp_scratch()
+    if args.json:
+        console.print(
+            json.dumps(
+                {
+                    "schema_version": JSON_SCHEMA_VERSION,
+                    "removed": removed,
+                    "temp_dirs_removed": temp_removed,
+                },
+                indent=2,
+            ),
+            soft_wrap=True,
+            highlight=False,
+            markup=False,
+        )
+        return EXIT_OK
     print_success(f"Cleared {removed} cached response(s).")
+    if temp_removed:
+        print_success(f"Removed {temp_removed} stray temp dir(s).")
     return EXIT_OK
+
+
+def _request_cache_confirmation(yes: bool, question: str) -> int | None:
+    """Exit code when a cache clear/prune confirmation is absent/refused, else ``None``.
+
+    Mirrors the confirmation convention used across sibling commands (library
+    remove, cookie clear): ``-y`` skips, a non-interactive run without ``-y``
+    refuses with 130, an interactive ``no`` is a plain skip.
+    """
+    if yes:
+        return None
+    if not _is_interactive_output():
+        console.print()
+        print_error("Clearing the cache requires confirmation.")
+        print_dim("Re-run with -y to proceed without a prompt.")
+        return EXIT_INTERRUPTED
+    if not Confirm.ask(question):
+        print_dim("Aborted.")
+        return EXIT_OK
+    return None
 
 
 def _install_signal_handlers() -> None:
@@ -4529,7 +4668,7 @@ _comic_dl_complete() {{
         self)   COMPREPLY=($(compgen -W "{self_flags}" -- "${{cur}}")); return ;;
         site)   COMPREPLY=($(compgen -W "{self_site_flags}" -- "${{cur}}")); return ;;
         cookie) COMPREPLY=($(compgen -W "ls set clear" -- "${{cur}}")); return ;;
-        cache)  COMPREPLY=($(compgen -W "clear status" -- "${{cur}}")); return ;;
+        cache)  COMPREPLY=($(compgen -W "clear prune status" -- "${{cur}}")); return ;;
         config) COMPREPLY=($(compgen -W "path show init --force" -- "${{cur}}")); return ;;
         plugin) COMPREPLY=($(compgen -W "list validate scaffold" -- "${{cur}}")); return ;;
         list-sources) COMPREPLY=($(compgen -W "--json --plugin" -- "${{cur}}")); return ;;
@@ -4554,7 +4693,7 @@ _comic_dl() {{
         self)   compadd -- {self_flags} ;;
         site)   compadd -- {self_site_flags} ;;
         cookie) compadd -- ls set clear --json --expires -y --yes ;;
-        cache)  compadd -- clear status ;;
+        cache)  compadd -- clear prune status ;;
         config) compadd -- path show init --force ;;
         plugin) compadd -- list validate scaffold ;;
         list-sources) compadd -- --json --plugin ;;
@@ -4574,7 +4713,7 @@ complete -c comic-dl -n "__fish_seen_subcommand_from update" -a "{update_flags}"
 complete -c comic-dl -n "__fish_seen_subcommand_from self" -a "{self_flags}"
 complete -c comic-dl -n "__fish_seen_subcommand_from site" -a "{self_site_flags}"
 complete -c comic-dl -n "__fish_seen_subcommand_from cookie" -a "ls set clear"
-complete -c comic-dl -n "__fish_seen_subcommand_from cache" -a "clear status"
+complete -c comic-dl -n "__fish_seen_subcommand_from cache" -a "clear prune status"
 complete -c comic-dl -n "__fish_seen_subcommand_from config" -a "path show init"
 complete -c comic-dl -n "__fish_seen_subcommand_from plugin" -a "list validate scaffold"
 complete -c comic-dl -n "__fish_seen_subcommand_from list-sources" -a "--json --plugin"

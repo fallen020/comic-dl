@@ -620,3 +620,73 @@ def test_write_cleans_temp_on_replace_failure():
     assert list(path.parent.glob("*.tmp")) == []
     resp, stale = cache.lookup(URL, PROFILE, {})
     assert resp is None and stale is None
+
+
+def test_stats_breakdown_counts_fresh_stale_and_tmp(tmp_path):
+    _store()
+    _make_stale("https://kagane.to/series/old")
+    orphan = cache._cache_root() / "orphan.tmp"
+    orphan.write_bytes(b"partial")
+    info = cache.stats()
+    assert info["entries"] == 2
+    assert info["fresh"] == 1 and info["stale"] == 1
+    assert info["tmp_files"] == 1
+    assert info["bytes"] > 0
+
+
+def test_stats_empty_when_no_dir(tmp_path):
+    assert cache.stats() == {"entries": 0, "tmp_files": 0, "bytes": 0, "fresh": 0, "stale": 0}
+
+
+def test_prune_removes_only_stale_and_tmp():
+    _store()
+    _make_stale("https://kagane.to/series/old")
+    tmp = cache._cache_root() / "orphan.tmp"
+    tmp.write_bytes(b"partial")
+    removed, reclaimed = cache.prune()
+    assert removed == 2 and reclaimed > 0
+    assert not tmp.exists()
+    resp, _ = cache.lookup(URL, PROFILE, {})
+    assert resp is not None
+    resp, stale = cache.lookup("https://kagane.to/series/old", PROFILE, {})
+    assert resp is None and stale is None
+
+
+def test_prune_empty_is_zero():
+    assert cache.prune() == (0, 0)
+
+
+def test_clear_drives_progress_callback():
+    _store()
+    _store("https://kagane.to/series/bar", body=b"x")
+    seen = []
+    assert cache.clear(on_file=lambda: seen.append(1)) == 2
+    assert len(seen) == 2
+
+
+def test_cache_max_entries_default_and_invalid():
+    assert cache.cache_max_entries() == 5000
+    config.set_runtime_http(**{"cache-max-entries": 0})
+    try:
+        assert cache.cache_max_entries() == 5000
+    finally:
+        config.clear_runtime_http()
+    config.set_runtime_http(**{"cache-max-entries": 250})
+    try:
+        assert cache.cache_max_entries() == 250
+    finally:
+        config.clear_runtime_http()
+
+
+def test_temp_scratch_roundtrip(monkeypatch, tmp_path):
+    import tempfile
+
+    monkeypatch.setattr(tempfile, "gettempdir", lambda: str(tmp_path))
+    stray = tmp_path / "comic-dl-abc123"
+    stray.mkdir()
+    (tmp_path / "other-tool-x").mkdir()
+    found = cache.temp_scratch_dirs()
+    assert found == [stray]
+    assert cache.clear_temp_scratch() == 1
+    assert not stray.exists()
+    assert cache.temp_scratch_dirs() == []
