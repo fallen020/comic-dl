@@ -7,6 +7,8 @@ from comic_dl.scrapers.sites.tapas import (
     DOMAIN,
     TapasScraper,
     _episode_id_from_url,
+    _extract_cover,
+    _extract_creator,
     _extract_reader_images,
     _extract_synopsis,
     _is_free,
@@ -138,6 +140,28 @@ class TestUrlPatterns:
         assert _series_slug_from_episode(BeautifulSoup(html, "lxml")) == "Real-Slug"
         assert _series_slug_from_episode(BeautifulSoup("<html></html>", "lxml")) == ""
 
+    def test_cover_prefers_thumb_anchor(self):
+        html = (
+            '<a class="thumb js-series-btn"><img src="https://us-a.tapas.io/sa/cover_z.jpg"/></a>'
+        )
+        soup = BeautifulSoup(html, "lxml")
+        assert _extract_cover(soup, {}) == "https://us-a.tapas.io/sa/cover_z.jpg"
+
+    def test_cover_falls_back_to_og(self):
+        from comic_dl.scrapers.base import meta_index
+
+        soup = BeautifulSoup(
+            '<html><head><meta property="og:image" content="https://x/banner.png"/>'
+            "</head><body></body></html>",
+            "lxml",
+        )
+        assert _extract_cover(soup, meta_index(soup)) == "https://x/banner.png"
+
+    def test_creator(self):
+        html = '<a href="/SomeStudio">Some Studio</a><p class="author-label">Creator</p>'
+        assert _extract_creator(BeautifulSoup(html, "lxml")) == "Some Studio"
+        assert _extract_creator(BeautifulSoup("<html></html>", "lxml")) == ""
+
 
 class TestTapasScraper:
     @pytest.mark.asyncio
@@ -157,7 +181,10 @@ class TestTapasScraper:
             '<a href="/series/Lets-Play-official/info">series</a></body>',
         )
         series = SERIES_PAGE.replace(
-            "</body>", '<div class="js-series-description">Enriched story.</div></body>'
+            "</body>",
+            '<div class="js-series-description">Enriched story.</div>'
+            '<a class="thumb js-series-btn"><img src="https://us-a.tapas.io/sa/cover_z.jpg"/></a>'
+            '<a href="/Studio">Studio</a><p class="author-label">Creator</p></body>',
         )
 
         def handler(url):
@@ -168,6 +195,8 @@ class TestTapasScraper:
         scraper = TapasScraper()
         meta = await scraper.scrape(EPISODE_URL, _MockSession(handler))
         assert meta.description == "Enriched story."
+        assert meta.cover_url == "https://us-a.tapas.io/sa/cover_z.jpg"
+        assert meta.authors == ["Studio"]
 
     @pytest.mark.asyncio
     async def test_scrape_locked_episode_raises(self):

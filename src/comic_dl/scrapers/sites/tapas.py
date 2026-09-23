@@ -105,6 +105,28 @@ def _is_free(episode: object) -> bool:
     return bool(episode.get("free"))
 
 
+def _extract_cover(soup: BeautifulSoup, idx: dict[str, list[str]]) -> str:
+    """Series cover (``og:image`` is the page banner, not the cover)."""
+    img = soup.select_one("a.thumb.js-series-btn img")
+    src = _attr_text(img.get("src")) if img is not None else ""
+    if src:
+        return src
+    return meta_get(idx, "og:image", "twitter:image")
+
+
+def _extract_creator(soup: BeautifulSoup) -> str:
+    """Creator name from the ``Creator`` author-label block."""
+    for label in soup.select("p.author-label"):
+        if label.get_text(strip=True).lower() != "creator":
+            continue
+        anchor = label.find_previous_sibling("a")
+        if anchor is not None:
+            name = anchor.get_text(strip=True)
+            if name:
+                return name
+    return ""
+
+
 def _extract_reader_images(soup: BeautifulSoup, base: str) -> list[ImageItem]:
     items: list[ImageItem] = []
     seen: set[str] = set()
@@ -194,11 +216,16 @@ class TapasScraper(BaseScraper):
             series_title = m.group(1) if m else meta_get(idx, "og:site_name")
 
         description = ""
+        cover_url = meta_get(idx, "og:image", "twitter:image")
+        authors: list[str] = []
         series_slug = _series_slug_from_episode(soup)
         if series_slug:
             try:
                 series_soup = await self.fetch_html(f"{BASE}/series/{series_slug}", client)
                 description = _extract_synopsis(series_soup)
+                cover_url = _extract_cover(series_soup, meta_index(series_soup))
+                creator = _extract_creator(series_soup)
+                authors = [creator] if creator else []
             except Exception:
                 description = ""
 
@@ -207,13 +234,14 @@ class TapasScraper(BaseScraper):
                 series_title=series_title or "Tapas",
                 chapter_title=chapter_title or f"Episode {episode_id}",
                 description=description,
+                authors=authors,
                 language="en",
                 reading_direction="ltr",
                 total_pages=len(images),
             ),
             source=SourceInfo(url=url, service=DOMAIN, post_id=episode_id),
             images=images,
-            cover_url=meta_get(idx, "og:image", "twitter:image"),
+            cover_url=cover_url,
         )
 
     async def _scrape_series(self, url: str, client: AsyncSession) -> SeriesMetadata:
@@ -256,7 +284,7 @@ class TapasScraper(BaseScraper):
             series_title=series_title,
             description=_extract_synopsis(soup)
             or meta_get(idx, "og:description", "twitter:description"),
-            cover_url=meta_get(idx, "og:image", "twitter:image"),
+            cover_url=_extract_cover(soup, idx),
             title_no=slug,
             chapters=chapters,
         )
