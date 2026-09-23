@@ -137,6 +137,18 @@ class TestNormalizeUrl:
         result = normalize_url(url)
         assert result == "https://e-hentai.org/g/123/abc"
 
+    def test_strips_mobile_subdomain(self):
+        assert normalize_url("https://m.webtoons.com/a/b/") == "https://webtoons.com/a/b"
+        assert normalize_url("https://m.tapas.io/series/x/") == "https://tapas.io/series/x"
+        assert normalize_url("https://M.Tapas.IO/series/x/") == "https://tapas.io/series/x"
+
+    def test_keeps_www_and_bare_hosts(self):
+        assert normalize_url("https://www.tapas.io/series/x/") == "https://www.tapas.io/series/x"
+        assert normalize_url("https://tapas.io/series/x/") == "https://tapas.io/series/x"
+
+    def test_degenerate_m_host_kept(self):
+        assert normalize_url("https://m.com/") == "https://m.com/"
+
 
 class TestIsValidPawchiveUrl:
     def test_valid_standard(self):

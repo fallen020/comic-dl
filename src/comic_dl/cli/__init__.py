@@ -1360,6 +1360,8 @@ def _extract_domain(url: str) -> str:
     hostname = parsed.hostname or ""
     if hostname.startswith("www."):
         hostname = hostname[4:]
+    if hostname.startswith("m.") and hostname.count(".") >= 2:
+        hostname = hostname[2:]
     return hostname
 
 
@@ -2908,6 +2910,7 @@ async def _preview_url(url: str, index: dict[str, Path], force: bool) -> dict:
     Resolution/validation errors become an ``error`` entry that reports a
     friendly message instead of crashing the preview.
     """
+    url = normalize_url(url)
     domain = _extract_domain(url)
     entry: dict = {
         "url": url,

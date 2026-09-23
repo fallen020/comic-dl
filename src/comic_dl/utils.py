@@ -617,7 +617,12 @@ def ensure_unique_dir(parent: Path, title: str, max_len: int = 200) -> Path:
 
 
 def normalize_url(url: str) -> str:
-    """Normalize a URL to https, lowercase host, and no default port."""
+    """Normalize a URL to https, lowercase host, no mobile subdomain, no default port.
+
+    A leading ``m.`` host label is the mobile variant of the same site
+    (``m.webtoons.com``, ``m.tapas.io`` redirect to their www/bare origins
+    path-preserving), so it is stripped to the canonical host.
+    """
     url = url.strip()
     if not url.lower().startswith(("http://", "https://")):
         url = "https://" + url
@@ -626,6 +631,8 @@ def normalize_url(url: str) -> str:
         return url
     scheme = "https"
     hostname = parsed.hostname.lower()
+    if hostname.startswith("m.") and hostname.count(".") >= 2:
+        hostname = hostname[2:]
     try:
         port = parsed.port
     except ValueError:
