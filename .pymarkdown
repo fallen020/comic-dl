@@ -6,6 +6,10 @@
       "code_blocks": false,
       "tables": false
     },
+    "md033": {
+      "enabled": true,
+      "allowed_elements": "!--,![CDATA[,!DOCTYPE,div,a,img,h4,p"
+    },
     "md028": {
       "enabled": false
     },

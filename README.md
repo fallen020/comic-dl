@@ -1,176 +1,183 @@
-# comic-dl
+<!-- pyml disable md041 -->
+<div align="center">
+    <h1>comic-dl</h1>
 
-[![CI](https://github.com/fallen020/comic-dl/workflows/CI/badge.svg)](https://github.com/fallen020/comic-dl/actions)
-[![Release](https://github.com/fallen020/comic-dl/workflows/Release/badge.svg)](https://github.com/fallen020/comic-dl/releases)
-[![Python](https://img.shields.io/badge/python-3.11+-blue.svg)](https://github.com/fallen020/comic-dl)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+<a href="https://github.com/fallen020/comic-dl/actions">
+  <img alt="CI" src="https://github.com/fallen020/comic-dl/workflows/CI/badge.svg">
+</a>
+<a href="https://github.com/fallen020/comic-dl/releases">
+  <img alt="Release" src="https://github.com/fallen020/comic-dl/workflows/Release/badge.svg">
+</a>
+<a href="LICENSE">
+  <img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square">
+</a>
 
-Download comics and manga from supported websites and package them into CBZ,
-ZIP, or CBT archives.
+<h4 align="center">
+  [<a href="#install">Install</a>]
+  [<a href="#usage">Usage</a>]
+  [<a href="#supported-sites">Sites</a>]
+  [<a href="#configuration">Configuration</a>]
+  [<a href="#troubleshooting">Troubleshooting</a>]
+</h4>
 
-comic-dl is a command-line downloader designed for both interactive use and
-scripting. It scrapes supported sites with built-in adapters and a generic
-fallback, fetches galleries page by page under configurable concurrency, and
-emits archives ready for your reader.
+<p align="center">
+  <img src="docs/assets/demo.gif" alt="comic-dl downloading selected chapters and saving CBZ files" width="800">
+</p>
 
-**Early release (`0.0.x`).** Command-line options, configuration, and site
-support may change between releases.
+</div>
 
-## Features
+**CLI that downloads comic and manga chapters and packs them into CBZ, ZIP, or
+CBT with ComicInfo.xml metadata.**
 
-- Built-in adapters and a generic HTML fallback for unrecognized sites
-- Plugin system — add support for any site as a Python plugin, no fork required
-- Interactive chapter picker, or scriptable `--chapters 1-3,5` selection
-- Interrupted downloads resume from the intact pages already on disk
-- Per-site rate limiting and shared retry cooldown for polite scraping
-- ComicInfo.xml metadata embedded in generated archives
-- CBZ, ZIP, and CBT output formats
-- Library tracking — `list`, `info`, `latest`, `remove`, and `update`
-  subcommands manage downloaded series
-- Linux, macOS, and Windows support; no account required unless the source
-  site requires one
+## Why comic-dl?
 
-## Installation
+comic-dl turns a chapter or series URL into verified page images and a
+reader-ready archive. It resumes missing pages, removes duplicate images by
+SHA-256, embeds `ComicInfo.xml`, and records chapters in a local SQLite
+library. The workflow is archive-first: CBZ, ZIP, or CBT output, a series
+picker, and page-level recovery rather than a folder of loose images.
 
-### Prebuilt packages
+> [!WARNING]
+> comic-dl is an early release. Commands, flags, and site support can
+> change between releases.
 
-Every GitHub release ships packages that need no Python:
+## Install
 
-- `.deb`, `.rpm`, and `.pkg.tar.zst` for Debian-, Fedora-, and Arch-based
-  Linux distributions
-- a standalone Windows executable (`.zip`)
+Download a prebuilt package from [GitHub Releases][release]. Packages cover
+Windows, Debian/Ubuntu (`.deb`), Fedora (`.rpm`), and Arch
+(`.pkg.tar.zst`); macOS is source-only.
 
-Pick the artifact matching your machine from
-[the latest release](https://github.com/fallen020/comic-dl/releases).
+```bash
+comic-dl --version
+```
 
-### From source
-
-Requires Python 3.11 or newer and [uv](https://docs.astral.sh/uv/):
+To run from source, install Python 3.11+ and [uv](https://docs.astral.sh/uv/):
 
 ```bash
 git clone https://github.com/fallen020/comic-dl
 cd comic-dl
 uv sync
+uv run comic-dl --version
 ```
 
-Run it from the checkout:
+Use `uv run comic-dl` from a source checkout. Full per-OS instructions are in
+[docs/install.md](docs/install.md).
+
+> [!WARNING]
+> `pip install comic-dl` is not supported; the PyPI name belongs to an
+> unrelated project.
+
+## Usage
+
+The examples use
+[Becoming the Cheon Clan's Mad Dog](https://asurascans.com/comics/becoming-the-cheon-clans-mad-dog-05c7df14).
+comic-dl is independent. It is not affiliated with, endorsed by, or sponsored
+by Asura Scans, and this example is not an endorsement of the service.
+
+Download one chapter:
 
 ```bash
-uv run python -m comic_dl --help
+comic-dl -u "https://asurascans.com/comics/becoming-the-cheon-clans-mad-dog-05c7df14/chapter/1"
 ```
 
-or through the installed script `.venv/bin/comic-dl`.
-
-Either way, verify the installation:
+Download a series and choose chapters in the picker:
 
 ```bash
-comic-dl self version
+comic-dl -u "https://asurascans.com/comics/becoming-the-cheon-clans-mad-dog-05c7df14"
 ```
+
+Download specific source chapter numbers to `./out`:
+
+```bash
+comic-dl -u "https://asurascans.com/comics/becoming-the-cheon-clans-mad-dog-05c7df14" \
+  --chapters 1-3,5 -o ./out
+```
+
+A separate live run selecting chapters 21 and 22 completed in 18 seconds:
 
 ```text
-comic-dl 0.0.3
+Selected 2/22 chapters
+  ✔ [21/22] Saved: Chapter 21.cbz (14.6 MB)
+  ✔ [22/22] Saved: Chapter 22.cbz (14.4 MB)
+
+  ✔ Download complete
+
+    Series     : Becoming the Cheon Clan's Mad Dog
+    Selected   : 2 / 22 chapters
+    Downloaded : 2 chapters
+    Size       : 29 MB
+    Duration   : 18s
+    Average    : 1.57 MB/s
+    Saved to   : /tmp/opencode/comic-dl-asura-demo/Becoming the Cheon Clan's Mad Dog
 ```
 
-See [docs/install.md](docs/install.md) for the full instructions.
+Without `-o`, archives go to
+`~/Downloads/comic-dl/<Series>/<Chapter>.cbz` on Linux. Each finished archive
+contains numbered page images and `ComicInfo.xml`; the completed chapter is
+also recorded in `.comic-dl/library.db`.
 
-## Quick start
-
-```bash
-comic-dl --url "https://example.com/series/chapter-1"
-```
-
-Point `--url` at a series to open the interactive chapter picker. For
-non-interactive use, select chapters by number:
-
-```bash
-comic-dl --url "https://example.com/series" --chapters 1-3,5
-```
-
-`--help` lists every option in your installed version.
-
-## Where files are saved
-
-Downloads go to the system Downloads folder under `comic-dl/`
-(`~/Downloads/comic-dl/` on Linux) unless you change it with `-o <DIR>`/`--output`
-or the `output` setting in the config file. The saved path is printed when a
-download completes.
+Image requests time out after 60 seconds and receive two retries by default.
+Known host rates are 1.5 requests/second for Kagane and 2 requests/second for
+Kstatic and E-Hentai; configure any host with `[http].rate`.
 
 ## Supported sites
 
-The list of adapted sites lives in
-[docs/reference/supported-sites.md](docs/reference/supported-sites.md).
+30 built-in scrapers include MangaDex, WEBTOON, E-Hentai, Tapas, WeebCentral,
+Asura Scans, and Madara-based sites. The
+[supported-sites table](docs/reference/supported-sites.md) lists every accepted
+URL shape; `comic-dl --list-sources` also shows installed plugins.
 
-Site support can break when a site changes its HTML, API, authentication, or
-anti-bot measures — normal for any downloader that talks to third-party
-services. If a site stops working, open an issue with the site name, a URL
-pattern, the comic-dl version, your OS, and the error message.
+If a scraper breaks, open an issue with the site, URL pattern, comic-dl
+version, OS, and error text. Do not include cookies or credentials.
 
 ## Configuration
 
-comic-dl works with sensible defaults and needs no config file. When present,
-the config file can set the download directory, concurrency, retries, output
-naming, and more. See [docs/configure/config.md](docs/configure/config.md) and
-`comic-dl --help` for the options in the current release.
+Configuration is optional. Create the file with `comic-dl config init`, then
+edit these 8 keys:
 
-## Platform support
+```toml
+output = "~/Downloads/comic-dl"
+concurrency = 5
 
-| Status | Platforms |
-| :----- | :-------- |
-| Supported | Linux, macOS, and Windows (from source) |
-| Prebuilt packages | Debian-, Fedora-, and Arch-based Linux (amd64), Windows |
-| Planned | macOS packages, Android |
+[http]
+solver = "auto"
+download-retries = 2
+rate = { "e-hentai.org" = 2.0 }
+
+[archive]
+format = "cbz"
+```
+
+CLI flags override config values, and config values override these defaults.
+See [docs/configure/config.md](docs/configure/config.md) for paths, per-site
+overrides, cache settings, and the complete generated file.
 
 ## Troubleshooting
 
-- **A site stopped working** — make sure you are on the latest release, then
-  retry. Open an issue with the version, OS, site, and error message.
-- **Downloads fail or stop partway** — check your network connection and free
-  disk space. Report reproducible failures with reproduction steps.
+- `ModuleNotFoundError: No module named 'comic_dl'` — run `uv sync` in the
+  source checkout.
+- `Access blocked (403)` — open the URL in a normal browser. If it loads there,
+  retry with `--solver webview`; if the browser is blocked too, comic-dl
+  cannot bypass that site or region restriction.
 
-Never include credentials, cookies, or session data in any issue report.
+The [troubleshooting guide](docs/troubleshooting.md) covers 403, 404, 429,
+missing webviews, interrupted downloads, and debug logs.
 
-## Development
+## Contributing and development
 
-```bash
-uv sync --extra dev --locked
-./scripts/test.sh    # full offline test suite
-./scripts/lint.sh    # ruff, mypy, bandit, shellcheck
-./scripts/build.sh   # sdist + wheel
-./scripts/docs.sh    # Markdown lint
-```
-
-See [docs/develop/setup.md](docs/develop/setup.md) for requirements. Windows
-developers use the corresponding `.ps1` scripts where provided.
-
-## Contributing
-
-Contributions are welcome:
-
-- Check existing issues and pull requests first.
-- Keep changes focused; add or update tests for behavior changes.
-- Update documentation when user-facing behavior changes.
-- Run `./scripts/test.sh` and `./scripts/lint.sh` before submitting.
-
-For larger changes, open an issue first so the work is not duplicated.
+Pull requests are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md). Development
+setup and the test, lint, build, and documentation gates are documented in
+[docs/develop/setup.md](docs/develop/setup.md).
 
 ## Responsible use
 
-Use comic-dl only for content you are authorized to access. Respect terms of
-service, robots policies, copyright law, and the rights of content creators
-and publishers. The project does not encourage bypassing authentication,
-paywalls, or other access controls, and users are responsible for how the
-software is used and for complying with applicable law and site policies.
+Download only content you are authorized to access and follow the source
+site's terms and applicable law. comic-dl does not bypass authentication,
+paywalls, or other access controls.
 
 ## License
 
-comic-dl is MIT-licensed — see [LICENSE](LICENSE). Third-party components
-remain under their respective licenses
-([Third-Party-Licenses](Third-Party-Licenses/README.md)).
+[MIT](LICENSE). Third-party components retain their own terms; see
+[Third-Party-Licenses](Third-Party-Licenses/README.md).
 
-## Project status
-
-comic-dl is in early development. The priorities are simple: downloads stay
-easy, the CLI stays predictable, failures stay explainable, and the project
-remains usable from scripts and automation.
-
-Bug reports and contributions decide what gets fixed and supported next.
+[release]: https://github.com/fallen020/comic-dl/releases/latest
