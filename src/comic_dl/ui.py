@@ -37,6 +37,7 @@ from rich.table import Table
 from rich.text import Text
 from rich.theme import Theme
 
+from ._version import __version__
 from .errors import EXIT_INTERRUPTED, EXIT_OK, ComicError, DownloadTimeout, ScrapeTimeout
 from .utils import normalize_url_key
 
@@ -1037,6 +1038,49 @@ def print_partial_block(
 def print_warning(message: str) -> None:
     """Print a warning message line to stderr."""
     err_console.print(f"  [bold {WARNING}]{glyphs().warn}[/] {esc(_redact_text(message))}")
+
+
+LEGAL_NOTICE = """\
+comic-dl retrieves content from third-party websites and is not affiliated
+with or authorized by those sites. Use it only for content you own, are
+authorized to download, or are otherwise legally permitted to access under
+the site's terms and applicable law.
+
+Creating, retaining, or sharing offline copies of copyrighted content may
+infringe copyright, even if you can view the content online, and may
+implicate anti-circumvention or computer-access laws depending on your
+jurisdiction.
+
+You are responsible for your use of this tool. The comic-dl developers are
+not responsible for user actions.
+
+comic-dl stores a cookie jar (cookies.db — may hold session cookies that
+grant account access; do not share it) and a download history on this
+machine.
+
+For what is stored and how to delete it, and for the full disclaimer, see
+docs/privacy.md and docs/legal.md in the project repository
+(https://github.com/fallen020/comic-dl).
+"""
+
+LEGAL_NOTICE_FOOTER = (
+    f"Notice revised September 2026 · comic-dl {__version__}. "
+    "Shown on your first download run, or again with --show-legal-notice."
+)
+
+
+def print_legal_notice() -> bool:
+    """Print the one-time first-run legal notice to stderr; return whether it printed."""
+    err_console.print()
+    err_console.print(f"  [bold {WARNING}]{glyphs().warn}[/] [bold]Legal notice[/]")
+    err_console.print()
+    for paragraph in LEGAL_NOTICE.strip().split("\n\n"):
+        for line in paragraph.splitlines():
+            err_console.print(f"  [white]{esc(line)}[/]")
+        err_console.print()
+    err_console.print(f"  [muted]{esc(LEGAL_NOTICE_FOOTER)}[/]")
+    err_console.print()
+    return True
 
 
 def print_interrupt(
@@ -3223,6 +3267,7 @@ def print_help() -> None:
     _help_opt_row("--no-color", "", "Disable ANSI colors (alias for --color never)")
     _help_opt_row("--debug-file", "<PATH>", "Divert -vvv trace diagnostics to PATH")
     _help_opt_row("--config", "<PATH>", "Path to a custom config.toml")
+    _help_opt_row("--show-legal-notice", "", "Re-show the first-run legal notice")
     console.print()
 
     console.print("  [bold]Verbosity:[/]")
@@ -3343,6 +3388,7 @@ def print_help_summary() -> None:
     _help_opt_row("--no-color", "", "Disable ANSI colors")
     _help_opt_row("--debug-file", "<PATH>", "Divert trace diagnostics to PATH")
     _help_opt_row("--config", "<PATH>", "Path to a custom config.toml")
+    _help_opt_row("--show-legal-notice", "", "Re-show the first-run legal notice")
     console.print()
 
     _help_pointer("Run [bold]comic-dl help <command>[/] for help on a specific command.")

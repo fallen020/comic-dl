@@ -62,6 +62,7 @@ def _reset_cli_globals(tmp_path):
     from comic_dl import ui as ui_module
 
     cache.set_cache_dir(tmp_path / "http-cache")
+    config.set_config_dir(tmp_path / "config-dir")
     downloader.reset_host_breaker()
     utils.clear_dns_cache()
     consoles = (ui_module.console, ui_module.err_console)
@@ -75,6 +76,7 @@ def _reset_cli_globals(tmp_path):
     yield
     config.set_config_path(None)
     config.set_no_config(False)
+    config.set_config_dir(None)
     config._RUNTIME_HTTP.clear()
     config._RUNTIME_DOWNLOAD.clear()
     config._WARNED_BAD_CONFIG = False

@@ -47,6 +47,7 @@ from ..archiver import ARCHIVE_PATTERNS, parse_compression
 from ..comicinfo import generate_series_comicinfo_xml
 from ..config import (
     DEFAULT_CONFIG_TOML,
+    config_dir,
     config_path,
     configured_output_dir,
     download_setting,
@@ -177,6 +178,7 @@ from ..ui import (
     print_help,
     print_help_summary,
     print_interrupt,
+    print_legal_notice,
     print_meta,
     print_partial_block,
     print_partial_recap,
@@ -1088,6 +1090,11 @@ def _build_first_stage_parser() -> ComicArgumentParser:
         help="Disable ANSI colors in all output, including progress",
     )
     parser.add_argument(
+        "--show-legal-notice",
+        action="store_true",
+        help="Re-show the first-run legal notice (acknowledges it, then continues)",
+    )
+    parser.add_argument(
         "--color",
         choices=("auto", "always", "never"),
         default=None,
@@ -1178,6 +1185,8 @@ def parse_urls() -> tuple[list[str], argparse.Namespace]:
         and is_interactive()
     ):
         print_banner()
+
+    _maybe_show_legal_notice(args)
 
     if not args.quiet and not args.json:
         print_dim(
@@ -2756,7 +2765,7 @@ def resume_command(argv: list[str] | None = None, *, url: str = "", output: str 
                 skip_next = True
             continue
         # Skip global-only flags not meaningful for resume.
-        if low in ("--no-color", "--no-banner", "--quiet", "-q"):
+        if low in ("--no-color", "--no-banner", "--quiet", "-q", "--show-legal-notice"):
             continue
         if low.startswith("--color"):
             if "=" not in token and i + 1 < len(argv):
@@ -3206,6 +3215,61 @@ def _short_url_label(url: str) -> str:
     path = urlparse(url).path.rstrip("/")
     label = path.rsplit("/", 1)[-1] or urlparse(url).hostname or url
     return label if len(label) <= 48 else label[:45] + glyphs().ellipsis
+
+
+def _legal_notice_marker() -> Path:
+    """The acknowledgement file that silences the first-run legal notice."""
+    return config_dir() / "legal-notice"
+
+
+def _write_legal_notice_marker() -> None:
+    """Atomically write the acknowledgement marker; never raise on OSError.
+
+    An unwritable config dir is not a reason to fail a download run — the
+    notice simply re-prints on every run until the marker can be saved.
+    """
+    tmp = ""
+    try:
+        config_dir().mkdir(parents=True, exist_ok=True)
+        fd, tmp = tempfile.mkstemp(dir=config_dir(), prefix="legal-notice.")
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write("1")
+        os.replace(tmp, _legal_notice_marker())
+    except OSError:
+        if tmp:
+            with contextlib.suppress(OSError):
+                os.unlink(tmp)
+
+
+def _legal_notice_acknowledged() -> bool:
+    try:
+        return _legal_notice_marker().read_text(encoding="utf-8").strip() == "1"
+    except OSError:
+        return False
+
+
+def _maybe_show_legal_notice(args: argparse.Namespace) -> bool:
+    """Show the one-time legal notice for a download run; return whether shown.
+
+    Mirrors sudo's first-use notice: printed on the first real download run,
+    never a prompt, silent once a marker file exists. Skipped for scripted
+    runs (``--json``, ``--quiet``, ``--no-config``, or the env var) where an
+    unrequested stderr block would corrupt machine output. A marker file
+    suppresses the notice; ``--show-legal-notice`` forces one more reading and
+    rewrites the marker. Called once a download run is guaranteed, after the
+    banner so the notice is the first thing a new user reads in context.
+    """
+    if not getattr(args, "show_legal_notice", False):
+        if args.json or args.quiet or args.no_config:
+            return False
+        if os.environ.get("COMIC_DL_NO_LEGAL_NOTICE") == "1":
+            return False
+        if _legal_notice_acknowledged():
+            return False
+    printed = print_legal_notice()
+    if printed:
+        _write_legal_notice_marker()
+    return printed
 
 
 def _maybe_first_run_hint(args: argparse.Namespace, completed: int) -> None:
@@ -4067,7 +4131,7 @@ def _run_cookie(argv: list[str]) -> int:
 
     from ..cookies import CookieJar
 
-    jar = CookieJar()
+    jar = CookieJar(encryption=http_setting("cookie-encryption", "auto"))
 
     with jar:
         if args.action == "ls":
@@ -4843,6 +4907,10 @@ def _scan_global_flags(argv: list[str]) -> _GlobalFlags:
             no_color = True
         elif token == "--no-config":  # nosec B105
             no_config = True
+        elif token == "--show-legal-notice":  # nosec B105
+            # Consumed: no subcommand parser declares it, and the download
+            # path re-reads sys.argv in parse_urls so it still sees the flag.
+            pass
         elif token == "--color":  # nosec B105
             if i + 1 < n:
                 color_mode = argv[i + 1]

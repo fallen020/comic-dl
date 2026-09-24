@@ -549,13 +549,12 @@ class TestConfigPathSemantics:
             cfgmodule.set_config_path(None)
 
     def test_set_config_dir_override(self, tmp_path):
-        original = cfgmodule.config_dir()
-        try:
-            cfgmodule.set_config_dir(tmp_path)
-            assert cfgmodule.config_dir() == tmp_path
-        finally:
-            cfgmodule.set_config_dir(None)
-        assert cfgmodule.config_dir() == original
+        cfgmodule.set_config_dir(tmp_path)
+        assert cfgmodule.config_dir() == tmp_path
+        cfgmodule.set_config_dir(tmp_path / "other")
+        assert cfgmodule.config_dir() == tmp_path / "other"
+        cfgmodule.set_config_dir(None)
+        assert cfgmodule.config_dir() != tmp_path
 
 
 class TestRuntimeOverrides:

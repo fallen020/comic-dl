@@ -144,6 +144,7 @@ Series in parallel still pass through the per-host rate limiter, so raising
 | `--no-color` | | Disable ANSI colors |
 | `--color` | `auto` | `auto`, `always`, or `never` |
 | `--debug-file` | | Redirect `-vvv` trace to a file |
+| `--show-legal-notice` | | Re-show the first-run legal notice (acknowledges it and continues the run) |
 
 ### Archive
 
