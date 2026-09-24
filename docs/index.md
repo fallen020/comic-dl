@@ -61,3 +61,5 @@ See [Quick Start](quick-start.md) for a walkthrough.
 - [Releases](https://github.com/fallen020/comic-dl/releases)
 - [Contributing](https://github.com/fallen020/comic-dl/blob/main/CONTRIBUTING.md)
 - [Security policy](https://github.com/fallen020/comic-dl/blob/main/SECURITY.md)
+- [Legal](legal.md)
+- [Privacy](privacy.md)

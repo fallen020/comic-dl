@@ -94,6 +94,29 @@ for presence by ruff (rules `D100`–`D104` and `D106` via `scripts/lint.sh`).
    pushing.
 6. Open a pull request against `dev` using the template.
 
+## Legal guidelines for contributors
+
+These are repo rules, not suggestions. Read [Legal](docs/legal.md) for the
+project's full stance; the short version:
+
+- **No real-work URLs in tests, examples, or docs.** Use synthetic slugs and
+  IDs (`demo-series`, `title_no=1`) so fixtures never name an identifiable
+  copyrighted work. Do not reintroduce real series or episode identifiers
+  that previous sweeps removed.
+- **No hardcoded credentials.** Never commit account tokens, passwords, or
+  session values. `cookie set` values on the command line are documented as
+  risky; do not wire secret-handling into new code silently.
+- **Challenge solving stays opt-in.** `solver` defaults to `off`; new
+  scrapers must not enable circumvention by default, and must not default to
+  bypassing paywalls, CAPTCHAs, or rate limits.
+- **Politeness is load-bearing.** Never loosen `rate.py` or the shared retry
+  defaults; per-host rate overrides may only tighten.
+- **License hygiene.** New code is MIT. Do not port code from
+  unlicensed or license-incompatible sources without a maintainer review;
+  every dependency change follows the "ask first" rule in AGENTS.md.
+- **Offline-only tests are a hard rule.** Tests never download real content;
+  the suite must stay deterministic and network-free.
+
 ## Branching & CI
 
 - **`dev`** (unstable) is where development lands. Feature branches fork from

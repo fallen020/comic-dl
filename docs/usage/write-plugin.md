@@ -105,8 +105,7 @@ class MySiteSource:  # series variant
     def matches_series_url(self, url: str) -> bool:
         return url.startswith("https://mysite.example/series/")
 
-    async def scrape_series(self, url, client) -> SeriesMetadata:
-        ...
+    async def scrape_series(self, url, client) -> SeriesMetadata: ...
 ```
 
 The plugin manager validates this contract offline, so you can check a fresh

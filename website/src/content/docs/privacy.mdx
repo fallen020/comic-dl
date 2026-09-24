@@ -1,0 +1,93 @@
+---
+title: Privacy
+description: What comic-dl stores on your machine, what it sends over the network, and how to delete it.
+order: 910
+section: Project
+---
+
+This page describes what comic-dl stores on your machine and what it sends
+over the network. Everything below is implemented today; if you do not see a
+feature in this list, comic-dl does not do it.
+
+## Config file
+
+comic-dl reads options from a TOML config file (`config_path()`):
+
+| Platform | Path |
+| :------- | :--- |
+| Linux | `~/.config/comic-dl/config.toml` |
+| macOS | `~/Library/Application Support/comic-dl/config.toml` |
+| Windows | `%APPDATA%\comic-dl\config.toml` |
+
+Override the location with `--config <PATH>` or `$COMIC_DL_CONFIG`; skip it
+for one run with `--no-config`.
+
+## Cookie jar (`cookies.db`)
+
+Session cookies collected while downloading are kept in a SQLite database at
+the per-platform config directory (same locations as above, `cookies.db` in
+place of `config.toml`), with WAL mode and owner-only (`0600`) permissions.
+Each row stores the host, path, name, expiry, and the cookie `value`. Cookie
+values are encrypted at rest with AES-256-GCM when a key source is available
+(see [Cookies & Anti-Bot Handling](../configure/cookies/#encryption-at-rest));
+if no key source exists, comic-dl warns once and stores values in plaintext.
+
+Note: `value`s are credentials if a site treats them as such. Do not share
+`cookies.db`, back it up to shared storage, or leave it world-readable.
+
+- Cookies with an unexpired expiry imported from an HTTP session are
+  persisted; cookies without an expiry stay in memory for that process, and
+  explicit stores through `comic-dl cookie set` write to disk even without
+  an expiry.
+- Inspect: `comic-dl cookie ls [HOST]`. Clear: `comic-dl cookie clear [HOST]`.
+
+## Scrape cache
+
+Metadata GETs are cached on disk under the per-platform cache directory
+(`cache_dir()`, e.g. `~/.cache/comic-dl/http` on Linux). A cache entry is
+the URL and a hashed response body. Clear/prune with
+`comic-dl cache clear|prune`; the directory can be deleted outright.
+
+## Library history
+
+Downloaded series are tracked in a SQLite database at
+`<output-dir>/.comic-dl/library.db` — one per output root, not a central
+store. It records the series source URL, per-chapter identity and counts,
+total size, and last-checked/-updated timestamps. Move it by moving the
+output directory; delete series with `comic-dl remove|restore`
+(see [Library Management](../usage/library/)).
+
+## Logs
+
+`-vvv` (or `--debug-file <PATH>`) prints the request/response diary. It may
+include URLs and response headers but never cookie values.
+
+## Outbound network
+
+On normal runs comic-dl contacts only the target sites you asked it to
+download from (and the CDNs those sites reference for images). Additional
+network calls are limited to:
+
+- the GitHub API for `self update` and `site check` version lookups;
+- PyPI during install-time dependency resolution.
+
+There is no telemetry, no analytics, and no phone-home on normal runs.
+
+## Third parties
+
+The only third parties involved are the target sites themselves, and each
+receives only its own cookies. comic-dl does not send your cookie jar or
+download history anywhere.
+
+## Data deletion
+
+There is no account to delete. Removing the data is removing the files:
+
+- config: the `config.toml` above;
+- cookies: `cookies.db` (and its WAL sidecars: `cookies.db-wal`,
+  `cookies.db-shm`) or `comic-dl cookie clear`;
+- cache: the cache directory or `comic-dl cache clear`;
+- library: the `.comic-dl/library.db` under each output directory.
+
+See also [Legal](../legal/) for the terms under which content may be
+downloaded.

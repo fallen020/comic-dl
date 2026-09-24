@@ -173,7 +173,9 @@ setup and the test, lint, build, and documentation gates are documented in
 
 Download only content you are authorized to access and follow the source
 site's terms and applicable law. comic-dl does not bypass authentication,
-paywalls, or other access controls.
+paywalls, or other access controls. See the [Legal](docs/legal.md) and
+[Privacy](docs/privacy.md) pages for the full terms and data-handling
+description.
 
 ## License
 
