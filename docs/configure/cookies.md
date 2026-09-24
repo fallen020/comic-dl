@@ -124,3 +124,51 @@ Disable entirely with `--no-rate` or `[http] rate-enabled = false`.
     The `/s/` image-page fetches run at 2 req/s matching the default. If you
     see "image limit reached" errors, lower `e-hentai.org` toward `1.0`.
     Throttled responses (HTTP 509) are detected and retried automatically.
+
+## Encryption at rest
+
+Cookie `value`s are encrypted in the jar with AES-256-GCM so a reader who
+can see `cookies.db` does not get working session tokens. The key is a
+random 32-byte value held in the OS keyring and generated on first use.
+
+| Mode | Key source |
+| :--- | :--------- |
+| `auto` (default) | `$COMIC_DL_COOKIE_KEY`, then the OS keyring (create + store a fresh key on first use) |
+| `keyring` | OS keyring only; never read the environment variable |
+| `off` | Plaintext jar — for CI/throwaway runs that want no key source |
+
+```toml
+[http]
+cookie-encryption = "auto"
+```
+
+For headless machines (CI, servers) set the env key — keep it in your
+secret store, not in a config file:
+
+```bash
+# generate once:
+uv run python -c "import base64,secrets;print(base64.urlsafe_b64encode(secrets.token_bytes(32)).decode())"
+# then export it (never commit it):
+export COMIC_DL_COOKIE_KEY="<base64 above>"
+```
+
+Encrypted values are stored as `enc1.` + base64url(nonce + ciphertext + tag).
+
+- A stored value without the `enc1.` prefix is legacy plaintext: it still
+  reads, and the next write to that cookie upgrades it to the envelope.
+  There is no migration step.
+- An `enc1.` value that fails authentication or decryption (key changed or
+  tampered) is **dropped, never served**, and never raises.
+- If no key source is available in `auto` mode, comic-dl warns once per
+  process and runs a plaintext jar — it never fails a download because the
+  keyring is missing.
+- The keyring entry is service `comic-dl`, username `cookie-db-key`.
+
+To rotate or revoke the key: `comic-dl cookie clear`, then delete the
+keyring entry (or unset `$COMIC_DL_COOKIE_KEY`). Existing `enc1.` rows
+become unreadable and are dropped on next use — that is the point.
+
+!!! note
+    At-rest encryption keeps cookie values hidden from file readers. It is
+    not protection against running the tool as someone it is not installed
+    for — the key lives in the same OS account.

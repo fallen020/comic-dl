@@ -27,7 +27,7 @@ def get_jar() -> CookieJar | None:
     if not cookie_jar_enabled():
         return None
     if _JAR is None:
-        _JAR = CookieJar()
+        _JAR = CookieJar(encryption=http_setting("cookie-encryption", "auto"))
     return _JAR
 
 

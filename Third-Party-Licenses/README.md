@@ -17,7 +17,9 @@ new wheel and update its version below.
 | [cffi](https://github.com/python-cffi/cffi) | 2.1.0 | [MIT-0](cffi/LICENSE) |
 | [clr-loader](https://pypi.org/project/clr-loader/) | 0.3.1 | [MIT](clr-loader/LICENSE) |
 | [curl-cffi](https://pypi.org/project/curl-cffi/) | 0.16.3 | [MIT](curl-cffi/LICENSE) |
+| [cryptography](https://github.com/pyca/cryptography) | 50.0.1 | [Apache-2.0](cryptography/LICENSE.APACHE) or [BSD-3-Clause](cryptography/LICENSE.BSD), [notice](cryptography/LICENSE) |
 | [defusedxml](https://github.com/tiran/defusedxml) | 0.7.1 | [PSF-2](defusedxml/LICENSE) |
+| [keyring](https://github.com/jaraco/keyring) | 25.7.0 | [MIT](keyring/LICENSE) |
 | [lxml](https://github.com/lxml/lxml) | 6.1.3 | [BSD-3-Clause](lxml/LICENSE), [LICENSES.txt](lxml/LICENSES.txt) |
 | [markdown-it-py](https://github.com/executablebooks/markdown-it-py) | 4.2.0 | [MIT](markdown-it-py/LICENSE), [LICENSE.markdown-it](markdown-it-py/LICENSE.markdown-it) |
 | [mdurl](https://github.com/executablebooks/mdurl) | 0.1.2 | [MIT](mdurl/LICENSE) |

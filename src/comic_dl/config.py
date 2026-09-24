@@ -70,6 +70,12 @@ solver = "off"
 # Inspect/clear with: comic-dl cookie ls|clear [HOST]
 cookie-jar = true
 
+# Encrypt cookie values at rest (AES-256-GCM).
+#   auto      encrypt from a key: the OS keyring, or $COMIC_DL_COOKIE_KEY
+#   keyring   OS keyring only; never read the environment variable
+#   off       plaintext jar (CI/throwaway runs that want no key source)
+cookie-encryption = "auto"
+
 # On-disk scrape response cache (metadata GETs). --no-cache disables for one
 # run; inspect/clear with: comic-dl cache status|clear|prune
 cache = true
@@ -376,6 +382,7 @@ _TABLE_RULES: dict[str, dict[str, Any]] = {
         "impersonate": "str",
         "solver": {"auto", "impersonation", "webview", "off"},
         "cookie-jar": "bool",
+        "cookie-encryption": {"auto", "keyring", "off"},
         "cache": "bool",
         "cache-ttl": "int_min1",
         "cache-max-bytes": "size",

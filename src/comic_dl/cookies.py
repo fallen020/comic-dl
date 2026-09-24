@@ -12,6 +12,8 @@ from typing import Any
 from publicsuffix2 import PublicSuffixList  # type: ignore[import-untyped]  # third-party, no stubs
 
 from .config import config_dir
+from .cookiecrypt import decrypt_value, encrypt_value, is_encrypted, resolve_key
+from .ui import print_warning
 
 _CREATE_COOKIES = """
 CREATE TABLE IF NOT EXISTS cookies (
@@ -27,6 +29,26 @@ CREATE TABLE IF NOT EXISTS cookies (
 """
 
 _DB_NAME = "cookies.db"
+
+_warned_plaintext = False
+
+
+def _warn_plaintext_once() -> None:
+    """Emit the 'not encrypted' notice once per process.
+
+    The warning is a hint, not an error: a missing keyring degrades the jar
+    to plaintext so downloads still work. Shown once because every CookieJar
+    construction that fails key resolution would otherwise spam the same line.
+    """
+    global _warned_plaintext
+    if _warned_plaintext:
+        return
+    _warned_plaintext = True
+    print_warning(
+        "cookie jar not encrypted: no usable key found; set COMIC_DL_COOKIE_KEY "
+        "or configure an OS keyring to encrypt stored cookies"
+    )
+
 
 # A cookie stored for a *public suffix* is replayed to every subdomain of it,
 # so a malicious site can plant a value every co-tenant then receives (a
@@ -86,11 +108,35 @@ class CookieJar:
     ``sqlite3.connect`` churn.
     """
 
-    def __init__(self, path: Path | None = None) -> None:
+    def __init__(self, path: Path | None = None, *, encryption: str = "auto") -> None:
         self._path = path or (config_dir() / _DB_NAME)
         self._lock = threading.Lock()
         self._conn: sqlite3.Connection | None = None
         self._session_only: dict[tuple[str, str, str], str] = {}
+        self._key = resolve_key(encryption)
+        if encryption != "off" and self._key is None:
+            _warn_plaintext_once()
+
+    def _encrypt(self, value: str) -> str:
+        """Persist in the envelope only when a key exists, so a plaintext jar
+        (``encryption="off"``) stays readable without one."""
+        if self._key is None:
+            return value
+        return encrypt_value(self._key, value)
+
+    def _decrypt(self, value: str) -> str | None:
+        """Plaintext for a stored ``value``, or ``None`` when unreadable.
+
+        Non-``enc1.`` values are legacy plaintext and pass through. An
+        ``enc1.`` value with no key, a corrupt blob, or an unknown key
+        authenticates nothing and is dropped from responses — serving it as
+        raw plaintext would leak half the envelope as a cookie value.
+        """
+        if not is_encrypted(value):
+            return value
+        if self._key is None:
+            return None
+        return decrypt_value(self._key, value)
 
     def _connect(self) -> sqlite3.Connection:
         """Persistent per-instance connection (caller must hold ``_lock``).
@@ -184,7 +230,10 @@ class CookieJar:
                 continue
             if secure and not https:
                 continue
-            out.setdefault(name, value)
+            plain = self._decrypt(value)
+            if plain is None:
+                continue
+            out.setdefault(name, plain)
         # Session-only (this-process) cookies are fresher than anything
         # persisted, so they override the tier above; within that tier the same
         # specificity rule applies.
@@ -271,7 +320,15 @@ class CookieJar:
                 continue
             http_only = 1 if _has_nonstandard_attr(c, "HttpOnly") else 0
             rows.append(
-                (host, path, c.name, c.value, int(c.expires), 1 if c.secure else 0, http_only)
+                (
+                    host,
+                    path,
+                    c.name,
+                    self._encrypt(c.value),
+                    int(c.expires),
+                    1 if c.secure else 0,
+                    http_only,
+                )
             )
         if rows or to_delete:
             try:
@@ -341,7 +398,7 @@ class CookieJar:
                             value = excluded.value,
                             expires = excluded.expires
                         """,
-                        (host.lower(), path, name, value, expires),
+                        (host.lower(), path, name, self._encrypt(value), expires),
                     )
         except sqlite3.Error:
             self._reset_conn()
