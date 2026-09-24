@@ -580,7 +580,7 @@ class TestRunCookie:
                 jar.set("e-hentai.org", "sk", "v1")
 
         assert self._run(["ls", "--json"], tmp_path, monkeypatch) == 0
-        out = self._out(capsys)
+        out = capsys.readouterr().out
         payload = _json.loads(out)
         assert payload["schema_version"] == 1
         assert any(c["host"] == "e-hentai.org" and c["name"] == "sk" for c in payload["cookies"])

@@ -58,7 +58,7 @@ def _reset_cli_globals(tmp_path):
     config path, runtime [http] overrides — that otherwise leaks across tests
     and reorders rendering/config assertions.
     """
-    from comic_dl import cache, config, downloader, utils
+    from comic_dl import cache, config, cookies, downloader, utils
     from comic_dl import ui as ui_module
 
     cache.set_cache_dir(tmp_path / "http-cache")
@@ -73,6 +73,7 @@ def _reset_cli_globals(tmp_path):
     # explicitly via apply_color_mode.
     ui_module.set_no_color(True)
     config._RUNTIME_DOWNLOAD.clear()
+    cookies._warned_plaintext = False
     yield
     config.set_config_path(None)
     config.set_no_config(False)
