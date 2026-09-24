@@ -173,12 +173,12 @@ class TestIsValidPawchiveUrl:
 class TestIsValidWebtoonUrl:
     def test_valid_desktop_series(self):
         assert is_valid_webtoon_url(
-            "https://www.webtoons.com/en/action/nano-machine/list?title_no=4344"
+            "https://www.webtoons.com/en/action/demo-series/list?title_no=1"
         )
 
     def test_valid_desktop_chapter(self):
         assert is_valid_webtoon_url(
-            "https://www.webtoons.com/en/action/nano-machine/ep-1/viewer?title_no=4344&episode_no=1"
+            "https://www.webtoons.com/en/action/demo-series/ep-1/viewer?title_no=1&episode_no=1"
         )
 
     def test_valid_mobile(self):

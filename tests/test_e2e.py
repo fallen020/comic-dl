@@ -226,10 +226,10 @@ class TestFlags:
 
 class TestValidateUrl:
     def test_valid_webtoon_series(self):
-        url = "https://www.webtoons.com/en/action/nano-machine/list?title_no=4344"
+        url = "https://www.webtoons.com/en/action/demo-series/list?title_no=1"
         result = normalize_url(url)
         assert "www.webtoons.com" in result
-        assert "title_no=4344" in result
+        assert "title_no=1" in result
 
     def test_valid_webtoon_mobile(self):
         url = "https://m.webtoons.com/en/action/s/list?title_no=1"

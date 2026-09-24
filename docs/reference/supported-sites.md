@@ -105,7 +105,7 @@ any third-party plugins — is shown by `comic-dl --list-sources`.
   accepted). Pages marked `Premium` are locked/paid and raise an error.
 
 - **Kagane** — Requires a `cf_clearance` cookie obtained via the webview solver
-  (`--solver auto`). Chapter images are unlocked through the site's
+  (opt in with `--solver auto`). Chapter images are unlocked through the site's
   DRM API with an integrity token.
 
 - **MangaDex** — The largest manga aggregator. Uses the official public REST API
@@ -144,10 +144,10 @@ any third-party plugins — is shown by `comic-dl --list-sources`.
   `<img src>` inside `#readerarea`, served from `cdn.kingofshojo.com` and
   WordPress CDN (`i*.wp.com`). Chapter-only support.
 
-- **ManhwaTop** — A large Madara/WordPress manhwa/manhua site (Solo Leveling,
-  Nano Machine, Martial Peak). Standard Madara URL grammar. Chapter pages use
+- **ManhwaTop** — A large Madara/WordPress manhwa/manhua site hosting hundreds
+  of series. Standard Madara URL grammar. Chapter pages use
   lazy-loaded `data-src` on `c*.manhwatop.com` subdomains. The series page
-  sits behind a Cloudflare challenge; the solver (`--solver auto`) or a
+  sits behind a Cloudflare challenge; an opt-in solver (`--solver auto`) or a
   `cf_clearance` cookie may be required for series scraping.
 
 - **HiveToons** — An Astro manhwa site. Series pages server-render the full

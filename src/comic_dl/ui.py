@@ -3196,7 +3196,7 @@ def print_help() -> None:
         "--solver",
         "<MODE>",
         "Cloudflare challenge solver",
-        default="auto",
+        default="off",
         choices="auto, impersonation, webview, off",
     )
     _help_opt_row("--no-cookie", "", "Disable the persistent cookie jar for this run")
@@ -3328,7 +3328,7 @@ def print_help_summary() -> None:
         "TLS/HTTP impersonation profile",
         default="chrome146",
     )
-    _help_opt_row("--solver", "<MODE>", "Cloudflare challenge solver", default="auto")
+    _help_opt_row("--solver", "<MODE>", "Cloudflare challenge solver", default="off")
     _help_opt_row("--no-cookie", "", "Disable the persistent cookie jar")
     _help_opt_row("--no-rate", "", "Disable per-site rate limiting")
     _help_opt_row("--no-cache", "", "Disable the scrape response cache")

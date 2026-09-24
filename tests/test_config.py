@@ -633,6 +633,6 @@ class TestDefaultConfigParity:
         )
         conf = cfgmodule.load_config()
         assert conf["output"] == "~/Downloads/comic-dl"
-        assert conf["http"]["solver"] == "auto"
+        assert conf["http"]["solver"] == "off"
         assert conf["archive"]["format"] == "cbz"
         assert conf["http"]["rate"]["kagane.to"] == 1.5

@@ -121,7 +121,7 @@ Series in parallel still pass through the per-host rate limiter, so raising
 | `--max-image-size` | `100 MB` | Maximum size per image |
 | `--max-size` | `0` (unlimited) | Maximum total download size per run |
 | `--impersonate` | `chrome146` | TLS/HTTP impersonation profile |
-| `--solver` | `auto` | Cloudflare challenge solver. Modes: `auto` (impersonation first, webview if needed), `impersonation` (TLS/HTTP fingerprint only; fast, no deps), `webview` (system WebView/GTK; needs display + GTK libs), `off` (disable solver; challenged sites fail) |
+| `--solver` | `off` | Cloudflare challenge solver. Enabled modes: `auto` (impersonation first, webview if needed), `impersonation` (TLS/HTTP fingerprint only; fast, no deps), `webview` (system WebView/GTK; needs display + GTK libs), `off` (disable solver; challenged sites fail). Default `off` — solving is opt-in |
 
 ### Behavior toggles
 

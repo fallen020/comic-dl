@@ -38,7 +38,7 @@ max_size = 0                 # per run (0 = unlimited)
 
 [http]
 impersonate = "chrome146"    # TLS/HTTP fingerprint profile
-solver = "auto"              # auto | impersonation | webview | off
+solver = "off"               # off | auto | impersonation | webview
 cookie-jar = true            # enable the persistent cookie store
 cache = true                 # on-disk scrape response cache
 cache-ttl = 6                # hours a cached response stays fresh

@@ -126,16 +126,16 @@ class TestSolverModePrecedence:
     Exercises the genuine resolution path (config file + runtime overrides),
     not a stubbed solver_mode. Documented precedence: CLI ``--solver`` (via
     the runtime HTTP override) > ``[sources."<host>"] mode`` > ``[http]
-    solver`` > ``auto``.
+    solver`` > ``off``.
     """
 
     def _config(self, monkeypatch, tmp_path, text):
         monkeypatch.setattr(cfgmodule, "config_path", lambda: tmp_path / "config.toml")
         (tmp_path / "config.toml").write_text(text, encoding="utf-8")
 
-    def test_defaults_to_auto(self, monkeypatch, tmp_path):
+    def test_defaults_to_off(self, monkeypatch, tmp_path):
         self._config(monkeypatch, tmp_path, "")
-        assert cf.solver_mode("example.com") == "auto"
+        assert cf.solver_mode("example.com") == "off"
 
     def test_global_http_setting_when_no_host_mode(self, monkeypatch, tmp_path):
         self._config(monkeypatch, tmp_path, '[http]\nsolver = "impersonation"\n')
@@ -171,4 +171,4 @@ class TestSolverModePrecedence:
 
     def test_bogus_sources_mode_falls_through(self, monkeypatch, tmp_path):
         self._config(monkeypatch, tmp_path, '[sources."other.example"]\nmode = "turbo"\n')
-        assert cf.solver_mode("other.example") == "auto"
+        assert cf.solver_mode("other.example") == "off"

@@ -140,7 +140,7 @@ output = "~/Downloads/comic-dl"
 concurrency = 5
 
 [http]
-solver = "auto"
+solver = "off"
 download-retries = 2
 rate = { "e-hentai.org" = 2.0 }
 

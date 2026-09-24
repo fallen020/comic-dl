@@ -20,21 +20,21 @@ from comic_dl.scrapers.sites.tapas import (
 from tests.helpers import MockResponse as _MockResponse
 from tests.helpers import MockSession as _MockSession
 
-SLUG = "Lets-Play-official"
-SID = "313219"
+SLUG = "demo-series"
+SID = "12345"
 SERIES_URL = f"https://tapas.io/series/{SLUG}"
-EPISODE_URL = "https://tapas.io/episode/3667907"
+EPISODE_URL = "https://tapas.io/episode/123456"
 
 SERIES_PAGE = """
-<html><head><title>Let's Play | Tapas Comics</title>
+<html><head><title>Demo Series | Tapas Comics</title>
 <meta property="og:description" content="A romance story."/>
 <meta property="og:image" content="https://us-a.tapas.io/sa/cover.png"/>
 </head><body>
-<p class="center-info__title">Let's Play</p>
+<p class="center-info__title">Demo Series</p>
 <p class="js-ep-cnt">190 episodes</p>
-<div data-series-id="313219"></div>
-<div data-series-id="313219"></div>
-<div data-series-id="335435"></div>
+<div data-series-id="12345"></div>
+<div data-series-id="12345"></div>
+<div data-series-id="54321"></div>
 <ul class="list-body js-episodes"></ul>
 </body></html>
 """
@@ -43,8 +43,8 @@ EPISODES_P1 = {
     "code": 200,
     "data": {
         "episodes": [
-            {"id": 3667907, "title": "Episode 0", "free": True, "must_pay": False},
-            {"id": 3667908, "title": "Episode 1", "free": False, "must_pay": True},
+            {"id": 123456, "title": "Episode 0", "free": True, "must_pay": False},
+            {"id": 123457, "title": "Episode 1", "free": False, "must_pay": True},
         ],
         "pagination": {"has_next": True},
     },
@@ -52,15 +52,15 @@ EPISODES_P1 = {
 EPISODES_P2 = {
     "code": 200,
     "data": {
-        "episodes": [{"id": 3667909, "title": "", "free": True}],
+        "episodes": [{"id": 123458, "title": "", "free": True}],
         "pagination": {"has_next": False},
     },
 }
 
 EPISODE_PAGE = """
-<html><head><title>Read Let's Play :: Episode 0 | Tapas Comics</title></head><body>
+<html><head><title>Read Demo Series :: Episode 0 | Tapas Comics</title></head><body>
 <div class="viewer__header"><p class="title">Episode 0</p></div>
-<p class="center-info__title">Let's Play</p>
+<p class="center-info__title">Demo Series</p>
 <article class="viewer__body js-episode-article">
 <img class="content__img js-lazy" data-src="https://us-a.tapas.io/pc/2f/a-0.jpg?__token__=x" src="data:image/gif;base64,px"/>
 <img class="content__img js-lazy" data-src="https://us-a.tapas.io/pc/2f/a-1.jpg?__token__=x"/>
@@ -102,7 +102,7 @@ class TestUrlPatterns:
         assert not is_episode_url("https://tapas.io/episode/abc")
 
     def test_ids(self):
-        assert _episode_id_from_url(EPISODE_URL) == "3667907"
+        assert _episode_id_from_url(EPISODE_URL) == "123456"
         assert _episode_id_from_url(SERIES_URL) == ""
         assert _series_id_from_series_html(SERIES_PAGE) == SID
         assert _series_id_from_series_html("<html></html>") == ""
@@ -169,7 +169,7 @@ class TestTapasScraper:
         scraper = TapasScraper()
         meta = await scraper.scrape(EPISODE_URL, _MockSession(_handler))
 
-        assert meta.series_title == "Let's Play"
+        assert meta.series_title == "Demo Series"
         assert meta.chapter_title == "Episode 0"
         assert meta.total_pages == 2
         assert meta.language == "en"
@@ -178,7 +178,7 @@ class TestTapasScraper:
     async def test_scrape_chapter_enriches_description(self):
         episode = EPISODE_PAGE.replace(
             "</body>",
-            '<a href="/series/Lets-Play-official/info">series</a></body>',
+            '<a href="/series/demo-series/info">series</a></body>',
         )
         series = SERIES_PAGE.replace(
             "</body>",
@@ -212,12 +212,12 @@ class TestTapasScraper:
         scraper = TapasScraper()
         series = await scraper.scrape_series(SERIES_URL, _MockSession(_handler))
 
-        assert series.series_title == "Let's Play"
+        assert series.series_title == "Demo Series"
         assert series.title_no == SLUG
         assert len(series.chapters) == 2
-        assert series.chapters[0]["url"] == "https://tapas.io/episode/3667907"
-        assert series.chapters[1]["url"] == "https://tapas.io/episode/3667909"
-        assert series.chapters[1]["title"] == "Episode 3667909"
+        assert series.chapters[0]["url"] == "https://tapas.io/episode/123456"
+        assert series.chapters[1]["url"] == "https://tapas.io/episode/123458"
+        assert series.chapters[1]["title"] == "Episode 123458"
 
     @pytest.mark.asyncio
     async def test_homepage_url_rejected(self):

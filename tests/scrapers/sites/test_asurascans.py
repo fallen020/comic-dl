@@ -50,7 +50,7 @@ SERIES_JSONLD = """{
 class TestUrlPatterns:
     def test_valid_chapter_urls(self):
         assert is_chapter_url("https://asurascans.com/comics/murim-psychopath-00dcbf97/chapter/1")
-        assert is_chapter_url("https://www.asurascans.com/comics/nano-machine-00dcbf97/chapter/324")
+        assert is_chapter_url("https://www.asurascans.com/comics/demo-series-00dcbf97/chapter/324")
         assert is_chapter_url("https://asurascans.com/comics/murim-psychopath-00dcbf97/chapter/0/")
 
     def test_invalid_chapter_urls(self):
@@ -64,7 +64,7 @@ class TestUrlPatterns:
 
     def test_valid_series_urls(self):
         assert is_series_url("https://asurascans.com/comics/murim-psychopath-00dcbf97")
-        assert is_series_url("https://www.asurascans.com/comics/nano-machine-00dcbf97/")
+        assert is_series_url("https://www.asurascans.com/comics/demo-series-00dcbf97/")
 
     def test_invalid_series_urls(self):
         assert not is_series_url("")

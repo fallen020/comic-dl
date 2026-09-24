@@ -22,39 +22,37 @@ from comic_dl.scrapers.sites.webtoon import (
 
 class TestWebtoonPattern:
     def test_desktop_series(self):
-        m = PATTERN.match("https://www.webtoons.com/en/action/nano-machine/list?title_no=4344")
+        m = PATTERN.match("https://www.webtoons.com/en/action/demo-series/list?title_no=1")
         assert m
         assert m.group(1) == "en"
         assert m.group(2) == "action"
-        assert m.group(3) == "nano-machine"
+        assert m.group(3) == "demo-series"
         assert m.group(4) is None
         assert m.group(5) == "list"
-        assert m.group(6) == "4344"
+        assert m.group(6) == "1"
         assert m.group(7) is None
 
     def test_mobile_series(self):
-        m = PATTERN.match("https://m.webtoons.com/en/action/nano-machine/list?title_no=4344")
+        m = PATTERN.match("https://m.webtoons.com/en/action/demo-series/list?title_no=1")
         assert m
         assert m.group(5) == "list"
 
     def test_desktop_chapter(self):
         m = PATTERN.match(
-            "https://www.webtoons.com/en/action/nano-machine/ep-1-prologue/"
-            "viewer?title_no=4344&episode_no=1"
+            "https://www.webtoons.com/en/action/demo-series/ep-1-demo/"
+            "viewer?title_no=1&episode_no=1"
         )
         assert m
-        assert m.group(4) == "ep-1-prologue"
+        assert m.group(4) == "ep-1-demo"
         assert m.group(5) == "viewer"
         assert m.group(7) == "1"
 
     def test_mobile_chapter(self):
         m = PATTERN.match(
-            "https://m.webtoons.com/en/action/nano-machine/"
-            "ep-2-chapter-1-mashin-the-demonic-spirit/"
-            "viewer?title_no=4344&episode_no=2"
+            "https://m.webtoons.com/en/action/demo-series/ep-2-demo/viewer?title_no=1&episode_no=2"
         )
         assert m
-        assert m.group(4) == "ep-2-chapter-1-mashin-the-demonic-spirit"
+        assert m.group(4) == "ep-2-demo"
         assert m.group(5) == "viewer"
         assert m.group(7) == "2"
 
@@ -66,8 +64,8 @@ class TestWebtoonPattern:
 
     def test_trailing_slash_chapter(self):
         m = PATTERN.match(
-            "https://www.webtoons.com/en/action/nano-machine/"
-            "ep-1-prologue/viewer?title_no=4344&episode_no=1/"
+            "https://www.webtoons.com/en/action/demo-series/"
+            "ep-1-demo/viewer?title_no=1&episode_no=1/"
         )
         assert m
         assert m.group(5) == "viewer"
@@ -89,7 +87,7 @@ class TestWebtoonPattern:
         )
 
     def test_query_only_no_path(self):
-        assert PATTERN.match("https://www.webtoons.com/?title_no=4344") is None
+        assert PATTERN.match("https://www.webtoons.com/?title_no=1") is None
 
     def test_extra_path_segment_after_viewer(self):
         assert (
@@ -102,15 +100,14 @@ class TestWebtoonPattern:
 
 class TestParseUrl:
     def test_series(self):
-        info = _parse_url("https://www.webtoons.com/en/action/nano-machine/list?title_no=4344")
+        info = _parse_url("https://www.webtoons.com/en/action/demo-series/list?title_no=1")
         assert info["lang"] == "en"
         assert info["action"] == "list"
-        assert info["title_no"] == "4344"
+        assert info["title_no"] == "1"
 
     def test_chapter(self):
         info = _parse_url(
-            "https://m.webtoons.com/en/action/nano-machine/ep-1-prologue/"
-            "viewer?title_no=4344&episode_no=1"
+            "https://m.webtoons.com/en/action/demo-series/ep-1-demo/viewer?title_no=1&episode_no=1"
         )
         assert info["action"] == "viewer"
         assert info["episode_no"] == "1"
@@ -120,12 +117,12 @@ class TestParseUrl:
 
     def test_extra_query_params_accepted(self):
         info = _parse_url(
-            "https://www.webtoons.com/en/action/nano-machine/list"
-            "?title_no=4344&utm_source=share&webtoon-platform-redirect=true"
+            "https://www.webtoons.com/en/action/demo-series/list"
+            "?title_no=1&utm_source=share&webtoon-platform-redirect=true"
         )
         assert info["action"] == "list"
-        assert info["title_no"] == "4344"
-        assert info["series_slug"] == "nano-machine"
+        assert info["title_no"] == "1"
+        assert info["series_slug"] == "demo-series"
 
     def test_extra_query_params_viewer(self):
         info = _parse_url(
@@ -135,32 +132,31 @@ class TestParseUrl:
         assert info["episode_no"] == "230"
 
     def test_title_no_only_still_none(self):
-        assert _parse_url("https://www.webtoons.com/?title_no=4344") is None
+        assert _parse_url("https://www.webtoons.com/?title_no=1") is None
 
 
 class TestDetectUrlType:
     def test_series_list(self):
         assert (
-            is_series_url("https://www.webtoons.com/en/action/nano-machine/list?title_no=4344")
-            is True
+            is_series_url("https://www.webtoons.com/en/action/demo-series/list?title_no=1") is True
         )
         assert (
-            is_chapter_url("https://www.webtoons.com/en/action/nano-machine/list?title_no=4344")
+            is_chapter_url("https://www.webtoons.com/en/action/demo-series/list?title_no=1")
             is False
         )
 
     def test_chapter_viewer(self):
         assert (
             is_chapter_url(
-                "https://www.webtoons.com/en/action/nano-machine/"
-                "ep-1-prologue/viewer?title_no=4344&episode_no=1"
+                "https://www.webtoons.com/en/action/demo-series/"
+                "ep-1-demo/viewer?title_no=1&episode_no=1"
             )
             is True
         )
         assert (
             is_series_url(
-                "https://www.webtoons.com/en/action/nano-machine/"
-                "ep-1-prologue/viewer?title_no=4344&episode_no=1"
+                "https://www.webtoons.com/en/action/demo-series/"
+                "ep-1-demo/viewer?title_no=1&episode_no=1"
             )
             is False
         )
@@ -188,17 +184,16 @@ class TestDetectUrlType:
 class TestNormalizeUrl:
     def test_mobile_to_desktop(self):
         result = normalize_webtoon_url(
-            "https://m.webtoons.com/en/action/nano-machine/list?title_no=4344"
+            "https://m.webtoons.com/en/action/demo-series/list?title_no=1"
         )
         assert "www.webtoons.com" in result
         assert "m.webtoons.com" not in result
 
     def test_chapter_preserved(self):
         result = normalize_webtoon_url(
-            "https://m.webtoons.com/en/action/nano-machine/"
-            "ep-1-prologue/viewer?title_no=4344&episode_no=1"
+            "https://m.webtoons.com/en/action/demo-series/ep-1-demo/viewer?title_no=1&episode_no=1"
         )
-        assert "/ep-1-prologue/viewer" in result
+        assert "/ep-1-demo/viewer" in result
         assert "episode_no=1" in result
 
     def test_already_desktop(self):
@@ -210,8 +205,7 @@ class TestNormalizeUrl:
 
     def test_trailing_slash_stripped(self):
         result = normalize_webtoon_url(
-            "https://www.webtoons.com/en/action/nano-machine/"
-            "ep-1/viewer?title_no=4344&episode_no=1/"
+            "https://www.webtoons.com/en/action/demo-series/ep-1/viewer?title_no=1&episode_no=1/"
         )
         assert result.endswith("episode_no=1")
         assert not result.endswith("/")
@@ -301,7 +295,7 @@ class TestScrapeChapter:
         '<meta property="og:title" content="Prologue">'
         '<meta property="og:description" content="A great chapter">'
         '<meta property="og:image" content="https://x.com/cover.jpg">'
-        '<meta property="og:url" content="https://www.webtoons.com/en/action/s/ep-1-prologue/viewer?title_no=1&episode_no=1">'
+        '<meta property="og:url" content="https://www.webtoons.com/en/action/s/ep-1-demo/viewer?title_no=1&episode_no=1">'
         "<title>Prologue - Webtoon</title>"
         "</head><body></body></html>"
     )
@@ -536,7 +530,7 @@ class TestScrapeSeries:
 
     _series_html = (
         "<html><head>"
-        '<meta property="og:title" content="Nano Machine">'
+        '<meta property="og:title" content="Demo Series">'
         '<meta property="og:description" content="A cool series">'
         '<meta property="og:image" content="https://x.com/cover.jpg">'
         "</head><body></body></html>"
@@ -546,7 +540,7 @@ class TestScrapeSeries:
         "props": {
             "pageProps": {
                 "series": {
-                    "title": "Nano Machine",
+                    "title": "Demo Series",
                     "description": "A cool series",
                     "thumbnail": "https://x.com/cover.jpg",
                 },
@@ -554,18 +548,12 @@ class TestScrapeSeries:
                     {
                         "title": "Prologue",
                         "episodeNo": 1,
-                        "url": (
-                            "/en/action/nano-machine/ep-1-prologue/viewer?"
-                            "title_no=4344&episode_no=1"
-                        ),
+                        "url": ("/en/action/demo-series/ep-1-demo/viewer?title_no=1&episode_no=1"),
                     },
                     {
                         "title": "Chapter 1",
                         "episodeNo": 2,
-                        "url": (
-                            "/en/action/nano-machine/ep-2-chapter-1/viewer?"
-                            "title_no=4344&episode_no=2"
-                        ),
+                        "url": ("/en/action/demo-series/ep-2-demo/viewer?title_no=1&episode_no=2"),
                     },
                 ],
             }
@@ -596,16 +584,16 @@ class TestScrapeSeries:
 
     async def test_with_next_data(self):
         info = await scrape_series(
-            "https://www.webtoons.com/en/action/nano-machine/list?title_no=4344",
+            "https://www.webtoons.com/en/action/demo-series/list?title_no=1",
             self.MockSeriesClient(),  # type: ignore
         )
-        assert info.series_title == "Nano Machine"
+        assert info.series_title == "Demo Series"
         assert info.description == "A cool series"
         assert info.cover_url == "https://x.com/cover.jpg"
         assert len(info.chapters) == 2
         assert info.chapters[0]["title"] == "Prologue"
         assert info.chapters[0]["episode_no"] == "1"
-        assert "/ep-1-prologue/viewer" in info.chapters[0]["url"]
+        assert "/ep-1-demo/viewer" in info.chapters[0]["url"]
         assert info.chapters[1]["episode_no"] == "2"
 
     async def test_no_chapters_raises(self):
@@ -631,10 +619,10 @@ class TestScrapeSeries:
     async def test_pagination_continues_past_visible_window(self):
         """Episodes on list pages beyond the first page's pagination widget
         must still be collected (the widget only shows a page window)."""
-        url = "https://www.webtoons.com/en/action/nano-machine/list?title_no=4344"
+        url = "https://www.webtoons.com/en/action/demo-series/list?title_no=1"
 
         def _ep_item(ep_no: int) -> str:
-            href = f"/en/action/nano-machine/ep-{ep_no}/viewer?title_no=4344&episode_no={ep_no}"
+            href = f"/en/action/demo-series/ep-{ep_no}/viewer?title_no=1&episode_no={ep_no}"
             return (
                 f'<li class="_episodeItem">'
                 f'<a href="{href}">'
@@ -645,7 +633,7 @@ class TestScrapeSeries:
             items = "".join(_ep_item(e) for e in eps)
             return (
                 "<html><head>"
-                '<meta property="og:title" content="Nano Machine">'
+                '<meta property="og:title" content="Demo Series">'
                 "</head><body>"
                 f"{items}{page_links}"
                 "</body></html>"

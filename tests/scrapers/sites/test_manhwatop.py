@@ -22,23 +22,23 @@ from comic_dl.scrapers.sites.manhwatop import (
 from tests.helpers import MockResponse as _MockResponse
 from tests.helpers import MockSession as _MockSession
 
-SLUG = "nano-machine-series-manhwa"
+SLUG = "demo-series-manhwa"
 SERIES_URL = f"https://manhwatop.com/manga/{SLUG}/"
 CHAPTER_URL = f"https://manhwatop.com/manga/{SLUG}/chapter-328/"
 IMG_BASE = "https://c4.manhwatop.com/manga_5cd5058bca53951ffa7801bcdf421651/chapter_330/"
-COVER = "https://manhwatop.com/wp-content/uploads/2020/04/Nano-Machine-cover-175x238.webp"
+COVER = "https://manhwatop.com/wp-content/uploads/2020/04/demo-series-cover-175x238.webp"
 
 SERIES_PAGE = f"""
 <html lang="en"><head>
-    <title>Nano Machine - ManhwaTop</title>
+    <title>Demo Series - ManhwaTop</title>
     <meta property="og:image" content="{COVER}"/>
     <meta property="og:description" content="After being held in disdain and having his life put in danger..."/>
 </head><body class="single single-wp-manga postid-12345">
 <div class="post-title">
-    <h1>Nano Machine</h1>
+    <h1>Demo Series</h1>
 </div>
 <div class="summary_image">
-    <img src="{COVER}" alt="Nano Machine">
+    <img src="{COVER}" alt="Demo Series">
 </div>
 <div class="post-content_item">
     <div class="summary-heading"><h5>Rating</h5></div>
@@ -90,10 +90,10 @@ SERIES_PAGE = f"""
 
 CHAPTER_PAGE = f"""
 <html lang="en"><head>
-    <title>Nano Machine - Lastest Chapter 328 - MANHWATOP</title>
+    <title>Demo Series - Lastest Chapter 328 - MANHWATOP</title>
     <meta property="og:image" content="{COVER}"/>
 </head><body class="single single-wp-manga postid-67890 reading-manga">
-<h1>Nano Machine - Chapter 328</h1>
+<h1>Demo Series - Chapter 328</h1>
 <div class="read-container">
     <div class="reading-content">
         <div class="page-break "><img src="https://manhwatop.com/wp-content/themes/madara/images/loading6.svg" data-src="{IMG_BASE}ch_330_1.jpg" class="wp-manga-chapter-img"/></div>
@@ -151,7 +151,7 @@ class TestUrlPatterns:
 class TestExtraction:
     def test_series_title_from_h1(self):
         soup = BeautifulSoup(SERIES_PAGE, "lxml")
-        assert _extract_series_title(soup, {}) == "Nano Machine"
+        assert _extract_series_title(soup, {}) == "Demo Series"
 
     def test_meta_rows_keyed_lowercase(self):
         soup = BeautifulSoup(SERIES_PAGE, "lxml")
@@ -208,7 +208,7 @@ class TestManhwaTopScraper:
         scraper = ManhwaTopScraper()
         meta = await scraper.scrape(CHAPTER_URL, session)
 
-        assert meta.series_title == "Nano Machine"
+        assert meta.series_title == "Demo Series"
         assert meta.chapter_title == "Chapter 328"
         assert meta.chapter_number == "328"
         assert meta.language == "en"
@@ -252,7 +252,7 @@ class TestManhwaTopScraper:
         scraper = ManhwaTopScraper()
         meta = await scraper.scrape(CHAPTER_URL, session)
         assert meta.series_title == "Untitled"
-        assert meta.chapter_title == "Nano Machine - Chapter 328"
+        assert meta.chapter_title == "Demo Series - Chapter 328"
         assert len(meta.images) == 3
 
     @pytest.mark.asyncio
@@ -261,7 +261,7 @@ class TestManhwaTopScraper:
         scraper = ManhwaTopScraper()
         series = await scraper.scrape_series(SERIES_URL, session)
 
-        assert series.series_title == "Nano Machine"
+        assert series.series_title == "Demo Series"
         assert series.description.startswith("After being held in disdain")
         assert series.cover_url == COVER
         assert series.title_no == SLUG

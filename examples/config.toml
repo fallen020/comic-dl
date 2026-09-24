@@ -29,13 +29,15 @@ max_size = 0
 impersonate = "chrome146"
 
 # Cloudflare challenge solver (--solver):
+#   off            default: never retry challenged requests; a challenged
+#                  site fails with a solver hint
 #   auto           detect a challenge, clear the stale cookie, retry once;
 #                  solve in the system webview when available, else fall
 #                  back to impersonation-only
 #   impersonation  never open a webview; rely on the fingerprint profile
 #   webview        force the system-webview solver
-#   off            never retry challenged requests
-solver = "auto"
+# Enable a mode explicitly to opt in to challenge solving.
+solver = "off"
 
 # Persist session cookies across runs. --no-cookie disables for one run.
 # Inspect/clear with: comic-dl cookie ls|clear [HOST]

@@ -52,17 +52,22 @@ When the cookie jar is disabled, the scrape response cache is also bypassed.
 ## Cloudflare challenge handling
 
 When a request returns a Cloudflare challenge (403/503 interstitial), comic-dl
-clears the stale cookie and retries once. The retry can be solved in the
-system webview.
+can clear the stale cookie and retry once. Challenge solving is **opt-in**: by
+default (`solver = "off"`) a challenged site fails with a solver hint instead
+of being retried.
 
 ### Solver modes
 
 | Mode | Flag | Behavior |
 | :--- | :--- | :------- |
-| `auto` | `--solver auto` (default) | Detect challenge → clear stale cookie → retry. Opens webview if available, falls back to impersonation. |
+| `off` | `solver = "off"` (default) | Never retry challenged requests; the site fails with a hint. |
+| `auto` | `--solver auto` | Detect challenge → clear stale cookie → retry. Opens webview if available, falls back to impersonation. |
 | `impersonation` | `--solver impersonation` | Never open webview. Rely on TLS/HTTP fingerprint profile. |
 | `webview` | `--solver webview` | Force system webview. Falls back to impersonation if it cannot start. |
-| `off` | `--solver off` | Never retry challenged requests. |
+
+Enable a mode per run with `--solver <mode>`, in config with
+`[http] solver = "<mode>"`, or per host with `[sources."<host>"] mode =
+"<mode>"`.
 
 ### Webview requirements
 

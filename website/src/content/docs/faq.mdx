@@ -68,7 +68,7 @@ Point `-u` at a series page. With no `--chapters`, comic-dl drops you into an
 interactive picker so you can choose before anything downloads:
 
 ```bash
-comic-dl -u "https://www.webtoons.com/en/romance/little-momma/list?title_no=1234"
+comic-dl -u "https://www.webtoons.com/en/romance/demo-series/list?title_no=1"
 ```
 
 That URL is illustrative — substitute a real one. To skip the picker and grab
@@ -146,11 +146,14 @@ requests per host (on by default) with limits you can tune — see
 
 ### Images come out corrupt, or don't download at all
 
-Sites behind Cloudflare may need a challenge solver; `--solver auto` is the
-default and tries the system webview, falling back to TLS impersonation. On
+Sites behind Cloudflare only need a solver if you opt in; the default is
+`--solver off`, so a challenged site fails with a hint instead of being
+retried. Enable `--solver auto` (tries the system webview, falling back to
+TLS impersonation) or `--solver impersonation` when a site sits behind
+Cloudflare. On
 Linux the webview path needs PyGObject and WebKitGTK installed system-wide —
 the [webview requirements](../configure/cookies/#webview-requirements) section
-lists exact packages. On a headless box, skip the webview entirely with
+lists exact packages. On a headless box, use
 `--solver impersonation`.
 
 ### Getting more output for diagnosis

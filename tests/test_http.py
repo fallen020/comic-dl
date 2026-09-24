@@ -37,7 +37,7 @@ class TestRuntimeHttpOverrides:
     def test_defaults(self, monkeypatch, tmp_path):
         _patch_paths(monkeypatch, tmp_path)
         assert httpmodule.cookie_jar_enabled() is True
-        assert solver_mode() == "auto"
+        assert solver_mode() == "off"
         assert ratemodule.rate_limiting_enabled() is True
         assert http_client_args()["impersonate"] == "chrome146"
 

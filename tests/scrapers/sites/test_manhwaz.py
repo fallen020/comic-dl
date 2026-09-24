@@ -22,7 +22,7 @@ from comic_dl.scrapers.sites.manhwaz import (
 from tests.helpers import MockResponse as _MockResponse
 from tests.helpers import MockSession as _MockSession
 
-SLUG = "nano-machine-how-038"
+SLUG = "demo-manhwa-how-001"
 SERIES_URL = f"https://manhwaz.com/webtoon/{SLUG}"
 CHAPTER_URL = f"https://manhwaz.com/webtoon/{SLUG}/chapter-326"
 IMG = "https://cdn.manhwaz.com/manga/41/326/"
@@ -30,11 +30,11 @@ COVER = "https://manhwaz.com/storage/images/cover/f1a0a8698d02e0cb7fd3b77a1c7080
 
 SERIES_PAGE = f"""
 <html lang="en"><head>
-    <title>Nano Machine - ManhwaZ</title>
+    <title>Demo Manhwa - ManhwaZ</title>
     <meta property="og:image" content="{COVER}"/>
     <meta property="og:description" content="After being held in disdain, an orphan from the Demonic Cult&hellip;"/>
 </head><body class="archive single postid-41">
-<h1>Nano Machine</h1>
+<h1>Demo Manhwa</h1>
 <div class="summary__content"><p>After being held in disdain and having his life put in danger, an orphan from the Demonic Cult, Cheon Yeo-Woon, has an unexpected visit from his descendant.</p></div>
 <div class="post-content_item">
     <div class="summary-heading"><h5>Alternative</h5></div>
@@ -63,10 +63,10 @@ SERIES_PAGE = f"""
 
 CHAPTER_PAGE = f"""
 <html lang="en"><head>
-    <title>Nano Machine Chapter 326 - ManhwaZ</title>
+    <title>Demo Manhwa Chapter 326 - ManhwaZ</title>
     <meta property="og:image" content="{COVER}"/>
 </head><body class="single single-wp-manga postid-7001 reading-manga">
-<h1>Nano Machine - Chapter 326</h1>
+<h1>Demo Manhwa - Chapter 326</h1>
 <div class="read-container">
     <div class="reading-content">
         <div class="page-break "><img id="image-0" src="{IMG}6a85f8738a610.jpg" class="chapter-img img-responsive"/></div>
@@ -122,7 +122,7 @@ class TestUrlPatterns:
 class TestExtraction:
     def test_series_title_from_h1(self):
         soup = BeautifulSoup(SERIES_PAGE, "lxml")
-        assert _extract_series_title(soup, {}) == "Nano Machine"
+        assert _extract_series_title(soup, {}) == "Demo Manhwa"
 
     def test_meta_rows_keyed_lowercase(self):
         soup = BeautifulSoup(SERIES_PAGE, "lxml")
@@ -175,7 +175,7 @@ class TestManhwazScraper:
         scraper = ManhwazScraper()
         meta = await scraper.scrape(CHAPTER_URL, session)
 
-        assert meta.series_title == "Nano Machine"
+        assert meta.series_title == "Demo Manhwa"
         assert meta.chapter_title == "Chapter 326"
         assert meta.chapter_number == "326"
         assert meta.language == "en"
@@ -216,7 +216,7 @@ class TestManhwazScraper:
         scraper = ManhwazScraper()
         meta = await scraper.scrape(CHAPTER_URL, session)
         assert meta.series_title == "Untitled"
-        assert meta.chapter_title == "Nano Machine - Chapter 326"
+        assert meta.chapter_title == "Demo Manhwa - Chapter 326"
         assert len(meta.images) == 3
 
     @pytest.mark.asyncio
@@ -225,7 +225,7 @@ class TestManhwazScraper:
         scraper = ManhwazScraper()
         series = await scraper.scrape_series(SERIES_URL, session)
 
-        assert series.series_title == "Nano Machine"
+        assert series.series_title == "Demo Manhwa"
         assert series.description.startswith("After being held in disdain")
         assert series.cover_url == COVER
         assert series.title_no == SLUG

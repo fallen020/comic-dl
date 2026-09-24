@@ -16,7 +16,7 @@ def solver_mode(host: str | None = None) -> str:
     """Effective challenge solver for ``host``.
 
     Precedence: CLI ``--solver`` (via the runtime HTTP override) >
-    ``[sources."<host>"] mode`` > ``[http] solver`` > ``auto``.
+    ``[sources."<host>"] mode`` > ``[http] solver`` > ``off``.
 
     The runtime flag is read first explicitly because its key (``solver``)
     differs from the per-host key (``mode``), so a single ``http_setting``
@@ -28,7 +28,7 @@ def solver_mode(host: str | None = None) -> str:
     mode = http_setting("mode", host=host)
     if isinstance(mode, str) and mode in {"auto", "impersonation", "webview", "off"}:
         return mode
-    global_mode = http_setting("solver", default="auto")
+    global_mode = http_setting("solver", default="off")
     if isinstance(global_mode, str) and global_mode in {
         "auto",
         "impersonation",
@@ -36,7 +36,7 @@ def solver_mode(host: str | None = None) -> str:
         "off",
     }:
         return global_mode
-    return "auto"
+    return "off"
 
 
 #: Hosts whose webview solve already failed this run.  Spawning the helper

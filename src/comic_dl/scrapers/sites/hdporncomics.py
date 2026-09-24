@@ -189,8 +189,8 @@ class HDPornComicsScraper(BaseScraper):
                 "Cloudflare challenged the hdporncomics.com request.",
                 hint=(
                     "This site only answers the webview solver — run with a "
-                    "display (default --solver auto) and pass the challenge "
-                    "in the browser window."
+                    "display and --solver auto (or webview) to pass the "
+                    "challenge in the browser window."
                 ),
             )
         return BeautifulSoup(resp.text, "lxml")
