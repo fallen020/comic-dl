@@ -1,0 +1,87 @@
+---
+title: Code Review
+description: What reviewers check, how to review, responder etiquette, and when a maintainer merges.
+order: 603
+section: Develop
+---
+
+comic-dl's reviews are shaped by three constraints that generic review
+culture misses:
+
+- **Every outbound fetch passes an SSRF guard** (`validate_request_url` via
+  `BaseScraper._timeout_get` / `_open_stream` in
+  [architecture](../architecture/)). A new `requests.get()` waved past this is a
+  SSRF hole.
+- **Rate limiting and retry cooldowns are load-bearing.** New scraping paths
+  must ride the existing throttle (`rate.py`) and cooldown, never bypass them.
+- **Tests are offline-only.** A live-request test corrupts deterministic CI.
+
+## The checklist
+
+### Structure and scope
+
+- [ ] PR targets `dev`, not `main`/`staging`.
+- [ ] One concern per PR; reviewable in one sitting.
+- [ ] `Fixes #NN` present when the PR closes an issue.
+- [ ] Template's Type and Site(s) affected filled in.
+
+### Correctness
+
+- [ ] Code does what the issue says, not just what the diff shows.
+- [ ] Partial failures (some chapters fail, others pass) don't abort the run.
+- [ ] Reuses existing abstractions (scraper contract, download pipeline,
+  archiver) rather than a new parallel implementation.
+
+### Safety (non-negotiable)
+
+- [ ] New fetches go through SSRF-guarded helpers; redirects re-validated.
+- [ ] No loosening of `rate.py` or the shared retry cooldown.
+- [ ] New writes stay inside the output path; archives stay atomic
+  (`.tmp` + rename).
+- [ ] No new hardcoded credentials or cookie keys.
+- [ ] Challenge-solving stays opt-in (`solver` defaults to `off`).
+- [ ] No real-work URLs or series identifiers in tests/examples/docs.
+
+### Tests
+
+- [ ] Bug fixes have a regression test failing on the old code.
+- [ ] New sites have a parser test under `tests/scrapers/sites/` (offline).
+- [ ] Assertions use `output.replace("\n", "")`, never raw capture (Rich folds
+  at 80 cols on CI); machine JSON prints with `soft_wrap=True`.
+- [ ] No `Path()` while `os.name` is mocked.
+- [ ] New tests actually run in CI (not skipped).
+
+### Docs
+
+- [ ] Site/CLI changes regenerated docs (`update-sites-docs.py` for tables,
+  `docs.sh` for mirror + lint).
+- [ ] No aspirational claims — docs describe exact output.
+
+## Reviewing a site scraper PR
+
+- [ ] Registered — `--list-sources` shows it.
+- [ ] URL routing: supported shapes accepted, others rejected with clear error.
+- [ ] Pagination/chapter numbering follows the site's actual pattern.
+- [ ] Tests cover a parsed fixture: chapter list, series page, pagination,
+  and an edge case (missing title, empty list).
+
+## How to review
+
+1. Read the PR title and issue first; read the diff as a story (routing →
+   scraper → download → archive → library).
+2. Comment inline and specific — quote the line.
+3. Run the checklist mechanically; a blank field is a comment.
+4. Run `./scripts/test.sh` and `./scripts/lint.sh` locally if you can.
+5. Approve with scope stated.
+
+## Responding to reviews
+
+Treat comments as questions first. Fix what the checklist flags, re-run the
+gates, push new commits. Never force-push away the conversation while review
+is in flight.
+
+## When to merge (maintainers)
+
+Squash-merge only when the checklist is green and CI is green. `main` advances
+only by release commits — a direct push to `main` is a release decision
+([releasing](../releasing/)).

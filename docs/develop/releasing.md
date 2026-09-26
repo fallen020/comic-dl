@@ -1,6 +1,9 @@
 # Releasing
 
 How a new version of comic-dl ships. This runbook makes releases repeatable.
+It is the last page of the [Contribution Workflow](workflow.md): work flows
+`dev → staging → main`, and this page is only ever run on a validated
+`staging` state.
 
 > [!NOTE]
 > The first public release (`0.0.1`) ships the same way as every later one:
@@ -47,7 +50,7 @@ along with the `pyproject.toml` bump.
 
 Releases ride a three-branch pipeline. Work doesn't land directly on `main`:
 
-```
+```text
 dev (unstable)  →  staging (validation)  →  main (production release)
 ```
 
@@ -68,8 +71,8 @@ The release steps below are run from the validated `staging` branch.
 
 1. Fast-forward `staging` to the validated `dev` commit you intend to ship
    (`git checkout staging && git merge --ff-only dev`), or open a `staging ←
-   dev` PR and squash-merge it. Pushing to `staging` triggers the normal PR CI
-   + `packaging.yml` checks, which act as the release smoke test.
+   dev` PR and squash-merge it. Pushing to `staging` triggers the normal PR
+   CI and `packaging.yml` checks, which act as the release smoke test.
 2. Confirm CI is green across all runner OSes, and `packaging.yml` passed
    (distro install + Windows exe smoke).
 3. Write human-curated release notes on the tag's GitHub Release.
@@ -94,6 +97,12 @@ git checkout main && git pull
 git tag -s v1.4.0 -m "Release 1.4.0"
 git push origin v1.4.0
 ```
+
+The tag **must equal `version` in `pyproject.toml` exactly** — PEP 440
+(e.g. `v0.0.1`). Never `v0.0.1-beta`: the hyphen breaks arch/rpm versioning and
+the release guards. If a `v*` tag to a broken, unpublished release was already
+pushed, it may be moved — but only to repair; a published release is
+immutable.
 
 Tags and commits are GPG-signed (signing key `D784B9E3D5FA85D2`), so the
 matching public key must be registered on the GitHub account for the tag to

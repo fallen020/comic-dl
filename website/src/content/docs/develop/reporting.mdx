@@ -1,0 +1,79 @@
+---
+title: Reporting
+description: Where each kind of report goes — questions, bugs, features, and the private security advisory flow.
+order: 604
+section: Develop
+---
+
+Read the [troubleshooting page](../../troubleshooting/) before filing. Many
+"bugs" are config, rate limits, or a site that blocked the scrape.
+
+## Routing
+
+| Topic | Where |
+| :---- | :---- |
+| "How do I..." setup/usage questions | [Discussions][discussions-link] |
+| Ideas / feature requests | Discussions first, issue after discussion |
+| Bugs | [Bug report template][bug-template-link] |
+| Security vulnerabilities | Private [security advisory][security-advisory-link] — never public |
+
+[discussions-link]: https://github.com/fallen020/comic-dl/discussions
+[bug-template-link]:
+  https://github.com/fallen020/comic-dl/issues/new?template=bug_report.yml
+[security-advisory-link]:
+  https://github.com/fallen020/comic-dl/security/advisories/new
+
+Issues can only be filed with the templates (`blank_issues_enabled` is false).
+Bug reports are pre-labeled `bug needs-triage`; everything starts as
+`needs-triage` until a maintainer reproduces it.
+
+## Filing a bug report
+
+The bug template asks for: description; exact command and output; affected
+URL (personal data scrubbed); platform; install method (prebuilt / `pip` /
+`uvx` / source); and debug output:
+
+```bash
+comic-dl self version
+comic-dl -vvv -u "<URL>" 2>&1 | tail -50
+```
+
+Two things make every report land:
+
+- **Sanitize before pasting** — URLs can carry cookies or tokens.
+- **Avoid real works** — use synthetic slugs. This is a legal constraint, not
+  style: see the project's [legal notes](../../legal/).
+
+## When not to file
+
+- A single site is down or slow — check Discussions first.
+- 403 on a gallery — the [troubleshooting page](../../troubleshooting/) has a
+  decision tree; report only if it didn't help.
+- A security concern that is explicitly out of scope (third-party-site
+  behavior, rate limits) — see [security testing](../security-testing/).
+
+## Feature requests
+
+Start a Discussion, not an issue. A feature that survives discussion gets an
+issue with a concrete design; one that starts as an issue without discussion
+usually gets closed as a pointer back.
+
+## Security reports
+
+Use the **private advisory flow** with **coordinated disclosure** — nothing
+public until a fix lands:
+
+- Report via [Security → Report a vulnerability](https://github.com/fallen020/comic-dl/security/advisories/new).
+- Include version/commit, reproduction steps, and impact. Timelines
+  (from `SECURITY.md`): acknowledgement within 3 business days, assessment
+  within 5, Critical/High fix as a patch release within 7 days of
+  confirmation; Medium/Low ship in the next planned release.
+- Out of scope (per `SECURITY.md`): availability/rate-limit behavior from
+  batched downloads, absence of credentials (the project stores none),
+  behavior of third-party sites themselves.
+
+## After you file
+
+Every issue carries `needs-triage` until reproduced. A `duplicate` close
+merges your info into the older issue; a `wontfix` close is deliberately out
+of scope — reopen only if new facts change that.

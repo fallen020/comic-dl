@@ -1,0 +1,95 @@
+---
+title: Development Setup
+description: Take a fresh machine to a working checkout — uv, the venv, the gate scripts, and signing.
+order: 602
+section: Develop
+---
+
+How to take a fresh machine to a working comic-dl checkout that passes the
+gates. Everything here is also run by CI, so a checkout that follows these
+commands behaves the same locally and on the runners.
+
+## Prerequisites
+
+- **Python 3.11+** — any 3.11-3.14 is fine; CI tests the whole range.
+- **uv** — the package manager. Never mix in `pip`/`venv`.
+- **Git**, and **GPG** (expected for maintainers — commits are signed).
+
+## Clone and install
+
+```bash
+git clone https://github.com/fallen020/comic-dl
+cd comic-dl
+uv sync --extra dev --locked
+```
+
+`uv sync` creates the venv and installs the package plus the `dev` extra
+(pytest, ruff, mypy, bandit, coverage). `--locked` insists the environment
+matches `uv.lock` exactly. Prefer `uv sync --extra dev --locked` when something
+goes missing after a branch switch — a bare `uv run` auto-syncs and can prune
+dev packages.
+
+## Verify the install
+
+```bash
+uv run comic-dl self version
+uv run python -m comic_dl --help
+```
+
+The version must match `pyproject.toml`.
+
+## Run the gates once
+
+CI runs these scripts verbatim. Prove the environment before writing code:
+
+```bash
+./scripts/test.sh
+./scripts/lint.sh
+./scripts/docs.sh
+```
+
+| Script | Purpose |
+| :----- | :------ |
+| `test.sh` | Runs `pytest tests/` in parallel, cache disabled |
+| `lint.sh` | ruff check + format-check, mypy, bandit on `src/`, ShellCheck |
+| `docs.sh` | site/manifest/mirror drift + pymarkdown scan of `docs/` + `README.md` |
+| `build.sh` | Builds sdist + wheel and repacks `_version.py` |
+| `build-binary.sh` | PyInstaller one-file binary (`.ps1` on Windows) |
+
+First run of `lint.sh` may report `shellcheck` not found — it is optional and
+skipped. First `test.sh` run downloads fixtures; afterwards the suite is fully
+offline.
+
+## Daily loop
+
+```bash
+uv run pytest tests/<file>.py -q   # focused test while editing
+./scripts/test.sh                  # full suite
+./scripts/lint.sh                  # before pushing
+./scripts/docs.sh                  # if docs changed (fast either way)
+```
+
+`./scripts/lint.sh --fix` fixes what ruff can. Ruff/mypy settings live in
+`pyproject.toml`, so editors pick them up automatically.
+
+## Troubleshooting
+
+| Symptom | Cause/fix |
+| :------ | :-------- |
+| `uv run` fails on import | stale sync: `uv sync --extra dev --locked` |
+| tests import errors on `pytest` | the `dev` extra is missing — see above |
+| `ModuleNotFoundError: comic_dl` | outside the `uv sync` venv, or plain import instead of package |
+| lockfile error | `uv.lock` ahead: `git pull --rebase`, then `uv sync --locked` |
+| `bandit` false positive | document it in the PR; no scattergun `# nosec BXXX` (misleads audits) |
+| weird Windows test behavior | rely on CI for Windows; Linux local dev is representative |
+
+## Commit signing (maintainers)
+
+`main` requires signed commits:
+
+```bash
+git config --global user.signingkey <YOUR-KEY-ID>
+git config --global commit.gpgsign true
+```
+
+After a rebase, re-sign (`git commit --amend -S --no-edit`) before pushing.

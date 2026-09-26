@@ -1,25 +1,55 @@
 # Architecture
 
-An overview of comic-dl's internal design, data flow, and security model.
+A guided tour of comic-dl's internals: what each module does, how a URL
+becomes an archive, and why the concurrency and security rules exist. Read this
+when you first open the source, then use [testing.md](testing.md) and the
+[API reference](../api-reference.md) for the contracts.
 
-## Source layout
+## The tour: follow one URL end to end
 
-```
+A shell command like `comic-dl -u "<series or chapter URL>"` passes through the
+pipeline below. Keep this sequence in your head when reading any source file —
+every module plugs into one of these stages.
+
+1. **Entry** — `cli/__init__.py` parses arguments, normalizes and routes the
+   URL, and orchestrates the rest.
+2. **Routing** — `scrapers/registry.py` resolves the domain to a scraper. If
+   no domain scraper matches and the generic fallback is enabled,
+   `generic.py` (a yt-dlp-style scraper) picks it up.
+3. **Metadata** — the scraper calls `BaseScraper.scrape()` (single chapter →
+   `PostMetadata`) or `scrape_series()` (series listing → `SeriesMetadata`).
+   Under the hood everything is fetched through `_timeout_get` /
+   `_open_stream` in `base.py` — the SSRF guard lives there.
+4. **Safety** — every outbound URL passes `validate_request_url`
+   (`utils.py`). Redirect hops are re-validated on both the scrape and
+   download paths before a socket opens.
+5. **Download** — `downloader.py` streams images to `.part` files with
+   exponential backoff, per-host throttling (`rate.py`), a shared retry
+   cooldown, and size caps (`cli/sizing.py`).
+6. **Verify** — each file passes a magic-byte check (`utils.py`); corrupt or
+   over-size files are discarded. Duplicate pages (SHA-256) are dropped later.
+7. **Archive** — `archiver.py` writes to `.tmp`, verifies (`testzip()` for ZIP,
+   full read for TAR), then atomically renames. `comicinfo.py` embeds
+   ComicInfo.xml.
+8. **Library** — `library.py` records series/chapters in a local SQLite DB,
+   best-effort; the DB never blocks downloads.
+
+## Source map
+
+```text
 src/comic_dl/
   __main__.py            console entry point
-  cli/
-    __init__.py          argument parsing, URL routing, orchestration
-    library.py           list/info/latest/remove subcommands
-    selection.py         interactive chapter-selection prompt
-    sizing.py            size caps, download-size estimates, disk-space checks
+  cli/__init__.py        argument parsing, URL routing, orchestration
+  cli/library.py         list/info/latest/remove subcommands
+  cli/selection.py       interactive chapter-selection prompt
+  cli/sizing.py          size caps, download-size estimates, disk checks
   config.py              config file + platform directory resolution
-  platform.py            thin OS seam (system(), machine(), downloads_dir(), …)
-  _version.py            generated version data (from pyproject.toml)
+  platform.py            thin OS seam (system(), machine(), downloads_dir())
   utils.py               URL normalization, sanitization, SSRF guard,
                          image magic-byte verification
-  models.py              core data contracts (ImageItem, PostMetadata,
-                         ChapterInfo, SourceInfo, ScrapedChapter, SeriesMetadata)
-  errors.py              error types and exit codes
+  models.py              data contracts (ImageItem, PostMetadata, ChapterInfo,
+                         SourceInfo, ScrapedChapter, SeriesMetadata)
+  errors.py              error types and exit codes (0/1/2/130)
   downloader.py          streaming/retry download engine + DownloadPipeline
   archiver.py            archive creation (.cbz/.zip/.cbt; atomic writes)
   comicinfo.py           ComicInfo.xml generator
@@ -29,157 +59,118 @@ src/comic_dl/
   cookies.py             persistent cookie jar (SQLite, RFC 6265)
   cache.py               scrape-response cache (TTL, ETag revalidation)
   rate.py                per-site request throttling (token bucket)
-  cf.py                  Cloudflare challenge detection and solver routing
-  antibot.py             challenge classification + browser-driver fallback
-  webview.py             system-webview Cloudflare solver (bundled pywebview)
-  webview_solver.py      headless Cloudflare-challenge solver subprocess
-  webview_constants.py   shared tunables between solver and parent
+  cf.py, antibot.py      Cloudflare detection + solver routing
+  webview*.py            system-webview / headless challenge solver
   scrapers/
-    __init__.py          stable source contract; importing registers built-ins
     registry.py          entry-point discovery, URL → scraper routing
     base.py              shared helpers (meta extraction, validated fetch)
-    generic.py           yt-dlp-style fallback scraper
-    madara.py            shared Madara-theme scraper framework
+    generic.py           fallback HTML scraper
+    madara.py            shared Madara-theme framework scraper
     refresh.py           stale-image refresh registration
-    sites/
-      __init__.py        imports every site module (registers them)
-      webtoon.py         WEBTOON scraper
-      ehentai.py         e-hentai scraper
-      pawchive.py        pawchive scraper
-      flamecomics.py     FlameComics scraper
-      fsicomics.py       FSIComics scraper
-      gedecomix.py       GEDE Comix scraper
-      asurascans.py      Asura Scans scraper
-      kagane.py          Kagane scraper
-      mangadex.py        MangaDex scraper
-      toonily.py         Toonily scraper
-      kodokueasyaccess.py Kodoku scraper
-      weebcentral.py     WeebCentral scraper
-      hivetoons.py       HiveToons scraper
-      genztoons.py       GenzToons scraper
-      qimanga.py         QiScans scraper
-      stonescape.py      StoneScape scraper
-      thunderscans.py    Thunderscans scraper
+    sites/               one module per built-in site
 ```
 
-## Data flow
+The left column is the core pipeline: config → models → download → archive →
+library. The right column is the "world interface": everything hostile (HTTP,
+cookies, rate limits, Cloudflare). `scrapers/` sits in the middle — it turns
+page HTML into the model contracts the pipeline consumes.
 
-1. **Routing** — normalize the URL, resolve its domain, look up a scraper in
-   `scrapers/registry.py`. If no domain scraper exists and the generic fallback
-   is enabled, use `GenericScraper`.
+## Modules that need care
 
-2. **Metadata** — the scraper returns `PostMetadata` (chapter) or
-   `SeriesMetadata` (series listing) through `BaseScraper.scrape()` /
-   `BaseScraper.scrape_series()`.
+These modules have invariants beyond their type signatures. Read them fully
+before editing.
 
-3. **Safety** — every outbound URL passes `validate_request_url`. Redirect hops
-   are re-validated on both the scrape and download paths.
-
-4. **Download** — images stream to `.part` files with exponential backoff,
-   adaptive throttling, and size caps.
-
-5. **Verify** — magic-byte check per file. Corrupt or size-limit violations
-   are removed.
-
-6. **Archive** — write to `.tmp`, verify (`testzip()` for ZIP, full read for
-   TAR), atomic rename. Duplicate pages (SHA-256) are dropped.
-
-7. **Library** — series/chapter rows updated best-effort. The DB never blocks
-   downloads.
-
-The scrape-response cache (`cache.py`) serves fresh metadata GETs with zero
-network I/O and revalidates stale entries with `If-None-Match`/
-`If-Modified-Since`. Only 2xx responses that carried no `Set-Cookie` are
-stored; within its TTL a cached good body is served even when the source is
-momentarily broken — the intended last-known-good trade-off that `--no-cache`
-bypasses.
+- `scrapers/base.py` — every fetch path threads through here. Never add a
+  fetch helper that bypasses `validate_request_url`.
+- `rate.py` and the shared cooldown in `downloader.py` — politeness is
+  load-bearing. New code rides them; it never bypasses them.
+- `archiver.py` — atomic writes (`.tmp` + rename). A change that writes
+  in-place risks corrupting an archive on interrupt.
+- `errors.py` + `ui.py` — user-facing text flows only through the `ui.py`
+  helpers. Error *types* in `errors.py` map to exit codes; message text never
+  leaks raw exception args.
+- `webview*.py` — subprocess solver. The parent/child protocol is defined in
+  `webview_constants.py`; the child runs headless and communicates over JSON.
 
 ## Concurrency model
 
-- `--concurrency` bounds parallel image downloads within a chapter (max 32).
-- `--chapter-parallel` bounds concurrent chapters of a series (max 8, default 1).
-- `--parallel` bounds URLs in flight across a batch (max 16, default 5).
-- A shared cooldown window pauses in-flight downloads when a retryable error
-  is seen, preventing thundering-herd behavior.
+Three independent bounds, each clamped in `cli/__init__.py`:
+
+- `--concurrency` — parallel image downloads within a chapter (max 32).
+- `--chapter-parallel` — concurrent chapters of a series (max 8, default 1).
+- `--parallel` — URLs in flight across a batch (max 16, default 5).
+
+Above the caps the value is clamped, not rejected; below 1 is a hard error
+(better to fail loudly than to deadlock). A shared cooldown pauses in-flight
+downloads when a retryable error is seen, so N retries do not turn into a
+thundering herd.
 
 ## Security posture
 
-- **SSRF guard**: non-http(s) schemes and hosts resolving to loopback/private/
-  link-local/metadata addresses are rejected. Redirect hops are re-validated
-  on both the scrape and download paths (capped at `MAX_REDIRECTS` = 5).
-- **Untrusted XML**: ComicInfo.xml is parsed with `defusedxml`.
-- **SQL injection**: all Library queries use bound parameters.
-- **Path traversal**: filenames are sanitized and path-contained before writes.
-- **Concurrency bounds**: `--concurrency` values above `MAX_CONCURRENCY` are
-  clamped; values below 1 are a hard error.
+The threat model is "the user hands us URLs from untrusted sites." Everything
+below is enforced in code, tested in `tests/security/`, and re-checked at
+review:
 
-See [Security Testing](security-testing.md) for the offline test suite.
+- **SSRF guard** — non-http(s) schemes and hosts resolving to
+  loopback/private/link-local/metadata addresses are rejected. Redirect hops
+  are re-validated on both scrape and download paths (capped at
+  `MAX_REDIRECTS` = 5). See [security-testing.md](security-testing.md) for the
+  known DNS-rebinding (TOCTOU) limitation and what would change it.
+- **Untrusted XML** — ComicInfo.xml parses with `defusedxml` (XXE and
+  billion-laughs rejected).
+- **SQL injection** — all Library queries use bound parameters.
+- **Path traversal** — filenames sanitized and path-contained before writes.
+- **Concurrency bounds** — values above the cap clamp; values below 1 error.
+
+When you touch any of these, the corresponding test in
+[security-testing.md](security-testing.md) must be updated in the same PR.
 
 ## Interrupt handling
 
-Ctrl-C (SIGINT) and SIGTERM use a two-stage cooperative model:
+SIGINT/SIGTERM use cooperative two-stage shutdown:
 
-1. Sets a `STOP_REQUESTED` flag checked at item boundaries.
-2. Second press within 2 seconds force-exits via `os._exit(130)`.
+1. A `STOP_REQUESTED` flag is set; it is checked at item boundaries.
+2. A second press within 2 seconds force-exits via `os._exit(130)`.
 
 The signal handler only sets the flag or force-exits — it never performs async
-teardown itself.
+teardown. Do not add cleanup logic into the handler; put it where the flag is
+checked.
 
 ## Platform seam
 
-Most per-OS behavior lives in `platformdirs` (via `config.py`) and the stdlib.
+Per-OS behavior lives mostly in `platformdirs` (via `config.py`) and stdlib.
 `platform.py` centralizes the handful of conventions that used to be spelled
-out at each call site (`os.name`, `platform.machine()`), so packaging targets
-and CI smoke checks share one spelling:
+out at each call site, so packaging and CI smoke checks share one spelling:
 
-- `system()`/`is_windows()`/`is_macos()`/`is_linux()` — canonical OS names.
-- `machine()`/`machine_alias()` — normalize `x86_64`/`aarch64` and the vendor
-  spellings `amd64`/`arm64` to the same identifier. Artifact names and the
-  docs key off these.
+- `system()` / `is_windows()` / `is_macos()` / `is_linux()` — canonical names.
+- `machine()` / `machine_alias()` — normalize `x86_64`/`aarch64` and the
+  vendor spellings `amd64`/`arm64`. Artifact names and docs key off these.
 - `downloads_dir()` — the real Downloads folder (reads the Windows Shell
-  Folders value so OneDrive-redirected homes work), used by the default
-  output directory.
+  Folders value so OneDrive-redirected homes work).
 - `default_editor()` — `notepad` on Windows, `vi` elsewhere.
 - `binary_name()` — adds `.exe` on Windows.
 
-Keep this module deliberately small; platform-sensitive behavior that already
-works cross-platform (signal handling, `tempfile.mkdtemp`, `platformdirs`)
-stays where it is.
+Keep this module small. Behavior that already works cross-platform (signals,
+`tempfile.mkdtemp`, `platformdirs`) stays where it is.
 
 ## Versioning and packaging
 
-`pyproject.toml` is the **single hand-edited version source**. At build time it
-regenerates `src/comic_dl/_version.py` (`__version__` + `__version_tuple__`)
-via:
-
-- the hatchling custom build hook (`packaging/hatch/version_hook.py`,
-  wired under `[tool.hatch.build.hooks.custom]`) for every wheel/sdist/editable
-  build, and
-- `scripts/write-version.py` (also has `--check`) for PyInstaller binaries that
-  never build a wheel — so `comic-dl self version` in the standalone exe reports
-  the real version instead of falling back to `importlib.metadata` (absent in a
-  PyInstaller bundle).
-
-`comic_dl/__init__.py` prefers the static `_version.py`, falls back to
-`importlib.metadata`, then `0.0.0.dev0`. The file is committed (a fresh checkout
-works before any build) and the drift guard (`tests/test_version.py`,
-`scripts/write-version.py --check`) fails the gate if a version bump ships
-without its regenerated file.
-
-The release pipeline builds and **installs every artifact in a clean
-container/runner and smoke-tests it** (see `docs/develop/releasing.md`):
-Debian `.deb`, Fedora `.rpm`, and Arch `.pkg.tar.zst` in both the empty
-`stable`/`latest` containers for amd64 and arm64, plus the Windows PyInstaller
-exe. macOS binaries and Android packages are explicitly out of scope until
-signing/notarization (macOS) and a packaging story exist.
+`pyproject.toml` is the single hand-edited version source. At build time it
+regenerates `src/comic_dl/_version.py` (via `packaging/hatch/version_hook.py`
+for wheel/sdist builds, `scripts/write-version.py` for PyInstaller binaries).
+`_version.py` is committed so fresh checkouts work before any build; the drift
+guard (`tests/test_version.py`, `write-version.py --check`) fails the gate if
+a version bump ships without its regenerated file.
 
 ## Extension points
 
-Sources are pluggable. Third-party packages register `Source` classes through
-the `comic_dl.sources` entry-point group. Installed plugins appear in
-`comic-dl --list-sources` and can override built-ins by setting `priority > 0`.
+Sources are pluggable through the `comic_dl.sources` entry-point group.
+Installed plugins appear in `comic-dl --list-sources` and can override
+built-ins with `priority > 0`.
 
-To contribute a built-in source: create `scrapers/sites/<site>.py` implementing
+To add a built-in source: create `scrapers/sites/<site>.py` implementing
 `BaseScraper` with `scrape()` (and optional `scrape_series()`), decorate with
-`@register_scraper(domain=..., capabilities=...)`, and update the supported
-sites documentation.
+`@register_scraper(domain=..., capabilities=...)`, then run
+`uv run python scripts/update-sites-docs.py` to refresh the supported-sites
+tables. See [writing a plugin](../usage/write-plugin.md) and the runnable
+plugin example in `examples/plugin-example/`.

@@ -1,0 +1,96 @@
+---
+title: Releasing
+description: The repeatable release runbook — staging validation, version bumps, signed tags, and release.yml.
+order: 605
+section: Develop
+---
+
+How a new version ships. This runbook makes releases repeatable. It is the
+last step of the [contribution workflow](../workflow/): work flows
+`dev → staging → main`, and this page is only ever run on a validated
+`staging` state.
+
+## Versioning
+
+[Semantic Versioning](https://semver.org). The single source of truth is
+`version` in `pyproject.toml`; builds regenerate
+`src/comic_dl/_version.py` from it. Never edit `_version.py` by hand — run
+`uv run scripts/write-version.py`, bump any built-in adapter whose parsing
+changed, then regenerate the site-support manifest with
+`uv run python scripts/update-site-manifest.py`.
+
+## Branch flow
+
+```text
+dev (unstable)  →  staging (validation)  →  main (production release)
+```
+
+`dev` receives all work via squash-merged PRs. `staging` is cut from `dev`
+when release-ready and frozen for validation — full CI matrix plus packaging
+smoke. `main` is production: an approved `staging` state becomes a tagged
+`vX.Y.Z` release. The Monday review ceremony in the repo's `CHANGELOG.md`
+tracks releases.
+
+## Before a release
+
+1. Fast-forward `staging` to the `dev` commit you intend to ship
+   (`git merge --ff-only dev`), or open a `staging ← dev` PR.
+2. Confirm CI is green on all runner OSes and `packaging.yml` passed
+   (distro install + Windows exe smoke).
+3. Write the curated `CHANGELOG.md` entry (Added / Changed / Deprecated /
+   Removed / Fixed / Security).
+4. Bump `version` in `pyproject.toml`; regenerate `_version.py`.
+5. Commit `chore: release vX.Y.Z` (`git commit -S`).
+6. Merge `staging` into `main` via squash PR (or fast-forward after review).
+
+## Cut the tag
+
+```bash
+git checkout main && git pull
+git tag -s vX.Y.Z -m "Release X.Y.Z"
+git push origin vX.Y.Z
+```
+
+The tag **must equal `version` in `pyproject.toml` exactly** — PEP 440
+(`v0.0.1`, never `v0.0.1-beta`; the hyphen breaks arch/rpm versioning). Tags
+are GPG-signed; the matching public key must be registered on the GitHub
+account to display as Verified.
+
+Pushing a `v*` tag triggers `release.yml`:
+
+1. **package** — tag/version gate, builds sdist + wheel (attached to the
+   GitHub Release; PyPI publishing is best-effort).
+2. **linux-packages** — `.deb`, `.rpm`, `.pkg.tar.zst` built in containers,
+   then installed into fresh containers and smoke-tested; a package that
+   cannot install blocks the release.
+3. **windows-build** — `comic-dl.exe` via PyInstaller; `self version`
+   asserted against the tag.
+4. **release** — downloads all artifacts, writes `SHA256SUMS`, attaches to the
+   Release.
+
+## Supported platforms
+
+| Platform | Package | Architectures |
+| :------- | :------ | :------------ |
+| Debian/Ubuntu | `.deb` | amd64 (`x86_64`), arm64 (`aarch64`) |
+| Fedora/RHEL | `.rpm` | amd64, arm64 |
+| Arch Linux | `.pkg.tar.zst` | amd64 |
+| Windows | `.exe` + `.zip` | amd64 |
+
+The sdist + wheel (`py3-none-any`) cover every other case. **Not** published:
+macOS binaries (signing + notarization not yet in place), native ARM64
+Windows, and Android. These are extension points, not promises.
+
+## Code signing
+
+Every build job attests artifacts with SLSA build provenance via
+`actions/attest-build-provenance` (Sigstore, keyless). The distro-package
+attestation runs *after* the install-and-smoke-test validation. Verify any
+downloaded file with:
+
+```sh
+gh attestation verify <file> --repo fallen020/comic-dl
+```
+
+The Windows `comic-dl.exe` remains **Authenticode-unsigned**; Authenticode
+signing and macOS notarization are future enhancements.

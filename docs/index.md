@@ -53,6 +53,7 @@ See [Quick Start](quick-start.md) for a walkthrough.
 | [CLI Reference](reference/cli.md) | Everyone | All commands, flags, and options |
 | [Supported Sites](reference/supported-sites.md) | Users | Built-in sources, URL patterns, notes |
 | [Troubleshooting](troubleshooting.md) | Users | Decision trees for failed downloads |
+| [Development Guide](develop/index.md) | Contributors | Reporting, workflow, setup, release |
 | [Architecture](develop/architecture.md) | Contributors | Design, data flow, security posture |
 
 ## Project links

@@ -1,72 +1,98 @@
 ---
 title: Testing
-description: Run the offline test suite, find relevant tests, and check coverage when contributing.
+description: Run the offline suite, find the right test file, and write regression tests that stay offline.
 order: 620
 section: Develop
 ---
 
-Run the **offline-only** suite when changing comic-dl. Use a single test file
-for focused feedback, then the full suite before submitting a change.
+comic-dl's test suite is **offline-only and deterministic**. This page is how
+to run it, where a test for a given change lives, and how to write a new one
+without breaking those two properties.
 
-## Running tests
+## Running the suite
 
 ```bash
-# Full suite
-uv run pytest tests/ -q
+# Full suite (parallel, no cache) — what CI runs
+./scripts/test.sh
 
-# Single file
+# Focused: one file or one directory
 uv run pytest tests/test_downloader.py -q
+uv run pytest tests/scrapers/sites/ -q
 
 # With coverage
 uv run pytest tests/ --cov=comic_dl
 
-# Using the helper script
-./scripts/test.sh
-```
-
-## Test structure
-
-| File | Focus |
-| :--- | :---- |
-| `test_cli.py` | CLI parsing, flags, subcommands |
-| `test_downloader.py` | Download pipeline, retries, resume, verification |
-| `test_archiver.py` | Archive creation, dedup, verification, atomic write |
-| `test_library.py` | SQLite library operations |
-| `test_cache.py` | Cache freshness, conditional requests, TTL |
-| `test_http.py` | Cookie jar, referer headers, client args |
-| `test_config.py` | Config loading, validation, precedence |
-| `test_scraper.py` | Base/`BaseScraper` behavior |
-| `test_scrapers/sites/` | Per-site scraper parsing logic (one test file per site) |
-| `test_models.py` | Dataclass contracts |
-| `test_utils.py` | URL validation, sanitization, magic bytes |
-| `test_webview.py` | Webview solver availability, subprocess |
-| `test_generic_routing.py` | Generic fallback scraper routing |
-| `test_perf_regressions.py` | Performance smoke tests (marked `perf`) |
-
-## Security tests
-
-The security test suite in `tests/security/` is deliberately offline. Every
-test spins up its own loopback HTTP server.
-
-```bash
+# Security suite alone
 uv run pytest tests/security/ -q
-uv run pytest tests/security/ -q -p no:cacheprovider
 ```
 
-See [Security Testing](../security-testing/) for coverage details.
+`-k` selects by name; tests marked `perf` can be dropped fast with
+`-m "not perf"`.
+
+## Where a test for X lives
+
+| You changed... | Test file |
+| :--- | :--- |
+| CLI parsing, flags, subcommands | `test_cli.py` |
+| A downloader behavior (retries, resume, verification) | `test_downloader.py` |
+| Archive packing | `test_archiver.py` |
+| Local SQLite library | `test_library.py`, `test_library_cli.py` |
+| Scrape cache | `test_cache.py`, `test_cache_cli.py` |
+| HTTP client, cookies | `test_http.py`, `test_cookiecrypt.py` |
+| Config loading, precedence | `test_config.py` |
+| Scraper framework (`base.py`, madara, generic) | `test_scraper*.py`, `test_madara.py`, `test_generic*` |
+| A specific site | `tests/scrapers/sites/test_<site>.py` |
+| Models, utils, errors | `test_models.py`, `test_utils.py`, `test_errors.py` |
+| Webview solver | `test_webview.py`, `test_webview_solver.py` |
+| Version handling | `test_version.py` |
+| Plugin loading | `test_plugin_cli.py`, `test_registry.py`, `test_sources.py` |
+| Network/filesystem/db safety | `tests/security/` |
+| Cross-platform behavior | `test_platform.py` |
+
+If your change touches two of those rows, both files need test updates.
+
+## The offline-only rule
+
+Every test must work with no network. Enforced by convention, not a flag, so a
+live request is caught at review. The patterns that keep the suite offline:
+
+- **Scraper tests** feed the parser a captured HTML fixture and assert on the
+  parsed result — one test per page type a site serves.
+- **HTTP/download tests** use the loopback server in
+  `tests/security/_server.py` (`FakeHttpServer`) or mock the transport.
+- **Never** make a real web request from a test, even a "is this URL up"
+  check.
+
+## Assertion conventions
+
+- **Assert on unwrapped content.** Rich folds console output at 80 columns on
+  CI, splitting paths mid-token. Compare against `output.replace("\n", "")`,
+  never raw capture. Machine JSON prints with `soft_wrap=True`.
+- **Never construct `Path()` while `os.name` is mocked** — on Python < 3.12
+  it dispatches to `WindowsPath` and raises on POSIX (and crashes pytest's
+  failure renderer). Mock the seam (`platform.machine()` etc.), not `os`.
+- Prefer asserting behavior (archive exists, row inserted, duplicate dropped)
+  over implementation details.
+
+## Writing a regression test
+
+Bug fixes get a test that fails on the old code. Rules that make it hold up:
+**offline** (build the condition with fixtures), **focused** (the exact
+failure, not a happy-path cousin), and **named for the behavior**: 
+`test_duplicate_pages_are_dropped`, not `test_archive_fix`.
 
 ## Coverage
 
-Coverage threshold: 80% (excludes `webview.py` and `test_webview.py` which
-require GUI interaction).
+The floor is **80%** (excluding `webview.py` and `webview_solver.py`, which
+need a GUI). CI runs `test.sh` with `--cov`, and `fail_under = 80` fails the
+run below it. Coverage is a floor, not a target — a scraper's weird branch is
+worth a test even when the number is green.
 
-```bash
-uv run pytest tests/ --cov=comic_dl --cov-report=term-missing
-```
+## When tests are the product
 
-## Writing tests
-
-- Bug fixes need a regression test.
-- New features need coverage of the new code path.
-- All tests must work without network access.
-- Use the existing fixture patterns in `tests/` for mocked HTTP responses.
+- `tests/security/` encodes the SSRF guard, path containment, SQL
+  parameterization, defused XML, and concurrency clamps — a change touching
+  those updates the matching security test in the **same commit**. See
+  [Security Testing](../security-testing/).
+- `tests/test_version.py` pins version drift: a bump without the regenerated
+  `_version.py` fails here.

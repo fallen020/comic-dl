@@ -1,0 +1,103 @@
+---
+title: Contribution Workflow
+description: The issue-to-merge path — branching, signed commits, gates, PRs, and squash merge.
+order: 601
+section: Develop
+---
+
+A change moves from issue to merged PR in seven steps. If a command fails or a
+gate rejects your change, the fix usually lives one section earlier — run the
+gates before every push, not only at the end.
+
+## 0. Branches
+
+- **`dev`** — unstable. Every change lands here via a squash-merged PR.
+- **`staging`** — cut from `dev` when release-ready; proves the release.
+- **`main`** — production, releases only.
+
+Feature branches fork from `dev`. Never base work on `main` or `staging`.
+
+## 1. Pick or file an issue
+
+Start from an issue. `good first issue` and `help wanted` label candidates
+welcome new contributors. Search for duplicates before filing, and use the
+issue templates. See [Reporting](../reporting/) for what makes a report
+actionable.
+
+## 2. Branch
+
+```bash
+git checkout dev
+git pull --rebase
+git checkout -b fix/descriptive-name
+```
+
+Use a `fix/`, `feat/`, `docs/`, `refactor/`, or `chore/` prefix — it matches
+the Conventional Commit the squash merge will keep.
+
+## 3. Implement
+
+Keep the change small enough to review in one sitting. One PR, one concern.
+
+- Commits are GPG-signed (`git commit -S`). Rebase drops signatures — re-sign
+  with `git commit --amend -S --no-edit`.
+- Messages use
+  [Conventional Commits](https://www.conventionalcommits.org): lowercase,
+  imperative subject, body explains *why* when the subject cannot.
+- Never commit secrets, `.env` files, or packaging output.
+
+## 4. Run the gates
+
+CI runs these scripts verbatim — a green local run means a green PR.
+
+| Gate | Command | What it checks |
+| :--- | :------ | :------------- |
+| Tests | `./scripts/test.sh` | Offline test suite, parallel |
+| Lint | `./scripts/lint.sh` | ruff, mypy, bandit, ShellCheck |
+| Docs | `./scripts/docs.sh` | Doc-table drift, mirror links, Markdown lint |
+| Build | `./scripts/build.sh` | sdist + wheel build |
+
+```bash
+./scripts/test.sh
+./scripts/lint.sh
+./scripts/docs.sh
+```
+
+Scraper changes add a targeted run, then regenerate the site tables:
+
+```bash
+uv run pytest tests/scrapers/sites/ -q
+uv run python scripts/update-sites-docs.py
+```
+
+`docs.sh` fails if you modify a site without regenerating the tables — commit
+the result.
+
+## 5. Open the pull request
+
+Push the branch and open a PR **against `dev`** using the template: type, site(s)
+affected, gates run, reviewer notes, and `Closes #NN`. Run everything the
+checklist lists before ticking it. The PR title uses the same Conventional
+Commit prefix the merge will keep.
+
+## 6. The review loop
+
+Reviewers run the checklist in [Code Review](../code-review/) mechanically, so
+fix what it flags and re-run the gates. Push fixes as new commits — do not
+force-push while review is open.
+
+## 7. Merge
+
+Merge is a **squash merge** into `dev`, one commit per PR, done by the reviewer
+or a maintainer. `dev` is deliberately unstable; what merged this week is not
+what ships next week. See [Releasing](../releasing/) for how a release is cut.
+
+## Common failure modes
+
+| Symptom | Cause | Fix |
+| :------ | :---- | :-- |
+| `uv run` misses a package | stale `uv.lock` | `uv sync --extra dev --locked` |
+| `docs.sh` table drift | site added w/o regenerated docs | `uv run python scripts/update-sites-docs.py` |
+| commit shows `unverified` | signature missing after rebase | `git commit --amend -S --no-edit` |
+| tests fail only on Windows/macOS | path/encoding assumption | reread Testing's console rule |
+| `mypy` flags `Any` | an unchecked return | type the return; no casual `# type: ignore` |

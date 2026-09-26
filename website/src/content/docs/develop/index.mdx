@@ -1,0 +1,42 @@
+---
+title: Development Guide
+description: How to work on comic-dl itself — reporting, workflow, setup, review, and releasing.
+order: 600
+section: Develop
+---
+
+The how-to for working on comic-dl itself, in the order a contributor meets
+the parts of it. Together these pages cover the whole lifecycle of a change —
+from the first bug report to the release that ships it.
+
+## Read these in order
+
+| Page | You need it when |
+| :--- | :--------------- |
+| [Reporting](../reporting/) | Found a bug, a feature idea, or a security concern. |
+| [Workflow](../workflow/) | About to branch, implement, and open a PR. Gates included. |
+| [Setup](../setup/) | Checkout doesn't run, or gates need explaining. |
+| [Architecture](../architecture/) | Need to know what each module does. |
+| [Testing](../testing/) | Writing or fixing tests. Offline-only rules. |
+| [Security Testing](../security-testing/) | Your change touches fetching, files, or the DB. |
+| [Error Style Guide](../error-style-guide/) | Writing or editing user-visible messages. |
+| [Code Review](../code-review/) | A PR of yours gets reviewed — or you review one. |
+| [Releasing](../releasing/) | Cutting a version. Maintainer-only in practice. |
+
+## The life of a change
+
+1. **Report or pick** — an issue exists or you file one
+   ([reporting](../reporting/)). The `good first issue`, `help wanted` labels
+   mark ones new contributors can take.
+2. **Branch** — a feature branch forks from `dev`, never from `main`.
+3. **Implement** — small, signed commits, each a Conventional Commit.
+4. **Gate** — run `test.sh`, `lint.sh`, and `docs.sh` locally until they pass.
+5. **Review** — open a PR against `dev`; reviewers run the checklist in
+   [code review](../code-review/).
+6. **Merge** — squash-merged into `dev`, one commit per PR.
+7. **Validate** — release-ready work is cut to `staging`, proven there, then
+   released to `main` on the Monday cadence in [releasing](../releasing/).
+
+See also the [architecture](../architecture/) guide for what each module does,
+and the [site support](../../usage/site-support/) page for the supported-site
+contract used by the release pipeline.
