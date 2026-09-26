@@ -54,16 +54,35 @@ tar -C "$WORK_DIR/tarsrc" \
     -czf "$WORK_DIR/rpmbuild/SOURCES/comic-dl-$VERSION.tar.gz" src
 
 # Stamp version + wheel pins into a copy of the spec (repo is read-only).
+spec="$WORK_DIR/rpmbuild/SPECS/comic-dl.spec"
 sed -e "s/^Version: .*/Version: $VERSION/" \
     -e "s/^%global curl_cffi_version .*/%global curl_cffi_version $CURL_CFFI_VERSION/" \
     -e "s/^%global pywebview_version .*/%global pywebview_version $PYWEBVIEW_VERSION/" \
     -e "s/^%global proxy_tools_version .*/%global proxy_tools_version $PROXY_TOOLS_VERSION/" \
     "$REPO_DIR/packaging/rpm/comic-dl.spec" \
-    > "$WORK_DIR/rpmbuild/SPECS/comic-dl.spec"
+    > "$spec"
+
+# Prepend a changelog entry for this build. The spec's own %changelog is the
+# hand-maintained history; the version comes from pyproject.toml, so nothing
+# else would ever keep the two in step and `rpm -q --changelog` would report
+# whichever release was written into the spec by hand.
+release="$(awk '/^Release:/ { sub(/%\{.*/, "", $2); print $2; exit }' "$spec")"
+awk -v date="$(date -u +'%a %b %d %Y')" -v nvr="$VERSION-$release" -v ver="$VERSION" '
+    /^%changelog$/ && !stamped {
+        print
+        printf "* %s Comic Downloader contributors <maintainers@users.noreply.github.com> - %s\n",
+               date, nvr
+        printf "- Release %s.\n", ver
+        stamped = 1
+        next
+    }
+    { print }
+' "$spec" > "$spec.tmp"
+mv "$spec.tmp" "$spec"
 
 echo "Building RPM v$VERSION..."
 rpmbuild --define "_topdir $WORK_DIR/rpmbuild" \
-    -ba "$WORK_DIR/rpmbuild/SPECS/comic-dl.spec"
+    -ba "$spec"
 
 mkdir -p "$OUT_DIR"
 cp "$WORK_DIR"/rpmbuild/RPMS/*/comic-dl-*.rpm "$OUT_DIR"/
