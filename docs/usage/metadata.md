@@ -1,5 +1,7 @@
 # Metadata
 
+## Where metadata is written
+
 comic-dl writes `ComicInfo.xml` in two places:
 
 - **Inside each chapter archive** — chapter-level facts (series name, chapter

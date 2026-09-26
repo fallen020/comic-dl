@@ -10,7 +10,18 @@ in order, stopping when the issue is resolved or the site denies access.
 
 If no section matches, capture a [debug log](#capturing-a-debug-log) and attach it to an issue.
 
-## Access blocked (403)
+## Download errors
+
+### No internet connection
+
+Before the first request, comic-dl checks reachability against unrelated endpoints (not the site you asked for). If every probe fails it stops right there and sends no request, so an offline run costs you one message instead of one identical failure per URL.
+
+If a probe is wrongly blocked by a firewall, or you need to know the machine can reach the internet at all:
+
+1. **Try the site in a browser.** Loads fine — the site is the problem, and it will say so per URL: `Could not reach <host> — the site may be down, blocking us, or the domain may have changed.`
+2. **Anything using a VPN, proxy, or captive portal** can break the probe without breaking the download. That is deliberate: a false "online" costs you the ordinary error message, while a false "offline" would refuse a run that would have worked. The same tradeoff means a portal that answers every request still counts as online.
+
+### Access blocked (403)
 
 comic-dl already tried to get through: it detects Cloudflare challenges, solves them by replaying with a fresh fingerprint and then with the system webview when one is available, and retries once. A 403 that still reaches you means that ladder failed. Work through these in order:
 
@@ -29,7 +40,7 @@ comic-dl already tried to get through: it detects Cloudflare challenges, solves 
 
 Stop when step 1 shows a login or IP wall, or step 4 shows a fingerprint-bound cookie. Both are site behavior, not a comic-dl bug.
 
-## Not found (404)
+### Not found (404)
 
 comic-dl asked for one specific address and the site answered that it does not exist. The address came from the URL you typed or from a series listing:
 
@@ -37,7 +48,7 @@ comic-dl asked for one specific address and the site answered that it does not e
 - **A series that used to work** — the site moved, renamed, or deleted the gallery. Search the site for the current address and use it.
 - **One chapter inside a series** — that chapter was deleted; the others still download. Rerun and select the chapter subset without the dead one: `--chapters 1-3,5`.
 
-## Rate limited (429)
+### Rate limited (429)
 
 comic-dl already waited: 429 is retried with backoff, honoring the server's `Retry-After` header for up to 30 seconds per pause. Reaching this error means the retries still failed because the host wants fewer requests than you sent.
 
@@ -45,11 +56,11 @@ comic-dl already waited: 429 is retried with backoff, honoring the server's `Ret
 - **A site you hit often** — slow down for good: lower `--concurrency` from its default of 5, and add a per-host rate in the config, e.g. `rate = { "e-hentai.org" = 0.5 }` for one request every two seconds.
 - **e-hentai specifically** — the image nodes throttle large bursts with a 509 bandwidth-limit page instead of a 429. comic-dl already treats that page as transient and backs off, so keep the default rate and rerun once the burst window passes. There is nothing to tune.
 
-## Unavailable (451)
+### Unavailable (451)
 
 The host is refusing the content based on where you connect from — most sites use 451 to comply with local legal blocks. No URL, cookie, or comic-dl setting changes the host's answer; find the series on another site. Reaching it from a region the site does serve is a network change on your side, not a comic-dl fix.
 
-## No images found on this page
+### No images found on this page
 
 The chapter page loaded but contained no images: the page may require login, be region-locked, or have been removed. Site-specific causes:
 
@@ -59,7 +70,7 @@ The chapter page loaded but contained no images: the page may require login, be 
 - **Asura Scans** — pages marked `Premium` are locked and raise this error; nothing to fix.
 - **WEBTOON** — episodes behind authentication or a paywall raise this error.
 
-## e-hentai API error
+### e-hentai API error
 
 The gallery API answered with an error text instead of gallery data:
 
@@ -67,19 +78,19 @@ The gallery API answered with an error text instead of gallery data:
 - **Anything else** — a server-side problem; rerun once after a minute.
 - **The throttle/ban page** (`IP address has been temporarily banned`) is served on normal page fetches, not this API call. comic-dl recognizes it as transient and retries; it is the site enforcing its own rate and clears when the fetching stops.
 
-## Unsupported URL
+### Unsupported URL
 
 No scraper handled the URL. On unknown hosts comic-dl tries the generic fallback unless you passed `--no-generic` or disabled it in the config; this error means the fallback is off or found nothing. Check the [supported sites](../reference/supported-sites/) list, or install a plugin that handles the host.
 
-## ModuleNotFoundError
+### ModuleNotFoundError
 
 The source tree is present but the environment is not set up. Run `uv sync` once.
 
-## Permission denied
+### Permission denied
 
 The output directory is not writable, or is not a directory. Point the run at a writable location with `--output`, or fix the directory permissions.
 
-## No webview available
+### No webview available
 
 The webview solver needs a platform backend to start:
 

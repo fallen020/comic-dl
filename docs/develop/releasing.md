@@ -13,7 +13,7 @@ How a new version of comic-dl ships. This runbook makes releases repeatable.
 > section first; everything after it assumes the repository, remote, and GPG
 > key are already in place.
 
-## First release — repository setup {#first-release--repository-setup}
+## First release — repository setup
 
 The `0.0.1` release is the first push of a local, single-commit history. These
 GitHub-side steps happen once, before the first tag:

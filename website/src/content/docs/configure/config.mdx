@@ -56,6 +56,16 @@ rate-enabled = true          # per-site request throttling
 download-timeout = 60        # seconds before one image fetch is abandoned
 download-retries = 2         # retries per image after the first attempt
 
+# Second, low-rate retry sweep: after each image's per-page retries are spent,
+# pages that still failed get one more pass at low concurrency, so a transient
+# site-wide blip costs an extra slow sweep instead of a whole rerun.
+pass2-enabled = true         # run the sweep when pass 1 left failures
+pass2-concurrency = 1        # pages in flight during the sweep
+pass2-retries = 2            # retries per page after the sweep's first attempt
+pass2-timeout = 120          # per-image timeout (s) for the sweep
+# pass2-impersonate = ""     # swap TLS/HTTP fingerprints for the sweep only;
+                             #   empty = reuse the run's profile
+
 # Per-host rate limits (requests/second)
 rate = { "kagane.to" = 1.5, "kstatic.to" = 2.0, "e-hentai.org" = 2.0 }
 

@@ -122,7 +122,7 @@ Kstatic and E-Hentai; configure any host with `[http].rate`.
 
 ## Supported sites
 
-30 built-in scrapers include MangaDex, WEBTOON, E-Hentai, Tapas, WeebCentral,
+29 built-in scrapers include MangaDex, WEBTOON, E-Hentai, Tapas, WeebCentral,
 Asura Scans, and Madara-based sites. The
 [supported-sites table](docs/reference/supported-sites.md) lists every accepted
 URL shape; `comic-dl --list-sources` also shows installed plugins.

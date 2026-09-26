@@ -42,7 +42,7 @@ src/comic_dl/
     madara.py              # Madara-theme framework scraper
     registry.py            # Plugin loader
     refresh.py             # Chapter re-fetch logic
-    sites/                 # Per-site parsers (21 built-in, auto-discovered)
+    sites/                 # Per-site parsers (29 built-in, auto-discovered)
   archiver.py              # CBZ/ZIP/CBT packing
   downloader.py            # Async download engine
   comicinfo.py             # ComicInfo.xml generation
