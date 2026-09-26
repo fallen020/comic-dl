@@ -24,13 +24,13 @@ const attempted = Astro.url.pathname;
     <p class="mt-8 flex flex-wrap items-center justify-center gap-3">
       <a
         href={docsPath('')} data-astro-prefetch="hover"
-        class="inline-flex items-center gap-2 rounded-md bg-accent px-4 py-2 text-sm font-semibold text-surface no-underline transition-opacity hover:opacity-90"
+        class="inline-flex items-center gap-2 rounded-md bg-accent px-4 py-2 text-sm font-semibold text-surface no-underline shadow-[var(--shadow-card)] transition-all hover:-translate-y-0.5 hover:opacity-90 active:translate-y-0 active:shadow-none"
       >
         Documentation home
       </a>
       <a
         href={docsPath('installation')} data-astro-prefetch="hover"
-        class="inline-flex items-center gap-2 rounded-md border border-line bg-surface-1 px-4 py-2 text-sm font-medium text-fg no-underline transition-colors hover:border-accent hover:text-accent"
+        class="inline-flex items-center gap-2 rounded-md border border-line bg-surface-1 px-4 py-2 text-sm font-medium text-fg no-underline shadow-[var(--shadow-card)] transition-all hover:-translate-y-0.5 hover:border-accent hover:text-accent active:translate-y-0 active:shadow-none"
       >
         Installation
       </a>

@@ -34,12 +34,17 @@ const orderedGroups = Array.from(groups.values()).sort((a, b) => a.order - b.ord
 ---
 <nav aria-label="Documentation" class="px-1">
   {orderedGroups.map((group) => (
-    <div class="mb-6">
-      {group.label && (
-        <p class="mb-2 px-2 text-xs font-semibold uppercase tracking-wide text-fg-muted">
-          {group.label}
-        </p>
-      )}
+    <details class="group mb-6" open>
+      <summary class="mb-2 flex cursor-pointer list-none items-center justify-between rounded px-2 py-1 text-xs font-semibold uppercase tracking-wide text-fg-muted transition-colors hover:text-fg [&::-webkit-details-marker]:hidden">
+        {group.label || 'Guides'}
+        <svg
+          class="h-3.5 w-3.5 shrink-0 text-fg-muted transition-transform duration-200 group-open:rotate-90"
+          viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"
+        >
+          <polyline points="9 18 15 12 9 6" />
+        </svg>
+      </summary>
       <ul class="space-y-0.5">
         {group.items.map((entry) => {
           const active = entry.id === currentId;
@@ -52,7 +57,7 @@ const orderedGroups = Array.from(groups.values()).sort((a, b) => a.order - b.ord
                 aria-current={active ? 'page' : undefined}
                 class={`block rounded px-2 py-1.5 text-sm no-underline transition-colors ${
                   active
-                    ? 'bg-accent-dim/15 text-accent font-medium'
+                    ? 'bg-accent-dim/15 font-medium text-accent'
                     : 'text-fg-secondary hover:bg-surface-2 hover:text-fg'
                 }`}
               >
@@ -62,6 +67,6 @@ const orderedGroups = Array.from(groups.values()).sort((a, b) => a.order - b.ord
           );
         })}
       </ul>
-    </div>
+    </details>
   ))}
 </nav>

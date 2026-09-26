@@ -54,6 +54,7 @@ const schema = {
     currentId={entry.id}
     prev={pageLink(prev)}
     next={pageLink(next)}
+    section={entry.data.section}
   >
     <slot />
   </DocsLayout>

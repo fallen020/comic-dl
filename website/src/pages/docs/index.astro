@@ -53,7 +53,7 @@ const orderedGroups = Array.from(groups.values()).sort(
             <li>
               <a
                 href={docsPath(entry.id)} data-astro-prefetch="hover"
-                class="block h-full rounded-lg border border-line bg-surface-1 p-4 no-underline transition-colors hover:border-accent"
+                class="block h-full rounded-lg border border-line bg-surface-1 p-4 no-underline shadow-[var(--shadow-card)] transition-all hover:-translate-y-0.5 hover:border-accent hover:bg-surface-2"
               >
                 <p class="text-sm font-medium text-fg">{entry.data.title}</p>
                 {entry.data.description && (

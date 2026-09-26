@@ -21,9 +21,10 @@ interface Props {
   currentId: string;
   prev?: PageLink;
   next?: PageLink;
+  section?: string;
 }
 
-const { title, description, headings, currentId, prev, next } = Astro.props;
+const { title, description, headings, currentId, prev, next, section } = Astro.props;
 const docHref = (id: string) => docsPath(id);
 ---
 <div class="flex min-h-screen flex-col">
@@ -41,7 +42,7 @@ const docHref = (id: string) => docsPath(id);
     <dialog
       id="docs-nav"
       data-sidebar-drawer
-      class="fixed inset-y-0 left-0 m-0 h-dvh max-h-none w-72 max-w-full overflow-y-auto border-r border-line bg-surface px-4 py-4 text-fg shadow-2xl lg:hidden"
+      class="fixed inset-y-0 left-0 m-0 h-dvh max-h-none w-72 max-w-full overflow-y-auto border-r border-line bg-surface px-4 py-4 text-fg shadow-[var(--shadow-pop)] lg:hidden"
       aria-label="Documentation navigation"
     >
       <form method="dialog" class="mb-4 flex justify-end">
@@ -52,8 +53,31 @@ const docHref = (id: string) => docsPath(id);
 
     <!-- Content -->
     <main id="main-content" tabindex="-1" class="min-w-0 px-4 py-8 sm:px-8 lg:px-0 lg:py-10 xl:px-4">
+      <div class="not-prose mb-3 flex items-center justify-between gap-3 text-xs text-fg-muted">
+        <nav aria-label="Breadcrumb">
+          <ol class="flex flex-wrap items-center gap-1.5">
+            <li><a href={docsPath('')} class="transition-colors hover:text-fg">Docs</a></li>
+            {section && (
+              <li class="flex items-center gap-1.5" aria-current="location">
+                <span aria-hidden="true">/</span>
+                <span>{section}</span>
+              </li>
+            )}
+          </ol>
+        </nav>
+        <a
+          href={`https://github.com/fallen020/comic-dl/edit/main/docs/${currentId}.md`}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="flex shrink-0 items-center gap-1 transition-colors hover:text-fg"
+          title="Help improve this page"
+        >
+          <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /></svg>
+          Edit this page
+        </a>
+      </div>
       <article class="prose prose-docs" data-pagefind-body>
-        <h1 class="!mt-0">{title}</h1>
+        <h1 class="text-balance !mt-0">{title}</h1>
         {description && <p class="not-prose -mt-2 mb-6 text-base text-fg-secondary">{description}</p>}
         {headings.some((h) => h.depth >= 2 && h.depth <= 3) && (
           <details class="not-prose mb-6 rounded border border-line p-3 xl:hidden">
@@ -69,7 +93,7 @@ const docHref = (id: string) => docsPath(id);
       {(prev || next) && (
         <nav aria-label="Page navigation" class="mt-12 flex items-stretch justify-between gap-4 border-t border-line pt-6">
           {prev ? (
-            <a href={docHref(prev.id)} data-astro-prefetch="hover" class="group min-w-0 basis-1/2 rounded-lg border border-line p-4 no-underline transition-colors hover:border-accent">
+            <a href={docHref(prev.id)} data-astro-prefetch="hover" class="group min-w-0 basis-1/2 rounded-lg border border-line p-4 no-underline shadow-[var(--shadow-card)] transition-all hover:-translate-y-0.5 hover:border-accent hover:bg-surface-2">
               <span class="flex items-center gap-1 text-xs uppercase tracking-wide text-fg-muted group-hover:text-accent">
                 <ArrowLeft size={14} aria-hidden="true" /> Previous
               </span>
@@ -77,7 +101,7 @@ const docHref = (id: string) => docsPath(id);
             </a>
           ) : <span class="basis-1/2"></span>}
           {next ? (
-            <a href={docHref(next.id)} data-astro-prefetch="hover" class="group min-w-0 basis-1/2 rounded-lg border border-line p-4 text-right no-underline transition-colors hover:border-accent">
+            <a href={docHref(next.id)} data-astro-prefetch="hover" class="group min-w-0 basis-1/2 rounded-lg border border-line p-4 text-right no-underline shadow-[var(--shadow-card)] transition-all hover:-translate-y-0.5 hover:border-accent hover:bg-surface-2">
               <span class="flex items-center justify-end gap-1 text-xs uppercase tracking-wide text-fg-muted group-hover:text-accent">
                 Next <ArrowRight size={14} aria-hidden="true" />
               </span>

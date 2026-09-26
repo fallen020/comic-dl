@@ -1,3 +1,6 @@
+# All of the site is crawlable except the Pagefind search index, which is
+# generated build output with no content of its own.
+# LLM-friendly index lives at /comic-dl/llms.txt.
 User-agent: *
 Allow: /
 Disallow: /comic-dl/pagefind/

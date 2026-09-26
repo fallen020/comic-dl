@@ -5,7 +5,11 @@ import CodeBlock from '../components/CodeBlock.astro';
 import { BookDown, Download, Rocket, Globe } from '@lucide/astro';
 import BrandIcon from '../components/icons/BrandIcon.astro';
 import { docsPath } from '../utils/base';
+import { readFileSync } from 'node:fs';
 const heroCommand = 'comic-dl -u "<gallery-or-series-url>"';
+const pyproject = readFileSync(new URL('../../../../pyproject.toml', import.meta.url), 'utf-8');
+const project = pyproject.slice(pyproject.indexOf('[project]'));
+const appVersion = project.match(/^version\s*=\s*"([^"]+)"/m)?.[1] ?? '0.0.0';
 const softwareSchema = {
   '@context': 'https://schema.org',
   '@type': 'SoftwareApplication',
@@ -34,13 +38,13 @@ const softwareSchema = {
       class="mb-6 inline-flex items-center gap-2 rounded-full border border-line bg-surface-1 px-3 py-1 text-xs text-fg-secondary no-underline transition-colors hover:border-accent hover:text-fg"
     >
       <span class="h-1.5 w-1.5 rounded-full bg-tip-border" aria-hidden="true"></span>
-      Early release — CLI options may change.
+      v{appVersion} — early release, CLI options may change.
     </a>
 
-    <h1 class="text-center text-4xl font-bold tracking-tight text-fg sm:text-5xl">
+    <h1 class="text-balance text-center text-4xl font-bold tracking-tight text-fg sm:text-5xl">
       A command-line downloader for comics and manga.
     </h1>
-    <p class="mt-4 max-w-xl text-center text-lg text-fg-secondary">
+    <p class="mt-4 max-w-xl text-pretty text-center text-lg text-fg-secondary">
       comic-dl downloads galleries from supported sites, page by page, and packages them into CBZ,
       ZIP, or CBT archives — ready for your reader.
     </p>
@@ -48,14 +52,14 @@ const softwareSchema = {
     <div class="mt-8 flex flex-wrap items-center justify-center gap-3">
       <a
         href={docsPath(`installation`)} data-astro-prefetch="hover"
-        class="inline-flex items-center gap-2 rounded-md bg-accent px-4 py-2 text-sm font-semibold text-surface no-underline transition-opacity hover:opacity-90"
+        class="inline-flex items-center gap-2 rounded-md bg-accent px-4 py-2 text-sm font-semibold text-surface no-underline shadow-[var(--shadow-card)] transition-all hover:-translate-y-0.5 hover:opacity-90 active:translate-y-0 active:shadow-none"
       >
         <Download size={16} aria-hidden="true" />
         Install comic-dl
       </a>
       <a
         href={docsPath(`reference/cli`)} data-astro-prefetch="hover"
-        class="inline-flex items-center gap-2 rounded-md border border-line bg-surface-1 px-4 py-2 text-sm font-medium text-fg no-underline transition-colors hover:border-accent hover:text-accent"
+        class="inline-flex items-center gap-2 rounded-md border border-line bg-surface-1 px-4 py-2 text-sm font-medium text-fg no-underline shadow-[var(--shadow-card)] transition-all hover:-translate-y-0.5 hover:border-accent hover:text-accent active:translate-y-0 active:shadow-none"
       >
         <BookDown size={16} aria-hidden="true" />
         CLI Reference
@@ -74,7 +78,7 @@ const softwareSchema = {
     <nav aria-label="Quick links" class="mt-10 grid w-full grid-cols-1 gap-3 sm:grid-cols-3">
       <a
         href={docsPath(`installation`)} data-astro-prefetch="hover"
-        class="group rounded-lg border border-line bg-surface-1 p-4 no-underline transition-colors hover:border-accent"
+        class="group rounded-lg border border-line bg-surface-1 p-4 no-underline shadow-[var(--shadow-card)] transition-all hover:-translate-y-0.5 hover:border-accent hover:bg-surface-2"
       >
         <Download size={18} class="text-accent" aria-hidden="true" />
         <p class="mt-2 text-sm font-medium text-fg">Install</p>
@@ -82,7 +86,7 @@ const softwareSchema = {
       </a>
       <a
         href={docsPath(`quick-start`)} data-astro-prefetch="hover"
-        class="group rounded-lg border border-line bg-surface-1 p-4 no-underline transition-colors hover:border-accent"
+        class="group rounded-lg border border-line bg-surface-1 p-4 no-underline shadow-[var(--shadow-card)] transition-all hover:-translate-y-0.5 hover:border-accent hover:bg-surface-2"
       >
         <Rocket size={18} class="text-accent" aria-hidden="true" />
         <p class="mt-2 text-sm font-medium text-fg">Quick Start</p>
@@ -90,11 +94,11 @@ const softwareSchema = {
       </a>
       <a
         href={docsPath(`reference/supported-sites`)} data-astro-prefetch="hover"
-        class="group rounded-lg border border-line bg-surface-1 p-4 no-underline transition-colors hover:border-accent"
+        class="group rounded-lg border border-line bg-surface-1 p-4 no-underline shadow-[var(--shadow-card)] transition-all hover:-translate-y-0.5 hover:border-accent hover:bg-surface-2"
       >
         <Globe size={18} class="text-accent" aria-hidden="true" />
         <p class="mt-2 text-sm font-medium text-fg">Supported Sites</p>
-        <p class="mt-0.5 text-xs text-fg-secondary">17 built-in scrapers</p>
+        <p class="mt-0.5 text-xs text-fg-secondary">29 built-in scrapers</p>
       </a>
     </nav>
   </main>
