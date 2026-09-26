@@ -320,13 +320,33 @@ class KaganeScraper(BaseScraper):
                 )
                 return _SessionResponse(status, resp_headers, content)
 
-        return await BaseScraper._timeout_get(
+        resp = await BaseScraper._timeout_get(
             url,
             client,
             method=method,
             headers=headers,
             json=json_body,
         )
+        # A challenge that the solver could not clear is returned to us as-is
+        # (see ``cf.retry_challenge_once``). Without this check the caller's
+        # ``raise_for_status()`` turns the 403 into a bare HTTPError, which the
+        # CLI reports as "Network error. Check your internet connection." --
+        # sending the user to debug their router instead of passing the
+        # challenge in a browser window.
+        if looks_like_challenge(
+            resp.status_code,
+            getattr(resp, "headers", None),
+            getattr(resp, "text", "") or "",
+        ):
+            raise ScrapeError(
+                "Cloudflare challenged the kagane.to request.",
+                hint=(
+                    "This site only answers the webview solver — run with a "
+                    "display and --solver auto (or webview) to pass the "
+                    "challenge in the browser window."
+                ),
+            )
+        return resp
 
     async def _series_json(self, series_id: str, client: AsyncSession) -> dict:
         """Series metadata + books from the Kagane API.

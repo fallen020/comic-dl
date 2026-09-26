@@ -679,3 +679,41 @@ class TestCfChallengeClassification:
                 f"https://kagane.to/series/{SERIES_ID}/reader/{BOOK_1}",
                 _MockSession(lambda url: _MockResponse(json_data={})),
             )
+
+    @pytest.mark.asyncio
+    async def test_api_fetch_turns_unsolved_challenge_into_scrape_error(self):
+        """An unsolved challenge must not degrade into a bare HTTPError.
+
+        ``_api_fetch`` returns the still-challenged response when the solver
+        could not clear it; without the guard the caller's ``raise_for_status``
+        raises a bare HTTPError that the CLI reports as "Network error. Check
+        your internet connection.", pointing the user at the wrong problem.
+        """
+        challenge = _MockResponse(
+            b"<html><head><title>Just a moment...</title></head></html>",
+            status=403,
+        )
+        challenge.headers = {"server": "cloudflare"}
+
+        scraper = KaganeScraper()
+        with pytest.raises(ScrapeError, match="Cloudflare challenged") as excinfo:
+            await scraper._api_fetch(
+                "GET",
+                f"https://kagane.to/api/v2/series/{SERIES_ID}",
+                _MockSession(lambda url: challenge),
+            )
+        assert "solver" in (excinfo.value.hint or "")
+
+    @pytest.mark.asyncio
+    async def test_api_fetch_passes_through_non_challenge_response(self):
+        """A plain error that is not a challenge must keep its original error."""
+        forbidden = _MockResponse(b"forbidden", status=403)
+        forbidden.headers = {"server": "nginx"}
+
+        scraper = KaganeScraper()
+        resp = await scraper._api_fetch(
+            "GET",
+            f"https://kagane.to/api/v2/series/{SERIES_ID}",
+            _MockSession(lambda url: forbidden),
+        )
+        assert resp.status_code == 403
