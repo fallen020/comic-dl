@@ -3,7 +3,7 @@
 ## Project
 
 `comic-dl` downloads comic/manga galleries from supported sites and compiles
-them into CBZ, ZIP, and CBT archives. Latest release (`v0.0.2`).
+them into CBZ, ZIP, and CBT archives. Latest release (`v0.0.3`).
 See `docs/develop/releasing.md` for the runbook.
 
 Upstream: `https://github.com/fallen020/comic-dl`, default branch `main`.
@@ -147,6 +147,7 @@ both `docs/reference/` and `website/src/content/docs/reference/`. Run
 | Site support | `docs/usage/site-support.md` |
 | Supported sites | `docs/reference/supported-sites.md` |
 | Writing a scraper | `docs/usage/write-plugin.md`, `examples/plugin-example/` |
+| Development guides | `docs/develop/index.md`, `docs/develop/workflow.md`, `docs/develop/setup.md`, `docs/develop/code-review.md`, `docs/develop/reporting.md` |
 | Architecture | `docs/develop/architecture.md` |
 | Releasing | `docs/develop/releasing.md` |
 | Error style | `docs/develop/error-style-guide.md` |

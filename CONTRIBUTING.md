@@ -8,7 +8,7 @@ or see [.github/SUPPORT.md](.github/SUPPORT.md) for the full help routing.
 
 ## Repository health
 
-This repository uses GitHub's built-in project management to organise work:
+This repository uses GitHub's built-in project management to organize work:
 
 - **Issues** — feature requests and bug reports. Use the provided templates.
 - **Labels** — a fixed vocabulary is used to triage issues:
@@ -146,10 +146,10 @@ See [the PR template](.github/pull_request_template.md). Every PR should:
 
 ## Reviewing
 
-Reviewers should look for: behavioural correctness, test coverage of new paths,
+Reviewers should look for: behavioral correctness, test coverage of new paths,
 adherence to the codebase's existing patterns (scrapers follow the contract in
-`scrapers/base.py`), and documentation that was updated in step. When in doubt, ask
-constructively rather than guessing.
+`scrapers/base.py`), and documentation updated as part of the change. When in doubt,
+ask constructively rather than guessing.
 
 ## Code of conduct
 

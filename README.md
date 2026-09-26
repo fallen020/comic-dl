@@ -18,6 +18,7 @@
   [<a href="#supported-sites">Sites</a>]
   [<a href="#configuration">Configuration</a>]
   [<a href="#troubleshooting">Troubleshooting</a>]
+  [<a href="#documentation">Docs</a>]
 </h4>
 
 <p align="center">
@@ -29,13 +30,25 @@
 **CLI that downloads comic and manga chapters and packs them into CBZ, ZIP, or
 CBT with ComicInfo.xml metadata.**
 
+Point comic-dl at a page and it does the rest:
+
+1. **Point** — a chapter URL, a series URL, or a file of URLs.
+2. **Pick** — series, chapters, and pages from the picker.
+3. **Pack** — SHA-256-verified pages plus `ComicInfo.xml` into a CBZ, ZIP, or CBT archive.
+
+comic-dl is **not** an aggregator and does not bypass authentication, paywalls,
+or region locks: it downloads only what the site serves you.
+
 ## Why comic-dl?
 
-comic-dl turns a chapter or series URL into verified page images and a
-reader-ready archive. It resumes missing pages, removes duplicate images by
-SHA-256, embeds `ComicInfo.xml`, and records chapters in a local SQLite
-library. The workflow is archive-first: CBZ, ZIP, or CBT output, a series
-picker, and page-level recovery rather than a folder of loose images.
+| Instead of | comic-dl does |
+| --- | --- |
+| Clicking 30 "next" pages and zipping a folder | One URL, verified and numbered page images |
+| An ad-hoc per-site script that breaks on redesigns | 29 built-in scrapers plus a plugin system |
+| A folder of loose images with no metadata | Reader-ready CBZ/ZIP/CBT with `ComicInfo.xml` |
+
+Above that, it resumes missing pages, dedupes images by SHA-256, and records
+finished chapters in a local SQLite library.
 
 > [!WARNING]
 > comic-dl is an early release. Commands, flags, and site support can
@@ -43,9 +56,16 @@ picker, and page-level recovery rather than a folder of loose images.
 
 ## Install
 
-Download a prebuilt package from [GitHub Releases][release]. Packages cover
-Windows, Debian/Ubuntu (`.deb`), Fedora (`.rpm`), and Arch
-(`.pkg.tar.zst`); macOS is source-only.
+Download a prebuilt package from [GitHub Releases][release]:
+
+| Platform | Package |
+| --- | --- |
+| Windows | `.exe` or `.zip` |
+| Debian/Ubuntu | `.deb` (`amd64`, `arm64`) |
+| Fedora | `.rpm` (`x86_64`, `aarch64`) |
+| Arch | `.pkg.tar.zst` (`x86_64`) |
+| Any (Python 3.11+) | `.whl` — install with `pip` from the file |
+| macOS | no native package — see [docs/install.md](docs/install.md) |
 
 ```bash
 comic-dl --version
@@ -163,6 +183,15 @@ overrides, cache settings, and the complete generated file.
 The [troubleshooting guide](docs/troubleshooting.md) covers 403, 404, 429,
 missing webviews, interrupted downloads, and debug logs.
 
+## Documentation
+
+- [Usage](docs/usage/download.md) — flags, chapter and page selection, output layout
+- [Library](docs/usage/library.md) — the SQLite download history
+- [Configuration](docs/configure/config.md) — paths, per-site overrides, cache
+- [CLI reference](docs/reference/cli.md) — every command and flag
+- [Write a scraper](docs/usage/write-plugin.md) — add a new site
+- [Architecture](docs/develop/architecture.md) and [releasing](docs/develop/releasing.md) for contributors
+
 ## Contributing and development
 
 Pull requests are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md). Development
@@ -172,8 +201,7 @@ setup and the test, lint, build, and documentation gates are documented in
 ## Responsible use
 
 Download only content you are authorized to access and follow the source
-site's terms and applicable law. comic-dl does not bypass authentication,
-paywalls, or other access controls. See the [Legal](docs/legal.md) and
+site's terms and applicable law. See the [Legal](docs/legal.md) and
 [Privacy](docs/privacy.md) pages for the full terms and data-handling
 description.
 
