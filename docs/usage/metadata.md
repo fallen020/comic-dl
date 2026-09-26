@@ -96,7 +96,7 @@ either.
 | MangaDex | varies | API language | Authors | Artists | Tag list | — | — |
 | Toonily | varies | `<html lang>` | — | Artists | Genres | Publisher | — |
 | Manhwaz | varies | `<html lang>` | — | Authors | Genres | — | — |
-| KodokuStudio | `ltr` | `<html lang>` | — | — | — | — | — |
+| Kodoku | `ltr` | URL `{lang}` | — | — | — | — | — |
 | WeebCentral | varies | `<html lang>` | — | — | — | — | — |
 
 ## Series vs archive level

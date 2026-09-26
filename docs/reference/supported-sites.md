@@ -30,8 +30,8 @@ any third-party plugins — is shown by `comic-dl --list-sources`.
 | **Kagane** | `kagane.to` | `/series/{id}/` | — | Yes |
 | **Kagane** | `kagane.to` | `/series/{id}/reader/{book}` | Yes | — |
 | **Kingofshojo** | `kingofshojo.com` | `/{slug}-chapter-{n}/` | Yes | — |
-| **KodokuStudio** | `kodokustudio.com` | `/manhua/{slug}/` | — | Yes |
-| **KodokuStudio** | `kodokustudio.com` | `/manhua/{slug}/capitulo-{n}/` | Yes | — |
+| **Kodoku** | `kodokueasyaccess.com` | `/manhwa/{slug}/` | — | Yes |
+| **Kodoku** | `kodokueasyaccess.com` | `/read/{slug}/{lang}/{n}/` | Yes | — |
 | **LGBTics** | `lgbtics.com` | `/comic/{slug}/` | — | Yes |
 | **LGBTics** | `lgbtics.com` | `/comic/{slug}/{chapter}/` | Yes | — |
 | **MangaDex** | `mangadex.org` | `/title/{manga-uuid} or /manga/{manga-uuid}` | — | Yes |
@@ -66,7 +66,7 @@ any third-party plugins — is shown by `comic-dl --list-sources`.
 
 ## Per-site features
 
-| Feature | Asura Scans | DivaScans | E-Hentai | Thunderscans | FlameComics | FSIComics | GEDE Comix | GenzToons | HD Porn Comics | HiveToons | IMHentai | Kagane | Kingofshojo | KodokuStudio | LGBTics | MangaDex | ManhuaTo | ManhwaTop | Manhwaz | Nyx Scans | Pawchive | QiScans | StoneScape | Tapas | Toonily | ToonVerse | ValirScans | Vortex Scans | WEBTOON | WeebCentral |
+| Feature | Asura Scans | DivaScans | E-Hentai | Thunderscans | FlameComics | FSIComics | GEDE Comix | GenzToons | HD Porn Comics | HiveToons | IMHentai | Kagane | Kingofshojo | Kodoku | LGBTics | MangaDex | ManhuaTo | ManhwaTop | Manhwaz | Nyx Scans | Pawchive | QiScans | StoneScape | Tapas | Toonily | ToonVerse | ValirScans | Vortex Scans | WEBTOON | WeebCentral |
 | :------ | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- |
 | Individual posts/chapters | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
 | Series chapter listing | Yes | Yes | — | Yes | Yes | Yes | Yes | Yes | — | Yes | — | Yes | — | Yes | Yes | Yes | Yes | Yes | Yes | Yes | — | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
@@ -119,12 +119,16 @@ any third-party plugins — is shown by `comic-dl --list-sources`.
 - **Manhwaz** — A Madara-style manhwa site. Chapter pages expose pages inside
   `.reading-content`. Images served from `cdn.manhwaz.com`.
 
-- **KodokuStudio** — A Madara/WordPress site using Portuguese `capitulo-{n}`
-  chapter URLs. Series pages render only the first/last chapter links, so the
-  chapter list is loaded from the theme's `ajax/chapters` endpoint. Chapter
-  images are served from WordPress's `i*.wp.com` CDN proxy. Series pages carry
-  no cover or blurb, so those metadata fields stay empty rather than falling
-  back to the site logo.
+- **Kodoku** — A client-rendered SPA behind an 18+ age gate, so all content
+  comes from the public JSON API under `/api`; the gate is client-side only and
+  the API needs no token or consent. It publishes one series, *Reverend
+  Insanity*, in several languages, and a chapter is addressed by
+  `/read/{series}/{lang}/{number}`. The chapter list mixes every language
+  together, so the series listing is English (`DEFAULT_LANGUAGE`) and any
+  chapter URL can name its own language. New chapters release on a schedule:
+  unavailable ones are left out of the listing and report their unlock date if
+  requested directly. Cover and page URLs are presigned and expire after 30
+  minutes, so API responses are never read from the metadata cache.
 
 - **WeebCentral** — Server-rendered pages with HTMX image fragments. Chapter
   pages list no images inline; pages come from the chapter's `/images`

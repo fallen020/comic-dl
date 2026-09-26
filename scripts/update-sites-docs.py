@@ -46,7 +46,7 @@ SITE_META = {
     "imhentai.xxx": ("IMHentai", "/view/{id}/{n}/", "/gallery/{id}/"),
     "kagane.to": ("Kagane", "/series/{id}/reader/{book}", "/series/{id}/"),
     "kingofshojo.com": ("Kingofshojo", "/{slug}-chapter-{n}/", ""),
-    "kodokustudio.com": ("KodokuStudio", "/manhua/{slug}/capitulo-{n}/", "/manhua/{slug}/"),
+    "kodokueasyaccess.com": ("Kodoku", "/read/{slug}/{lang}/{n}/", "/manhwa/{slug}/"),
     "lgbtics.com": ("LGBTics", "/comic/{slug}/{chapter}/", "/comic/{slug}/"),
     "mangadex.org": (
         "MangaDex",

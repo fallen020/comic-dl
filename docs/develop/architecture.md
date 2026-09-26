@@ -54,7 +54,7 @@ src/comic_dl/
       mangadex.py        MangaDex scraper
       manhwaz.py         Manhwaz scraper
       toonily.py         Toonily scraper
-      kodokustudio.py    KodokuStudio scraper
+      kodokueasyaccess.py Kodoku scraper
       weebcentral.py     WeebCentral scraper
       hivetoons.py       HiveToons scraper
       genztoons.py       GenzToons scraper

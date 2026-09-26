@@ -99,7 +99,7 @@ class TestBuiltinRegistration:
             "flamecomics.xyz": "flamecomics",
             "fsicomics.com": "fsicomics",
             "mangadex.org": "mangadex",
-            "kodokustudio.com": "kodokustudio",
+            "kodokueasyaccess.com": "kodokueasyaccess",
             "toonily.com": "toonily",
             "manhwaz.com": "manhwaz",
             "hivetoons.org": "hivetoons",
