@@ -8,7 +8,7 @@ Homepage: https://github.com/fallen020/comic-dl
 Vcs-Git: https://github.com/fallen020/comic-dl.git
 
 Package: comic-dl
-Architecture: linux-any
+Architecture: any
 Depends: python3 (>= 3.11),
          python3-bs4,
          python3-lxml,
@@ -17,6 +17,10 @@ Depends: python3 (>= 3.11),
          python3-defusedxml,
          python3-certifi,
          python3-cffi,
+         python3-publicsuffix2,
+         python3-cryptography,
+         python3-keyring,
+         python3-webview,
          ${misc:Depends}
 Description: Download comic and manga galleries as CBZ archives
  comic-dl downloads comic and manga galleries from supported websites and

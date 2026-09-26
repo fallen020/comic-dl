@@ -6,24 +6,35 @@
 #   packaging/rpm/build.sh      # full build -> $OUT_DIR/*.rpm
 #
 # Env:
-#   VERSION             package version (default 0.1.0; leading 'v' stripped)
+#   VERSION             package version (default from pyproject.toml; leading
+#                       'v' stripped)
 #   CURL_CFFI_VERSION   pin for the vendored abi3 wheel (default from uv.lock)
+#   PYWEBVIEW_VERSION   pin for the vendored pywebview wheel (default from
+#                       uv.lock)
+#   PROXY_TOOLS_VERSION pin for the vendored proxy-tools wheel (default from
+#                       uv.lock)
 #   REPO_DIR            read-only repo mount (default /src)
 #   OUT_DIR             .rpm output dir (default /out)
 set -euo pipefail
 
+VERSION="${VERSION:-$(awk -F'"' '/^version = / { print $2; exit }' "${REPO_DIR:-/src}/pyproject.toml")}"
 VERSION="${VERSION#v}"
-VERSION="${VERSION:-0.0.1}"
 REPO_DIR="${REPO_DIR:-/src}"
 OUT_DIR="${OUT_DIR:-/out}"
 WORK_DIR="${WORK_DIR:-/build}"
 
-# Default the vendored curl-cffi wheel to the version uv.lock resolves, so the
-# packaged binary never drifts from the declared dependency set.
-CURL_CFFI_VERSION="${CURL_CFFI_VERSION:-$(awk '
-  /^name = "curl-cffi"$/ { f=1 }
-  f && /^version =/ { gsub(/"/, "", $3); print $3; exit }
-' "$REPO_DIR/uv.lock")}"
+# Default the vendored wheels to the versions uv.lock resolves, so packaged
+# binaries never drift from the declared dependency set. pywebview and
+# proxy-tools ride along because Fedora packages neither.
+_lock_version() {
+  awk -v pkg="$1" '
+    $0 == "name = \"" pkg "\"" { f=1 }
+    f && /^version =/ { gsub(/"/, "", $3); print $3; exit }
+  ' "$REPO_DIR/uv.lock"
+}
+CURL_CFFI_VERSION="${CURL_CFFI_VERSION:-$(_lock_version curl-cffi)}"
+PYWEBVIEW_VERSION="${PYWEBVIEW_VERSION:-$(_lock_version pywebview)}"
+PROXY_TOOLS_VERSION="${PROXY_TOOLS_VERSION:-$(_lock_version proxy-tools)}"
 
 echo "Installing build dependencies..."
 dnf install -y --quiet rpm-build python3 python3-pip unzip
@@ -42,9 +53,12 @@ tar -C "$WORK_DIR/tarsrc" \
     --exclude=dist --exclude=build \
     -czf "$WORK_DIR/rpmbuild/SOURCES/comic-dl-$VERSION.tar.gz" src
 
-# Stamp version + curl_cffi pin into a copy of the spec (repo is read-only).
-sed "s/^Version: .*/Version: $VERSION/" "$REPO_DIR/packaging/rpm/comic-dl.spec" \
-    | sed "s/^%global curl_cffi_version .*/%global curl_cffi_version $CURL_CFFI_VERSION/" \
+# Stamp version + wheel pins into a copy of the spec (repo is read-only).
+sed -e "s/^Version: .*/Version: $VERSION/" \
+    -e "s/^%global curl_cffi_version .*/%global curl_cffi_version $CURL_CFFI_VERSION/" \
+    -e "s/^%global pywebview_version .*/%global pywebview_version $PYWEBVIEW_VERSION/" \
+    -e "s/^%global proxy_tools_version .*/%global proxy_tools_version $PROXY_TOOLS_VERSION/" \
+    "$REPO_DIR/packaging/rpm/comic-dl.spec" \
     > "$WORK_DIR/rpmbuild/SPECS/comic-dl.spec"
 
 echo "Building RPM v$VERSION..."

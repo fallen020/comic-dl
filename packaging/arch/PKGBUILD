@@ -22,6 +22,12 @@ depends=(
   'python-defusedxml'
   'python-certifi'
   'python-cffi'
+  'python-publicsuffix2'
+  'python-cryptography'
+  'python-keyring'
+  'python-pywebview'
+  'python-gobject'
+  'webkit2gtk-4.1'
 )
 source=()
 sha256sums=()

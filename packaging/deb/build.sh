@@ -13,7 +13,8 @@
 #   CURL_CFFI_VERSION   pin for the vendored abi3 wheel (default from uv.lock)
 #   BUILD_DIR           staging root (default /tmp/comic-dl-build)
 #   OUT_DIR             .deb output dir (default /tmp/comic-dl)
-#   VERSION             package version (default 0.1.0; a leading 'v' is stripped)
+#   VERSION             package version (default from pyproject.toml; a leading
+#                       'v' is stripped)
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -25,8 +26,8 @@ CURL_CFFI_VERSION="${CURL_CFFI_VERSION:-$(awk '
 ' "$REPO_DIR/uv.lock")}"
 BUILD_DIR="${BUILD_DIR:-/tmp/comic-dl-build}"
 OUT_DIR="${OUT_DIR:-/tmp/comic-dl}"
+VERSION="${VERSION:-$(awk -F'"' '/^version = / { print $2; exit }' "$REPO_DIR/pyproject.toml")}"
 VERSION="${VERSION#v}"
-VERSION="${VERSION:-0.0.1}"
 
 COPY_EXCLUDES=(
   --exclude=.git

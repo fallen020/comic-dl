@@ -8,14 +8,15 @@
 # tag version is stamped into both PKGBUILD and pyproject.toml.
 #
 # Env:
-#   VERSION             package version (default 0.1.0; leading 'v' stripped)
+#   VERSION             package version (default from pyproject.toml; leading
+#                       'v' stripped)
 #   CURL_CFFI_VERSION   pin for the vendored abi3 wheel (default from uv.lock)
 #   REPO_DIR            read-only repo mount (default /src)
 #   OUT_DIR             output dir (default /out)
 set -euo pipefail
 
+VERSION="${VERSION:-$(awk -F'"' '/^version = / { print $2; exit }' "${REPO_DIR:-/src}/pyproject.toml")}"
 VERSION="${VERSION#v}"
-VERSION="${VERSION:-0.0.1}"
 REPO_DIR="${REPO_DIR:-/src}"
 OUT_DIR="${OUT_DIR:-/out}"
 BUILD_DIR="${BUILD_DIR:-/build}"
@@ -34,7 +35,9 @@ pacman -S --noconfirm --needed base-devel python python-pip unzip >/dev/null
 # install the same set PKGBUILD declares in depends=().
 pacman -S --noconfirm --needed \
   python-beautifulsoup4 python-lxml python-rich python-platformdirs \
-  python-defusedxml python-certifi python-cffi >/dev/null
+  python-defusedxml python-certifi python-cffi python-publicsuffix2 \
+  python-cryptography python-keyring python-pywebview python-gobject \
+  webkit2gtk-4.1 >/dev/null
 
 rm -rf "$BUILD_DIR"
 mkdir -p "$BUILD_DIR"

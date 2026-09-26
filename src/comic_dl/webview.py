@@ -94,9 +94,9 @@ def available() -> bool:
                 "webview: PyGObject/WebKit not available; "
                 "install system packages for the webview solver:\n"
                 "  Ubuntu/Debian: sudo apt install python3-gi python3-gi-cairo "
-                "gir1.2-webkit2-4.1 gir1.2-gtk-4.0\n"
+                "gir1.2-webkit2-4.1\n"
                 "  Fedora: sudo dnf install python3-gobject webkit2gtk4.1\n"
-                "  Arch: sudo pacman -S python-gobject webkit2gtk\n"
+                "  Arch: sudo pacman -S python-gobject webkit2gtk-4.1\n"
                 "  Or use --solver impersonation to skip the webview."
             )
             return False

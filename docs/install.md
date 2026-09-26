@@ -142,19 +142,22 @@ create `.cbz` archives on a desktop machine and copy them to your phone.
 
 ## Webview solver (Cloudflare)
 
-The Cloudflare challenge solver ships with the application, but on Linux it
-needs system libraries that the packages do not bundle. Install them from
-your distro's package manager:
+The Cloudflare challenge solver ships with the application. The Debian, Fedora,
+and Arch packages declare its GTK and WebKit dependencies, so installing
+comic-dl pulls the whole stack in.
+
+Building from a source checkout needs those system libraries separately,
+because the pywebview wheel cannot ship them:
 
 ```bash
 # Debian / Ubuntu
-sudo apt install python3-gi python3-gi-cairo gir1.2-webkit2-4.1 gir1.2-gtk-4.0
+sudo apt install python3-gi python3-gi-cairo gir1.2-webkit2-4.1
 
 # Fedora
 sudo dnf install python3-gobject webkit2gtk4.1
 
 # Arch
-sudo pacman -S python-gobject webkit2gtk
+sudo pacman -S python-gobject webkit2gtk-4.1
 ```
 
 On headless Linux, run under `xvfb-run` or pass `--solver impersonation`
