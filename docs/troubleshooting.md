@@ -9,6 +9,25 @@ attach it to an issue.
 
 ## Download errors
 
+### No internet connection
+
+Before the first request, comic-dl checks reachability against unrelated
+endpoints (not the site you asked for). If every probe fails it stops right
+there and sends no request, so an offline run costs you one message instead
+of one identical failure per URL.
+
+If a probe is wrongly blocked by a firewall, or you need to know the machine
+can reach the internet at all:
+
+1. **Try the site in a browser.** Loads fine — the site is the problem, and
+   it will say so per URL: `Could not reach <host> — the site may be down,
+   blocking us, or the domain may have changed.`
+2. **Anything using a VPN, proxy, or captive portal** can break the probe
+   without breaking the download. That is deliberate: a false "online"
+   costs you the ordinary error message, while a false "offline" would
+   refuse a run that would have worked. The same tradeoff means a portal
+   that answers every request still counts as online.
+
 ### Access blocked (403)
 
 comic-dl already tried to get through: it detects Cloudflare challenges,

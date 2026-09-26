@@ -80,6 +80,7 @@ from ..errors import (
 from ..library import Library, library_path, source_id
 from ..manifest import MANIFEST_NAME
 from ..models import PostMetadata
+from ..netcheck import check_connectivity
 from ..platform import default_editor as _default_editor
 from ..rate import rate_limiting_enabled
 from ..scrapers import get_entry, list_sources, load_plugins
@@ -162,6 +163,7 @@ from ..ui import (
     checkbox_prompt,
     console,
     err_console,
+    error_kind,
     flush_debug_file,
     format_bytes,
     get_ui_gate,
@@ -3326,6 +3328,14 @@ async def _run_urls(urls: list[str], args: argparse.Namespace) -> int:
             f"index: {len(index)} already-downloaded item(s) in {args.output}",
         )
 
+    if not await check_connectivity():
+        print_error_detail(
+            "No internet connection.",
+            "Every network probe failed before the first request was sent.",
+            hint="Nothing was downloaded. Reconnect and rerun the same command.",
+        )
+        return EXIT_ERROR
+
     if args.dry_run:
         return await _run_dry_run(urls, args, index)
 
@@ -3498,6 +3508,20 @@ async def _run_urls(urls: list[str], args: argparse.Namespace) -> int:
                 except Exception as exc:
                     duration_s = time.monotonic() - started
                     message, code = _classify(exc)
+                    # "Check your internet connection" is a guess. Ask the
+                    # network: if it is up, the site (or a block) is the real
+                    # problem, so say which host and stop pretending the local
+                    # link is at fault.
+                    if (
+                        code == EXIT_ERROR
+                        and error_kind(exc) == "network"
+                        and await check_connectivity()
+                    ):
+                        host = urlparse(url).hostname or url
+                        message = (
+                            f"Could not reach {host} — the site may be "
+                            "down, blocking us, or the domain may have changed."
+                        )
                     if VERBOSITY >= TRACE:
                         print_traceback(exc)
                     failed_details.append((f"Failed: {url}{_url_origin(args, url)}", message))

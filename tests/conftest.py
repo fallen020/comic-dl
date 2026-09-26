@@ -45,6 +45,22 @@ def _stub_unresolvable_test_dns(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _assume_online(monkeypatch):
+    """Pin the connectivity pre-flight to "online" so the suite stays offline.
+
+    ``_run_urls`` probes the network before scraping. Left real, every CLI
+    test would open a socket to 1.1.1.1 and hit pypi.org, which is both slow
+    and non-deterministic on CI. Tests that exercise the offline branch patch
+    ``comic_dl.cli.check_connectivity`` themselves.
+    """
+
+    async def _online(*, force: bool = False) -> bool:
+        return True
+
+    monkeypatch.setattr("comic_dl.cli.check_connectivity", _online)
+
+
+@pytest.fixture(autouse=True)
 def _reset_cli_globals(tmp_path):
     """Point the scrape cache at a throwaway dir and reset process-wide
     UI/config state between tests.
