@@ -1,7 +1,7 @@
 """Shared plumbing for Madara/WordPress comic readers.
 
-gedecomix, manhwaz, toonily and kodokustudio run the same Madara theme family:
-a summary box (``post-content_item`` rows) on the series page, a lazy-loaded
+gedecomix and toonily run the same Madara theme family: a summary box
+(``post-content_item`` rows) on the series page, a lazy-loaded
 reader container for chapter images, ``postid-<n>`` body classes, and a series
 page carrying the metadata a chapter page omits. The helpers here encode that
 structure once; each site module keeps only its selectors, URL grammar, and
@@ -279,10 +279,9 @@ _SERIES_SUMMARY_SEL = ".summary__content"
 class MadaraSeriesSiteScraper(MadaraScraper):
     """A Madara reader with the standard series + chapter page flow.
 
-    manhwaz, toonily and kodokustudio differ from each other only in URL
-    grammar, reader selectors, image-host policy, the series-title heuristic,
-    and which metadata rows the series page exposes. Those stay in the site
-    modules; the chapter/series scrape orchestration lives here once instead
+    Each site module keeps its URL grammar, reader selectors, image-host
+    policy, the series-title heuristic, and the metadata rows its series page
+    exposes. The chapter/series scrape orchestration lives here once instead
     of being duplicated per site.
     """
 
@@ -316,8 +315,7 @@ class MadaraSeriesSiteScraper(MadaraScraper):
 
         Lets the CLI route series URLs when the domain is not in its own
         ``_SERIES_URL_CHECKERS`` table — which is every plugin and any
-        Madara built-in that never got a static entry (toonily, manhwaz,
-        kodokustudio).
+        built-in that never got a static entry (toonily).
         """
         return bool(self.series_url_re is not None and self.series_url_re.match(url))
 
@@ -332,7 +330,7 @@ class MadaraSeriesSiteScraper(MadaraScraper):
     def _series_summary(self, soup: BeautifulSoup, idx: dict[str, list[str]]) -> str:
         """Series blurb from the standard Madara summary box, else meta tags.
 
-        Both manhwaz and toonily expose the summary the same way, so the
+        Every built-in exposes the summary the same way, so the
         fallback chain lives here.
         """
         summary = soup.select_one(_SERIES_SUMMARY_SEL)

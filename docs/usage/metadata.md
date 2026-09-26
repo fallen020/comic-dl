@@ -95,7 +95,6 @@ either.
 | Kagane | varies | Site metadata | Staff field | Staff field | Genre list | — | Rating field |
 | MangaDex | varies | API language | Authors | Artists | Tag list | — | — |
 | Toonily | varies | `<html lang>` | — | Artists | Genres | Publisher | — |
-| Manhwaz | varies | `<html lang>` | — | Authors | Genres | — | — |
 | Kodoku | `ltr` | URL `{lang}` | — | — | — | — | — |
 | WeebCentral | varies | `<html lang>` | — | — | — | — | — |
 

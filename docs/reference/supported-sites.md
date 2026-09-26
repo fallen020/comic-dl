@@ -1,6 +1,6 @@
 # Supported Sites
 
-The 30 built-in scrapers shipped with comic-dl. The live registry — including
+The 29 built-in scrapers shipped with comic-dl. The live registry — including
 any third-party plugins — is shown by `comic-dl --list-sources`.
 
 ## Sites
@@ -40,8 +40,6 @@ any third-party plugins — is shown by `comic-dl --list-sources`.
 | **ManhuaTo** | `manhuato.com` | `/manhua/{slug}/chapter-{n}-ch{id}` | Yes | — |
 | **ManhwaTop** | `manhwatop.com` | `/manga/{slug}/` | — | Yes |
 | **ManhwaTop** | `manhwatop.com` | `/manga/{slug}/chapter-{n}/` | Yes | — |
-| **Manhwaz** | `manhwaz.com` | `/webtoon/{slug}` | — | Yes |
-| **Manhwaz** | `manhwaz.com` | `/webtoon/{slug}/chapter-{n}` | Yes | — |
 | **Nyx Scans** | `nyxscans.com` | `/series/{slug}/` | — | Yes |
 | **Nyx Scans** | `nyxscans.com` | `/series/{slug}/chapter-{n}` | Yes | — |
 | **Pawchive** | `pawchive.pw` | `/{service}/user/{id}/post/{id}/` | Yes | — |
@@ -66,14 +64,14 @@ any third-party plugins — is shown by `comic-dl --list-sources`.
 
 ## Per-site features
 
-| Feature | Asura Scans | DivaScans | E-Hentai | Thunderscans | FlameComics | FSIComics | GEDE Comix | GenzToons | HD Porn Comics | HiveToons | IMHentai | Kagane | Kingofshojo | Kodoku | LGBTics | MangaDex | ManhuaTo | ManhwaTop | Manhwaz | Nyx Scans | Pawchive | QiScans | StoneScape | Tapas | Toonily | ToonVerse | ValirScans | Vortex Scans | WEBTOON | WeebCentral |
-| :------ | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- |
-| Individual posts/chapters | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| Series chapter listing | Yes | Yes | — | Yes | Yes | Yes | Yes | Yes | — | Yes | — | Yes | — | Yes | Yes | Yes | Yes | Yes | Yes | Yes | — | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| Image dedup (SHA-256) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| Download resume | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| Concurrent downloads | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| Chapter title from tags | — | — | Yes | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | Yes | — |
+| Feature | Asura Scans | DivaScans | E-Hentai | Thunderscans | FlameComics | FSIComics | GEDE Comix | GenzToons | HD Porn Comics | HiveToons | IMHentai | Kagane | Kingofshojo | Kodoku | LGBTics | MangaDex | ManhuaTo | ManhwaTop | Nyx Scans | Pawchive | QiScans | StoneScape | Tapas | Toonily | ToonVerse | ValirScans | Vortex Scans | WEBTOON | WeebCentral |
+| :------ | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- |
+| Individual posts/chapters | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Series chapter listing | Yes | Yes | — | Yes | Yes | Yes | Yes | Yes | — | Yes | — | Yes | — | Yes | Yes | Yes | Yes | Yes | Yes | — | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Image dedup (SHA-256) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Download resume | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Concurrent downloads | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Chapter title from tags | — | — | Yes | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | Yes | — |
 
 ## Site notes
 
@@ -115,9 +113,6 @@ any third-party plugins — is shown by `comic-dl --list-sources`.
 - **Toonily** — A Madara/WordPress manhwa site. Page images live on
   `data.tnlycdn.com` which enforces a `Referer` check satisfied by comic-dl's
   per-download headers.
-
-- **Manhwaz** — A Madara-style manhwa site. Chapter pages expose pages inside
-  `.reading-content`. Images served from `cdn.manhwaz.com`.
 
 - **Kodoku** — A client-rendered SPA behind an 18+ age gate, so all content
   comes from the public JSON API under `/api`; the gate is client-side only and

@@ -1,11 +1,11 @@
 ---
 title: Supported Sites
-description: The 30 built-in scrapers supported by comic-dl, their URL patterns, and per-site notes.
+description: The 29 built-in scrapers supported by comic-dl, their URL patterns, and per-site notes.
 order: 520
 section: Reference
 ---
 
-The 30 built-in scrapers shipped with comic-dl. The live registry — including any third-party plugins — is shown by `comic-dl --list-sources`.
+The 29 built-in scrapers shipped with comic-dl. The live registry — including any third-party plugins — is shown by `comic-dl --list-sources`.
 
 ## Sites
 
@@ -44,8 +44,6 @@ The 30 built-in scrapers shipped with comic-dl. The live registry — including 
 | **ManhuaTo** | `manhuato.com` | `/manhua/{slug}/chapter-{n}-ch{id}` | <Badge status="supported" /> | — |
 | **ManhwaTop** | `manhwatop.com` | `/manga/{slug}/` | — | <Badge status="supported" /> |
 | **ManhwaTop** | `manhwatop.com` | `/manga/{slug}/chapter-{n}/` | <Badge status="supported" /> | — |
-| **Manhwaz** | `manhwaz.com` | `/webtoon/{slug}` | — | <Badge status="supported" /> |
-| **Manhwaz** | `manhwaz.com` | `/webtoon/{slug}/chapter-{n}` | <Badge status="supported" /> | — |
 | **Nyx Scans** | `nyxscans.com` | `/series/{slug}/` | — | <Badge status="supported" /> |
 | **Nyx Scans** | `nyxscans.com` | `/series/{slug}/chapter-{n}` | <Badge status="supported" /> | — |
 | **Pawchive** | `pawchive.pw` | `/{service}/user/{id}/post/{id}/` | <Badge status="supported" /> | — |
@@ -70,14 +68,14 @@ The 30 built-in scrapers shipped with comic-dl. The live registry — including 
 
 ## Per-site features
 
-| Feature | Asura Scans | DivaScans | E-Hentai | Thunderscans | FlameComics | FSIComics | GEDE Comix | GenzToons | HD Porn Comics | HiveToons | IMHentai | Kagane | Kingofshojo | Kodoku | LGBTics | MangaDex | ManhuaTo | ManhwaTop | Manhwaz | Nyx Scans | Pawchive | QiScans | StoneScape | Tapas | Toonily | ToonVerse | ValirScans | Vortex Scans | WEBTOON | WeebCentral |
-| :------ | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- |
-| Individual posts/chapters | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| Series chapter listing | Yes | Yes | — | Yes | Yes | Yes | Yes | Yes | — | Yes | — | Yes | — | Yes | Yes | Yes | Yes | Yes | Yes | Yes | — | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| Image dedup (SHA-256) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| Download resume | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| Concurrent downloads | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| Chapter title from tags | — | — | <Badge status="supported" /> | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | <Badge status="supported" /> | — |
+| Feature | Asura Scans | DivaScans | E-Hentai | Thunderscans | FlameComics | FSIComics | GEDE Comix | GenzToons | HD Porn Comics | HiveToons | IMHentai | Kagane | Kingofshojo | Kodoku | LGBTics | MangaDex | ManhuaTo | ManhwaTop | Nyx Scans | Pawchive | QiScans | StoneScape | Tapas | Toonily | ToonVerse | ValirScans | Vortex Scans | WEBTOON | WeebCentral |
+| :------ | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- |
+| Individual posts/chapters | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Series chapter listing | Yes | Yes | — | Yes | Yes | Yes | Yes | Yes | — | Yes | — | Yes | — | Yes | Yes | Yes | Yes | Yes | Yes | — | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Image dedup (SHA-256) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Download resume | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Concurrent downloads | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Chapter title from tags | — | — | <Badge status="supported" /> | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | <Badge status="supported" /> | — |
 
 ## Site notes
 
@@ -91,7 +89,6 @@ The 30 built-in scrapers shipped with comic-dl. The live registry — including 
 - **Kagane** — Requires a `cf_clearance` cookie obtained via the webview solver (opt in with `--solver auto`). Chapter images are unlocked through the site's DRM API with an integrity token.
 - **MangaDex** — The largest manga aggregator. Uses the official public REST API (`api.mangadex.org`). Pages served from per-chapter CDN nodes. Chapters whose URL points at an external site are skipped from series listings.
 - **Toonily** — A Madara/WordPress manhwa site. Page images live on `data.tnlycdn.com` which enforces a `Referer` check satisfied by comic-dl's per-download headers.
-- **Manhwaz** — A Madara-style manhwa site. Chapter pages expose pages inside `.reading-content`. Images served from `cdn.manhwaz.com`.
 - **Kodoku** — A client-rendered SPA behind an 18+ age gate, so all content comes from the public JSON API under `/api`; the gate is client-side only and the API needs no token or consent. It publishes one series, *Reverend Insanity*, in several languages, and a chapter is addressed by `/read/{series}/{lang}/{number}`. The chapter list mixes every language together, so the series listing is English (`DEFAULT_LANGUAGE`) and any chapter URL can name its own language. New chapters release on a schedule: unavailable ones are left out of the listing and report their unlock date if requested directly. Cover and page URLs are presigned and expire after 30 minutes, so API responses are never read from the metadata cache.
 - **WeebCentral** — Server-rendered pages with HTMX image fragments. Chapter pages list no images inline; pages come from the chapter's `/images` endpoint (`reading_style=long_strip`). Chapter labels read `"<Type> <Number>"` (e.g. `Navigation 67.5`). Images are hotlink-protected and need the chapter page as `Referer`, supplied by comic-dl's per-download headers.
 - **LGBTics** — A Madara/WordPress site. Series pages list chapters in `.version-chap .wp-manga-chapter`. Chapter images are lazy-loaded via `data-src` on the same domain. No AJAX pagination for chapters; all links render server-side. Images use WebP format.

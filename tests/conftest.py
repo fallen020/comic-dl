@@ -10,7 +10,7 @@ def _stub_unresolvable_test_dns(monkeypatch):
     """Resolve fake test-only hosts to a public documentation IP.
 
     The suite is offline-safe and uses mock HTTP clients with fake
-    domains (``*.example``, ``*.hath.network``, ``manhwaz.com``, ...).
+    domains (``*.example``, ``*.hath.network``, ...).
     SSRF validation is fail-closed on DNS errors, so those hosts would
     otherwise be blocked before the mock client is reached. Stub only
     hosts that fail real resolution and look like test fixtures; real
@@ -24,8 +24,6 @@ def _stub_unresolvable_test_dns(monkeypatch):
             "example.com",
             "www.site",
             "cdn.site",
-            "manhwaz.com",
-            "cdn.manhwaz.com",
             "www.webtoons.com",
         }
     )

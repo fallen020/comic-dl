@@ -101,7 +101,6 @@ class TestBuiltinRegistration:
             "mangadex.org": "mangadex",
             "kodokueasyaccess.com": "kodokueasyaccess",
             "toonily.com": "toonily",
-            "manhwaz.com": "manhwaz",
             "hivetoons.org": "hivetoons",
             "genztoons.org": "genztoons",
             "qimanga.com": "qimanga",
@@ -120,7 +119,6 @@ class TestBuiltinRegistration:
         assert by_domain["flamecomics.xyz"].has_series
         assert by_domain["mangadex.org"].has_series
         assert by_domain["toonily.com"].has_series
-        assert by_domain["manhwaz.com"].has_series
         assert not by_domain["pawchive.pw"].has_series
 
     def test_every_site_module_registers(self):

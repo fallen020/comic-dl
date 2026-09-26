@@ -59,7 +59,6 @@ SITE_META = {
         "/manhua/{slug}/",
     ),
     "manhwatop.com": ("ManhwaTop", "/manga/{slug}/chapter-{n}/", "/manga/{slug}/"),
-    "manhwaz.com": ("Manhwaz", "/webtoon/{slug}/chapter-{n}", "/webtoon/{slug}"),
     "nyxscans.com": ("Nyx Scans", "/series/{slug}/chapter-{n}", "/series/{slug}/"),
     "pawchive.pw": ("Pawchive", "/{service}/user/{id}/post/{id}/", ""),
     "tapas.io": ("Tapas", "/episode/{id}", "/series/{slug}"),
