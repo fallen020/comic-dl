@@ -24,7 +24,7 @@ new wheel and update its version below.
 | [markdown-it-py](https://github.com/executablebooks/markdown-it-py) | 4.2.0 | [MIT](markdown-it-py/LICENSE), [LICENSE.markdown-it](markdown-it-py/LICENSE.markdown-it) |
 | [mdurl](https://github.com/executablebooks/mdurl) | 0.1.2 | [MIT](mdurl/LICENSE) |
 | [packaging](https://github.com/pypa/packaging) | 26.2 | [Apache-2.0](packaging/LICENSE.APACHE) or [BSD-3-Clause](packaging/LICENSE.BSD), [notice](packaging/LICENSE) |
-| [platformdirs](https://github.com/tox-dev/platformdirs) | 4.11.12 | [MIT](platformdirs/LICENSE) |
+| [platformdirs](https://github.com/tox-dev/platformdirs) | 4.12.0 | [MIT](platformdirs/LICENSE) |
 | [proxy-tools](https://github.com/jtushman/proxy_tools) | 0.1.0 | [MIT](proxy-tools/LICENSE) |
 | [pycparser](https://github.com/eliben/pycparser) | 3.0 | [BSD-3-Clause](pycparser/LICENSE) |
 | [pygments](https://github.com/pygments/pygments) | 2.20.0 | [BSD-3-Clause](pygments/LICENSE), [AUTHORS](pygments/AUTHORS) |
@@ -58,11 +58,11 @@ texts; the links below point to it.
 
 | Asset | Version | License | Shipped as |
 |---|---|---|---|
-| [Lucide](https://lucide.dev) icons | 1.46.0 (`@lucide/astro`) | [ISC + MIT](../website/public/NOTICES) | Inline SVG in built pages |
+| [Lucide](https://lucide.dev) icons | 1.47.0 (`@lucide/astro`) | [ISC + MIT](../website/public/NOTICES) | Inline SVG in built pages |
 | [Simple Icons](https://simple-icons.org) brand marks | 16.31.0 | [CC0-1.0](../website/public/NOTICES) | Paths vendored in `website/src/components/icons/BrandIcon.astro` |
 | [Pagefind](https://pagefind.app) | 1.5.2 (`pagefind`) | [MIT](../website/public/NOTICES) | `pagefind/` bundle, lazy-loaded on first search |
 | [Shiki](https://shiki.style) | 4.4.3 | [MIT](../website/public/NOTICES) | Highlighted HTML emitted at build time |
-| [Astro](https://astro.build) + `@astrojs/mdx` | 7.3.3 / 8.0.1 | [MIT](../website/public/NOTICES) | Build tooling; the static output carries no Astro code |
+| [Astro](https://astro.build) + `@astrojs/mdx` | 7.3.4 / 8.0.2 | [MIT](../website/public/NOTICES) | Build tooling; the static output carries no Astro code |
 
 The website toolchain (`@astrojs/sitemap`, Tailwind, Vite, and the node
 tooling under `website/`) builds on the Astro packages above.
