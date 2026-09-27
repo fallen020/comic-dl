@@ -244,7 +244,7 @@ class ThunderscansScraper(BaseScraper):
     domain = DOMAIN
     name = "thunderscans"
     site_id = "thunderscans"
-    version = "1.0.0"
+    version = "1.0.1"
     minimum_core_version = "0.0.2"
 
     def __init__(self) -> None:

@@ -140,7 +140,7 @@ class ToonilyScraper(MadaraSeriesSiteScraper):
     domain = DOMAIN
     name = "toonily"
     site_id = "toonily"
-    version = "1.0.0"
+    version = "1.0.1"
     minimum_core_version = "0.0.2"
     base_url = BASE
     series_segment = "serie"

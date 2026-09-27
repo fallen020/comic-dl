@@ -98,7 +98,6 @@ class TestRegistryMetadata:
     def test_webtoon_id_is_stable(self, real_sites):
         webtoon = next(s for s in real_sites if s.domain == "webtoons.com")
         assert webtoon.site_id == "webtoon"
-        assert webtoon.version == "1.0.0"
 
     def test_duplicate_site_id_rejected(self, monkeypatch):
         _empty_registry(monkeypatch)
@@ -332,8 +331,9 @@ class TestSiteCheck:
         assert rc == EXIT_OK
         assert "live: healthy" in _text(capsys)
 
-    async def test_manifest_shows_up_to_date(self, monkeypatch, capsys):
-        m = _manifest({"webtoon": ("1.0.0", "0.0.2")})
+    async def test_manifest_shows_up_to_date(self, real_sites, monkeypatch, capsys):
+        installed = next(s for s in real_sites if s.domain == "webtoons.com")
+        m = _manifest({"webtoon": (installed.version, "0.0.2")})
 
         async def fetch():
             return m

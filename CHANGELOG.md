@@ -5,6 +5,55 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org).
 
+## [v0.0.4] - 2026-09-27
+
+### Added
+
+- Ten new built-in sources — DivaScans, HD Porn Comics, IMHentai,
+  KodokuEasyAccess, ManhuaTo, Nyx Scans, Tapas, ToonVerse, ValirScans, and
+  Vortex Scans — taking built-in support from 21 to 29 sites.
+- First-run legal notice.
+- Stable `site_error_code` failure classification across scrapers, surfaced
+  in errors and batch output.
+- Per-page download state manifest with a resume-safe retry pass; partial
+  chapters tracked separately in batch footers.
+- Connectivity probe before blaming the network for failures.
+- Library schema v4: one global database with per-row output roots, global
+  library commands, and `library update --dry-run`.
+- Leading `m.` mobile subdomains normalized away before matching.
+
+### Changed
+
+- KodokuStudio replaced by KodokuEasyAccess (new domain).
+- System-webview solver off by default.
+- Archive writes stream to disk instead of buffering whole image sets.
+- Website design refreshed; dev guides rewritten as end-to-end processes.
+
+### Removed
+
+- ManhwaZ support dropped.
+
+### Fixed
+
+- Kagane reports the Cloudflare challenge instead of a network error.
+- Batch output honesty: `Saved:` gated on success, per-page failure reasons,
+  chapter/partial accounting; single-URL polish (short chapter titles, one
+  completion line).
+- Tapas cover/creator/description; Asura Scans full series summary; GenzToons
+  listing guard, locked chapters, metadata cleanup; Vortex/Nyx cover,
+  synopsis, genres.
+- Cookie collision resolution, charset-aware cache decode, cookie-replay
+  probing with a JSON cache-poisoning guard; `.partial` markers restored to
+  on-disk page names so reruns skip them.
+
+### Security
+
+- Cookie jar encrypted at rest.
+- Outbound fetches fail closed on DNS/validation errors; rebinding window
+  narrowed.
+- 2xx media payloads never treated as antibot challenges; DataDome markers
+  tightened.
+
 ## [v0.0.3] - 2026-09-20
 
 ### Added

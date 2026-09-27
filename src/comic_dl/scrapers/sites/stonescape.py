@@ -157,7 +157,7 @@ class StoneScapeScraper(BaseScraper):
     domain = DOMAIN
     name = "stonescape"
     site_id = "stonescape"
-    version = "1.0.0"
+    version = "1.0.1"
     minimum_core_version = "0.0.2"
 
     def matches_url(self, url: str) -> bool:

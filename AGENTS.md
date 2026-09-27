@@ -3,7 +3,7 @@
 ## Project
 
 `comic-dl` downloads comic/manga galleries from supported sites and compiles
-them into CBZ, ZIP, and CBT archives. Latest release (`v0.0.3`).
+them into CBZ, ZIP, and CBT archives. Latest release (`v0.0.4`).
 See `docs/develop/releasing.md` for the runbook.
 
 Upstream: `https://github.com/fallen020/comic-dl`, default branch `main`.

@@ -463,7 +463,7 @@ class EHentaiScraper(BaseScraper):
     domain = "e-hentai.org"
     name = "e-hentai"
     site_id = "e-hentai"
-    version = "1.0.0"
+    version = "1.0.1"
     minimum_core_version = "0.0.2"
     # The CLI can resolve image URLs lazily (see :meth:`iter_images`) so
     # downloads overlap URL resolution instead of waiting for a full scrape.
