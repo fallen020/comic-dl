@@ -411,6 +411,7 @@ async def run_site_check_command(*, target: str | None, live: bool, json_mode: b
             return EXIT_USAGE
 
     rows: list[list[str]] = []
+    json_sites: list[dict] = []
     # Without --live the whole point is version status, so a missing manifest
     # degrades the run; a live run is judged by its own result instead.
     degraded = manifest is None and not live
@@ -421,14 +422,25 @@ async def run_site_check_command(*, target: str | None, live: bool, json_mode: b
     for s in sites:
         available = manifest.sites.get(s.site_id) if manifest else None
         status = status_for(s, available, installed_core)
+        error_code: str | None = None
         if status == "unable to check" and manifest is None and not live:
             degraded = True
         live_res = live_map.get(s.site_id)
         if live_res is not None:
+            error_code = live_res.error_code
             status = f"live: {live_res.status}"
             if live_res.status not in ("healthy", "skipped"):
                 degraded = True
         rows.append([s.site_id, s.version, available.version if available else "unknown", status])
+        json_sites.append(
+            {
+                "site_id": s.site_id,
+                "installed": s.version,
+                "available": available.version if available else None,
+                "status": status,
+                "error_code": error_code,
+            }
+        )
 
     if not json_mode:
         _render_table(f"Site support check ({len(sites)})", rows)
@@ -439,15 +451,7 @@ async def run_site_check_command(*, target: str | None, live: bool, json_mode: b
                 {
                     "schema_version": JSON_SCHEMA_VERSION,
                     "core_version": installed_core,
-                    "sites": [
-                        {
-                            "site_id": r[0],
-                            "installed": r[1],
-                            "available": r[2],
-                            "status": r[3],
-                        }
-                        for r in rows
-                    ],
+                    "sites": json_sites,
                 },
                 indent=2,
             ),

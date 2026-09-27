@@ -9,7 +9,7 @@ from bs4 import BeautifulSoup
 from curl_cffi.requests import AsyncSession
 from curl_cffi.requests.exceptions import HTTPError as CurlHTTPError
 
-from ...errors import ScrapeError
+from ...errors import SITE_LAYOUT_CHANGED, SITE_NO_SERIES, ScrapeError
 from ...models import (
     ChapterInfo,
     ImageItem,
@@ -81,6 +81,7 @@ class FlameScraper(BaseScraper):
                 raise ScrapeError(
                     "page not found on Flame Comics.",
                     hint="the series may have been removed, or this chapter link is dead.",
+                    site_error_code=SITE_NO_SERIES,
                 ) from None
             raise
 
@@ -385,6 +386,7 @@ class FlameScraper(BaseScraper):
             raise ScrapeError(
                 "Could not find series data on page.",
                 hint="The FlameComics page layout may have changed.",
+                site_error_code=SITE_LAYOUT_CHANGED,
             )
 
         page_props = data.get("props", {}).get("pageProps", {})

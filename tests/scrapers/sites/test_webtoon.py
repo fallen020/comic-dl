@@ -7,16 +7,11 @@ import pytest
 
 from comic_dl.scrapers.sites.webtoon import (
     PATTERN,
-    _extract_chapters_from_json,
-    _extract_images_from_json,
-    _find_image_list,
-    _find_json_script,
+    WebtoonScraper,
     _parse_url,
     is_chapter_url,
     is_series_url,
     normalize_webtoon_url,
-    scrape_chapter,
-    scrape_series,
 )
 
 
@@ -235,7 +230,7 @@ class TestFindJsonScript:
         from bs4 import BeautifulSoup
 
         soup = BeautifulSoup(html, "lxml")
-        data = _find_json_script(soup)
+        data = WebtoonScraper._find_json_script(soup)
         assert data == {"props": {"pageProps": {"key": "val"}}}
 
     def test_initial_state(self):
@@ -245,14 +240,14 @@ class TestFindJsonScript:
         from bs4 import BeautifulSoup
 
         soup = BeautifulSoup(html, "lxml")
-        data = _find_json_script(soup)
+        data = WebtoonScraper._find_json_script(soup)
         assert data == {"episode": {"title": "Test"}}
 
     def test_no_script(self):
         from bs4 import BeautifulSoup
 
         soup = BeautifulSoup("<html></html>", "lxml")
-        assert _find_json_script(soup) is None
+        assert WebtoonScraper._find_json_script(soup) is None
 
 
 class TestFindImageList:
@@ -269,22 +264,22 @@ class TestFindImageList:
                 }
             }
         }
-        result = _find_image_list(data)
+        result = WebtoonScraper._find_image_list(data)
         assert len(result) == 2
         assert result[0]["url"] == "https://x.com/img1.jpg"
 
     def test_episode_images(self):
         data = {"episode": {"images": [{"url": "https://x.com/1.jpg"}]}}
-        result = _find_image_list(data)
+        result = WebtoonScraper._find_image_list(data)
         assert len(result) == 1
 
     def test_episode_image_list(self):
         data = {"episode": {"imageList": ["https://x.com/1.jpg", "https://x.com/2.jpg"]}}
-        result = _find_image_list(data)
+        result = WebtoonScraper._find_image_list(data)
         assert len(result) == 2
 
     def test_none(self):
-        assert _find_image_list({}) is None
+        assert WebtoonScraper._find_image_list({}) is None
 
 
 class TestScrapeChapter:
@@ -345,17 +340,17 @@ class TestScrapeChapter:
 
     async def test_invalid_url(self):
         with pytest.raises(ValueError, match="Invalid WEBTOON"):
-            await scrape_chapter("https://example.com", None)
+            await WebtoonScraper().scrape("https://example.com", None)
 
     async def test_meta_tags_fallback(self):
         with pytest.raises(ValueError, match="No images found"):
-            await scrape_chapter(
+            await WebtoonScraper().scrape(
                 "https://www.webtoons.com/en/action/s/ep-1/viewer?title_no=1&episode_no=1",
                 self.MockClient(),  # type: ignore
             )
 
     async def test_with_next_data(self):
-        meta = await scrape_chapter(
+        meta = await WebtoonScraper().scrape(
             "https://www.webtoons.com/en/action/s/ep-1/viewer?title_no=1&episode_no=1",
             self.MockClientWithData(),  # type: ignore
         )
@@ -388,7 +383,7 @@ class TestScrapeChapter:
 
                 return Resp()
 
-        meta = await scrape_chapter(
+        meta = await WebtoonScraper().scrape(
             "https://www.webtoons.com/en/action/s/ep-1/viewer?title_no=1&episode_no=1",
             MockClient(),  # type: ignore
         )
@@ -418,7 +413,7 @@ class TestScrapeChapter:
 
                 return Resp()
 
-        meta = await scrape_chapter(
+        meta = await WebtoonScraper().scrape(
             "https://www.webtoons.com/en/action/s/ep-1/viewer?title_no=1&episode_no=1",
             MockClient(),  # type: ignore
         )
@@ -444,7 +439,7 @@ class TestScrapeChapter:
 
                 return Resp()
 
-        meta = await scrape_chapter(
+        meta = await WebtoonScraper().scrape(
             "https://www.webtoons.com/en/action/s/ep-1/viewer?title_no=1&episode_no=1",
             MockClient(),  # type: ignore
         )
@@ -471,7 +466,7 @@ class TestScrapeChapter:
 
                 return Resp()
 
-        meta = await scrape_chapter(
+        meta = await WebtoonScraper().scrape(
             "https://www.webtoons.com/en/action/s/ep-1/viewer?title_no=1&episode_no=1",
             MockClient(),  # type: ignore
         )
@@ -497,7 +492,7 @@ class TestScrapeChapter:
 
                 return Resp()
 
-        meta = await scrape_chapter(
+        meta = await WebtoonScraper().scrape(
             "https://www.webtoons.com/en/action/s/ep-1/viewer?title_no=1&episode_no=1",
             MockClient(),  # type: ignore
         )
@@ -519,7 +514,7 @@ class TestScrapeChapter:
                 return Resp()
 
         with pytest.raises(ValueError, match="No images found"):
-            await scrape_chapter(
+            await WebtoonScraper().scrape(
                 "https://www.webtoons.com/en/action/s/ep-1/viewer?title_no=1&episode_no=1",
                 MockClient(),  # type: ignore
             )
@@ -580,10 +575,10 @@ class TestScrapeSeries:
 
     async def test_invalid_url(self):
         with pytest.raises(ValueError, match="Invalid WEBTOON"):
-            await scrape_series("https://example.com", None)
+            await WebtoonScraper().scrape_series("https://example.com", None)
 
     async def test_with_next_data(self):
-        info = await scrape_series(
+        info = await WebtoonScraper().scrape_series(
             "https://www.webtoons.com/en/action/demo-series/list?title_no=1",
             self.MockSeriesClient(),  # type: ignore
         )
@@ -611,7 +606,7 @@ class TestScrapeSeries:
                 return Resp()
 
         with pytest.raises(ValueError, match="No chapters found"):
-            await scrape_series(
+            await WebtoonScraper().scrape_series(
                 "https://www.webtoons.com/en/action/s/list?title_no=1",
                 MockClient(),  # type: ignore
             )
@@ -664,7 +659,7 @@ class TestScrapeSeries:
 
                 return Resp()
 
-        info = await scrape_series(url, MockPaginatedClient())  # type: ignore
+        info = await WebtoonScraper().scrape_series(url, MockPaginatedClient())  # type: ignore
         assert [ch["episode_no"] for ch in info.chapters] == ["1", "2", "3", "4"]
 
 
@@ -681,7 +676,7 @@ class TestExtractImagesFromJson:
         from bs4 import BeautifulSoup
 
         soup = BeautifulSoup(html, "lxml")
-        images = _extract_images_from_json(soup)
+        images = WebtoonScraper._images_from_json(soup)
         assert images is not None
         assert len(images) == 2
         assert images[0].url == "https://webtoon-phinf.pstatic.net/1.jpg"
@@ -700,7 +695,7 @@ class TestExtractImagesFromJson:
         from bs4 import BeautifulSoup
 
         soup = BeautifulSoup(html, "lxml")
-        images = _extract_images_from_json(soup)
+        images = WebtoonScraper._images_from_json(soup)
         assert images is not None
         assert len(images) == 1
 
@@ -708,7 +703,7 @@ class TestExtractImagesFromJson:
         from bs4 import BeautifulSoup
 
         soup = BeautifulSoup("<html></html>", "lxml")
-        assert _extract_images_from_json(soup) is None
+        assert WebtoonScraper._images_from_json(soup) is None
 
     def test_no_images_in_data(self):
         html = (
@@ -719,7 +714,7 @@ class TestExtractImagesFromJson:
         from bs4 import BeautifulSoup
 
         soup = BeautifulSoup(html, "lxml")
-        assert _extract_images_from_json(soup) is None
+        assert WebtoonScraper._images_from_json(soup) is None
 
     def test_image_list_format(self):
         html = (
@@ -730,7 +725,7 @@ class TestExtractImagesFromJson:
         from bs4 import BeautifulSoup
 
         soup = BeautifulSoup(html, "lxml")
-        images = _extract_images_from_json(soup)
+        images = WebtoonScraper._images_from_json(soup)
         assert images is not None
         assert len(images) == 2
 
@@ -748,7 +743,7 @@ class TestExtractChaptersFromJson:
         from bs4 import BeautifulSoup
 
         soup = BeautifulSoup(html, "lxml")
-        chapters = _extract_chapters_from_json(
+        chapters = WebtoonScraper._chapters_from_json(
             soup, "https://www.webtoons.com/en/s/list?title_no=1"
         )
         assert chapters is not None
@@ -772,7 +767,7 @@ class TestExtractChaptersFromJson:
         from bs4 import BeautifulSoup
 
         soup = BeautifulSoup(html, "lxml")
-        chapters = _extract_chapters_from_json(
+        chapters = WebtoonScraper._chapters_from_json(
             soup, "https://www.webtoons.com/en/s/list?title_no=1"
         )
         assert chapters is not None
@@ -782,7 +777,7 @@ class TestExtractChaptersFromJson:
         from bs4 import BeautifulSoup
 
         soup = BeautifulSoup("<html></html>", "lxml")
-        assert _extract_chapters_from_json(soup, "https://example.com") is None
+        assert WebtoonScraper._chapters_from_json(soup, "https://example.com") is None
 
     def test_no_episodes(self):
         html = (
@@ -793,4 +788,4 @@ class TestExtractChaptersFromJson:
         from bs4 import BeautifulSoup
 
         soup = BeautifulSoup(html, "lxml")
-        assert _extract_chapters_from_json(soup, "https://example.com") is None
+        assert WebtoonScraper._chapters_from_json(soup, "https://example.com") is None

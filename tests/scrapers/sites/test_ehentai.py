@@ -21,7 +21,6 @@ from comic_dl.scrapers.sites.ehentai import (
     _image_page_url,
     _iter_image_items,
     _ThrottledPageError,
-    scrape_ehentai,
 )
 
 
@@ -430,7 +429,7 @@ class TestScrapeEhentai:
 
     async def test_invalid_url(self):
         with pytest.raises(ValueError, match="Invalid e-hentai"):
-            await scrape_ehentai("https://example.com/g/123/abc", None)
+            await EHentaiScraper().scrape("https://example.com/g/123/abc", None)
 
     _api_response = {
         "gmetadata": [
@@ -551,7 +550,7 @@ class TestScrapeEhentai:
             return _MockJsonResponse(TestScrapeEhentai._api_response_with_tags)
 
     async def test_full_scrape(self):
-        meta = await scrape_ehentai(
+        meta = await EHentaiScraper().scrape(
             "https://e-hentai.org/g/123/abc/",
             self.MockClient(),  # type: ignore
         )
@@ -578,7 +577,7 @@ class TestScrapeEhentai:
         assert meta.community_rating == 9.0
 
     async def test_full_scrape_with_tags(self):
-        meta = await scrape_ehentai(
+        meta = await EHentaiScraper().scrape(
             "https://e-hentai.org/g/456/def/",
             self.MockClientWithTags(),  # type: ignore
         )

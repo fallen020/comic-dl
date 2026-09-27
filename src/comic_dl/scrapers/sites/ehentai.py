@@ -23,7 +23,13 @@ from curl_cffi.requests.exceptions import (
     Timeout as CurlTimeout,
 )
 
-from ...errors import ScrapeError, ScrapeTimeout
+from ...errors import (
+    SITE_NO_PAGES,
+    SITE_NOT_RECOGNIZED,
+    SITE_REQUEST_FAILED,
+    ScrapeError,
+    ScrapeTimeout,
+)
 from ...models import (
     ChapterInfo,
     ImageItem,
@@ -75,6 +81,7 @@ def _gallery_parts(url: str) -> tuple[int, str]:
         raise ScrapeError(
             f"Invalid e-hentai gallery URL: {url}",
             hint="Expected a gallery URL like https://e-hentai.org/g/{id}/{token}/",
+            site_error_code=SITE_NOT_RECOGNIZED,
         )
     return int(m.group(1)), m.group(2).lower()
 
@@ -237,8 +244,12 @@ async def _api_gdata(gid: int, token: str, client: AsyncSession) -> dict:
                 "This e-hentai gallery is missing or inaccessible.",
                 hint="The gallery may have been removed, expunged, or the "
                 "ID/token in the URL is wrong.",
+                site_error_code=SITE_NOT_RECOGNIZED,
             )
-        raise ScrapeError(f"e-hentai API error: {error}")
+        raise ScrapeError(
+            f"e-hentai API error: {error}",
+            site_error_code=SITE_REQUEST_FAILED,
+        )
     return data["gmetadata"][0]
 
 
@@ -517,6 +528,7 @@ class EHentaiScraper(BaseScraper):
             raise ScrapeError(
                 "Gallery has no images.",
                 hint="The gallery may have been removed or is private.",
+                site_error_code=SITE_NO_PAGES,
             )
 
         if not full_title:
@@ -601,8 +613,3 @@ class EHentaiScraper(BaseScraper):
             images=images,
             cover_url=skel["cover_url"],
         )
-
-
-async def scrape_ehentai(url: str, client: AsyncSession) -> PostMetadata:
-    """Scrape an e-hentai gallery through a fresh scraper instance (test helper)."""
-    return await EHentaiScraper().scrape(url, client)

@@ -7,11 +7,11 @@ from bs4 import BeautifulSoup
 
 from comic_dl.errors import ScrapeTimeout
 from comic_dl.scrapers.sites.pawchive import (
+    PawchiveScraper,
     _extract_images,
     _extract_meta,
     _extract_series_and_chapter,
     _try_full_resolution,
-    scrape_post,
 )
 
 
@@ -310,7 +310,7 @@ class TestScrapePost:
                 return MockResponse()
 
         with pytest.raises(ValueError, match="No images found"):
-            await scrape_post("https://pawchive.pw/p/user/1/post/2", MockClient())  # type: ignore
+            await PawchiveScraper().scrape("https://pawchive.pw/p/user/1/post/2", MockClient())  # type: ignore
 
     async def test_pdf_post_raises_with_pdf_hint(self):
         html = """
@@ -335,7 +335,7 @@ class TestScrapePost:
                 return MockResponse()
 
         with pytest.raises(ValueError, match="PDF attachment"):
-            await scrape_post("https://pawchive.pw/p/user/1/post/2", MockClient())  # type: ignore
+            await PawchiveScraper().scrape("https://pawchive.pw/p/user/1/post/2", MockClient())  # type: ignore
 
     async def test_no_images_message_mentions_private_login(self):
         html = """
@@ -357,7 +357,7 @@ class TestScrapePost:
                 return MockResponse()
 
         with pytest.raises(ValueError, match="require login"):
-            await scrape_post("https://pawchive.pw/p/user/1/post/2", MockClient())  # type: ignore
+            await PawchiveScraper().scrape("https://pawchive.pw/p/user/1/post/2", MockClient())  # type: ignore
 
     async def test_text_only_post_returns_text_content(self):
         html = """
@@ -387,7 +387,7 @@ class TestScrapePost:
             async def get(self, url, **kwargs):
                 return MockResponse()
 
-        meta = await scrape_post("https://pawchive.pw/p/user/1/post/2", MockClient())  # type: ignore
+        meta = await PawchiveScraper().scrape("https://pawchive.pw/p/user/1/post/2", MockClient())  # type: ignore
         assert meta.images == []
         assert meta.text_content
         assert "announcement" in meta.text_content
@@ -429,7 +429,7 @@ class TestScrapePost:
 
                 return HeadResp()
 
-        meta = await scrape_post("https://pawchive.pw/p/user/1/post/2", MockClient())  # type: ignore
+        meta = await PawchiveScraper().scrape("https://pawchive.pw/p/user/1/post/2", MockClient())  # type: ignore
         assert meta.series_title == "Series Title"
         assert meta.chapter_title == "Chapter 2"
         assert len(meta.images) == 1
@@ -452,7 +452,7 @@ class TestScrapePost:
         from curl_cffi.requests.exceptions import HTTPError as CurlHTTPError
 
         with pytest.raises(CurlHTTPError):
-            await scrape_post("https://pawchive.pw/p/user/1/post/2", MockClient())  # type: ignore
+            await PawchiveScraper().scrape("https://pawchive.pw/p/user/1/post/2", MockClient())  # type: ignore
 
 
 class TestTryFullResolution:
@@ -544,14 +544,6 @@ class TestTimeoutGet:
 class TestTimeoutGetCache:
     pytestmark = pytest.mark.asyncio
     url = "https://kagane.to/manga/foo"
-
-    @pytest.fixture(autouse=True)
-    def _isolated_cache(self, tmp_path):
-        from comic_dl import cache
-
-        cache.set_cache_dir(tmp_path / "http")
-        yield
-        cache.set_cache_dir(None)
 
     def _client(self, calls, *, etag=None, last_modified=None):
 

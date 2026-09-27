@@ -9,7 +9,7 @@ from bs4 import BeautifulSoup
 from curl_cffi.requests import AsyncSession
 from curl_cffi.requests.exceptions import HTTPError as CurlHTTPError
 
-from ...errors import ScrapeError
+from ...errors import SITE_AUTH_REQUIRED, SITE_NO_SERIES, ScrapeError
 from ...models import (
     ChapterInfo,
     ImageItem,
@@ -315,6 +315,7 @@ class AsurascansScraper(BaseScraper):
                 raise ScrapeError(
                     "page not found on Asura Scans.",
                     hint="the series may have been removed, or this chapter link is dead.",
+                    site_error_code=SITE_NO_SERIES,
                 ) from None
             raise
 
@@ -371,6 +372,7 @@ class AsurascansScraper(BaseScraper):
                 "This chapter is premium/locked on Asura Scans and requires a "
                 "paid account, which this tool does not support.",
                 hint=f"Pick an unlocked chapter or drop the URL: {url}",
+                site_error_code=SITE_AUTH_REQUIRED,
             )
 
         article = _article_node(soup)

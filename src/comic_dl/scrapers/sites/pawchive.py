@@ -7,7 +7,7 @@ import asyncio
 from bs4 import BeautifulSoup
 from curl_cffi.requests import AsyncSession
 
-from ...errors import ScrapeError
+from ...errors import SITE_AUTH_REQUIRED, SITE_UNSUPPORTED, ScrapeError
 from ...models import (
     ChapterInfo,
     ImageItem,
@@ -156,6 +156,7 @@ class PawchiveScraper(BaseScraper):
                     "This post contains a PDF attachment and no images. "
                     "PDF-only posts are not supported by comic-dl.",
                     hint="Download the PDF manually from the post page.",
+                    site_error_code=SITE_UNSUPPORTED,
                 )
             text_content = _extract_text_content(soup)
             if text_content:
@@ -176,6 +177,7 @@ class PawchiveScraper(BaseScraper):
                 )
             raise ScrapeError(
                 "No images found on this post — it may be private or require login.",
+                site_error_code=SITE_AUTH_REQUIRED,
             )
 
         if not service:
@@ -225,9 +227,3 @@ class PawchiveScraper(BaseScraper):
             images=images,
             cover_url=cover_url,
         )
-
-
-async def scrape_post(url: str, client: AsyncSession) -> PostMetadata:
-    """Scrape a pawchive post through a fresh scraper instance (test helper)."""
-    scraper = PawchiveScraper()
-    return await scraper.scrape(url, client)

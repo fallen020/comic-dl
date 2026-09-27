@@ -10,7 +10,7 @@ from urllib.parse import parse_qs, parse_qsl, urlencode, urljoin, urlparse, urls
 from bs4 import BeautifulSoup, Tag
 from curl_cffi.requests import AsyncSession
 
-from ...errors import ScrapeError
+from ...errors import SITE_AUTH_REQUIRED, SITE_NOT_RECOGNIZED, ScrapeError
 from ...models import (
     ChapterInfo,
     ImageItem,
@@ -304,6 +304,7 @@ class WebtoonScraper(BaseScraper):
                 f"Invalid WEBTOON URL: {url}",
                 hint="Expected a series or episode URL on www.webtoons.com "
                 "with a title_no= parameter.",
+                site_error_code=SITE_NOT_RECOGNIZED,
             )
 
         soup = await self.fetch_html(url, client)
@@ -366,6 +367,7 @@ class WebtoonScraper(BaseScraper):
                 f"Invalid WEBTOON URL: {url}",
                 hint="Expected a series or episode URL on www.webtoons.com "
                 "with a title_no= parameter.",
+                site_error_code=SITE_NOT_RECOGNIZED,
             )
 
         soup = await self.fetch_html(url, client)
@@ -435,6 +437,7 @@ class WebtoonScraper(BaseScraper):
             raise ScrapeError(
                 "No chapters found on WEBTOON series page.",
                 hint="The series may require authentication.",
+                site_error_code=SITE_AUTH_REQUIRED,
             )
 
         return SeriesMetadata(
@@ -651,21 +654,3 @@ class WebtoonScraper(BaseScraper):
             container.select('li._episodeItem a[href*="episode_no"]'),
             url,
         )
-
-
-async def scrape_chapter(url: str, client: AsyncSession) -> PostMetadata:
-    """Scrape a single WEBTOON episode (test helper)."""
-    return await WebtoonScraper().scrape(url, client)
-
-
-async def scrape_series(url: str, client: AsyncSession) -> SeriesMetadata:
-    """Scrape a whole WEBTOON series (test helper)."""
-    return await WebtoonScraper().scrape_series(url, client)
-
-
-_extract_chapter_title = WebtoonScraper._chapter_title
-_extract_chapters_from_json = WebtoonScraper._chapters_from_json
-_extract_images_from_json = WebtoonScraper._images_from_json
-_extract_series_title = WebtoonScraper._series_title
-_find_image_list = WebtoonScraper._find_image_list
-_find_json_script = WebtoonScraper._find_json_script

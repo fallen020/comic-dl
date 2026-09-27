@@ -12,7 +12,7 @@ from bs4 import BeautifulSoup
 from curl_cffi.requests import AsyncSession
 
 from ..cf import retry_challenge_once
-from ..errors import ScrapeError, ScrapeTimeout
+from ..errors import SITE_NO_CHAPTERS, SITE_NOT_RECOGNIZED, ScrapeError, ScrapeTimeout
 from ..http import absorb_response_cookies, jar_cookies_kwargs
 from ..rate import await_ratelimit
 from ..ui import DIAGNOSTIC, http_event
@@ -30,17 +30,18 @@ SCRAPE_TIMEOUT = 30.0
 _REDIRECT_STATUSES = frozenset({301, 302, 303, 307, 308})
 
 
-def no_images_error(hint: str = "") -> ScrapeError:
+def no_images_error(hint: str = "", code: str | None = None) -> ScrapeError:
     """The standard "page loaded but yielded no images" failure."""
     default = "The page may require login, be region-locked, or have been removed."
-    return ScrapeError("No images found on this page.", hint=hint or default)
+    return ScrapeError("No images found on this page.", hint=hint or default, site_error_code=code)
 
 
-def no_chapters_error() -> ScrapeError:
+def no_chapters_error(code: str | None = None) -> ScrapeError:
     """The standard "series page yielded no chapters" failure."""
     return ScrapeError(
         "No chapters found on series page.",
         hint="The series may be empty, or its page layout changed.",
+        site_error_code=code or SITE_NO_CHAPTERS,
     )
 
 
@@ -49,6 +50,7 @@ def listing_page_error(site_name: str, example_url: str) -> ScrapeError:
     return ScrapeError(
         "This is a category/tag listing page, not a comic.",
         hint=f"{site_name} requires a comic page URL like {example_url}",
+        site_error_code=SITE_NOT_RECOGNIZED,
     )
 
 

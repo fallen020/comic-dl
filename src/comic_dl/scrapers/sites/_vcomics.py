@@ -19,7 +19,7 @@ from urllib.parse import urljoin, urlparse
 from bs4 import BeautifulSoup
 from curl_cffi.requests import AsyncSession
 
-from ...errors import ScrapeError
+from ...errors import SITE_AUTH_REQUIRED, ScrapeError
 from ...models import (
     ChapterInfo,
     ImageItem,
@@ -281,6 +281,7 @@ class VComicsScraper(BaseScraper):
                     "This chapter is locked" + (f" ({price} coins)" if price else "") + ".",
                     hint="Log in (or unlock it) in a browser, then run again — "
                     "locked chapters need an unlocked session.",
+                    site_error_code=SITE_AUTH_REQUIRED,
                 )
             raise no_images_error()
 

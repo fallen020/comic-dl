@@ -12,7 +12,13 @@ from curl_cffi.requests import AsyncSession
 from ... import webview
 from ...antibot import looks_like_challenge
 from ...cf import note_replay_dead, replay_dead
-from ...errors import ScrapeError
+from ...errors import (
+    SITE_BLOCKED,
+    SITE_LAYOUT_CHANGED,
+    SITE_NOT_RECOGNIZED,
+    SITE_REQUEST_FAILED,
+    ScrapeError,
+)
 from ...http import jar_cookies_for
 from ...models import (
     ChapterInfo,
@@ -345,6 +351,7 @@ class KaganeScraper(BaseScraper):
                     "display and --solver auto (or webview) to pass the "
                     "challenge in the browser window."
                 ),
+                site_error_code=SITE_BLOCKED,
             )
         return resp
 
@@ -363,6 +370,7 @@ class KaganeScraper(BaseScraper):
             raise ScrapeError(
                 "Unexpected series response from kagane.to.",
                 hint="The API shape may have changed; try updating comic-dl.",
+                site_error_code=SITE_LAYOUT_CHANGED,
             )
         return data
 
@@ -385,6 +393,7 @@ class KaganeScraper(BaseScraper):
             raise ScrapeError(
                 "Unexpected integrity response from kagane.to.",
                 hint="The DRM handshake may have changed; try updating comic-dl.",
+                site_error_code=SITE_LAYOUT_CHANGED,
             )
 
         books = await self._api_fetch(
@@ -400,6 +409,7 @@ class KaganeScraper(BaseScraper):
             raise ScrapeError(
                 "Unexpected book response from kagane.to.",
                 hint="The API shape may have changed; try updating comic-dl.",
+                site_error_code=SITE_LAYOUT_CHANGED,
             )
         return data
 
@@ -413,6 +423,7 @@ class KaganeScraper(BaseScraper):
             raise ScrapeError(
                 "Unsupported kagane.to URL.",
                 hint="Expected a reader URL like https://kagane.to/series/{series}/reader/{book}",
+                site_error_code=SITE_NOT_RECOGNIZED,
             )
         reader_url = f"{BASE}/series/{series_id}/reader/{book_id}"
 
@@ -429,6 +440,7 @@ class KaganeScraper(BaseScraper):
                         "challenge, or set a stored `cf_clearance` via "
                         "`comic-dl cookie set`. URL: " + url
                     ),
+                    site_error_code=SITE_BLOCKED,
                 ) from exc
             raise ScrapeError(
                 f"Could not reach the kagane.to API ({type(exc).__name__}).",
@@ -438,6 +450,7 @@ class KaganeScraper(BaseScraper):
                     "run once, or set a stored `cf_clearance` via "
                     "`comic-dl cookie set`. URL: " + url
                 ),
+                site_error_code=SITE_REQUEST_FAILED,
             ) from exc
 
         image_urls = build_image_urls(data, book_id)
@@ -491,6 +504,7 @@ class KaganeScraper(BaseScraper):
             raise ScrapeError(
                 "Unsupported kagane.to URL.",
                 hint="Expected a series URL like https://kagane.to/series/{series}",
+                site_error_code=SITE_NOT_RECOGNIZED,
             )
         data = await self._series_json(series_id, client)
         chapters = _chapters(data, series_id)

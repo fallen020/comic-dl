@@ -26,10 +26,9 @@ from comic_dl.downloader import (
 )
 from comic_dl.models import ImageItem, PostMetadata
 from comic_dl.scrapers.sites.webtoon import (
+    WebtoonScraper,
     _normalize_episode_title,
     _strip_trailing_noise,
-    scrape_chapter,
-    scrape_series,
 )
 from comic_dl.ui import ETA, make_download_progress, make_spinner
 from comic_dl.utils import (
@@ -374,7 +373,7 @@ class TestScrapeWebtoonChapter:
 
     async def test_invalid_url(self):
         with pytest.raises(ValueError, match="Invalid WEBTOON"):
-            await scrape_chapter("https://example.com", None)
+            await WebtoonScraper().scrape("https://example.com", None)
 
     async def test_no_images_raises(self):
         html = "<html><head></head><body></body></html>"
@@ -391,7 +390,7 @@ class TestScrapeWebtoonChapter:
                 return Resp()
 
         with pytest.raises(ValueError, match="No images found"):
-            await scrape_chapter(
+            await WebtoonScraper().scrape(
                 "https://www.webtoons.com/en/action/s/ep-1/viewer?title_no=1&episode_no=1",
                 MockClient(),
             )
@@ -402,7 +401,7 @@ class TestScrapeWebtoonSeries:
 
     async def test_invalid_url(self):
         with pytest.raises(ValueError, match="Invalid WEBTOON"):
-            await scrape_series("https://example.com", None)
+            await WebtoonScraper().scrape_series("https://example.com", None)
 
     async def test_no_chapters_raises(self):
         html = "<html><head></head><body></body></html>"
@@ -419,7 +418,7 @@ class TestScrapeWebtoonSeries:
                 return Resp()
 
         with pytest.raises(ValueError, match="No chapters found"):
-            await scrape_series(
+            await WebtoonScraper().scrape_series(
                 "https://www.webtoons.com/en/action/s/list?title_no=1",
                 MockClient(),
             )

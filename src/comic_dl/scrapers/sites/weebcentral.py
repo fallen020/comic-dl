@@ -8,7 +8,7 @@ from urllib.parse import urlsplit
 from bs4 import BeautifulSoup
 from curl_cffi.requests import AsyncSession
 
-from ...errors import ScrapeError
+from ...errors import SITE_AUTH_REQUIRED, SITE_LAYOUT_CHANGED, SITE_NO_CHAPTERS, ScrapeError
 from ...models import (
     ChapterInfo,
     ImageItem,
@@ -167,6 +167,7 @@ class WeebCentralScraper(BaseScraper):
             raise ScrapeError(
                 "Could not find the chapter title on this WeebCentral page.",
                 hint="The page layout may have changed.",
+                site_error_code=SITE_LAYOUT_CHANGED,
             )
 
         images_url = url.rstrip("/") + "/images?reading_style=long_strip"
@@ -174,6 +175,7 @@ class WeebCentralScraper(BaseScraper):
         if not images:
             raise ScrapeError(
                 "No images found for this WeebCentral chapter — it may be locked or require login.",
+                site_error_code=SITE_AUTH_REQUIRED,
             )
 
         chapter_title, chapter_number = _split_chapter_label(chapter_label)
@@ -211,6 +213,7 @@ class WeebCentralScraper(BaseScraper):
             raise ScrapeError(
                 "Could not find series metadata on this WeebCentral page.",
                 hint="The page layout may have changed.",
+                site_error_code=SITE_LAYOUT_CHANGED,
             )
 
         match = _SERIES_PATH_RE.match(urlsplit(url).path or "")
@@ -221,6 +224,7 @@ class WeebCentralScraper(BaseScraper):
             raise ScrapeError(
                 "No chapters found for this WeebCentral series.",
                 hint="The series may have no published chapters yet.",
+                site_error_code=SITE_NO_CHAPTERS,
             )
 
         chapters = []
@@ -233,9 +237,3 @@ class WeebCentralScraper(BaseScraper):
             description=description,
             cover_url=cover_url,
         )
-
-
-async def scrape_chapter(url: str, client: AsyncSession) -> PostMetadata:
-    """Scrape a WeebCentral chapter through a fresh scraper (test helper)."""
-    scraper = WeebCentralScraper()
-    return await scraper.scrape(url, client)

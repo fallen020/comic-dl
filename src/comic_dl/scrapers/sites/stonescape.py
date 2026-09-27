@@ -15,7 +15,13 @@ from urllib.parse import urljoin, urlparse
 from curl_cffi.requests import AsyncSession
 from curl_cffi.requests.exceptions import HTTPError as CurlHTTPError
 
-from ...errors import ScrapeError
+from ...errors import (
+    SITE_AUTH_REQUIRED,
+    SITE_LAYOUT_CHANGED,
+    SITE_NO_PAGES,
+    SITE_NO_SERIES,
+    ScrapeError,
+)
 from ...models import (
     ChapterInfo,
     ImageItem,
@@ -172,12 +178,14 @@ class StoneScapeScraper(BaseScraper):
                 raise ScrapeError(
                     "Not found on StoneScape.",
                     hint="the series or chapter may have been removed, or this link is dead.",
+                    site_error_code=SITE_NO_SERIES,
                 ) from None
             if status == 403:
                 raise ScrapeError(
                     "Chapter is locked on StoneScape.",
                     hint="locked chapters need coins or a subscription, which "
                     "this tool does not pay.",
+                    site_error_code=SITE_AUTH_REQUIRED,
                 ) from None
             raise
         data = response.json()
@@ -185,6 +193,7 @@ class StoneScapeScraper(BaseScraper):
             raise ScrapeError(
                 "Unexpected response from StoneScape.",
                 hint="the site's API shape may have changed.",
+                site_error_code=SITE_LAYOUT_CHANGED,
             )
         return data
 
@@ -209,11 +218,13 @@ class StoneScapeScraper(BaseScraper):
             raise ScrapeError(
                 f"Chapter {number} not found on StoneScape.",
                 hint="the chapter may be unreleased or removed.",
+                site_error_code=SITE_NO_PAGES,
             )
         if chapter.get("locked"):
             raise ScrapeError(
                 "Chapter is locked on StoneScape.",
                 hint="locked chapters need coins or a subscription, which this tool does not pay.",
+                site_error_code=SITE_AUTH_REQUIRED,
             )
 
         detail = await self._fetch_json(f"{BASE}/api/series/by-slug/{slug}", client)

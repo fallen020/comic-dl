@@ -22,7 +22,7 @@ from urllib.parse import urljoin, urlparse
 from bs4 import BeautifulSoup
 from curl_cffi.requests import AsyncSession
 
-from ...errors import ScrapeError
+from ...errors import SITE_UNSUPPORTED, ScrapeError
 from ...models import (
     ChapterInfo,
     ImageItem,
@@ -290,6 +290,7 @@ class ValiScansScraper(BaseScraper):
             raise ScrapeError(
                 "Novel chapters have no images to download.",
                 hint="Only comic series are supported on this site.",
+                site_error_code=SITE_UNSUPPORTED,
             )
         if not self._is_chapter(url):
             raise listing_page_error(self.domain, url)
@@ -332,6 +333,7 @@ class ValiScansScraper(BaseScraper):
             raise ScrapeError(
                 "Novel series have no images to download.",
                 hint="Only comic series are supported on this site.",
+                site_error_code=SITE_UNSUPPORTED,
             )
         if not self._is_series(url):
             raise listing_page_error(self.domain, url)

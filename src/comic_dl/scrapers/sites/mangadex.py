@@ -8,7 +8,7 @@ from urllib.parse import urlparse
 
 from curl_cffi.requests import AsyncSession
 
-from ...errors import ScrapeError
+from ...errors import SITE_NO_SERIES, SITE_NOT_RECOGNIZED, SITE_REQUEST_FAILED, ScrapeError
 from ...models import (
     ChapterInfo,
     ImageItem,
@@ -229,11 +229,13 @@ class MangadexScraper(BaseScraper):
             raise ScrapeError(
                 "Unexpected response from the MangaDex API.",
                 hint="The API may be down or rate-limiting this client.",
+                site_error_code=SITE_REQUEST_FAILED,
             ) from exc
         if not isinstance(data, dict) or data.get("result") != "ok":
             raise ScrapeError(
                 "The MangaDex API reported an error for this URL.",
                 hint="Check that the chapter/series still exists on mangadex.org.",
+                site_error_code=SITE_REQUEST_FAILED,
             )
         return data
 
@@ -252,6 +254,7 @@ class MangadexScraper(BaseScraper):
             raise ScrapeError(
                 "Unsupported mangadex.org URL.",
                 hint="Expected a chapter URL like https://mangadex.org/chapter/{chapter-uuid}",
+                site_error_code=SITE_NOT_RECOGNIZED,
             )
 
         chapter = await self._api_get_json(f"{_API}/chapter/{chapter_id}", client)
@@ -263,6 +266,7 @@ class MangadexScraper(BaseScraper):
             raise ScrapeError(
                 "This MangaDex chapter is not attached to a series.",
                 hint="The chapter may be an external/one-off upload.",
+                site_error_code=SITE_NO_SERIES,
             )
         manga_id = manga_ids[0]
 
@@ -271,6 +275,7 @@ class MangadexScraper(BaseScraper):
             raise ScrapeError(
                 "Could not resolve the series for this MangaDex chapter.",
                 hint="The series may have been deleted from MangaDex.",
+                site_error_code=SITE_NO_SERIES,
             )
 
         server = await self._api_get_json(
@@ -332,6 +337,7 @@ class MangadexScraper(BaseScraper):
             raise ScrapeError(
                 "Unsupported mangadex.org URL.",
                 hint="Expected a series URL like https://mangadex.org/title/{series-uuid}",
+                site_error_code=SITE_NOT_RECOGNIZED,
             )
 
         meta = _manga_fields(await self._manga_json(manga_id, client), manga_id)
@@ -339,6 +345,7 @@ class MangadexScraper(BaseScraper):
             raise ScrapeError(
                 "Could not resolve the series on MangaDex.",
                 hint="The series may have been deleted or made private.",
+                site_error_code=SITE_NO_SERIES,
             )
 
         chapters: list[dict[str, Any]] = []

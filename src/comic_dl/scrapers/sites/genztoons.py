@@ -16,7 +16,7 @@ from urllib.parse import urljoin
 from bs4 import BeautifulSoup, Tag
 from curl_cffi.requests import AsyncSession
 
-from ...errors import ScrapeError
+from ...errors import SITE_AUTH_REQUIRED, ScrapeError
 from ...models import (
     ChapterInfo,
     ImageItem,
@@ -293,6 +293,7 @@ class GenzToonsScraper(BaseScraper):
                     "This is an early access chapter.",
                     hint="Sign in and purchase it in a browser, then run again — "
                     "locked chapters need an unlocked session.",
+                    site_error_code=SITE_AUTH_REQUIRED,
                 )
             raise no_images_error()
 

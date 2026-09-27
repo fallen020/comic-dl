@@ -24,7 +24,7 @@ from curl_cffi.requests import AsyncSession
 from ... import webview
 from ...antibot import looks_like_challenge
 from ...cf import note_replay_dead, replay_dead
-from ...errors import ScrapeError
+from ...errors import SITE_BLOCKED, ScrapeError
 from ...http import jar_cookies_for
 from ...models import (
     ChapterInfo,
@@ -192,6 +192,7 @@ class HDPornComicsScraper(BaseScraper):
                     "display and --solver auto (or webview) to pass the "
                     "challenge in the browser window."
                 ),
+                site_error_code=SITE_BLOCKED,
             )
         return BeautifulSoup(resp.text, "lxml")
 

@@ -23,7 +23,7 @@ from urllib.parse import quote, urlparse
 
 from curl_cffi.requests import AsyncSession
 
-from ...errors import ScrapeError
+from ...errors import SITE_NO_PAGES, ScrapeError
 from ...models import (
     ChapterInfo,
     ImageItem,
@@ -160,6 +160,7 @@ class KodokuEasyAccessScraper(BaseScraper):
             raise ScrapeError(
                 f"Chapter {number} ({language}) is not available yet.",
                 hint=hint,
+                site_error_code=SITE_NO_PAGES,
             )
 
         pages = payload.get("images")

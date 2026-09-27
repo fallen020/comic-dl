@@ -16,7 +16,6 @@ from comic_dl.scrapers.sites.weebcentral import (
     _split_chapter_label,
     is_chapter_url,
     is_series_url,
-    scrape_chapter,
 )
 from tests.helpers import MockResponse as _MockResponse
 from tests.helpers import MockSession as _MockSession
@@ -182,7 +181,7 @@ class TestWeebCentralScraper:
                 return _MockResponse(IMAGES_FRAGMENT)
             raise AssertionError(f"unexpected URL: {url}")
 
-        meta = await scrape_chapter(CHAPTER_URL, _MockSession(handler))
+        meta = await WeebCentralScraper().scrape(CHAPTER_URL, _MockSession(handler))
         assert meta.series_title == "Aria"
         assert meta.chapter_title == "Navigation 67.5"
         assert meta.chapter_number == "67.5"
@@ -199,7 +198,7 @@ class TestWeebCentralScraper:
             return _MockResponse("<section id='chapter-images'></section>")
 
         with pytest.raises(ScrapeError, match="No images found"):
-            await scrape_chapter(CHAPTER_URL, _MockSession(handler))
+            await WeebCentralScraper().scrape(CHAPTER_URL, _MockSession(handler))
 
     @pytest.mark.asyncio
     async def test_scrape_series_ascending(self):

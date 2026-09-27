@@ -47,8 +47,6 @@ _SERIES_ID_FALLBACK_RE = re.compile(r"seriesId\s*[:=]\s*\"?(\d+)")
 
 _READER_IMG_SEL = "article.viewer__body img.content__img"
 
-_EPISODES_PAGE_SIZE = 20
-
 
 def is_series_url(url: str) -> bool:
     """True when ``url`` points at a Tapas series page."""

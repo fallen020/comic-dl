@@ -98,6 +98,17 @@ class ScrapeError(ComicError, ValueError):
 
     site_error_code: str | None = None
 
+    def __init__(
+        self,
+        message: str | None = None,
+        *,
+        hint: str = "",
+        site_error_code: str | None = None,
+    ) -> None:
+        super().__init__(message, hint=hint)
+        # Class default reads None until a raise names the stable classification.
+        self.site_error_code = site_error_code or self.site_error_code
+
 
 # Stable site-support error codes (element of ``ScrapeError.site_error_code``).
 SITE_NOT_RECOGNIZED = "SITE_NOT_RECOGNIZED"
