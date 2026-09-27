@@ -378,8 +378,9 @@ class _SessionStream:
 
     async def _await_headers(self) -> None:
         await self._ready.wait()
-        if self._header_error is not None:
-            raise self._header_error
+        err = self._header_error
+        if err is not None:
+            raise err
 
     def raise_for_status(self) -> None:
         if self.status_code >= 400:

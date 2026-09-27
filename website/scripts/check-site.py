@@ -23,7 +23,7 @@ REQUIRED_FILES = [
     "index.html",
 ]
 
-HREF_RE = re.compile(r'href="(/comic-dl/[^"#"]+)(#[^"]*)?"')
+HREF_RE = re.compile(r'href="(/comic-dl/[^"#]+)(#[^"]*)?"')
 REQUIRED_HEAD_RES = [
     re.compile(r'<link rel="canonical"'),
     re.compile(r'<meta property="og:url"'),
