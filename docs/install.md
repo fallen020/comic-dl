@@ -36,11 +36,11 @@ echo $env:PROCESSOR_ARCHITECTURE   # Windows PowerShell, prints AMD64 or ARM64
 
 | Your machine | What to get |
 | :----------- | :---------- |
-| Windows x86-64 | `comic-dl-<ver>-windows-amd64.zip` (or the bare `.exe`) |
-| Debian / Ubuntu x86-64 | `comic-dl_<ver>_amd64.deb` |
-| Debian / Ubuntu ARM64 | `comic-dl_<ver>_arm64.deb` |
-| Fedora x86-64 / ARM64 | `comic-dl-<ver>-1.fcNN.x86_64.rpm` / `...aarch64.rpm` |
-| Arch Linux x86-64 | `comic-dl-<ver>-1-x86_64.pkg.tar.zst` |
+| Windows x86-64 | `comic-dl-0.0.4-windows-amd64.zip` (or the bare `.exe`) |
+| Debian / Ubuntu x86-64 | `comic-dl_0.0.4_amd64.deb` |
+| Debian / Ubuntu ARM64 | `comic-dl_0.0.4_arm64.deb` |
+| Fedora x86-64 / ARM64 | `comic-dl-0.0.4-1.fc44.x86_64.rpm` / `...aarch64.rpm` |
+| Arch Linux x86-64 | `comic-dl-0.0.4-1-x86_64.pkg.tar.zst` |
 | macOS, Android, anything else | Build from source |
 
 Release artifacts are tested in CI before publication. If one fails to
@@ -49,9 +49,9 @@ system.
 
 ## Windows
 
-Download the `comic-dl-<ver>-windows-amd64.zip` from the release page,
+Download the `comic-dl-0.0.4-windows-amd64.zip` from the release page,
 unzip it, and run `comic-dl.exe` from a terminal. A bare
-`comic-dl-<ver>-windows-amd64.exe` is also attached for direct use:
+`comic-dl-0.0.4-windows-amd64.exe` is also attached for direct use:
 
 ```powershell
 .\comic-dl.exe self version
@@ -71,15 +71,15 @@ runtime from Microsoft separately.
 ## Linux
 
 Pick the file matching your distro and architecture from the
-[Releases page](https://github.com/fallen020/comic-dl/releases), replacing
-`<ver>` below with the release version. Filenames use the bare version
-(`0.0.1`); the download path uses the tag (`v0.0.1`).
+[Releases page](https://github.com/fallen020/comic-dl/releases); the
+commands below use `0.0.4` (the current release). Filenames use the bare
+version (`0.0.4`); the download path uses the tag (`v0.0.4`).
 
 ### Debian / Ubuntu
 
 ```bash
-curl -LO https://github.com/fallen020/comic-dl/releases/download/v<ver>/comic-dl_<ver>_amd64.deb
-sudo apt install ./comic-dl_<ver>_amd64.deb
+curl -LO https://github.com/fallen020/comic-dl/releases/download/v0.0.4/comic-dl_0.0.4_amd64.deb
+sudo apt install ./comic-dl_0.0.4_amd64.deb
 ```
 
 On ARM64, use the `_arm64.deb` file instead.
@@ -87,20 +87,20 @@ On ARM64, use the `_arm64.deb` file instead.
 ### Fedora
 
 ```bash
-curl -LO https://github.com/fallen020/comic-dl/releases/download/v<ver>/comic-dl-<ver>-1.fcNN.x86_64.rpm
-sudo dnf install ./comic-dl-<ver>-1.fcNN.x86_64.rpm
+curl -LO https://github.com/fallen020/comic-dl/releases/download/v0.0.4/comic-dl-0.0.4-1.fc44.x86_64.rpm
+sudo dnf install ./comic-dl-0.0.4-1.fc44.x86_64.rpm
 ```
 
 Use the exact filename from the release page, including the Fedora build
-marker (`-1.fcNN.`), and substitute `.aarch64` for `.x86_64` on ARM64.
+marker (`-1.fc44.`), and substitute `.aarch64` for `.x86_64` on ARM64.
 RHEL compatibility is not guaranteed — if dependency resolution fails,
 build from source.
 
 ### Arch Linux
 
 ```bash
-curl -LO https://github.com/fallen020/comic-dl/releases/download/v<ver>/comic-dl-<ver>-1-x86_64.pkg.tar.zst
-sudo pacman -U comic-dl-<ver>-1-x86_64.pkg.tar.zst
+curl -LO https://github.com/fallen020/comic-dl/releases/download/v0.0.4/comic-dl-0.0.4-1-x86_64.pkg.tar.zst
+sudo pacman -U comic-dl-0.0.4-1-x86_64.pkg.tar.zst
 ```
 
 No ARM64 Arch package is provided; on ARM64, build from source.
@@ -195,3 +195,16 @@ files stay in place.
 comic-dl self version           # binary install
 uv run comic-dl self version    # source checkout
 ```
+
+### Checksums
+
+Every release attaches a `SHA256SUMS` file. After downloading the package,
+fetch it from the same release and check the download against it:
+
+```bash
+curl -LO https://github.com/fallen020/comic-dl/releases/download/v0.0.4/SHA256SUMS
+sha256sum -c SHA256SUMS --ignore-missing
+```
+
+`OK` means the file matches the published checksum; `--ignore-missing`
+skips the release files you did not download.

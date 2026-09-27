@@ -71,6 +71,9 @@ Download a prebuilt package from [GitHub Releases][release]:
 comic-dl --version
 ```
 
+Verify the download against the release `SHA256SUMS`; see
+[docs/install.md](docs/install.md#verify).
+
 To run from source, install Python 3.11+ and [uv](https://docs.astral.sh/uv/):
 
 ```bash
