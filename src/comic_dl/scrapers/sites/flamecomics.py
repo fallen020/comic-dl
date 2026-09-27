@@ -44,8 +44,6 @@ CHAPTER_PATTERN = re.compile(r"^https?://(?:www\.)?flamecomics\.xyz/series/(\d+)
 _NEXT_DATA_SEL = 'script#__NEXT_DATA__[type="application/json"]'
 _ASSETS_PREFIX = "/assets/read/"
 
-_VALID_EXTS = frozenset({"jpg", "jpeg", "png", "webp", "gif", "bmp"})
-
 
 def is_series_url(url: str) -> bool:
     """True when ``url`` points at a series page for this source."""
