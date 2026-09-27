@@ -468,11 +468,9 @@ async def download_cover_to(
         dest_path.parent.mkdir(parents=True, exist_ok=True)
         dest_path.write_bytes(data)
         if last_modified:
-            try:
+            with contextlib.suppress(TypeError, ValueError, OSError):
                 ts = email.utils.parsedate_to_datetime(last_modified)
                 os.utime(dest_path, (ts.timestamp(), ts.timestamp()))
-            except (TypeError, ValueError, OSError):
-                pass
         return True
     except Exception as exc:
         vlog(DIAGNOSTIC, f"cover download failed: {exc}", tag=TAG_DOWNLOAD)
@@ -1960,15 +1958,13 @@ class DownloadPipeline:
 
             cbz_size = 0
             suffix = ""
-            try:
+            with contextlib.suppress(OSError):
                 cbz_size = self._cbz_path.stat().st_size
                 suffix = (
                     f" ({cbz_size / 1024 / 1024:.1f} MB)"
                     if cbz_size > 1024 * 1024
                     else f" ({cbz_size / 1024:.0f} KB)"
                 )
-            except OSError:
-                pass
 
             label = series_prefix or ""
             if self._announce_saved and not failed:

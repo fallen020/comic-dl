@@ -842,8 +842,10 @@ def _write_trash_sidecar(
             json.dumps(payload, indent=2),
             encoding="utf-8",
         )
-    except OSError:
-        pass
+    except OSError as exc:
+        print_warning(
+            f"Trash metadata for '{entry_name}' was not saved ({exc}); restore may be incomplete."
+        )
 
 
 def _trash_entries(output_dir: Path) -> list[dict]:

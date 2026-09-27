@@ -2729,11 +2729,10 @@ def _handle_interrupt(signum: int, frame: object) -> None:
     request_stop()
 
     # Wake the event loop so the worker notices without busy-polling.
-    try:
+    # No running loop (signal on a non-loop thread) means nothing to wake.
+    with contextlib.suppress(RuntimeError):
         loop = asyncio.get_running_loop()
         loop.call_soon_threadsafe(lambda: None)
-    except RuntimeError:
-        pass
 
 
 _SECRET_PATTERNS = re.compile(
@@ -5081,7 +5080,8 @@ async def main() -> int:
             await _close_webview_session()
             await close_shared_cover_session()
     except KeyboardInterrupt:
-        try:
+        # Teardown output must never raise out of the interrupt path.
+        with contextlib.suppress(BaseException):
             teardown_active()
             err_console.print()
             resume_cmd = _RESUME_CMD or ""
@@ -5089,8 +5089,6 @@ async def main() -> int:
                 partial=bool(active_partial_files()),
                 resume_cmd=resume_cmd,
             )
-        except BaseException:
-            pass
         return EXIT_INTERRUPTED
     except ComicError as exc:
         return report_error(exc)
