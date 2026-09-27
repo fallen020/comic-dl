@@ -43,7 +43,7 @@ src/comic_dl/
   cli/selection.py       interactive chapter-selection prompt
   cli/sizing.py          size caps, download-size estimates, disk checks
   config.py              config file + platform directory resolution
-  platform.py            thin OS seam (system(), machine(), downloads_dir())
+  platform.py            thin OS seam (system(), downloads_dir(), default_editor())
   utils.py               URL normalization, sanitization, SSRF guard,
                          image magic-byte verification
   models.py              data contracts (ImageItem, PostMetadata, ChapterInfo,
@@ -127,11 +127,10 @@ force-exits — never async teardown.
 
 Per-OS behavior lives mostly in `platformdirs` (via `config.py`) and stdlib.
 `platform.py` centralizes the handful of conventions used at multiple call
-sites: `system()`/`is_windows()`/`is_macos()`/`is_linux()`;
-`machine()`/`machine_alias()` normalizing `x86_64`/`aarch64` and
-`amd64`/`arm64`; `downloads_dir()` (reads the Windows Shell Folder value so
-OneDrive-redirected homes work); `default_editor()`; `binary_name()`. Keep it
-small — cross-platform stdlib behavior stays where it is.
+sites: `system()` (the canonical platform name), `downloads_dir()` (reads the
+Windows Shell Folder value so OneDrive-redirected homes work), and
+`default_editor()`. Keep it small — cross-platform stdlib behavior stays
+where it is.
 
 ## Versioning and packaging
 

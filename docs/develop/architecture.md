@@ -44,7 +44,7 @@ src/comic_dl/
   cli/selection.py       interactive chapter-selection prompt
   cli/sizing.py          size caps, download-size estimates, disk checks
   config.py              config file + platform directory resolution
-  platform.py            thin OS seam (system(), machine(), downloads_dir())
+  platform.py            thin OS seam (system(), downloads_dir(), default_editor())
   utils.py               URL normalization, sanitization, SSRF guard,
                          image magic-byte verification
   models.py              data contracts (ImageItem, PostMetadata, ChapterInfo,
@@ -142,13 +142,10 @@ Per-OS behavior lives mostly in `platformdirs` (via `config.py`) and stdlib.
 `platform.py` centralizes the handful of conventions that used to be spelled
 out at each call site, so packaging and CI smoke checks share one spelling:
 
-- `system()` / `is_windows()` / `is_macos()` / `is_linux()` — canonical names.
-- `machine()` / `machine_alias()` — normalize `x86_64`/`aarch64` and the
-  vendor spellings `amd64`/`arm64`. Artifact names and docs key off these.
+- `system()` — the canonical platform name (`linux`/`darwin`/`windows`).
 - `downloads_dir()` — the real Downloads folder (reads the Windows Shell
   Folders value so OneDrive-redirected homes work).
 - `default_editor()` — `notepad` on Windows, `vi` elsewhere.
-- `binary_name()` — adds `.exe` on Windows.
 
 Keep this module small. Behavior that already works cross-platform (signals,
 `tempfile.mkdtemp`, `platformdirs`) stays where it is.

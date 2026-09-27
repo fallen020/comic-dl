@@ -67,15 +67,20 @@ credential in history, stop and ask a maintainer.
 
 ## 4. Run the gates
 
-The gates are the contract — CI runs exactly these scripts, so a green local
-run means a green PR (modulo the OS/Python matrix).
+The gates are the contract — CI runs the same checks (modulo the OS/Python
+matrix). The build column is the one exception: CI runs `uv build` directly,
+and `./scripts/build.sh` is the local equivalent (plus distro packaging in
+`packaging/`).
 
 | Gate | Command | What it checks |
 | :--- | :------ | :------------- |
 | Tests | `./scripts/test.sh` | Offline test suite, parallel |
 | Lint | `./scripts/lint.sh` | ruff, mypy, bandit, ShellCheck |
 | Docs | `./scripts/docs.sh` | Doc-table drift, mirror links, Markdown lint |
-| Build | `./scripts/build.sh` | sdist + wheel build cleanly |
+| Build | `./scripts/build.sh` | sdist + wheel build cleanly (CI: `uv build`) |
+
+A dev-only convenience not run by CI: `./scripts/clean.sh` removes local
+build artifacts.
 
 ```bash
 ./scripts/test.sh
