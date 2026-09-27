@@ -1,419 +1,438 @@
-  name: Release
+name: Release
 
-  # Optional publish jobs at the bottom (AUR/COPR/winget) require these secrets:
-  #   AUR_SSH_PRIVATE_KEY, COPR_LOGIN, COPR_USERNAME, COPR_TOKEN, WINGET_TOKEN
-  # The macOS extension point (if ever enabled) requires APPLE cert + notarization
-  # secrets. They are intentionally commented out - enable them once the secrets
-  # exist and signing/notarization are implemented.
+# Optional publish jobs at the bottom (AUR/COPR/winget) require these secrets:
+#   AUR_SSH_PRIVATE_KEY, COPR_LOGIN, COPR_USERNAME, COPR_TOKEN, WINGET_TOKEN
+# The macOS extension point (if ever enabled) requires APPLE cert + notarization
+# secrets. They are intentionally commented out - enable them once the secrets
+# exist and signing/notarization are implemented.
 
-  on:
-    push:
-      tags:
-        - "v*"
-    workflow_dispatch:
-      inputs:
-        version:
-          description: "Version to build (no leading v). Default: tag name, or 'dev'."
-          required: false
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to build (no leading v). Default: tag name, or 'dev'."
+        required: false
 
-  permissions:
-    contents: write
-    id-token: write  # trusted publishing to PyPI (OIDC)
-    attestations: write  # SLSA build-provenance attestations (Sigstore)
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true  # a new tag cancels the in-flight release
 
-  concurrency:
-    group: release-${{ github.ref }}
-    cancel-in-progress: true  # a new tag cancels the in-flight release
+env:
+  VER: ${{ inputs.version || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || 'dev' }}
 
-  env:
-    VER: ${{ inputs.version || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || 'dev' }}
-
-  jobs:
-    # sdist + wheel (py3-none-any). The wheel installs on every OS/arch, so a
-    # single package serves all platforms.
-    package:
-      runs-on: ubuntu-latest
-      steps:
-        - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
-          with:
-            cache-dependency-glob: uv.lock
-        - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-          with:
-            python-version: "3.12"
-        - name: Tag/version consistency gate
-          env:
-            VERSION_HINT: ${{ env.VER }}
-          run: |
-            ver="${VERSION_HINT#v}"
-            if [[ -n "$ver" && "$ver" != "dev" ]]; then
-              pkgv="$(python3 -c 'import tomllib; print(tomllib.load(open("pyproject.toml","rb"))["project"]["version"])')"
-              if [[ "$pkgv" != "$ver" ]]; then
-                echo "error: pyproject.toml version '$pkgv' != tag '$ver'" >&2
-                exit 1
-              fi
-              uv run scripts/write-version.py --check
+jobs:
+  # sdist + wheel (py3-none-any). The wheel installs on every OS/arch, so a
+  # single package serves all platforms.
+  package:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read  # actions/checkout (job-level perms default unlisted scopes to none)
+      id-token: write  # trusted publishing to PyPI (OIDC)
+      attestations: write  # SLSA build-provenance attestations (Sigstore)
+    steps:
+      - name: Require a version (reject dev-tagged release)
+        env:
+          VERSION_HINT: ${{ env.VER }}
+          IS_TAG: ${{ startsWith(github.ref, 'refs/tags/') }}
+        run: |
+          if [[ "$IS_TAG" == "false" && -z "$VERSION_HINT" ]]; then
+            echo "error: workflow_dispatch requires the 'version' input" >&2
+            echo "a bare dispatch would otherwise publish a Release tagged 'dev'" >&2
+            exit 1
+          fi
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          cache-dependency-glob: uv.lock
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Tag/version consistency gate
+        env:
+          VERSION_HINT: ${{ env.VER }}
+        run: |
+          ver="${VERSION_HINT#v}"
+          if [[ -n "$ver" && "$ver" != "dev" ]]; then
+            pkgv="$(python3 -c 'import tomllib; print(tomllib.load(open("pyproject.toml","rb"))["project"]["version"])')"
+            if [[ "$pkgv" != "$ver" ]]; then
+              echo "error: pyproject.toml version '$pkgv' != tag '$ver'" >&2
+              exit 1
             fi
-        - name: Build sdist + wheel
-          run: uv build
-        - name: Publish to PyPI (trusted publishing)
-          # Best-effort: PyPI needs a trusted publisher registered out-of-band,
-          # and its absence must not block the GitHub Release below.
-          continue-on-error: true
-          uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # release/v1
-          with:
-            packages-dir: dist
-        - name: Upload package artifacts
-          uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-          with:
-            name: py-wheel
-            path: dist/*
-            if-no-files-found: error
-        - name: Attest build provenance (Sigstore, keyless)
-          uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2
-          with:
-            subject-path: "dist/*"
+            uv run scripts/write-version.py --check
+          fi
+      - name: Build sdist + wheel
+        run: uv build
+      - name: Publish to PyPI (trusted publishing)
+        # Best-effort: PyPI needs a trusted publisher registered out-of-band,
+        # and its absence must not block the GitHub Release below.
+        continue-on-error: true
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # release/v1
+        with:
+          packages-dir: dist
+      - name: Upload package artifacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: py-wheel
+          path: dist/*
+          if-no-files-found: error
+      - name: Attest build provenance (Sigstore, keyless)
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2
+        with:
+          subject-path: "dist/*"
 
-    # Linux distro packages. The vendored curl_cffi wheel bundles native
-    # libcurl-impersonate shared objects, so each package is architecture-
-    # specific: build every distro under BOTH arch containers (arm64 runs under
-    # QEMU emulation via docker/setup-qemu-action). One .deb/.rpm/.pkg.tar.zst
-    # per distro per arch.
-    linux-packages:
-      runs-on: ubuntu-latest
-      strategy:
-        fail-fast: false
-        matrix:
-          include:
-            - distro: debian
-              image: debian:stable
-              platform: linux/amd64
-              build: bash /src/packaging/deb/build.sh docker-build
-              artifact: deb-amd64
-              outdir: /tmp/debian-amd64-out
-              validate: deb/validate.sh
-              glob: "*.deb"
-            - distro: debian
-              image: debian:stable
-              platform: linux/arm64
-              build: bash /src/packaging/deb/build.sh docker-build
-              artifact: deb-arm64
-              outdir: /tmp/debian-arm64-out
-              validate: deb/validate.sh
-              glob: "*.deb"
-            - distro: fedora
-              image: fedora:latest
-              platform: linux/amd64
-              build: bash /src/packaging/rpm/build.sh
-              artifact: rpm-x86_64
-              outdir: /tmp/fedora-x86_64-out
-              validate: rpm/validate.sh
-              glob: "*.rpm"
-            - distro: fedora
-              image: fedora:latest
-              platform: linux/arm64
-              build: bash /src/packaging/rpm/build.sh
-              artifact: rpm-aarch64
-              outdir: /tmp/fedora-aarch64-out
-              validate: rpm/validate.sh
-              glob: "*.rpm"
-            - distro: arch
-              image: archlinux:latest
-              platform: linux/amd64
-              build: bash /src/packaging/arch/build.sh
-              artifact: arch-x86_64
-              outdir: /tmp/arch-x86_64-out
-              validate: arch/validate.sh
-              glob: "*.pkg.tar.zst"
-            # No arch/arm64 entry: archlinux:latest ships no arm64 manifest, so
-            # the image cannot even be pulled under QEMU (unlike debian/fedora).
-      steps:
-        - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        - name: Set up QEMU for arm64 containers
-          uses: docker/setup-qemu-action@1f40c72289eff860ee54a304f1438e3cff362e0a # v4.3.0
-          with:
-            platforms: arm64
-        - name: Build package in container
-          run: |
-            mkdir -p "${{ matrix.outdir }}"
-            docker run --rm --platform ${{ matrix.platform }} \
-              -v "${{ github.workspace }}:/src:ro" \
-              -v "${{ matrix.outdir }}:/out" \
-              -e VERSION="${{ env.VER }}" \
-              ${{ matrix.image }} \
-              bash -c "${{ matrix.build }}"
-        - name: Upload package artifact
-          uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-          with:
-            name: ${{ matrix.artifact }}
-            path: ${{ matrix.outdir }}/*
-            if-no-files-found: error
-        - name: Validate package in clean container
-          run: |
-            docker run --rm --platform ${{ matrix.platform }} \
-              -v "${{ github.workspace }}:/src:ro" \
-              -v "${{ matrix.outdir }}:/pkg:ro" \
-              -e EXPECTED_VERSION="${{ env.VER }}" \
-              ${{ matrix.image }} \
-              bash /src/packaging/${{ matrix.validate }} "/pkg/${{ matrix.glob }}"
-        # Attest after validation: only packages that installed and
-        # smoke-tested cleanly carry build provenance into the release.
-        - name: Attest build provenance (Sigstore, keyless)
-          uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2
-          with:
-            subject-path: "${{ matrix.outdir }}/*"
+  # Linux distro packages. The vendored curl_cffi wheel bundles native
+  # libcurl-impersonate shared objects, so each package is architecture-
+  # specific: build every distro under BOTH arch containers (arm64 runs under
+  # QEMU emulation via docker/setup-qemu-action). One .deb/.rpm/.pkg.tar.zst
+  # per distro per arch.
+  linux-packages:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read  # actions/checkout (job-level perms default unlisted scopes to none)
+      id-token: write  # attest-build-provenance needs an OIDC token for Sigstore signing
+      attestations: write  # SLSA build-provenance attestations (Sigstore)
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - distro: debian
+            image: debian:stable
+            platform: linux/amd64
+            build: bash /src/packaging/deb/build.sh docker-build
+            artifact: deb-amd64
+            outdir: /tmp/debian-amd64-out
+            validate: deb/validate.sh
+            glob: "*.deb"
+          - distro: debian
+            image: debian:stable
+            platform: linux/arm64
+            build: bash /src/packaging/deb/build.sh docker-build
+            artifact: deb-arm64
+            outdir: /tmp/debian-arm64-out
+            validate: deb/validate.sh
+            glob: "*.deb"
+          - distro: fedora
+            image: fedora:latest
+            platform: linux/amd64
+            build: bash /src/packaging/rpm/build.sh
+            artifact: rpm-x86_64
+            outdir: /tmp/fedora-x86_64-out
+            validate: rpm/validate.sh
+            glob: "*.rpm"
+          - distro: fedora
+            image: fedora:latest
+            platform: linux/arm64
+            build: bash /src/packaging/rpm/build.sh
+            artifact: rpm-aarch64
+            outdir: /tmp/fedora-aarch64-out
+            validate: rpm/validate.sh
+            glob: "*.rpm"
+          - distro: arch
+            image: archlinux:latest
+            platform: linux/amd64
+            build: bash /src/packaging/arch/build.sh
+            artifact: arch-x86_64
+            outdir: /tmp/arch-x86_64-out
+            validate: arch/validate.sh
+            glob: "*.pkg.tar.zst"
+          # No arch/arm64 entry: archlinux:latest ships no arm64 manifest, so
+          # the image cannot even be pulled under QEMU (unlike debian/fedora).
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up QEMU for arm64 containers
+        uses: docker/setup-qemu-action@1f40c72289eff860ee54a304f1438e3cff362e0a # v4.3.0
+        with:
+          platforms: arm64
+      - name: Build package in container
+        run: |
+          mkdir -p "${{ matrix.outdir }}"
+          docker run --rm --platform ${{ matrix.platform }} \
+            -v "${{ github.workspace }}:/src:ro" \
+            -v "${{ matrix.outdir }}:/out" \
+            -e VERSION="${{ env.VER }}" \
+            ${{ matrix.image }} \
+            bash -c "${{ matrix.build }}"
+      - name: Upload package artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.outdir }}/*
+          if-no-files-found: error
+      - name: Validate package in clean container
+        run: |
+          docker run --rm --platform ${{ matrix.platform }} \
+            -v "${{ github.workspace }}:/src:ro" \
+            -v "${{ matrix.outdir }}:/pkg:ro" \
+            -e EXPECTED_VERSION="${{ env.VER }}" \
+            ${{ matrix.image }} \
+            bash /src/packaging/${{ matrix.validate }} "/pkg/${{ matrix.glob }}"
+      # Attest after validation: only packages that installed and
+      # smoke-tested cleanly carry build provenance into the release.
+      - name: Attest build provenance (Sigstore, keyless)
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2
+        with:
+          subject-path: "${{ matrix.outdir }}/*"
 
-    # Windows standalone exe. Built natively on a Windows runner (never
-    # cross-compiled from Linux). Artifact naming follows the
-    # comic-dl-<version>-windows-<arch> scheme used across all release files.
-    # The exe is unsigned (see docs/develop/releasing.md#Code-signing).
-    windows-build:
-      runs-on: windows-latest
-      steps:
-        - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
-          with:
-            cache-dependency-glob: uv.lock
-        - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-          with:
-            python-version: "3.12"
-        - name: Build binary
-          shell: pwsh
-          run: ./scripts/build-binary.ps1
-        - name: Smoke test exe and gate version
-          shell: pwsh
-          run: |
-            $ver = "$env:VER".TrimStart('v')
-            $got = (& "dist\comic-dl.exe" --version | Out-String).Trim()
-            if (-not $got.StartsWith("comic-dl ")) {
-              throw "unexpected --version output: '$got'"
+  # Windows standalone exe. Built natively on a Windows runner (never
+  # cross-compiled from Linux). Artifact naming follows the
+  # comic-dl-<version>-windows-<arch> scheme used across all release files.
+  # The exe is unsigned (see docs/develop/releasing.md#Code-signing).
+  windows-build:
+    runs-on: windows-latest
+    permissions:
+      contents: read  # actions/checkout (job-level perms default unlisted scopes to none)
+      id-token: write  # attest-build-provenance needs an OIDC token for Sigstore signing
+      attestations: write  # SLSA build-provenance attestations (Sigstore)
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          cache-dependency-glob: uv.lock
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Build binary
+        shell: pwsh
+        run: ./scripts/build-binary.ps1
+      - name: Smoke test exe and gate version
+        shell: pwsh
+        run: |
+          $ver = "$env:VER".TrimStart('v')
+          $got = (& "dist\comic-dl.exe" --version | Out-String).Trim()
+          if (-not $got.StartsWith("comic-dl ")) {
+            throw "unexpected --version output: '$got'"
+          }
+          if ($ver -and $ver -ne "dev") {
+            $want = "comic-dl $ver"
+            if ($got -ne $want) { throw "version mismatch: got '$got', want '$want'" }
+          }
+          & "dist\comic-dl.exe" --help | Out-Null
+      - name: Stage windows-amd64 zip
+        shell: pwsh
+        run: |
+          $ver = "$env:VER".TrimStart('v')
+          $stage = "staging/windows-amd64"
+          New-Item -ItemType Directory -Force -Path $stage | Out-Null
+          Copy-Item dist/comic-dl.exe "$stage/comic-dl.exe"
+          Copy-Item README.md $stage/
+          Copy-Item LICENSE $stage/
+          @'
+          @echo off
+          chcp 65001 >nul
+          "%~dp0comic-dl.exe" %*
+          '@ | Set-Content -Encoding Ascii "$stage/comic-dl.bat"
+          $zip = "comic-dl-$ver-windows-amd64.zip"
+          Compress-Archive -Path "$stage/*" -DestinationPath $zip
+          New-Item -ItemType Directory -Force -Path out | Out-Null
+          Move-Item $zip out/
+          Copy-Item dist/comic-dl.exe "out/comic-dl-$ver-windows-amd64.exe"
+      - name: Upload Windows package
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: windows-package
+          path: out/*
+          if-no-files-found: error
+      - name: Attest build provenance (Sigstore, keyless)
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2
+        with:
+          subject-path: "out/*"
+
+  # -------------------------------------------------------------------------
+  # NOT ENABLED — extension points (explicitly unsupported in CI today).
+  #
+  # Windows ARM64: native arm64 exe on the preview `windows-11-arm` runner.
+  # `workflow_dispatch`/branch builds work now, but every `windows-11-arm`
+  # run today uses an unreinforced `windows-latest` architecture matrix that
+  # would publish build artifacts users do not expect. Re-enable once the
+  # runner label is broadly available. Build + name mirror `windows-build`,
+  # but stage arm64 outputs separately.
+  # windows-arm64-build:
+  #   runs-on: windows-11-arm
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: astral-sh/setup-uv@v5
+  #     - uses: actions/setup-python@v5
+  #       with:
+  #         python-version: "3.12"
+  #     - name: Build binary
+  #       shell: pwsh
+  #       run: ./scripts/build-binary.ps1
+  #     - name: Stage windows-arm64 zip
+  #       shell: pwsh
+  #       run: |
+  #         $ver = "$env:VER".TrimStart('v')
+  #         $stage = "staging/windows-arm64"
+  #         New-Item -ItemType Directory -Force -Path $stage | Out-Null
+  #         Copy-Item dist/comic-dl.exe "$stage/comic-dl.exe"
+  #         Copy-Item README.md $stage/
+  #         Copy-Item LICENSE $stage/
+  #         @'
+  #         @echo off
+  #         chcp 65001 >nul
+  #         "%~dp0comic-dl.exe" %*
+  #         '@ | Set-Content -Encoding Ascii "$stage/comic-dl.bat"
+  #         $zip = "comic-dl-$ver-windows-arm64.zip"
+  #         Compress-Archive -Path "$stage/*" -DestinationPath $zip
+  #         New-Item -ItemType Directory -Force -Path out | Out-Null
+  #         Move-Item $zip out/
+  #         Copy-Item dist/comic-dl.exe "out/comic-dl-$ver-windows-arm64.exe"
+  #     - name: Upload win arm64 package
+  #       uses: actions/upload-artifact@v4
+  #       with:
+  #         name: windows-arm64-package
+  #         path: out/*
+  #         if-no-files-found: error
+
+  # macOS: the webview solver uses WKWebView (works on macOS), but Apple
+  # requires signing + notarization before distributing a GUI .app outside
+  # the Mac App Store. Until that pipeline lands, macOS binaries are NOT
+  # published. This job is the extension point: build one universal2 .app per
+  # runner (macos-latest is arm64; macos-13 is x86_64 for the Intel build),
+  # then codesign + notarize with secrets APPLE_CERT/APPLE_P12 etc. CI smoke:
+  # `dist/comic-dl --version` (no notarization needed to test).
+  # macos-build:
+  #   strategy:
+  #     matrix:
+  #       os: [macos-13, macos-latest]
+  #       include:
+  #         - os: macos-13
+  #           target: x86_64
+  #         - os: macos-latest
+  #           target: arm64
+  #   runs-on: ${{ matrix.os }}
+  #   env:
+  #     MACOSX_DEPLOYMENT_TARGET: "11.0"
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - uses: astral-sh/setup-uv@v5
+  #     - uses: actions/setup-python@v5
+  #       with:
+  #         python-version: "3.12"
+  #     - name: Build .app
+  #       shell: bash
+  #       run: |
+  #         uv sync --extra dev --locked
+  #         uv pip install pyinstaller
+  #         uv run scripts/write-version.py
+  #         uv run pyinstaller --clean --noconfirm --target-arch universal2 packaging/comic-dl.spec
+  #         dist/comic-dl --version
+  #     - name: Zip + checksum
+  #       shell: bash
+  #       run: |
+  #         ver="${VER#v}"
+  #         zip -r "comic-dl-$ver-macos-${{ matrix.target }}.zip" dist/comic-dl
+  #         # Notarization requires the notarization toolchain in this step.
+  #         # Do NOT upload until signing + notarization are implemented.
+
+  # Android: comic-dl is pure-Python; there is no Android-hosted GitHub
+  # runner and no supported packaging target. Users on Android run it through
+  # Termux (pip/uv install of the sdist) or a local Python on a Windows PC.
+  # No CI job is planned.
+
+  # Optional: build an .msi installer with WiX. Skipped for now - the raw exe
+  # and the zip cover Windows installs.
+  # windows-msi:
+  #   runs-on: windows-latest
+  #   needs: windows-build
+  #   steps:
+  #     - uses: actions/download-artifact@v4
+  #       with:
+  #         name: windows-package
+  #         path: win
+  #     - uses: wixtoolset/setup-wixtoolset@v1
+  #     - run: |
+  #         candle.exe comic-dl.wxs -out comic-dl.wixobj
+  #         light.exe comic-dl.wixobj -out comic-dl-${{ env.VER }}-windows-amd64.msi
+  #     - uses: actions/upload-artifact@v4
+  #       with:
+  #         name: win-msi
+  #         path: '*.msi'
+  #         if-no-files-found: error
+
+  # Final assembly: download every artifact, checksum them, attach to the tag's
+  # GitHub Release.
+  release:
+    needs: [package, linux-packages, windows-build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # publish the GitHub Release and attach assets
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          path: dist
+          merge-multiple: true
+      # Site-support manifest ships as a release asset so `self site check`
+      # reads exactly the adapters this tag contains.
+      - name: Stage site-support manifest
+        run: cp site-support.json dist/
+      - name: Generate SHA256SUMS
+        run: |
+          cd dist
+          sha256sum * > SHA256SUMS
+      - name: Extract changelog entry
+        id: changelog
+        run: |
+          ver="${VER#v}"
+          # Grab the section for this version (from its heading to the next
+          # ## heading or EOF).  The heading format is: ## [vX.Y.Z] - DATE
+          entry=$(awk -v pat="## [v${ver}]" '
+            /^## \[/ {
+              if (found) exit
+              if (index($0, pat) == 1) found=1
             }
-            if ($ver -and $ver -ne "dev") {
-              $want = "comic-dl $ver"
-              if ($got -ne $want) { throw "version mismatch: got '$got', want '$want'" }
-            }
-            & "dist\comic-dl.exe" --help | Out-Null
-        - name: Stage windows-amd64 zip
-          shell: pwsh
-          run: |
-            $ver = "$env:VER".TrimStart('v')
-            $stage = "staging/windows-amd64"
-            New-Item -ItemType Directory -Force -Path $stage | Out-Null
-            Copy-Item dist/comic-dl.exe "$stage/comic-dl.exe"
-            Copy-Item README.md $stage/
-            Copy-Item LICENSE $stage/
-            @'
-            @echo off
-            chcp 65001 >nul
-            "%~dp0comic-dl.exe" %*
-            '@ | Set-Content -Encoding Ascii "$stage/comic-dl.bat"
-            $zip = "comic-dl-$ver-windows-amd64.zip"
-            Compress-Archive -Path "$stage/*" -DestinationPath $zip
-            New-Item -ItemType Directory -Force -Path out | Out-Null
-            Move-Item $zip out/
-            Copy-Item dist/comic-dl.exe "out/comic-dl-$ver-windows-amd64.exe"
-        - name: Upload Windows package
-          uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-          with:
-            name: windows-package
-            path: out/*
-            if-no-files-found: error
-        - name: Attest build provenance (Sigstore, keyless)
-          uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2
-          with:
-            subject-path: "out/*"
+            found { print }
+          ' CHANGELOG.md)
+          if [[ -z "$entry" ]]; then
+            echo "warning: no changelog entry for $ver" >&2
+            entry="No changelog entry found for this version."
+          fi
+          # Write to file to avoid shell quoting issues in the multiline body.
+          echo "$entry" > /tmp/changelog-body.md
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
+        with:
+          tag_name: ${{ env.VER }}
+          name: comic-dl ${{ env.VER }}
+          body_path: /tmp/changelog-body.md
+          files: dist/*
+          generate_release_notes: true
 
-    # -------------------------------------------------------------------------
-    # NOT ENABLED — extension points (explicitly unsupported in CI today).
-    #
-    # Windows ARM64: native arm64 exe on the preview `windows-11-arm` runner.
-    # `workflow_dispatch`/branch builds work now, but every `windows-11-arm`
-    # run today uses an unreinforced `windows-latest` architecture matrix that
-    # would publish build artifacts users do not expect. Re-enable once the
-    # runner label is broadly available. Build + name mirror `windows-build`,
-    # but stage arm64 outputs separately.
-    # windows-arm64-build:
-    #   runs-on: windows-11-arm
-    #   steps:
-    #     - uses: actions/checkout@v4
-    #     - uses: astral-sh/setup-uv@v5
-    #     - uses: actions/setup-python@v5
-    #       with:
-    #         python-version: "3.12"
-    #     - name: Build binary
-    #       shell: pwsh
-    #       run: ./scripts/build-binary.ps1
-    #     - name: Stage windows-arm64 zip
-    #       shell: pwsh
-    #       run: |
-    #         $ver = "$env:VER".TrimStart('v')
-    #         $stage = "staging/windows-arm64"
-    #         New-Item -ItemType Directory -Force -Path $stage | Out-Null
-    #         Copy-Item dist/comic-dl.exe "$stage/comic-dl.exe"
-    #         Copy-Item README.md $stage/
-    #         Copy-Item LICENSE $stage/
-    #         @'
-    #         @echo off
-    #         chcp 65001 >nul
-    #         "%~dp0comic-dl.exe" %*
-    #         '@ | Set-Content -Encoding Ascii "$stage/comic-dl.bat"
-    #         $zip = "comic-dl-$ver-windows-arm64.zip"
-    #         Compress-Archive -Path "$stage/*" -DestinationPath $zip
-    #         New-Item -ItemType Directory -Force -Path out | Out-Null
-    #         Move-Item $zip out/
-    #         Copy-Item dist/comic-dl.exe "out/comic-dl-$ver-windows-arm64.exe"
-    #     - name: Upload win arm64 package
-    #       uses: actions/upload-artifact@v4
-    #       with:
-    #         name: windows-arm64-package
-    #         path: out/*
-    #         if-no-files-found: error
+  # --- Optional publish jobs (enable when the secrets above are configured) ---
 
-    # macOS: the webview solver uses WKWebView (works on macOS), but Apple
-    # requires signing + notarization before distributing a GUI .app outside
-    # the Mac App Store. Until that pipeline lands, macOS binaries are NOT
-    # published. This job is the extension point: build one universal2 .app per
-    # runner (macos-latest is arm64; macos-13 is x86_64 for the Intel build),
-    # then codesign + notarize with secrets APPLE_CERT/APPLE_P12 etc. CI smoke:
-    # `dist/comic-dl --version` (no notarization needed to test).
-    # macos-build:
-    #   strategy:
-    #     matrix:
-    #       os: [macos-13, macos-latest]
-    #       include:
-    #         - os: macos-13
-    #           target: x86_64
-    #         - os: macos-latest
-    #           target: arm64
-    #   runs-on: ${{ matrix.os }}
-    #   env:
-    #     MACOSX_DEPLOYMENT_TARGET: "11.0"
-    #   steps:
-    #     - uses: actions/checkout@v4
-    #     - uses: astral-sh/setup-uv@v5
-    #     - uses: actions/setup-python@v5
-    #       with:
-    #         python-version: "3.12"
-    #     - name: Build .app
-    #       shell: bash
-    #       run: |
-    #         uv sync --extra dev --locked
-    #         uv pip install pyinstaller
-    #         uv run scripts/write-version.py
-    #         uv run pyinstaller --clean --noconfirm --target-arch universal2 packaging/comic-dl.spec
-    #         dist/comic-dl --version
-    #     - name: Zip + checksum
-    #       shell: bash
-    #       run: |
-    #         ver="${VER#v}"
-    #         zip -r "comic-dl-$ver-macos-${{ matrix.target }}.zip" dist/comic-dl
-    #         # Notarization requires the notarization toolchain in this step.
-    #         # Do NOT upload until signing + notarization are implemented.
+  # publish-aur:
+  #   runs-on: ubuntu-latest
+  #   needs: release
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - run: |
+  #         # Push packaging/arch/PKGBUILD to the AUR using $AUR_SSH_PRIVATE_KEY:
+  #         #   git clone ssh://aur@aur.archlinux.org/comic-dl.git /tmp/aur
+  #         #   cp packaging/arch/PKGBUILD /tmp/aur/PKGBUILD
+  #         #   cd /tmp/aur && git commit -am "bump to ${{ env.VER }}" && git push
+  #         echo "AUR publish requires secret AUR_SSH_PRIVATE_KEY"
 
-    # Android: comic-dl is pure-Python; there is no Android-hosted GitHub
-    # runner and no supported packaging target. Users on Android run it through
-    # Termux (pip/uv install of the sdist) or a local Python on a Windows PC.
-    # No CI job is planned.
+  # publish-copr:
+  #   runs-on: ubuntu-latest
+  #   needs: release
+  #   steps:
+  #     - run: |
+  #         # Build the SRPM from packaging/rpm/comic-dl.spec, then:
+  #         #   copr-cli build comic-dl comic-dl-<ver>-1.src.rpm --nowait
+  #         # COPR builds the x86_64 and aarch64 chroots automatically from the
+  #         # one SRPM.
+  #         # Requires secrets COPR_LOGIN, COPR_USERNAME, COPR_TOKEN.
+  #         echo "COPR publish requires secrets COPR_LOGIN, COPR_USERNAME, COPR_TOKEN"
 
-    # Optional: build an .msi installer with WiX. Skipped for now - the raw exe
-    # and the zip cover Windows installs.
-    # windows-msi:
-    #   runs-on: windows-latest
-    #   needs: windows-build
-    #   steps:
-    #     - uses: actions/download-artifact@v4
-    #       with:
-    #         name: windows-package
-    #         path: win
-    #     - uses: wixtoolset/setup-wixtoolset@v1
-    #     - run: |
-    #         candle.exe comic-dl.wxs -out comic-dl.wixobj
-    #         light.exe comic-dl.wixobj -out comic-dl-${{ env.VER }}-windows-amd64.msi
-    #     - uses: actions/upload-artifact@v4
-    #       with:
-    #         name: win-msi
-    #         path: '*.msi'
-    #         if-no-files-found: error
-
-    # Final assembly: download every artifact, checksum them, attach to the tag's
-    # GitHub Release.
-    release:
-      needs: [package, linux-packages, windows-build]
-      runs-on: ubuntu-latest
-      steps:
-        - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-          with:
-            path: dist
-            merge-multiple: true
-        # Site-support manifest ships as a release asset so `self site check`
-        # reads exactly the adapters this tag contains.
-        - name: Stage site-support manifest
-          run: cp site-support.json dist/
-        - name: Generate SHA256SUMS
-          run: |
-            cd dist
-            sha256sum * > SHA256SUMS
-        - name: Extract changelog entry
-          id: changelog
-          run: |
-            ver="${VER#v}"
-            # Grab the section for this version (from its heading to the next
-            # ## heading or EOF).  The heading format is: ## [vX.Y.Z] - DATE
-            entry=$(awk -v pat="## [v${ver}]" '
-              /^## \[/ {
-                if (found) exit
-                if (index($0, pat) == 1) found=1
-              }
-              found { print }
-            ' CHANGELOG.md)
-            if [[ -z "$entry" ]]; then
-              echo "warning: no changelog entry for $ver" >&2
-              entry="No changelog entry found for this version."
-            fi
-            # Write to file to avoid shell quoting issues in the multiline body.
-            echo "$entry" > /tmp/changelog-body.md
-        - name: Publish GitHub Release
-          uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
-          with:
-            tag_name: ${{ env.VER }}
-            name: comic-dl ${{ env.VER }}
-            body_path: /tmp/changelog-body.md
-            files: dist/*
-            generate_release_notes: true
-
-    # --- Optional publish jobs (enable when the secrets above are configured) ---
-
-    # publish-aur:
-    #   runs-on: ubuntu-latest
-    #   needs: release
-    #   steps:
-    #     - uses: actions/checkout@v4
-    #     - run: |
-    #         # Push packaging/arch/PKGBUILD to the AUR using $AUR_SSH_PRIVATE_KEY:
-    #         #   git clone ssh://aur@aur.archlinux.org/comic-dl.git /tmp/aur
-    #         #   cp packaging/arch/PKGBUILD /tmp/aur/PKGBUILD
-    #         #   cd /tmp/aur && git commit -am "bump to ${{ env.VER }}" && git push
-    #         echo "AUR publish requires secret AUR_SSH_PRIVATE_KEY"
-
-    # publish-copr:
-    #   runs-on: ubuntu-latest
-    #   needs: release
-    #   steps:
-    #     - run: |
-    #         # Build the SRPM from packaging/rpm/comic-dl.spec, then:
-    #         #   copr-cli build comic-dl comic-dl-<ver>-1.src.rpm --nowait
-    #         # COPR builds the x86_64 and aarch64 chroots automatically from the
-    #         # one SRPM.
-    #         # Requires secrets COPR_LOGIN, COPR_USERNAME, COPR_TOKEN.
-    #         echo "COPR publish requires secrets COPR_LOGIN, COPR_USERNAME, COPR_TOKEN"
-
-    # publish-winget:
-    #   runs-on: ubuntu-latest
-    #   needs: release
-    #   steps:
-    #     - uses: vedantmgoyal9/winget-releaser@v2
-    #       with:
-    #         identifier: <PublisherId>.comic-dl
-    #         token: ${{ secrets.WINGET_TOKEN }}
-    #         release-tag: ${{ env.VER }}
+  # publish-winget:
+  #   runs-on: ubuntu-latest
+  #   needs: release
+  #   steps:
+  #     - uses: vedantmgoyal9/winget-releaser@v2
+  #       with:
+  #         identifier: <PublisherId>.comic-dl
+  #         token: ${{ secrets.WINGET_TOKEN }}
+  #         release-tag: ${{ env.VER }}
