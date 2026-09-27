@@ -93,14 +93,6 @@ class TestCacheHitSkipsNetwork:
 
     pytestmark = pytest.mark.perf
 
-    @pytest.fixture(autouse=True)
-    def _isolated_cache(self, tmp_path):
-        from comic_dl import cache
-
-        cache.set_cache_dir(tmp_path / "http")
-        yield
-        cache.set_cache_dir(None)
-
     async def test_fresh_cache_hit_makes_zero_requests(self):
         from comic_dl.scrapers.base import BaseScraper
 

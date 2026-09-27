@@ -418,19 +418,13 @@ async def validate_request_url_async(url: str) -> str:
     return url
 
 
-def resolve_redirect_url(base: str, location: str) -> str:
+async def resolve_redirect_url_async(base: str, location: str) -> str:
     """Resolve a ``Location`` header against the referring URL and validate it.
 
     Raises :class:`RequestBlockedError` if the resolved hop targets a disallowed
     scheme or local/private host. Callers must use this for *every* redirect hop
     so a public URL can never redirect onto an internal endpoint.
     """
-    joined = urljoin(base, location)
-    return validate_request_url(joined)
-
-
-async def resolve_redirect_url_async(base: str, location: str) -> str:
-    """Async twin of :func:`resolve_redirect_url`."""
     joined = urljoin(base, location)
     return await validate_request_url_async(joined)
 

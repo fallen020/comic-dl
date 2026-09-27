@@ -14,11 +14,8 @@ from comic_dl.cli import _run_cache
 
 @pytest.fixture(autouse=True)
 def _isolated(tmp_path, monkeypatch):
-    cache.set_cache_dir(tmp_path / "http")
     monkeypatch.setattr(tempfile, "gettempdir", lambda: str(tmp_path / "tmp"))
     (tmp_path / "tmp").mkdir()
-    yield
-    cache.set_cache_dir(None)
 
 
 URL = "https://kagane.to/series/foo"

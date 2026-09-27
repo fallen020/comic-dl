@@ -12,14 +12,6 @@ from curl_cffi.requests.exceptions import HTTPError
 
 from comic_dl import cache, config
 
-
-@pytest.fixture(autouse=True)
-def _isolated_cache(tmp_path):
-    cache.set_cache_dir(tmp_path / "http")
-    yield
-    cache.set_cache_dir(None)
-
-
 URL = "https://kagane.to/series/foo"
 PROFILE = "chrome146"
 
@@ -424,7 +416,7 @@ def test_lookup_triggers_sweep(monkeypatch):
 def test_sweep_cleans_orphan_temp_files(monkeypatch, tmp_path):
     """Old temp leftovers are removed even when the entry cap isn't exceeded."""
     monkeypatch.setattr(cache, "_last_sweep", -1.0)
-    orphan = tmp_path / "http" / "orphan.tmp"
+    orphan = cache.cache_dir_path() / "orphan.tmp"
     orphan.parent.mkdir(parents=True, exist_ok=True)
     orphan.write_bytes(b"partial")
     os.utime(orphan, (1.0, 1.0))

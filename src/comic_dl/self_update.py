@@ -41,8 +41,6 @@ GITHUB_API_RELEASES_LATEST = "https://api.github.com/repos/fallen020/comic-dl/re
 GITHUB_RELEASES_PAGE = "https://github.com/fallen020/comic-dl/releases"
 
 #: Package artifacts ship per release; extension + arch select the right one.
-_DEB_SUFFIX = "_amd64.deb"
-_RPM_SUFFIX = ".x86_64.rpm"
 _ARCH_SUFFIX = "-x86_64."
 _PACMAN_SUFFIX = ".pkg.tar.zst"
 
