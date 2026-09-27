@@ -4,6 +4,7 @@ import DocsLayout from '../components/DocsLayout.astro';
 import { getCollection } from 'astro:content';
 import type { CollectionEntry } from 'astro:content';
 import { siteBase } from '../utils/base';
+import { execSync } from 'node:child_process';
 
 interface Heading {
   depth: number;
@@ -16,6 +17,16 @@ interface Props {
 }
 
 const { entry, headings } = Astro.props;
+
+function lastUpdated(filePath: string | undefined): string {
+  if (!filePath) return '';
+  try {
+    return execSync(`git log -1 --format=%cs -- "${filePath}"`, { encoding: 'utf8' }).trim();
+  } catch {
+    return '';
+  }
+}
+const lastUpdatedDate = lastUpdated(entry.filePath);
 
 const all = (await getCollection('docs')).sort((a, b) => a.data.order - b.data.order);
 const idx = all.findIndex((e) => e.id === entry.id);
@@ -55,6 +66,7 @@ const schema = {
     prev={pageLink(prev)}
     next={pageLink(next)}
     section={entry.data.section}
+    lastUpdated={lastUpdatedDate}
   >
     <slot />
   </DocsLayout>

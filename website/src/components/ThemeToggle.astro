@@ -7,8 +7,10 @@ import { Sun, Moon } from '@lucide/astro';
   class="inline-flex items-center rounded border border-line bg-surface-1 p-1.5 text-fg-secondary transition-colors hover:text-fg"
   aria-label="Switch to light theme"
 >
-  <span class="block dark:hidden"><Sun size={16} /></span>
-  <span class="hidden dark:block"><Moon size={16} /></span>
+  <span class="theme-toggle__icons" aria-hidden="true">
+    <Sun size={16} class="theme-toggle__icon theme-toggle__icon--sun" />
+    <Moon size={16} class="theme-toggle__icon theme-toggle__icon--moon" />
+  </span>
 </button>
 <script is:inline>
 (() => {

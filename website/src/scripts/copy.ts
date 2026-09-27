@@ -23,21 +23,36 @@ export async function copyText(text: string): Promise<boolean> {
   }
 }
 
+const COPY_SVG = `<svg class="code-copy__icon code-copy__icon--copy" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>`;
+const CHECK_SVG = `<svg class="code-copy__icon code-copy__icon--check" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>`;
+
+function buttonInnerHTML(): string {
+  return `<span class="code-copy__icons" aria-hidden="true">${COPY_SVG}${CHECK_SVG}</span><span class="code-copy__label">Copy</span>`;
+}
+
+function flashCopied(btn: HTMLButtonElement, ok: boolean): void {
+  btn.classList.toggle('copied', ok);
+  const label = btn.querySelector('.code-copy__label');
+  if (label) label.textContent = ok ? 'Copied' : 'Failed';
+  btn.setAttribute('aria-label', ok ? 'Copied' : 'Copy failed');
+  window.setTimeout(() => {
+    btn.classList.remove('copied');
+    const l = btn.querySelector('.code-copy__label');
+    if (l) l.textContent = 'Copy';
+    btn.setAttribute('aria-label', 'Copy to clipboard');
+  }, 1500);
+}
+
 export function createCopyButton(getText: () => string): HTMLButtonElement {
   const btn = document.createElement('button');
   btn.type = 'button';
   btn.className = 'code-copy';
-  btn.textContent = 'Copy';
+  btn.innerHTML = buttonInnerHTML();
   btn.setAttribute('aria-label', 'Copy to clipboard');
   btn.setAttribute('aria-live', 'polite');
   btn.addEventListener('click', async () => {
     const ok = await copyText(getText());
-    btn.textContent = ok ? 'Copied' : 'Failed';
-    btn.setAttribute('aria-label', ok ? 'Copied' : 'Copy failed');
-    window.setTimeout(() => {
-      btn.textContent = 'Copy';
-      btn.setAttribute('aria-label', 'Copy to clipboard');
-    }, 2000);
+    flashCopied(btn, ok);
   });
   return btn;
 }
@@ -47,6 +62,15 @@ function langOf(pre: HTMLPreElement): string {
   const cls = code?.className || '';
   const m = /language-([\w-]+)/.exec(cls);
   return m ? m[1] : '';
+}
+
+/** Shell snippets show a `$` prompt that must not land in the clipboard. */
+function codeText(pre: HTMLPreElement): string {
+  const text = pre.textContent ?? '';
+  return text
+    .split('\n')
+    .map((line) => line.replace(/^\$\s/, ''))
+    .join('\n');
 }
 
 /**
@@ -72,7 +96,7 @@ export function enhanceCodeBlocks(root: ParentNode = document): void {
     label.textContent = langOf(pre) || 'terminal';
     header.appendChild(label);
 
-    header.appendChild(createCopyButton(() => pre.textContent ?? ''));
+    header.appendChild(createCopyButton(() => codeText(pre)));
 
     pre.before(wrap);
     wrap.appendChild(header);
@@ -87,13 +111,8 @@ export function enhanceCodeBlocks(root: ParentNode = document): void {
     hook.dataset.wired = 'true';
     hook.setAttribute('aria-live', 'polite');
     hook.addEventListener('click', async () => {
-      const ok = await copyText(pre.textContent ?? '');
-      hook.textContent = ok ? 'Copied' : 'Failed';
-      hook.setAttribute('aria-label', ok ? 'Copied' : 'Copy failed');
-      window.setTimeout(() => {
-        hook.textContent = 'Copy';
-        hook.setAttribute('aria-label', 'Copy to clipboard');
-      }, 2000);
+      const ok = await copyText(codeText(pre));
+      flashCopied(hook, ok);
     });
   });
 }

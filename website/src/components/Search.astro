@@ -33,7 +33,6 @@ import { siteBase } from '../utils/base';
         <p class="py-8 text-center text-sm text-fg-secondary" data-search-status role="status">Loading search…</p>
         <button type="button" data-search-retry hidden class="rounded border border-line bg-surface-1 px-3 py-1.5 text-sm text-fg-secondary hover:text-fg">Retry search</button>
         <div id="search-ui" data-search-ui></div>
-        <p class="mt-3 text-center text-xs text-fg-muted">Searches every guide locally in your browser — nothing leaves your machine.</p>
       </div>
     </div>
   </dialog>
@@ -52,7 +51,12 @@ import { siteBase } from '../utils/base';
   let cssLoaded = false;
 
   function close() {
-    modal.close();
+    if (!modal.open || modal.hasAttribute('data-closing')) return;
+    modal.setAttribute('data-closing', '');
+    window.setTimeout(() => {
+      modal.removeAttribute('data-closing');
+      modal.close();
+    }, 120);
   }
 
   async function open() {
@@ -99,9 +103,24 @@ import { siteBase } from '../utils/base';
             highlightParam: 'highlight',
             pageSize: 8,
             showImages: false,
+            debounceTimeoutMs: 150,
             bundlePath: `${base}pagefind/`,
           });
           status.hidden = true;
+          // Stagger results as they populate so a new list isn't a flat dump.
+          const ui = root.querySelector('#search-ui');
+          if (ui) {
+            let resultCount = 0;
+            const stagger = () => {
+              const results = ui.querySelectorAll('.pagefind-ui__result');
+              if (results.length === resultCount) return;
+              resultCount = results.length;
+              results.forEach((el, i) => {
+                el.style.animationDelay = `${i * 30}ms`;
+              });
+            };
+            new MutationObserver(stagger).observe(ui, { subtree: true, childList: true });
+          }
         } catch {
           status.textContent = 'Search could not load. Please check your connection and try again.';
           retry.hidden = false;
@@ -117,6 +136,12 @@ import { siteBase } from '../utils/base';
   retry.addEventListener('click', open);
   modal.addEventListener('click', (e) => {
     if (e.target === modal) close();
+  });
+  // Native Esc closes the dialog instantly; take it over so the exit
+  // animation still runs (and the `close` event below still fires).
+  modal.addEventListener('cancel', (e) => {
+    e.preventDefault();
+    close();
   });
   // Fires for every dismissal path: close button, backdrop, and native Escape.
   modal.addEventListener('close', () => {

@@ -14,6 +14,10 @@
   --color-fg-muted: var(--fg-muted);
   --color-accent: var(--accent);
   --color-accent-dim: var(--accent-dim);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-active: var(--accent-active);
+  --color-accent-muted: var(--accent-muted);
+  --color-accent-text: var(--accent-text);
   --color-note-border: var(--note-border);
   --color-warn-border: var(--warn-border);
   --color-tip-border: var(--tip-border);
@@ -35,8 +39,12 @@
   --fg: #e7edf3;
   --fg-secondary: #aab4c2;
   --fg-muted: #8b98a8;
-  --accent: #58a6ff;
-  --accent-dim: #1f6feb;
+  --accent: #ff4d4d;
+  --accent-dim: #cf222e;
+  --accent-hover: #ff6b6b;
+  --accent-active: #e63946;
+  --accent-muted: rgba(255, 77, 77, 0.1);
+  --accent-text: #ff8080;
   --note-border: #2f81f7;
   --warn-border: #d29922;
   --tip-border: #3fb950;
@@ -52,8 +60,12 @@
   --fg: #1f2328;
   --fg-secondary: #59636e;
   --fg-muted: #626c78;
-  --accent: #0969da;
-  --accent-dim: #0550ae;
+  --accent: #cf222e;
+  --accent-dim: #fcd9db;
+  --accent-hover: #d1242f;
+  --accent-active: #a40e26;
+  --accent-muted: rgba(207, 34, 46, 0.12);
+  --accent-text: #cf222e;
   --note-border: #0969da;
   --warn-border: #9a6700;
   --tip-border: #1a7f37;
@@ -75,7 +87,7 @@ body {
 }
 
 ::selection {
-  background-color: var(--accent-dim);
+  background-color: var(--accent-muted);
   color: var(--fg);
 }
 
@@ -97,8 +109,33 @@ body {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* ---- Theme toggle ---- */
+.theme-toggle__icons { display: inline-grid; }
+.theme-toggle__icon {
+  grid-area: 1 / 1;
+  transition: opacity 200ms ease, transform 300ms ease;
+}
+.theme-toggle__icon--sun {
+  opacity: 1;
+  transform: rotate(0) scale(1);
+}
+.theme-toggle__icon--moon {
+  opacity: 0;
+  transform: rotate(-120deg) scale(0.5);
+}
+html[data-theme="dark"] .theme-toggle__icon--sun {
+  opacity: 0;
+  transform: rotate(120deg) scale(0.5);
+}
+html[data-theme="dark"] .theme-toggle__icon--moon {
+  opacity: 1;
+  transform: rotate(0) scale(1);
 }
 
 /* ---- Focus ring ---- */
@@ -113,6 +150,33 @@ body {
 ::-webkit-scrollbar-thumb { background: var(--line); border-radius: 999px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--fg-muted); }
 
+/* ---- Animated underline for nav links ---- */
+.nav-link {
+  position: relative;
+  text-decoration: none;
+  color: var(--fg-secondary);
+}
+.nav-link::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -2px;
+  width: 100%;
+  height: 1px;
+  background-color: var(--accent);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 150ms ease;
+}
+.nav-link:hover,
+.nav-link:focus-visible {
+  color: var(--fg);
+}
+.nav-link:hover::after,
+.nav-link:focus-visible::after {
+  transform: scaleX(1);
+}
+
 /* ---- Shiki dual-theme ---- */
 .shiki,
 .shiki code,
@@ -121,7 +185,6 @@ body {
 .astro-code code,
 .astro-code span {
   color: var(--shiki-light);
-  background-color: var(--shiki-light-bg, transparent);
 }
 [data-theme="dark"] .shiki,
 [data-theme="dark"] .shiki code,
@@ -130,7 +193,6 @@ body {
 [data-theme="dark"] .astro-code code,
 [data-theme="dark"] .astro-code span {
   color: var(--shiki-dark);
-  background-color: var(--shiki-dark-bg, transparent);
 }
 
 /* Bare pre (not yet wrapped in .codeblock) */
@@ -177,7 +239,9 @@ code:not(pre code) {
   padding: 0.4rem 0.75rem;
   border-bottom: 1px solid var(--line);
   background-color: var(--surface-3);
+  transition: filter 200ms ease, background-color 200ms ease;
 }
+.codeblock:hover .codeblock-header { filter: brightness(1.05); }
 .codeblock pre.astro-code,
 .codeblock pre.shiki {
   border: 0;
@@ -209,11 +273,41 @@ code:not(pre code) {
   padding: 0.25rem 0.625rem;
   font-family: var(--font-mono);
   font-size: 0.75rem;
-  color: var(--fg-secondary);
+  color: var(--fg-muted);
   cursor: pointer;
-  transition: color 150ms ease;
+  transition: color 200ms ease, border-color 200ms ease, transform 150ms ease;
 }
-.code-copy:hover { color: var(--fg); }
+.code-copy:active { transform: scale(0.92); }
+.code-copy:hover { color: var(--accent-text); }
+.code-copy.copied {
+  color: var(--tip-border);
+  border-color: var(--tip-border);
+}
+.code-copy__icons {
+  display: inline-grid;
+}
+.code-copy__icon {
+  grid-area: 1 / 1;
+  transition: opacity 120ms ease, transform 120ms ease;
+}
+.code-copy__icon--check {
+  opacity: 0;
+  transform: scale(0.4);
+}
+.code-copy.copied .code-copy__icon--copy {
+  opacity: 0;
+  transform: scale(0.4);
+}
+.code-copy.copied .code-copy__icon--check {
+  opacity: 1;
+  transform: scale(1);
+  animation: copy-pop 220ms ease;
+}
+@keyframes copy-pop {
+  0% { transform: scale(0.4); }
+  60% { transform: scale(1.3); }
+  100% { transform: scale(1); }
+}
 .codeblock-lang {
   font-family: var(--font-mono);
   font-size: 0.75rem;
@@ -224,7 +318,7 @@ code:not(pre code) {
 .prose-docs {
   --tw-prose-body: var(--fg);
   --tw-prose-headings: var(--fg);
-  --tw-prose-links: var(--accent);
+  --tw-prose-links: var(--accent-text);
   --tw-prose-bold: var(--fg);
   --tw-prose-quotes: var(--fg-secondary);
   --tw-prose-quote-borders: var(--line);
@@ -238,7 +332,7 @@ code:not(pre code) {
   --tw-prose-kbd-border: var(--line);
   max-width: none;
 }
-.prose-docs :where(a):hover { color: var(--accent); text-decoration-thickness: 1px; }
+.prose-docs :where(a):hover { color: var(--accent-hover); text-decoration-thickness: 1px; }
 .prose-docs :where(h1) { letter-spacing: -0.02em; text-wrap: balance; }
 .prose-docs :where(h4) { letter-spacing: 0.005em; }
 .prose-docs :where(h2) {
@@ -392,6 +486,7 @@ code:not(pre code) {
   line-height: 1.4;
   border-radius: 0.375rem;
   border-left: 2px solid transparent;
+  transition: color 200ms ease, background-color 200ms ease, border-color 200ms ease;
 }
 .toc-link:hover { color: var(--fg); background-color: var(--surface-1); }
 .toc-link.is-active {
@@ -402,31 +497,94 @@ code:not(pre code) {
 }
 
 /* ---- Pagefind overrides ---- */
-.pagefind-ui { color: var(--fg); font-family: var(--font-sans); }
-.pagefind-ui__result { color: var(--fg); }
+/* pagefind's default-ui.css is injected at runtime after this stylesheet and
+   sets every color via --pagefind-ui-* vars (light-theme values) on :root.
+   Remap those vars per theme so the injected css resolves to our palette;
+   the [data-theme] selectors out-specify the bare :root that pagefind uses. */
+:root,
+:root[data-theme="dark"] {
+  --pagefind-ui-primary: var(--accent);
+  --pagefind-ui-text: var(--fg);
+  --pagefind-ui-background: var(--surface-3);
+  --pagefind-ui-border: var(--line);
+  --pagefind-ui-tag: var(--surface-2);
+}
+:root[data-theme="light"] {
+  --pagefind-ui-primary: var(--accent);
+  --pagefind-ui-text: var(--fg);
+  --pagefind-ui-background: var(--surface-1);
+  --pagefind-ui-border: var(--line);
+  --pagefind-ui-tag: var(--surface-1);
+}
+.pagefind-ui { font-family: var(--font-sans); }
 .pagefind-ui__result-title { color: var(--accent); }
-.pagefind-ui__result-link { color: var(--accent); }
+.pagefind-ui__result-link {
+  color: var(--accent) !important;
+}
 .pagefind-ui__search-input {
-  border: 1px solid var(--line) !important;
-  border-radius: 0.375rem !important;
-  background-color: var(--surface-1) !important;
-  color: var(--fg) !important;
+  caret-color: var(--accent);
+  /* Injected pagefind ui.css wins on equal specificity, so beat it here. */
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+.pagefind-ui__search-input:focus {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 3px var(--accent-muted) !important;
+  outline: none;
+}
+.pagefind-ui__search-input::placeholder {
+  color: var(--fg-muted) !important;
+  opacity: 0.75 !important;
 }
 .pagefind-ui__search-clear {
-  background-color: var(--surface-2) !important;
-  border: 1px solid var(--line) !important;
+  color: var(--fg-muted) !important;
+}
+.pagefind-ui__search-clear:hover {
+  color: var(--fg) !important;
 }
 .pagefind-ui__result-excerpt { color: var(--fg-secondary); }
-.pagefind-ui__result-tag { background-color: var(--surface-2) !important; color: var(--fg-muted) !important; }
-.pagefind-ui__message { color: var(--fg-secondary); }
+.pagefind-ui__result-excerpt mark {
+  background-color: var(--accent-muted);
+  color: var(--accent-text);
+  border-radius: 0.125rem;
+}
 .pagefind-ui__indicator path { stroke: var(--accent); }
-.pagefind-ui__button {
-  background-color: var(--surface-1) !important;
-  color: var(--fg) !important;
-  border: 1px solid var(--line) !important;
+.pagefind-ui__button:hover {
+  border-color: var(--accent) !important;
+  color: var(--accent) !important;
 }
 
 /* ---- Print: light ink-on-paper, chrome hidden ---- */
+/* ---- Search modal ---- */
+dialog[data-search-modal][open] > div {
+  animation: modal-pop 180ms ease-out;
+}
+dialog[data-search-modal][open]::backdrop {
+  animation: modal-fade 180ms ease-out;
+}
+/* Exit mirrors the entry (reverse keyframes) but shorter, so dismissal never
+   hard-cuts. Search.astro adds [data-closing] and waits for CSS to finish. */
+dialog[data-search-modal][data-closing] > div {
+  animation: modal-pop 120ms ease-in reverse;
+}
+dialog[data-search-modal][data-closing]::backdrop {
+  animation: modal-fade 120ms ease-in reverse;
+}
+@keyframes modal-pop {
+  from { opacity: 0; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes modal-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.pagefind-ui__result {
+  animation: result-in 200ms ease both;
+}
+@keyframes result-in {
+  from { opacity: 0; transform: translateY(3px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 @media print {
   [data-theme="dark"] {
     --surface: #ffffff;
@@ -436,8 +594,12 @@ code:not(pre code) {
     --fg: #1f2328;
     --fg-secondary: #59636e;
     --fg-muted: #626c78;
-    --accent: #0969da;
-    --accent-dim: #0550ae;
+    --accent: #cf222e;
+    --accent-dim: #fcd9db;
+    --accent-hover: #d1242f;
+    --accent-active: #a40e26;
+    --accent-muted: rgba(207, 34, 46, 0.12);
+    --accent-text: #cf222e;
     --note-border: #0969da;
     --warn-border: #9a6700;
     --tip-border: #1a7f37;

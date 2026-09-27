@@ -1,6 +1,7 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import Header from '../components/Header.astro';
+import { Search } from '@lucide/astro';
 import { docsPath } from '../utils/base';
 
 // Rendered for every unmatched path (dev and `404.html` on static hosts).
@@ -14,23 +15,50 @@ const attempted = Astro.url.pathname;
   <main id="main-content" tabindex="-1" class="mx-auto w-full max-w-2xl px-4 pb-24 pt-16 text-center sm:px-6">
     <p class="font-mono text-sm text-fg-muted">404</p>
     <h1 class="mt-2 text-3xl font-bold tracking-tight text-fg">Page not found</h1>
-    <p class="mt-3 text-fg-secondary">
-      No docs page lives at <code>{attempted}</code>.
+    <p class="mt-3 text-pretty text-fg-secondary">
+      This page doesn't exist — maybe it moved. No docs page lives at
+      <code>{attempted}</code>, and we don't have an old-address shortcut that matches.
     </p>
     <p class="mt-3 text-sm text-fg-secondary" data-slash-hint hidden>
       That address is missing its trailing slash — sending you to the fixed
       address now.
     </p>
-    <p class="mt-8 flex flex-wrap items-center justify-center gap-3">
+
+    <!-- Fastest recovery: open search, focused, on the broken URL slug. -->
+    <div class="mt-8 flex justify-center">
+      <button
+        type="button"
+        data-search-recover
+        aria-label="Search documentation"
+        class="inline-flex w-full max-w-md items-center gap-2 rounded border border-line bg-surface-1 px-3 py-2.5 text-left text-fg-secondary transition-colors hover:border-accent hover:text-fg"
+      >
+        <Search size={16} aria-hidden="true" />
+        <span class="flex-1">
+          Search the docs — try the previous address, or a page name
+        </span>
+        <kbd class="hidden rounded border border-line bg-surface px-1.5 py-0.5 font-mono text-[0.65rem] text-fg-muted sm:inline">Enter</kbd>
+      </button>
+    </div>
+
+    <p class="mt-8 text-sm text-fg-secondary">
+      Or jump straight to a likely starting point:
+    </p>
+    <p class="mt-3 flex flex-wrap items-center justify-center gap-3">
       <a
         href={docsPath('')} data-astro-prefetch="hover"
-        class="inline-flex items-center gap-2 rounded-md bg-accent px-4 py-2 text-sm font-semibold text-surface no-underline shadow-[var(--shadow-card)] transition-all hover:-translate-y-0.5 hover:opacity-90 active:translate-y-0 active:shadow-none"
+        class="inline-flex items-center gap-2 rounded-md bg-accent px-4 py-2 text-sm font-semibold text-surface no-underline shadow-[var(--shadow-card)] transition-all duration-150 ease-out hover:scale-[1.02] hover:brightness-110 hover:bg-accent-hover active:scale-100 active:bg-accent-active active:shadow-none"
       >
         Documentation home
       </a>
       <a
+        href={docsPath('reference/supported-sites')} data-astro-prefetch="hover"
+        class="inline-flex items-center gap-2 rounded-md border border-line bg-transparent px-4 py-2 text-sm font-medium text-fg no-underline shadow-[var(--shadow-card)] transition-all duration-150 ease-out hover:border-accent hover:bg-surface-1/60 hover:text-accent active:scale-95 active:shadow-none"
+      >
+        Supported sites
+      </a>
+      <a
         href={docsPath('installation')} data-astro-prefetch="hover"
-        class="inline-flex items-center gap-2 rounded-md border border-line bg-surface-1 px-4 py-2 text-sm font-medium text-fg no-underline shadow-[var(--shadow-card)] transition-all hover:-translate-y-0.5 hover:border-accent hover:text-accent active:translate-y-0 active:shadow-none"
+        class="inline-flex items-center gap-2 rounded-md border border-line bg-transparent px-4 py-2 text-sm font-medium text-fg no-underline shadow-[var(--shadow-card)] transition-all duration-150 ease-out hover:border-accent hover:bg-surface-1/60 hover:text-accent active:scale-95 active:shadow-none"
       >
         Installation
       </a>
@@ -44,6 +72,40 @@ const attempted = Astro.url.pathname;
       if (!pathname.endsWith('/') && last && !last.includes('.')) {
         document.querySelector('[data-slash-hint]')?.removeAttribute('hidden');
         window.location.replace(pathname + '/' + search + hash);
+        return;
+      }
+      // Reuse the header search (created by Search.astro on the same page):
+      // Enter on the 404's own box opens it focused on its input. The slug
+      // searches for the last path segment rather than the whole broken URL.
+      // `filter(Boolean)` keeps the segment when a trailing slash redirect
+      // restores the page at `.../` (pathname then ends with an empty part).
+      const parts = pathname.split('/').filter(Boolean);
+      const slugSegment = parts[parts.length - 1] || '';
+      const recover = document.querySelector('[data-search-recover]');
+      const headerTrigger = document.querySelector('button[data-search-trigger]');
+      if (recover && headerTrigger) {
+        recover.addEventListener('click', () => {
+          headerTrigger.click();
+          const slug = slugSegment.replace(/[_-]+/g, ' ');
+          // Pagefind mounts its input lazily on first open; poll instead of
+          // guessing, then re-assert the value a couple of times. The Svelte
+          // flush that follows the first `input` event can otherwise reset the
+          // field to an empty string mid-prefill.
+          const tries = 50;
+          let n = 0;
+          const fill = () => {
+            const input = document.querySelector('input.pagefind-ui__search-input');
+            if (input) {
+              input.focus();
+              input.value = slug;
+              input.dispatchEvent(new Event('input', { bubbles: true }));
+              if (++n < 5) setTimeout(fill, 150);
+            } else if (++n < tries) {
+              setTimeout(fill, 100);
+            }
+          };
+          fill();
+        });
       }
     })();
   </script>

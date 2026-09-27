@@ -22,9 +22,10 @@ interface Props {
   prev?: PageLink;
   next?: PageLink;
   section?: string;
+  lastUpdated?: string;
 }
 
-const { title, description, headings, currentId, prev, next, section } = Astro.props;
+const { title, description, headings, currentId, prev, next, section, lastUpdated } = Astro.props;
 const docHref = (id: string) => docsPath(id);
 ---
 <div class="flex min-h-screen flex-col">
@@ -78,6 +79,11 @@ const docHref = (id: string) => docsPath(id);
       </div>
       <article class="prose prose-docs" data-pagefind-body>
         <h1 class="text-balance !mt-0">{title}</h1>
+        {lastUpdated && (
+          <p class="not-prose -mt-1 mb-2 text-xs text-fg-muted">
+            Last updated <time datetime={lastUpdated}>{lastUpdated}</time>
+          </p>
+        )}
         {description && <p class="not-prose -mt-2 mb-6 text-base text-fg-secondary">{description}</p>}
         {headings.some((h) => h.depth >= 2 && h.depth <= 3) && (
           <details class="not-prose mb-6 rounded border border-line p-3 xl:hidden">
@@ -153,6 +159,31 @@ const docHref = (id: string) => docsPath(id);
   desktop.addEventListener('change', () => {
     if (desktop.matches && drawer.open) drawer.close();
   });
+})();
+</script>
+
+<script is:inline>
+(() => {
+  const KEY = 'comic-dl:sidebar-scroll';
+  const scrollHost = (el) => el.closest('.sticky.top-14, [data-sidebar-drawer]');
+  // A sidebar click does a full page load; without this the sticky nav
+  // resets to its top on every navigation. Remember where it was and put it
+  // back, so a reader deep in the tree stays oriented.
+  document.querySelectorAll('nav[aria-label="Documentation"] a').forEach((link) => {
+    link.addEventListener('click', () => {
+      const host = scrollHost(link);
+      if (!host) return;
+      try { sessionStorage.setItem(KEY, String(host.scrollTop)); } catch {}
+    });
+  });
+  const saved = (() => {
+    try { return sessionStorage.getItem(KEY); } catch { return null; }
+  })();
+  if (saved) {
+    document.querySelectorAll('.sticky.top-14, [data-sidebar-drawer]').forEach((host) => {
+      host.scrollTop = Number(saved);
+    });
+  }
 })();
 </script>
 

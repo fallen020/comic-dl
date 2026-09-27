@@ -7,6 +7,7 @@ import Tip from '../../components/Tip.astro';
 import Steps from '../../components/Steps.astro';
 import Tabs from '../../components/Tabs.astro';
 import Badge from '../../components/Badge.astro';
+import VersionBadge from '../../components/VersionBadge.astro';
 import CodeBlock from '../../components/CodeBlock.astro';
 
 export async function getStaticPaths() {
@@ -29,6 +30,7 @@ const { Content, headings } = await render(entry);
       Steps,
       Tabs,
       Badge,
+      VersionBadge,
       CodeBlock,
     }}
   />
