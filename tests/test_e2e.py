@@ -1652,7 +1652,7 @@ class TestSeriesPartialChapterAccounting:
         """A graceful stop mid-download must not print 'Download complete'."""
         request_stop()
         try:
-            _ok, _stats = await self._run(monkeypatch, tmp_path, quiet=False)
+            await self._run(monkeypatch, tmp_path, quiet=False)
         finally:
             reset_stop()
         captured = capsys.readouterr()

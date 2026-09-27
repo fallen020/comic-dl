@@ -1113,13 +1113,6 @@ class TestRefreshDispatch:
 
         called = []
 
-        def spy(domain):
-            def deco(fn):
-                called.append(domain)
-                return fn
-
-            return deco
-
         item = ImageItem(
             url="https://n/a", page_number=1, source_url="https://unregistered.example/p"
         )

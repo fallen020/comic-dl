@@ -682,13 +682,9 @@ def _build_downloaded_index(output_dir: Path) -> dict[str, Path]:
     if not output_dir.is_dir():
         return index
 
-    library = Library(library_path(output_dir))
-    library.open()
-    try:
+    with Library(library_path(output_dir)) as library:
         if library.available:
             index = library.downloaded_index(output_dir)
-    finally:
-        library.close()
 
     known_paths = set(index.values())
     for pattern in ARCHIVE_PATTERNS:

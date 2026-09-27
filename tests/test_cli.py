@@ -3438,7 +3438,7 @@ class TestSigintHandling:
         tmp_clean: list[bool] = []
         monkeypatch.setattr(cli.os, "_exit", lambda code: exited.append(code))
         monkeypatch.setattr(cli, "_WORK_TASK", object())
-        monkeypatch.setattr(cli, "active_partial_files", lambda: set())
+        monkeypatch.setattr(cli, "active_partial_files", set)
         monkeypatch.setattr(cli, "flush_debug_file", lambda: flushed.append(True))
         monkeypatch.setattr(cli, "_cleanup_temp_dir", lambda: tmp_clean.append(True))
         try:
@@ -3496,7 +3496,7 @@ class TestSigintHandling:
         exited: list[int] = []
         monkeypatch.setattr(cli.os, "_exit", lambda code: exited.append(code))
         monkeypatch.setattr(cli, "_WORK_TASK", object())
-        monkeypatch.setattr(cli, "active_partial_files", lambda: set())
+        monkeypatch.setattr(cli, "active_partial_files", set)
         try:
             # First press: sets flag.
             cli._handle_interrupt(2, None)
