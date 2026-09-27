@@ -79,7 +79,7 @@ from ..errors import (
     ScrapeTimeout,
     ValidationError,
 )
-from ..library import Library, library_path, source_id
+from ..library import Library, default_library_path, source_id
 from ..manifest import MANIFEST_NAME
 from ..models import PostMetadata
 from ..netcheck import check_connectivity, reset_connectivity_cache
@@ -682,7 +682,7 @@ def _build_downloaded_index(output_dir: Path) -> dict[str, Path]:
     if not output_dir.is_dir():
         return index
 
-    with Library(library_path(output_dir)) as library:
+    with Library(default_library_path()) as library:
         if library.available:
             index = library.downloaded_index(output_dir)
 
@@ -1882,6 +1882,7 @@ async def process_url(
                         normalize_url(url),
                         md_path.relative_to(output_dir).as_posix(),
                         "md",
+                        output_root=str(output_dir),
                     )
             if not quiet and activity is None:
                 print_meta("Series", meta.series_title)
@@ -2088,6 +2089,7 @@ async def process_url(
                         normalize_url(url),
                         cbz_path.relative_to(output_dir).as_posix(),
                         fmt,
+                        output_root=str(output_dir),
                     )
             if stats is not None:
                 stats.output_path = str(cbz_path)
@@ -2351,6 +2353,7 @@ async def _process_series(
                     library.upsert_series(
                         series_id,
                         title=series_title,
+                        output_root=str(output_dir),
                         source=normalize_url(url),
                         source_site=domain,
                         relative_path=relative_path,
@@ -2805,7 +2808,7 @@ def _open_library(output_dir: Path) -> Library | None:
     """
     try:
         output_dir.mkdir(parents=True, exist_ok=True)
-        library = Library(library_path(output_dir))
+        library = Library(default_library_path())
         library.open()
         return library
     except OSError as exc:
@@ -3874,7 +3877,7 @@ async def _run_update(argv: list[str]) -> int:
         return EXIT_ERROR
     try:
         if not library.available:
-            print_error(f"No library database at {library_path(args.output)}.")
+            print_error(f"No library database at {default_library_path()}.")
             print_dim("Download a series first, or point -o at the right output root.")
             return EXIT_ERROR
 
@@ -4074,7 +4077,7 @@ async def _run_update(argv: list[str]) -> int:
             print_dim(f"Skipped {skipped} series (no source or no series endpoint).")
         if failed:
             print_error(f"Failed to update: {', '.join(failed)}")
-        print_dim(f"Library: {library_path(args.output)}")
+        print_dim(f"Library: {default_library_path()}")
         return EXIT_ERROR if failed else EXIT_OK
     finally:
         library.close()

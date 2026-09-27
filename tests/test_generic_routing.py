@@ -393,13 +393,14 @@ class TestPreviewUrl:
 
 class TestLibraryUpdate:
     def _seed_unknown_series(self, root: Path) -> None:
-        from comic_dl.library import Library, library_path
+        from comic_dl.library import Library, default_library_path
 
-        lib = Library(library_path(root))
+        lib = Library(default_library_path())
         lib.open()
         lib.upsert_series(
             "unknown-series.example:1",
             title="Generic Series",
+            output_root=str(root),
             source=SERIES_URL,
             source_site="unknown-series.example",
             relative_path="Generic Series",

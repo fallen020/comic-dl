@@ -556,6 +556,17 @@ class TestConfigPathSemantics:
         cfgmodule.set_config_dir(None)
         assert cfgmodule.config_dir() != tmp_path
 
+    def test_set_data_dir_override(self, tmp_path, monkeypatch):
+        try:
+            cfgmodule.set_data_dir(tmp_path / "data")
+            assert cfgmodule.data_dir() == tmp_path / "data"
+            monkeypatch.setenv("COMIC_DL_DATA_DIR", str(tmp_path / "env-data"))
+            assert cfgmodule.data_dir() == tmp_path / "data"
+            cfgmodule.set_data_dir(None)
+            assert cfgmodule.data_dir() == tmp_path / "env-data"
+        finally:
+            cfgmodule.set_data_dir(None)
+
 
 class TestRuntimeOverrides:
     def test_effective_config_reflects_runtime_overrides(self, monkeypatch, tmp_path):

@@ -24,6 +24,7 @@ from comic_dl.downloader import (
     download_httpx,
     verify_downloads,
 )
+from comic_dl.library import default_library_path
 from comic_dl.models import ImageItem, PostMetadata
 from comic_dl.scrapers.sites.webtoon import (
     WebtoonScraper,
@@ -1065,11 +1066,19 @@ class TestSeriesIncrementalUpdates:
         assert await self._run(monkeypatch, tmp_path, scraper)
         assert len(list((tmp_path / "Test Series").glob("*.cbz"))) == 2
 
-        db = tmp_path / ".comic-dl" / "library.db"
+        db = default_library_path()
         assert db.exists()
         with contextlib.closing(sqlite3.connect(str(db))) as conn:
-            rows = conn.execute("SELECT url, cbz FROM chapters ORDER BY url").fetchall()
-            series = conn.execute("SELECT series_id, source_site FROM series").fetchall()
+            rows = conn.execute(
+                "SELECT c.url, c.cbz FROM chapters c "
+                "JOIN series s ON s.series_id = c.series_id "
+                "WHERE s.output_root = ? ORDER BY c.url",
+                (str(tmp_path),),
+            ).fetchall()
+            series = conn.execute(
+                "SELECT series_id, source_site FROM series WHERE output_root = ?",
+                (str(tmp_path),),
+            ).fetchall()
         assert len(rows) == 2
         assert {r[0] for r in rows} == {
             "https://fsicomics.com/series-ep-1",
@@ -1187,10 +1196,13 @@ class TestSeriesIncrementalUpdates:
         out = capsys.readouterr().out
         assert "1 had new chapters" in out
 
-        with contextlib.closing(
-            sqlite3.connect(str(tmp_path / ".comic-dl" / "library.db"))
-        ) as conn:
-            rows = conn.execute("SELECT url FROM chapters ORDER BY url").fetchall()
+        with contextlib.closing(sqlite3.connect(str(default_library_path()))) as conn:
+            rows = conn.execute(
+                "SELECT c.url FROM chapters c "
+                "JOIN series s ON s.series_id = c.series_id "
+                "WHERE s.output_root = ? ORDER BY c.url",
+                (str(tmp_path),),
+            ).fetchall()
         assert len(rows) == 3
 
 

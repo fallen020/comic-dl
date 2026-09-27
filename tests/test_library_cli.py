@@ -10,7 +10,7 @@ from comic_dl.cli.library import (
     _purge_trash,
     run_library_command,
 )
-from comic_dl.library import Library
+from comic_dl.library import Library, default_library_path
 
 
 def _seed(tmp_path: Path, root: Path) -> Library:
@@ -19,6 +19,7 @@ def _seed(tmp_path: Path, root: Path) -> Library:
     lib.upsert_series(
         "e-hentai.org:aaa",
         title="Alpha",
+        output_root=str(root),
         source="https://x/",
         source_site="e-hentai.org",
         relative_path="Alpha",
@@ -26,6 +27,7 @@ def _seed(tmp_path: Path, root: Path) -> Library:
     lib.upsert_series(
         "e-hentai.org:bbb",
         title="Beta",
+        output_root=str(root),
         source="https://x/",
         source_site="e-hentai.org",
         relative_path="Beta",
@@ -131,6 +133,7 @@ class TestList:
         lib.upsert_series(
             "webtoons.com:1",
             title="Webtoon",
+            output_root=str(root),
             source="https://www.webtoons.com/x",
             source_site="webtoons.com",
             relative_path="Webtoon",
@@ -223,6 +226,7 @@ class TestInfo:
         lib.upsert_series(
             "webtoons.com:10482",
             title="Lodoss",
+            output_root=str(root),
             source="https://www.webtoons.com/en/action/list?title_no=10482",
             source_site="webtoons.com",
             relative_path="Lodoss",
@@ -248,8 +252,8 @@ class TestInfo:
         root = tmp_path / "dl"
         lib = Library(root / ".comic-dl" / "library.db")
         lib.open()
-        lib.upsert_series("x:1", title="Same", relative_path="A")
-        lib.upsert_series("x:2", title="Same", relative_path="B")
+        lib.upsert_series("x:1", title="Same", output_root=str(root), relative_path="A")
+        lib.upsert_series("x:2", title="Same", output_root=str(root), relative_path="B")
         lib.close()
         assert run_library_command("info", ["-o", str(root), "same"]) == 2
         captured = capsys.readouterr()
@@ -477,8 +481,8 @@ class TestRemove:
         root = tmp_path / "dl"
         lib = Library(root / ".comic-dl" / "library.db")
         lib.open()
-        lib.upsert_series("x:1", title="Same", relative_path="A")
-        lib.upsert_series("x:2", title="Same", relative_path="B")
+        lib.upsert_series("x:1", title="Same", output_root=str(root), relative_path="A")
+        lib.upsert_series("x:2", title="Same", output_root=str(root), relative_path="B")
         lib.close()
         assert run_library_command("remove", ["-o", str(root), "same", "-y"]) == 2
         assert "matches multiple" in capsys.readouterr().err.lower()
@@ -491,6 +495,7 @@ class TestRemove:
         lib.upsert_series(
             "x:1",
             title="Evil",
+            output_root=str(root),
             source_site="x",
             relative_path=os.path.join("..", "elsewhere"),
         )
@@ -733,8 +738,12 @@ class TestRestore:
         root = tmp_path / "dl"
         lib = Library(root / ".comic-dl" / "library.db")
         lib.open()
-        lib.upsert_series("x:1", title="Same", source_site="x", relative_path="A")
-        lib.upsert_series("x:2", title="Same", source_site="x", relative_path="B")
+        lib.upsert_series(
+            "x:1", title="Same", output_root=str(root), source_site="x", relative_path="A"
+        )
+        lib.upsert_series(
+            "x:2", title="Same", output_root=str(root), source_site="x", relative_path="B"
+        )
         lib.close()
         for sdir, sid in (("A", "x:1"), ("B", "x:2")):
             (root / sdir).mkdir(parents=True)
@@ -795,6 +804,7 @@ class TestRestore:
         lib.upsert_series(
             "e-hentai.org:aaa",
             title="Alpha",
+            output_root=str(root),
             source_site="e-hentai.org",
             relative_path="Alpha",
         )
@@ -913,7 +923,13 @@ class TestDispatch:
         root = tmp_path / "dl"
         lib = Library(root / ".comic-dl" / "library.db")
         lib.open()
-        lib.upsert_series("x:1", title="Evil[/] Title", source_site="x", relative_path="Evil")
+        lib.upsert_series(
+            "x:1",
+            title="Evil[/] Title",
+            output_root=str(root),
+            source_site="x",
+            relative_path="Evil",
+        )
         lib.upsert_chapter(
             "x:1",
             url="https://x/1",
@@ -942,7 +958,8 @@ class TestDispatch:
 
 class TestUpdate:
     def _lib(self, root: Path) -> Library:
-        lib = Library(root / ".comic-dl" / "library.db")
+        # `_run_update` reads the global database; `root` only stamps rows.
+        lib = Library(default_library_path())
         lib.open()
         return lib
 
@@ -951,6 +968,7 @@ class TestUpdate:
         lib.upsert_series(
             sid,
             title="Comet",
+            output_root=str(root),
             source="https://www.webtoons.com/en/action/s/list?title_no=1",
             source_site="webtoons.com",
             relative_path="Comet",
@@ -1015,10 +1033,12 @@ class TestUpdate:
 
         from comic_dl import cli
 
-        lib = self._lib(tmp_path)
+        lib = Library(default_library_path())
+        lib.open()
         lib.upsert_series(
             "webtoons.com:s1",
             title="Comet",
+            output_root=str(tmp_path),
             source_site="webtoons.com",
             source="https://www.webtoons.com/en/action/s/list?title_no=1",
             relative_path="Comet",
@@ -1026,6 +1046,7 @@ class TestUpdate:
         lib.upsert_series(
             "e-hentai.org:aaa",
             title="Gallery",
+            output_root=str(tmp_path),
             source_site="e-hentai.org",
             source="https://e-hentai.org/g/aaa/1/",
             relative_path="Gallery",
@@ -1049,10 +1070,12 @@ class TestUpdate:
 
         from comic_dl import cli
 
-        lib = self._lib(tmp_path)
+        lib = Library(default_library_path())
+        lib.open()
         lib.upsert_series(
             "webtoons.com:s1",
             title="Comet",
+            output_root=str(tmp_path),
             source_site="webtoons.com",
             source="",
             relative_path="Comet",
@@ -1079,7 +1102,7 @@ class TestUpdate:
         self._seed_webtoon(tmp_path)
 
         async def stub(*args, output_dir, **kwargs):
-            lib = Library(Path(output_dir) / ".comic-dl" / "library.db")
+            lib = Library(default_library_path())
             lib.open()
             lib.upsert_chapter(
                 "webtoons.com:s1",

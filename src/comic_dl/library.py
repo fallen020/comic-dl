@@ -12,10 +12,11 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from .archiver import ARCHIVE_PATTERNS, ARCHIVE_SUFFIXES
+from .config import data_dir
 from .errors import LibraryError
 from .utils import cbz_source_url, normalize_url, normalize_url_key, sanitize_filename
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 _CREATE_SERIES = """
 CREATE TABLE IF NOT EXISTS series (
@@ -25,6 +26,7 @@ CREATE TABLE IF NOT EXISTS series (
     source_site   TEXT,
     source_host   TEXT,
     source_id     TEXT,
+    output_root   TEXT NOT NULL,
     relative_path TEXT NOT NULL,
     last_checked  TEXT,
     last_updated  TEXT,
@@ -49,9 +51,12 @@ CREATE TABLE IF NOT EXISTS chapters (
 
 _CREATE_INDEX = "CREATE INDEX IF NOT EXISTS idx_chapters_series ON chapters(series_id)"
 
+_CREATE_ROOT_INDEX = "CREATE INDEX IF NOT EXISTS idx_series_root ON series(output_root)"
+
 _CREATE_DOWNLOADS = """
 CREATE TABLE IF NOT EXISTS downloads (
     url           TEXT PRIMARY KEY,
+    output_root   TEXT NOT NULL,
     path          TEXT NOT NULL,
     kind          TEXT NOT NULL DEFAULT 'cbz'
 )
@@ -103,8 +108,17 @@ def source_id(name: str, domain: str, version: str) -> str:
     return digest[:16]
 
 
+def default_library_path() -> Path:
+    """Location of the global library database (per-OS data dir)."""
+    return data_dir() / "library.db"
+
+
 def library_path(output_dir: Path) -> Path:
-    """Location of the library DB for an output root."""
+    """Location of the legacy per-root library DB.
+
+    Only the pre-rework library subcommands still open per-root databases;
+    the download path uses :func:`default_library_path`. Removed with them.
+    """
     return Path(output_dir) / ".comic-dl" / "library.db"
 
 
@@ -139,6 +153,10 @@ class Library:
 
     All URL identity is normalized via :func:`normalize_url` before it is
     stored or queried, so raw values never reach the database.
+
+    One database serves every output root: each series and standalone
+    download row carries its own ``output_root``, and root-scoped reads
+    filter on it.
     """
 
     def __init__(self, db_path: Path):
@@ -165,12 +183,14 @@ class Library:
             return
         conn: sqlite3.Connection | None = None
         try:
-            self._db_path.parent.mkdir(parents=True, exist_ok=True)
+            # Explicit mode, not umask luck: the DB records download paths.
+            self._db_path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
             conn = sqlite3.connect(
                 str(self._db_path),
                 check_same_thread=False,
             )
             conn.execute("PRAGMA foreign_keys = ON")
+            conn.execute("PRAGMA journal_mode = WAL")
             conn.execute("PRAGMA busy_timeout = 5000")
             conn.row_factory = sqlite3.Row
             version = conn.execute("PRAGMA user_version").fetchone()[0]
@@ -178,21 +198,15 @@ class Library:
                 conn.execute(_CREATE_SERIES)
                 conn.execute(_CREATE_CHAPTERS)
                 conn.execute(_CREATE_INDEX)
-            elif version in (1, 2):
-                # Pre-v3 schemas are migrated in-place below.
-                pass
+                conn.execute(_CREATE_ROOT_INDEX)
+                conn.execute(_CREATE_DOWNLOADS)
             elif version != SCHEMA_VERSION:
-                # A newer schema exists; refuse to read it rather than
-                # misinterpreting the data.
+                # Pre-v4 rows carry no output_root and can't be rehomed to
+                # one, so the schema is refused rather than misread. A newer
+                # schema is refused for the same reason: never misinterpret
+                # data. The caller falls back to scanning the filesystem.
                 conn.close()
                 return
-            # v1 gained the downloads table; the statement is idempotent.
-            conn.execute(_CREATE_DOWNLOADS)
-            if version not in (0, SCHEMA_VERSION):
-                # v1/v2 -> v3: add the source_host/source_id columns and
-                # backfill source_host from the parsed source URL. Newer
-                # databases (v3) already have them via _CREATE_SERIES.
-                self._migrate_to_v3(conn)
             if version != SCHEMA_VERSION:
                 conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
             self._conn = conn
@@ -202,29 +216,6 @@ class Library:
                     conn.close()
             self._disabled = True
             self._conn = None
-
-    @staticmethod
-    def _migrate_to_v3(conn: sqlite3.Connection) -> None:
-        """v1/v2 -> v3: add series columns and backfill ``source_host``.
-
-        The ALTERs are guarded by inspecting ``PRAGMA table_info`` so a
-        partially-migrated database is repaired in place rather than
-        erroring on a duplicate column. ``source_id`` is left NULL (no
-        reliable source metadata is recorded on old rows); it is filled on
-        the next ``upsert_series``.
-        """
-        existing = {row[1] for row in conn.execute("PRAGMA table_info(series)").fetchall()}
-        for name, decl in (("source_host", "TEXT"), ("source_id", "TEXT")):
-            if name not in existing:
-                conn.execute(f"ALTER TABLE series ADD COLUMN {name} {decl}")
-        for row in conn.execute("SELECT series_id, source FROM series").fetchall():
-            host = url_host(row["source"] or "")
-            if host:
-                conn.execute(
-                    "UPDATE series SET source_host = ? WHERE series_id = ?",
-                    (host, row["series_id"]),
-                )
-        conn.commit()
 
     @_serialized
     def close(self) -> None:
@@ -443,6 +434,7 @@ class Library:
         series_id: str,
         *,
         title: str,
+        output_root: str,
         source: str = "",
         source_site: str = "",
         relative_path: str = "",
@@ -456,14 +448,15 @@ class Library:
                 """
                 INSERT INTO series
                     (series_id, title, source, source_site, source_host,
-                     source_id, relative_path, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                     source_id, output_root, relative_path, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(series_id) DO UPDATE SET
                     title = excluded.title,
                     source = excluded.source,
                     source_site = excluded.source_site,
                     source_host = excluded.source_host,
                     source_id = excluded.source_id,
+                    output_root = excluded.output_root,
                     relative_path = excluded.relative_path
                 """,
                 (
@@ -473,6 +466,7 @@ class Library:
                     source_site or None,
                     host or None,
                     source_id or None,
+                    output_root,
                     relative_path,
                     _now(),
                 ),
@@ -559,9 +553,9 @@ class Library:
                 """
                 INSERT INTO series
                     (series_id, title, source, source_site, source_host,
-                     source_id, relative_path, last_checked, last_updated,
-                     created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                     source_id, output_root, relative_path, last_checked,
+                     last_updated, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(series_id) DO NOTHING
                 """,
                 (
@@ -571,6 +565,7 @@ class Library:
                     series.get("source_site") or None,
                     series.get("source_host") or None,
                     series.get("source_id") or None,
+                    series.get("output_root") or "",
                     series.get("relative_path") or "",
                     series.get("last_checked") or None,
                     series.get("last_updated") or None,
@@ -603,10 +598,10 @@ class Library:
             raise LibraryError(f"Failed to restore series {series['series_id']}: {exc}") from exc
 
     @_serialized
-    def upsert_download(self, url: str, path: str, kind: str = "cbz") -> None:
+    def upsert_download(self, url: str, path: str, kind: str = "cbz", *, output_root: str) -> None:
         """Record a standalone download (single chapter / text post).
 
-        ``path`` is relative to the library output root. The URL is stored
+        ``path`` is relative to ``output_root``. The URL is stored
         normalized via :func:`normalize_url`, matching the identity used
         everywhere else. These rows feed the DB-backed skip index so
         standalone downloads are pre-skipped without an on-disk scan.
@@ -616,12 +611,13 @@ class Library:
         try:
             self._db.execute(
                 """
-                INSERT INTO downloads (url, path, kind) VALUES (?, ?, ?)
+                INSERT INTO downloads (url, output_root, path, kind) VALUES (?, ?, ?, ?)
                 ON CONFLICT(url) DO UPDATE SET
+                    output_root = excluded.output_root,
                     path = excluded.path,
                     kind = excluded.kind
                 """,
-                (normalize_url(url), path, kind),
+                (normalize_url(url), output_root, path, kind),
             )
             self._db.commit()
         except sqlite3.Error as exc:
@@ -631,6 +627,8 @@ class Library:
     def downloaded_index(self, output_dir: Path) -> dict[str, Path]:
         """Map normalized source URL -> downloaded file from the DB alone.
 
+        Only rows stamped with ``output_dir`` are returned: one database
+        serves every output root, and each root resolves its own index.
         Covers both series chapters (``chapters`` joined with ``series`` for
         its folder) and standalone downloads (``downloads``). Every row is
         verified against the filesystem first, so deleted files are dropped.
@@ -640,12 +638,15 @@ class Library:
         if not self.available:
             return index
         try:
+            root = str(output_dir)
             rows = self._db.execute(
                 """
                 SELECT c.url, s.relative_path, c.cbz
                 FROM chapters c
                 JOIN series s ON s.series_id = c.series_id
-                """
+                WHERE s.output_root = ?
+                """,
+                (root,),
             ).fetchall()
             for url, relative_path, cbz in rows:
                 path = output_dir / (relative_path or "") / cbz
@@ -653,7 +654,10 @@ class Library:
                     key = normalize_url_key(url)
                     if key:
                         index[key] = path
-            for row in self._db.execute("SELECT url, path, kind FROM downloads").fetchall():
+            for row in self._db.execute(
+                "SELECT url, path, kind FROM downloads WHERE output_root = ?",
+                (root,),
+            ).fetchall():
                 path = output_dir / row["path"]
                 if path.is_file():
                     key = normalize_url_key(row["url"])

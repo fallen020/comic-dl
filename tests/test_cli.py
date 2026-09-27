@@ -48,7 +48,7 @@ from comic_dl.cli import (
 )
 from comic_dl.cli.selection import chapter_matches_number
 from comic_dl.errors import EXIT_ERROR, EXIT_OK, EXIT_USAGE, ScrapeTimeout
-from comic_dl.library import Library, library_path
+from comic_dl.library import Library, default_library_path
 from comic_dl.models import ImageItem, PostMetadata
 from comic_dl.ui import format_bytes
 from comic_dl.utils import normalize_url
@@ -2982,12 +2982,13 @@ class TestBuildDownloadedIndex:
 
     def _seed_library_db(self, tmp_path):
         """Record a synthetic library (2 series x 3 chapters + downloads)."""
-        lib = Library(library_path(tmp_path))
+        lib = Library(default_library_path())
         lib.open()
         for sid in ("webtoons.com-a", "webtoons.com-b"):
             lib.upsert_series(
                 sid,
                 title=sid,
+                output_root=str(tmp_path),
                 source=f"https://webtoons.com/s/{sid}/list",
                 source_site="webtoons.com",
                 relative_path=sid,
@@ -3006,12 +3007,22 @@ class TestBuildDownloadedIndex:
                 )
         # One standalone cbz + one standalone text post, both recorded.
         _make_zip_cbz(tmp_path / "solo", "Solo.cbz", "https://pawchive.pw/u/1/post/9")
-        lib.upsert_download("https://pawchive.pw/u/1/post/9", "solo/Solo.cbz", "cbz")
+        lib.upsert_download(
+            "https://pawchive.pw/u/1/post/9",
+            "solo/Solo.cbz",
+            "cbz",
+            output_root=str(tmp_path),
+        )
         (tmp_path / "solo" / "note.md").write_text(
             "<!-- source: https://pawchive.pw/u/1/post/10 -->\n# t\n",
             encoding="utf-8",
         )
-        lib.upsert_download("https://pawchive.pw/u/1/post/10", "solo/note.md", "md")
+        lib.upsert_download(
+            "https://pawchive.pw/u/1/post/10",
+            "solo/note.md",
+            "md",
+            output_root=str(tmp_path),
+        )
         lib.close()
 
     def test_db_primary_avoids_zip_opens_for_recorded(self, tmp_path, monkeypatch):

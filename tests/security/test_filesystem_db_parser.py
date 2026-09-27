@@ -96,8 +96,20 @@ def _library(tmp_path: Path) -> Library:
 
 def test_sql_parameterised_and_literal(tmp_path) -> None:
     lib = _library(tmp_path)
-    lib.upsert_series("s1", title="Good ' OR 1=1 --", source="http://x.com", relative_path="r")
-    lib.upsert_series("s2", title="Plain", source="http://x", relative_path="r2")
+    lib.upsert_series(
+        "s1",
+        title="Good ' OR 1=1 --",
+        output_root=str(tmp_path),
+        source="http://x.com",
+        relative_path="r",
+    )
+    lib.upsert_series(
+        "s2",
+        title="Plain",
+        output_root=str(tmp_path),
+        source="http://x",
+        relative_path="r2",
+    )
     assert lib.find_series("zzz-nonexistent") == []
     assert lib.find_series("Good ' OR 1=1 --")[0]["series_id"] == "s1"
     lib.close()
@@ -105,8 +117,20 @@ def test_sql_parameterised_and_literal(tmp_path) -> None:
 
 def test_like_metacharacters_are_bounded_no_injection(tmp_path) -> None:
     lib = _library(tmp_path)
-    lib.upsert_series("s1", title="100% real", source="http://x", relative_path="r")
-    lib.upsert_series("s2", title="Plain", source="http://x", relative_path="r2")
+    lib.upsert_series(
+        "s1",
+        title="100% real",
+        output_root=str(tmp_path),
+        source="http://x",
+        relative_path="r",
+    )
+    lib.upsert_series(
+        "s2",
+        title="Plain",
+        output_root=str(tmp_path),
+        source="http://x",
+        relative_path="r2",
+    )
     # Quote/wildcard-laden queries are bound as data: never an error, never a
     # full-row dump via injection.
     assert lib.find_series("' OR '1'='1") == []
@@ -132,7 +156,13 @@ def test_future_schema_refused_not_corrupted(tmp_path) -> None:
 def test_fresh_schema_roundtrips(tmp_path) -> None:
     lib = _library(tmp_path)
     assert lib.available
-    lib.upsert_series("s1", title="T", source="http://x", relative_path="r")
+    lib.upsert_series(
+        "s1",
+        title="T",
+        output_root=str(tmp_path),
+        source="http://x",
+        relative_path="r",
+    )
     lib.upsert_chapter("s1", url="http://x/ch", title="C1", cbz="c1.cbz")
     assert len(lib.get_chapters("s1")) == 1
     lib.close()

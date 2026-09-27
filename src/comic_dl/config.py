@@ -1,4 +1,4 @@
-"""Configuration-file loading and platform config-directory resolution."""
+"""Configuration-file loading and platform directory resolution."""
 
 from __future__ import annotations
 
@@ -19,6 +19,8 @@ _RUNTIME_DOWNLOAD: dict[str, Any] = {}
 _CONFIG_PATH_OVERRIDE: str | None = None
 
 _CONFIG_DIR_OVERRIDE: Path | None = None
+
+_DATA_DIR_OVERRIDE: Path | None = None
 
 _NO_CONFIG = False
 
@@ -179,6 +181,12 @@ def set_config_dir(path: str | Path | None) -> None:
     _CONFIG_DIR_OVERRIDE = Path(path).expanduser() if path else None
 
 
+def set_data_dir(path: str | Path | None) -> None:
+    """Point :func:`data_dir` at ``path`` (tests); ``None`` restores default."""
+    global _DATA_DIR_OVERRIDE
+    _DATA_DIR_OVERRIDE = Path(path).expanduser() if path else None
+
+
 def set_runtime_http(**kwargs: Any) -> None:
     """Override ``[http]`` settings for the current process (from CLI flags)."""
     _RUNTIME_HTTP.update(kwargs)
@@ -296,6 +304,26 @@ def cache_dir() -> Path:
     response cache.
     """
     return Path(_DIRS.user_cache_dir)
+
+
+def data_dir() -> Path:
+    """Per-platform data directory (user data dir).
+
+    Linux honors ``$XDG_DATA_HOME`` (default ``~/.local/share/comic-dl``);
+    macOS uses ``~/Library/Application Support/comic-dl``; Windows uses
+    ``%LOCALAPPDATA%\\comic-dl`` (machine-local, never roams). Holds durable
+    authoritative state — the library database — never cache: caches may be
+    purged by the OS at any time.
+
+    ``set_data_dir`` (tests) beats ``$COMIC_DL_DATA_DIR``, which beats the
+    platform default — mirroring :func:`config_path`'s override precedence.
+    """
+    if _DATA_DIR_OVERRIDE is not None:
+        return _DATA_DIR_OVERRIDE
+    env = os.environ.get("COMIC_DL_DATA_DIR")
+    if env and env.strip():
+        return Path(env.strip()).expanduser()
+    return Path(_DIRS.user_data_dir)
 
 
 def _warn_bad_config(path: Path, exc: Exception) -> None:

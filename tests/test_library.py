@@ -9,9 +9,10 @@ from pathlib import Path
 
 import pytest
 
+from comic_dl import config
 from comic_dl.library import (
     Library,
-    library_path,
+    default_library_path,
     rebase_url,
     source_id,
     url_host,
@@ -51,7 +52,7 @@ class TestLibraryOpen:
         assert lib.available
         assert db.exists()
         with closing(sqlite3.connect(str(db))) as conn:
-            assert conn.execute("PRAGMA user_version").fetchone()[0] == 3
+            assert conn.execute("PRAGMA user_version").fetchone()[0] == 4
             tables = {
                 r[0]
                 for r in conn.execute(
@@ -61,6 +62,8 @@ class TestLibraryOpen:
                 )
             }
             assert tables == {"series", "chapters", "downloads"}
+            cols = {r[1] for r in conn.execute("PRAGMA table_info(series)").fetchall()}
+            assert "output_root" in cols
         lib.close()
 
         # Re-opening an existing schema is a clean no-op.
@@ -85,8 +88,9 @@ class TestLibraryOpen:
         assert not lib.available
         lib.close()
 
-    def test_library_path_location(self, tmp_path):
-        assert library_path(tmp_path) == tmp_path / ".comic-dl" / "library.db"
+    def test_default_library_path_location(self, tmp_path):
+        assert default_library_path() == config.data_dir() / "library.db"
+        assert config.data_dir() == tmp_path / "data-dir"
 
 
 class TestUpserts:
@@ -96,6 +100,7 @@ class TestUpserts:
         lib.upsert_series(
             "webtoons.com:1",
             title="T",
+            output_root=str(tmp_path),
             source="https://x/",
             source_site="webtoons.com",
             relative_path="T",
@@ -118,7 +123,7 @@ class TestUpserts:
     def test_upsert_chapter_is_idempotent(self, tmp_path):
         lib = Library(tmp_path / "lib.db")
         lib.open()
-        lib.upsert_series("s", title="S")
+        lib.upsert_series("s", title="S", output_root=str(tmp_path))
         lib.upsert_chapter("s", url="https://x/1/", cbz="C.cbz", size_bytes=10)
         lib.upsert_chapter("s", url="https://x/1/", cbz="C.cbz", size_bytes=20)
         with closing(sqlite3.connect(str(tmp_path / "lib.db"))) as conn:
@@ -133,7 +138,7 @@ class TestUpserts:
     def test_normalizes_url_on_insert(self, tmp_path):
         lib = Library(tmp_path / "lib.db")
         lib.open()
-        lib.upsert_series("s", title="S")
+        lib.upsert_series("s", title="S", output_root=str(tmp_path))
         lib.upsert_chapter("s", url="https://EXAMPLE.com/Path/", cbz="C.cbz")
         with closing(sqlite3.connect(str(tmp_path / "lib.db"))) as conn:
             stored = conn.execute("SELECT url FROM chapters WHERE series_id = 's'").fetchone()[0]
@@ -156,7 +161,7 @@ class TestUpserts:
     def test_empty_url_is_ignored(self, tmp_path):
         lib = Library(tmp_path / "lib.db")
         lib.open()
-        lib.upsert_series("s", title="S")
+        lib.upsert_series("s", title="S", output_root=str(tmp_path))
         lib.upsert_chapter("s", url="", cbz="C.cbz")
         with closing(sqlite3.connect(str(tmp_path / "lib.db"))) as conn:
             count = conn.execute("SELECT COUNT(*) FROM chapters").fetchone()[0]
@@ -169,7 +174,7 @@ class TestUpserts:
         lib = Library(db)
         lib.open()
         assert not lib.available
-        lib.upsert_series("s", title="S")
+        lib.upsert_series("s", title="S", output_root=str(tmp_path))
         lib.upsert_chapter("s", url="https://x/1/", cbz="C.cbz")
         lib.set_last_checked("s")
         lib.set_last_updated("s")
@@ -187,7 +192,7 @@ class TestBuildHaveSet:
         series_dir = tmp_path / "Series"
         series_dir.mkdir()
         lib = self._lib(tmp_path)
-        lib.upsert_series("s:1", title="S")
+        lib.upsert_series("s:1", title="S", output_root=str(tmp_path))
         lib.upsert_chapter("s:1", url="https://x/1/", cbz="Chapter 1.cbz", size_bytes=5)
         _make_cbz(series_dir / "Chapter 1.cbz", web="https://x/1/")
         chapters = [{"title": "Chapter 1", "episode_no": "1", "url": "https://x/1/"}]
@@ -198,7 +203,7 @@ class TestBuildHaveSet:
         series_dir = tmp_path / "Series"
         series_dir.mkdir()
         lib = self._lib(tmp_path)
-        lib.upsert_series("s:1", title="S")
+        lib.upsert_series("s:1", title="S", output_root=str(tmp_path))
         lib.upsert_chapter("s:1", url="https://x/1/", cbz="Chapter 1.cbz")
         chapters = [{"title": "Chapter 1", "episode_no": "1", "url": "https://x/1/"}]
         assert lib.build_have_set("s:1", series_dir, chapters) == set()
@@ -300,7 +305,7 @@ class TestBuildHaveSet:
         series_dir = tmp_path / "Series"
         series_dir.mkdir()
         lib = self._lib(tmp_path)
-        lib.upsert_series("s:1", title="S")
+        lib.upsert_series("s:1", title="S", output_root=str(tmp_path))
         lib.upsert_chapter("s:1", url="https://x/1/", cbz="Chapter 1.cbz")
         _make_cbz(series_dir / "Chapter 1.cbz", web="https://x/1/")
         (series_dir / "Chapter 1.cbz.partial").write_bytes(b"")
@@ -365,7 +370,7 @@ class TestReadMethods:
         lib.open()
         return lib
 
-    def _seed(self, lib: Library) -> None:
+    def _seed(self, lib: Library, root: str) -> None:
         for _i, (sid, title, site) in enumerate(
             [
                 ("e-hentai.org:aaa", "Alpha", "e-hentai.org"),
@@ -376,6 +381,7 @@ class TestReadMethods:
             lib.upsert_series(
                 sid,
                 title=title,
+                output_root=root,
                 source="https://x/",
                 source_site=site,
                 relative_path=title,
@@ -410,7 +416,7 @@ class TestReadMethods:
 
     def test_list_series_counts_and_sizes(self, tmp_path):
         lib = self._lib(tmp_path)
-        self._seed(lib)
+        self._seed(lib, str(tmp_path))
         rows = lib.list_series()
         by_id = {r["series_id"]: r for r in rows}
         assert by_id["e-hentai.org:aaa"]["chapter_count"] == 2
@@ -428,7 +434,7 @@ class TestReadMethods:
 
     def test_find_series_by_series_id(self, tmp_path):
         lib = self._lib(tmp_path)
-        self._seed(lib)
+        self._seed(lib, str(tmp_path))
         match = lib.find_series("webtoons.com:ccc")
         assert len(match) == 1
         assert match[0]["title"] == "Gamma"
@@ -436,19 +442,19 @@ class TestReadMethods:
 
     def test_find_series_by_title_case_insensitive(self, tmp_path):
         lib = self._lib(tmp_path)
-        self._seed(lib)
+        self._seed(lib, str(tmp_path))
         assert lib.find_series("beta")[0]["title"] == "Beta"
         lib.close()
 
     def test_find_series_by_substring(self, tmp_path):
         lib = self._lib(tmp_path)
-        self._seed(lib)
+        self._seed(lib, str(tmp_path))
         assert lib.find_series("alph")[0]["series_id"] == "e-hentai.org:aaa"
         lib.close()
 
     def test_find_series_substring_may_match_many(self, tmp_path):
         lib = self._lib(tmp_path)
-        self._seed(lib)
+        self._seed(lib, str(tmp_path))
         matches = lib.find_series("a")
         titles = {m["title"] for m in matches}
         assert titles == {"Alpha", "Beta", "Gamma"}
@@ -457,7 +463,7 @@ class TestReadMethods:
 
     def test_find_series_no_match(self, tmp_path):
         lib = self._lib(tmp_path)
-        self._seed(lib)
+        self._seed(lib, str(tmp_path))
         assert lib.find_series("nope") == []
         lib.close()
 
@@ -466,6 +472,7 @@ class TestReadMethods:
         lib.upsert_series(
             "webtoons.com:10482",
             title="Lodoss",
+            output_root=str(tmp_path),
             source=normalize_url("https://www.webtoons.com/en/action/list?title_no=10482"),
             source_site="webtoons.com",
             relative_path="Lodoss",
@@ -478,19 +485,19 @@ class TestReadMethods:
 
     def test_find_series_url_no_match(self, tmp_path):
         lib = self._lib(tmp_path)
-        self._seed(lib)
+        self._seed(lib, str(tmp_path))
         assert lib.find_series("https://example.com/not-a-series") == []
         lib.close()
 
     def test_find_series_empty_query(self, tmp_path):
         lib = self._lib(tmp_path)
-        self._seed(lib)
+        self._seed(lib, str(tmp_path))
         assert lib.find_series("") == []
         lib.close()
 
     def test_get_series(self, tmp_path):
         lib = self._lib(tmp_path)
-        self._seed(lib)
+        self._seed(lib, str(tmp_path))
         row = lib.get_series("e-hentai.org:aaa")
         assert row is not None
         assert row["title"] == "Alpha"
@@ -499,7 +506,7 @@ class TestReadMethods:
 
     def test_get_chapters_returns_all(self, tmp_path):
         lib = self._lib(tmp_path)
-        self._seed(lib)
+        self._seed(lib, str(tmp_path))
         rows = lib.get_chapters("e-hentai.org:aaa")
         assert len(rows) == 2
         urls = {r["url"] for r in rows}
@@ -512,7 +519,7 @@ class TestReadMethods:
 
     def test_chapters_since_filters_by_iso_cutoff(self, tmp_path):
         lib = self._lib(tmp_path)
-        self._seed(lib)
+        self._seed(lib, str(tmp_path))
         with closing(sqlite3.connect(str(tmp_path / "lib.db"))) as conn:
             conn.execute("UPDATE chapters SET downloaded_at = '2026-01-01T00:00:00'")
             conn.commit()
@@ -524,7 +531,7 @@ class TestReadMethods:
 
     def test_chapters_since_joins_series_title(self, tmp_path):
         lib = self._lib(tmp_path)
-        self._seed(lib)
+        self._seed(lib, str(tmp_path))
         rows = lib.chapters_since("2000-01-01T00:00:00")
         titles = {r["series_title"] for r in rows}
         assert titles == {"Alpha", "Gamma"}
@@ -534,7 +541,7 @@ class TestReadMethods:
 
     def test_remove_series_cascades(self, tmp_path):
         lib = self._lib(tmp_path)
-        self._seed(lib)
+        self._seed(lib, str(tmp_path))
         assert lib.remove_series("e-hentai.org:aaa")
         assert lib.get_series("e-hentai.org:aaa") is None
         assert lib.get_chapters("e-hentai.org:aaa") == []
@@ -543,53 +550,22 @@ class TestReadMethods:
 
     def test_remove_series_returns_false_when_missing(self, tmp_path):
         lib = self._lib(tmp_path)
-        self._seed(lib)
+        self._seed(lib, str(tmp_path))
         assert lib.remove_series("missing") is False
         lib.close()
 
 
 class TestSchemaMigration:
-    def test_v1_schema_gains_downloads_table(self, tmp_path):
+    def _legacy_db(self, tmp_path, version: int):
+        """Build a pre-v4 database: rootless rows that can't be rehomed."""
         db = tmp_path / "library.db"
         with closing(sqlite3.connect(str(db))) as conn:
-            conn.execute("PRAGMA user_version = 1")
+            conn.execute(f"PRAGMA user_version = {version}")
             conn.execute(
                 """CREATE TABLE series (
                     series_id TEXT PRIMARY KEY,
                     title TEXT NOT NULL, source TEXT, source_site TEXT,
-                    relative_path TEXT NOT NULL, last_checked TEXT,
-                    last_updated TEXT, created_at TEXT)"""
-            )
-            conn.execute(
-                """CREATE TABLE chapters (
-                    series_id TEXT NOT NULL, url TEXT NOT NULL,
-                    chapter_id TEXT, chapter_no TEXT, title TEXT,
-                    cbz TEXT NOT NULL, size_bytes INTEGER, page_count INTEGER,
-                    downloaded_at TEXT,
-                    PRIMARY KEY (series_id, url))"""
-            )
-            conn.commit()
-        lib = Library(db)
-        lib.open()
-        assert lib.available
-        with closing(sqlite3.connect(str(db))) as conn:
-            assert conn.execute("PRAGMA user_version").fetchone()[0] == 3
-            tables = {
-                r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
-            }
-            assert "downloads" in tables
-            cols = {r[1] for r in conn.execute("PRAGMA table_info(series)").fetchall()}
-            assert {"source_host", "source_id"} <= cols
-        lib.close()
-
-    def test_v2_schema_gains_source_host_and_backfills(self, tmp_path):
-        db = tmp_path / "library.db"
-        with closing(sqlite3.connect(str(db))) as conn:
-            conn.execute("PRAGMA user_version = 2")
-            conn.execute(
-                """CREATE TABLE series (
-                    series_id TEXT PRIMARY KEY,
-                    title TEXT NOT NULL, source TEXT, source_site TEXT,
+                    source_host TEXT, source_id TEXT,
                     relative_path TEXT NOT NULL, last_checked TEXT,
                     last_updated TEXT, created_at TEXT)"""
             )
@@ -611,16 +587,21 @@ class TestSchemaMigration:
                    VALUES ('s:1', 'Alpha', 'https://E-HENTAI.org/g/x/1', 'Alpha')"""
             )
             conn.commit()
-        lib = Library(db)
-        lib.open()
-        assert lib.available
-        row = lib.get_series("s:1")
-        assert row is not None
-        assert row["source_host"] == "e-hentai.org"
-        assert row["source_id"] is None
-        with closing(sqlite3.connect(str(db))) as conn:
-            assert conn.execute("PRAGMA user_version").fetchone()[0] == 3
-        lib.close()
+        return db
+
+    def test_legacy_v1_v2_v3_schemas_are_refused(self, tmp_path):
+        for version in (1, 2, 3):
+            db = self._legacy_db(tmp_path, version)
+            lib = Library(db)
+            lib.open()
+            assert not lib.available
+            with closing(sqlite3.connect(str(db))) as conn:
+                assert conn.execute("PRAGMA user_version").fetchone()[0] == version
+                assert "output_root" not in {
+                    r[1] for r in conn.execute("PRAGMA table_info(series)").fetchall()
+                }
+            lib.close()
+            db.unlink()
 
     def test_upsert_series_fills_source_host_and_id(self, tmp_path):
         lib = Library(tmp_path / "library.db")
@@ -628,6 +609,7 @@ class TestSchemaMigration:
         lib.upsert_series(
             "e-hentai.org:aaa",
             title="Alpha",
+            output_root=str(tmp_path),
             source="https://e-hentai.org/g/x/1",
             source_site="e-hentai.org",
             relative_path="Alpha",
@@ -670,20 +652,31 @@ class TestUrlHelpers:
 
 class TestStandaloneDownloads:
     def _open(self, tmp_path) -> Library:
-        lib = Library(library_path(tmp_path))
+        lib = Library(tmp_path / "lib.db")
         lib.open()
         return lib
 
     def test_upsert_download_round_trip_normalizes(self, tmp_path):
         lib = self._open(tmp_path)
-        lib.upsert_download("https://e-hentai.org/g/a/1/", "Series/Ep 1.cbz", "cbz")
-        lib.upsert_download("https://e-hentai.org/g/a/1/", "Series/Ep 1.cbz", "cbz")
+        lib.upsert_download(
+            "https://e-hentai.org/g/a/1/",
+            "Series/Ep 1.cbz",
+            "cbz",
+            output_root=str(tmp_path),
+        )
+        lib.upsert_download(
+            "https://e-hentai.org/g/a/1/",
+            "Series/Ep 1.cbz",
+            "cbz",
+            output_root=str(tmp_path),
+        )
         (tmp_path / "Series").mkdir(parents=True, exist_ok=True)
         (tmp_path / "Series" / "Ep 1.cbz").write_bytes(b"\x00")
-        with closing(sqlite3.connect(str(library_path(tmp_path)))) as conn:
-            rows = conn.execute("SELECT url, path, kind FROM downloads").fetchall()
+        with closing(sqlite3.connect(str(tmp_path / "lib.db"))) as conn:
+            rows = conn.execute("SELECT url, output_root, path, kind FROM downloads").fetchall()
         assert len(rows) == 1
         assert rows[0][0] == normalize_url("https://e-hentai.org/g/a/1")
+        assert rows[0][1] == str(tmp_path)
         lib.close()
 
     def test_downloaded_index_joins_series_relative_path(self, tmp_path):
@@ -691,9 +684,20 @@ class TestStandaloneDownloads:
         sdir = tmp_path / "Alpha"
         sdir.mkdir()
         _make_cbz(sdir / "1.cbz")
-        lib.upsert_series("s:1", title="Alpha", source="https://x/", relative_path="Alpha")
+        lib.upsert_series(
+            "s:1",
+            title="Alpha",
+            output_root=str(tmp_path),
+            source="https://x/",
+            relative_path="Alpha",
+        )
         lib.upsert_chapter("s:1", url="https://x/ep/1", cbz="1.cbz", title="Ch 1")
-        lib.upsert_download("https://pawchive.pw/u/1/post/2", "Alpha/note.md", "md")
+        lib.upsert_download(
+            "https://pawchive.pw/u/1/post/2",
+            "Alpha/note.md",
+            "md",
+            output_root=str(tmp_path),
+        )
         (sdir / "note.md").write_text("# n\n", encoding="utf-8")
         index = lib.downloaded_index(tmp_path)
         assert index[normalize_url("https://x/ep/1")] == sdir / "1.cbz"
@@ -704,9 +708,20 @@ class TestStandaloneDownloads:
         lib = self._open(tmp_path)
         sdir = tmp_path / "Alpha"
         sdir.mkdir()
-        lib.upsert_series("s:1", title="Alpha", source="https://x/", relative_path="Alpha")
+        lib.upsert_series(
+            "s:1",
+            title="Alpha",
+            output_root=str(tmp_path),
+            source="https://x/",
+            relative_path="Alpha",
+        )
         lib.upsert_chapter("s:1", url="https://x/ep/1", cbz="gone.cbz")
-        lib.upsert_download("https://x/solo", "Alpha/solo.cbz", "cbz")
+        lib.upsert_download(
+            "https://x/solo",
+            "Alpha/solo.cbz",
+            "cbz",
+            output_root=str(tmp_path),
+        )
         assert lib.downloaded_index(tmp_path) == {}
         lib.close()
 
@@ -717,7 +732,7 @@ class TestThreadedAccess:
     def test_concurrent_writes_and_reads_do_not_interleave(self, tmp_path):
         import threading
 
-        lib = Library(library_path(tmp_path))
+        lib = Library(tmp_path / "lib.db")
         lib.open()
         errors: list[Exception] = []
 
@@ -725,7 +740,7 @@ class TestThreadedAccess:
             try:
                 for i in range(20):
                     sid = f"s:{n}:{i}"
-                    lib.upsert_series(sid, title=f"S{n}-{i}")
+                    lib.upsert_series(sid, title=f"S{n}-{i}", output_root=str(tmp_path))
                     lib.upsert_chapter(sid, url=f"https://x/{n}/{i}", cbz=f"{i}.cbz")
                     lib.set_last_checked(sid)
             except Exception as exc:  # pragma: no cover - failure path
