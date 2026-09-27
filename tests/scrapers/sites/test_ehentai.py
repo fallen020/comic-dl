@@ -208,8 +208,6 @@ class TestImagePageUrl:
             async def get(self, url, **kwargs):
                 return MockResponse()
 
-        import asyncio
-
         result = await _image_page_url(
             "https://e-hentai.org/s/abc/123",
             MockClient(),  # type: ignore
@@ -238,8 +236,6 @@ class TestImagePageUrl:
             async def get(self, url, **kwargs):
                 return MockResponse()
 
-        import asyncio
-
         result = await _image_page_url(
             "https://e-hentai.org/s/abc/123",
             MockClient(),  # type: ignore
@@ -251,8 +247,6 @@ class TestImagePageUrl:
         class MockClient:
             async def get(self, url, **kwargs):
                 raise Exception("http error")
-
-        import asyncio
 
         result = await _image_page_url(
             "https://e-hentai.org/s/abc/123",

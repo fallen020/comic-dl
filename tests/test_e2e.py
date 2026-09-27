@@ -433,7 +433,6 @@ class TestCbzIntegrity:
     """Open generated CBZ files to verify they are valid and readable."""
 
     def test_cbz_is_valid_zip(self):
-        import zipfile
 
         from comic_dl.utils import image_source_name
 
@@ -464,7 +463,6 @@ class TestCbzIntegrity:
                 assert "ComicInfo.xml" in names
 
     def test_cbz_pages_in_correct_order(self):
-        import zipfile
 
         from comic_dl.utils import image_source_name
 

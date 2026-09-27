@@ -2585,7 +2585,6 @@ class TestForceBatchWarning:
         monkeypatch.setattr("comic_dl.cli.Prompt.ask", lambda *a, **k: "n")
         fake_stdin = types.SimpleNamespace(isatty=lambda: True)
         monkeypatch.setattr("comic_dl.cli.sys.stdin", fake_stdin)
-        import comic_dl.cli as cli
 
         monkeypatch.setattr(type(cli.console), "is_terminal", property(lambda self: True))
         calls = self._patch(monkeypatch, ["https://a.com/", "https://b.com/"], quiet=False)
@@ -3383,7 +3382,6 @@ class TestSigintHandling:
             ) from err
 
     def test_interrupt_before_work_task_raises_keyboard_interrupt(self):
-        import comic_dl.cli as cli
 
         cli._WORK_TASK = None
         try:
@@ -3395,7 +3393,6 @@ class TestSigintHandling:
     def test_single_interrupted_line_and_teardown_before_print(self, monkeypatch, capsys):
         """First SIGINT sets stop flag; second within grace tears down live
         renderer and prints exactly one 'Interrupted.' line as durable scrollback."""
-        import comic_dl.cli as cli
         from comic_dl.ui import register_active, teardown_active
 
         class FakeLive:
@@ -3429,7 +3426,6 @@ class TestSigintHandling:
     def test_interrupt_flushes_debug_file_and_cleans_temp(self, monkeypatch, capsys):
         """The interrupt path must flush the --debug-file buffer (os._exit
         skips atexit) and remove the temp tree before exiting."""
-        import comic_dl.cli as cli
         from comic_dl.ui import register_active, teardown_active
 
         class FakeLive:
@@ -3460,7 +3456,6 @@ class TestSigintHandling:
 
     def _run_interrupt(self, monkeypatch, capsys, partial_returns):
         """Invoke _handle_interrupt twice: first sets flag, second forces exit."""
-        import comic_dl.cli as cli
         from comic_dl.ui import register_active, teardown_active
 
         class FakeLive:
@@ -3491,7 +3486,6 @@ class TestSigintHandling:
 
     def test_second_sigint_outside_grace_resets_timer(self, monkeypatch, capsys):
         """A second SIGINT after the grace window resets the state machine."""
-        import comic_dl.cli as cli
         from comic_dl.ui import register_active, teardown_active
 
         class FakeLive:
@@ -3544,7 +3538,6 @@ class TestGracefulStopBoundary:
 
     def test_run_urls_exits_130_on_graceful_stop(self, monkeypatch):
         """_run_urls returns EXIT_INTERRUPTED when stop_requested() after gather."""
-        import comic_dl.cli as cli
         from comic_dl.errors import EXIT_INTERRUPTED
 
         call_count = 0
@@ -3588,7 +3581,6 @@ class TestGracefulStopBoundary:
 
     def test_run_update_stops_between_series(self, monkeypatch):
         """_run_update breaks out of the series loop when stop_requested()."""
-        import comic_dl.cli as cli
         from comic_dl.errors import EXIT_INTERRUPTED
 
         series_processed = []
@@ -3637,7 +3629,6 @@ class TestGracefulStopBoundary:
 
     def test_run_update_parallel_processes_all_series(self, monkeypatch):
         """--parallel > 1 runs series concurrently and reports each."""
-        import comic_dl.cli as cli
         from comic_dl.errors import EXIT_OK
 
         series_processed = []
@@ -3677,7 +3668,6 @@ class TestGracefulStopBoundary:
 
     def test_run_update_parallel_rejects_zero(self, monkeypatch):
         """--parallel 0 is a usage error, not silent sequential fallback."""
-        import comic_dl.cli as cli
         from comic_dl.errors import EXIT_USAGE
 
         fake_lib = type(
@@ -4146,8 +4136,6 @@ class TestBannerPolicy:
         )
         called = []
 
-        import comic_dl.cli as cli
-
         monkeypatch.setattr(cli, "print_banner", lambda: called.append(True))
         monkeypatch.setattr("sys.argv", ["prog", "--url", "https://e-hentai.org/g/1/a/"])
         parse_urls()
@@ -4160,8 +4148,6 @@ class TestBannerPolicy:
         )
         called = []
 
-        import comic_dl.cli as cli
-
         monkeypatch.setattr(cli, "print_banner", lambda: called.append(True))
         monkeypatch.setattr("sys.argv", ["prog", "--url", "https://e-hentai.org/g/1/a/"])
         parse_urls()
@@ -4173,8 +4159,6 @@ class TestBannerPolicy:
             lambda: True,
         )
         called = []
-
-        import comic_dl.cli as cli
 
         monkeypatch.setattr(cli, "print_banner", lambda: called.append(True))
         monkeypatch.setattr(
