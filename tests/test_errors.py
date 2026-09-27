@@ -195,12 +195,12 @@ class TestLibraryExitCodes:
         assert run_library_command("bogus", []) == EXIT_USAGE
 
     def test_missing_db_is_runtime_error(self, tmp_path):
-        root = tmp_path / "dl"
-        root.mkdir()
-        db = root / ".comic-dl" / "library.db"
-        db.parent.mkdir(parents=True)
+        from comic_dl.library import default_library_path
+
+        db = default_library_path()
+        db.parent.mkdir(parents=True, exist_ok=True)
         db.write_bytes(b"this is not a sqlite database")
-        assert run_library_command("list", ["-o", str(root)]) == EXIT_ERROR
+        assert run_library_command("list", []) == EXIT_ERROR
 
     def test_invalid_days_is_usage(self, tmp_path):
         root = tmp_path / "dl"
@@ -208,7 +208,7 @@ class TestLibraryExitCodes:
         assert (
             run_library_command(
                 "latest",
-                ["-o", str(root), "--days", "0"],
+                ["--days", "0"],
             )
             == EXIT_USAGE
         )
@@ -343,6 +343,6 @@ class TestMainExitCodes:
         # point is that the flag is not rejected as unrecognized (exit 2).
         monkeypatch.setattr(
             "sys.argv",
-            ["prog", "list", "-o", str(tmp_path), "-vv"],
+            ["prog", "list", "-vv"],
         )
         assert await main() == EXIT_OK

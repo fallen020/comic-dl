@@ -2119,6 +2119,7 @@ async def _process_series(
     library: Library | None = None,
     compression: str = "stored",
     fmt: str = "cbz",
+    dry_run: bool = False,
 ) -> bool:
     if activity is None and not quiet:
         err_console.print()
@@ -2315,6 +2316,21 @@ async def _process_series(
                         sel = len(new_items)
                         word = "chapter" if sel == 1 else "chapters"
                         print_dim(f"Selected {sel}/{total_chapters} {word}")
+
+                if dry_run:
+                    # Report what would be fetched without touching the
+                    # filesystem or the library. True means "has new".
+                    if not quiet and activity is None:
+                        if new_items:
+                            print_dim(
+                                f"Would download {len(new_items)} chapter(s) for '{series_title}':"
+                            )
+                            for _idx, ch in new_items:
+                                label = ch.get("title") or ch.get("episode_no") or "?"
+                                print_dim(f"  {label}")
+                        else:
+                            print_dim(f"'{series_title}' is up to date.")
+                    return bool(new_items)
 
                 if not new_items:
                     # A cancelled selection (q / Esc / empty) must leave no
@@ -2799,22 +2815,23 @@ async def _close_webview_session() -> None:
         pass
 
 
-def _open_library(output_dir: Path) -> Library | None:
-    """Create the output directory and open its library, failing cleanly.
+def _open_library(output_dir: Path | None = None) -> Library | None:
+    """Open the global library, failing cleanly.
 
-    Returns ``None`` (after printing a normal error) when the output
-    directory cannot be created — a raw ``Path.mkdir`` traceback otherwise
-    escapes ``Library.open``. A traceback is only shown at ``-vvv``.
+    ``output_dir`` (the download command only) is created first — a raw
+    ``Path.mkdir`` traceback otherwise escapes ``Library.open``. A traceback
+    is only shown at ``-vvv``.
     """
     try:
-        output_dir.mkdir(parents=True, exist_ok=True)
+        if output_dir is not None:
+            output_dir.mkdir(parents=True, exist_ok=True)
         library = Library(default_library_path())
         library.open()
         return library
     except OSError as exc:
         report_error(
             exc,
-            context=f"Output directory not writable: {output_dir}",
+            context=f"Output directory not writable: {output_dir or default_library_path()}",
             hint=exc.strerror or str(exc),
         )
         return None
@@ -3776,13 +3793,6 @@ async def _run_update(argv: list[str]) -> int:
         description="Download new chapters for tracked series.",
     )
     parser.add_argument(
-        "-o",
-        "--output",
-        type=Path,
-        default=None,
-        help="Library root directory (default: per-user downloads folder)",
-    )
-    parser.add_argument(
         "-c",
         "--concurrency",
         type=int,
@@ -3832,6 +3842,11 @@ async def _run_update(argv: list[str]) -> int:
         help="Emit machine-readable JSON on stdout",
     )
     parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Scrape and report new chapters without downloading anything",
+    )
+    parser.add_argument(
         "target",
         help="Series title, series ID, or series URL — or 'all' for every tracked series",
     )
@@ -3840,8 +3855,6 @@ async def _run_update(argv: list[str]) -> int:
     except SystemExit as exc:
         return exc.code if isinstance(exc.code, int) else 0
 
-    if args.output is None:
-        args.output = configured_output_dir()
     if args.concurrency < 1:
         print_error("--concurrency must be at least 1.")
         return EXIT_USAGE
@@ -3872,18 +3885,21 @@ async def _run_update(argv: list[str]) -> int:
         print_error(f"{exc}")
         return EXIT_USAGE
 
-    library = _open_library(args.output)
+    library = _open_library()
     if library is None:
         return EXIT_ERROR
     try:
         if not library.available:
             print_error(f"No library database at {default_library_path()}.")
-            print_dim("Download a series first, or point -o at the right output root.")
+            print_dim("Download a series first.")
             return EXIT_ERROR
 
         if args.target.strip().lower() == "all":
             rows = library.list_series()
-            series = [(s["series_id"], s["title"], s.get("source") or "") for s in rows]
+            series = [
+                (s["series_id"], s["title"], s.get("source") or "", s.get("output_root") or "")
+                for s in rows
+            ]
             if not series:
                 print_dim("Library is empty — nothing to update.")
                 return EXIT_OK
@@ -3891,7 +3907,14 @@ async def _run_update(argv: list[str]) -> int:
             match = _resolve_series(library, args.target)
             if match is None:
                 return EXIT_USAGE
-            series = [(match["series_id"], match["title"], match.get("source") or "")]
+            series = [
+                (
+                    match["series_id"],
+                    match["title"],
+                    match.get("source") or "",
+                    match.get("output_root") or "",
+                )
+            ]
 
         checked = 0
         changed = 0
@@ -3910,7 +3933,7 @@ async def _run_update(argv: list[str]) -> int:
         )
         if batch_act is not None:
             batch_act.begin_batch(len(series))
-            for i, (_sid, title, _source) in enumerate(series):
+            for i, (_sid, title, _source, _root) in enumerate(series):
                 batch_act.add_queued_row(f"series-{i}", label=title)
 
         def _series_key(idx: int) -> str:
@@ -3920,6 +3943,7 @@ async def _run_update(argv: list[str]) -> int:
             series_id: str,
             title: str,
             source: str,
+            output_root: str,
             idx: int,
         ) -> None:
             nonlocal checked, changed, skipped, failed
@@ -3927,12 +3951,16 @@ async def _run_update(argv: list[str]) -> int:
                 if stop_requested():
                     return
                 row_key = _series_key(idx)
+                # A root recorded before per-row roots existed, or an empty
+                # one, falls back to the configured download root.
+                output_dir = Path(output_root) if output_root else configured_output_dir()
                 if not source:
                     print_warning(f"No source URL recorded for '{title}'; skipping.")
                     skipped += 1
                     results[idx] = {
                         "series_id": series_id,
                         "title": title,
+                        "output_root": str(output_dir),
                         "status": "skipped",
                     }
                     if batch_act is not None:
@@ -3959,6 +3987,7 @@ async def _run_update(argv: list[str]) -> int:
                     results[idx] = {
                         "series_id": series_id,
                         "title": title,
+                        "output_root": str(output_dir),
                         "status": "skipped",
                     }
                     if batch_act is not None:
@@ -3967,11 +3996,12 @@ async def _run_update(argv: list[str]) -> int:
                 if batch_act is not None:
                     batch_act.mark_running(row_key, stage="Checking...")
                 try:
-                    before = len(library.get_chapters(series_id))
+                    dry = args.dry_run
+                    before = 0 if dry else len(library.get_chapters(series_id))
                     ok = await _process_series(
                         scraper=scraper,
                         url=source,
-                        output_dir=args.output,
+                        output_dir=output_dir,
                         concurrency=args.concurrency,
                         force=False,
                         quiet=args.quiet,
@@ -3981,6 +4011,7 @@ async def _run_update(argv: list[str]) -> int:
                         library=library,
                         activity=batch_act,
                         row_key=row_key,
+                        dry_run=dry,
                     )
                 except asyncio.CancelledError:
                     raise
@@ -3989,6 +4020,7 @@ async def _run_update(argv: list[str]) -> int:
                     results[idx] = {
                         "series_id": series_id,
                         "title": title,
+                        "output_root": str(output_dir),
                         "status": "failed",
                     }
                     if batch_act is not None:
@@ -4001,19 +4033,28 @@ async def _run_update(argv: list[str]) -> int:
                         )
                     return
                 checked += 1
-                had_new = ok and len(library.get_chapters(series_id)) > before
+                # A dry run reports without writing, so its return already
+                # means "has new chapters"; otherwise diff chapter counts.
+                had_new = ok if dry else (ok and len(library.get_chapters(series_id)) > before)
                 if had_new:
                     changed += 1
+                if dry and had_new:
+                    status = "would-update"
+                else:
+                    status = "changed" if had_new else "unchanged"
                 results[idx] = {
                     "series_id": series_id,
                     "title": title,
-                    "status": "changed" if had_new else "unchanged",
+                    "output_root": str(output_dir),
+                    "status": status,
                 }
                 if batch_act is not None:
                     batch_act.finish_row(
                         row_key,
                         ok=ok,
-                        message="new chapters" if had_new else "unchanged",
+                        message=("would update" if dry and had_new else "new chapters")
+                        if had_new
+                        else "unchanged",
                     )
 
         if batch_act is not None:
@@ -4023,15 +4064,15 @@ async def _run_update(argv: list[str]) -> int:
             async with batch_act:
                 await asyncio.gather(
                     *(
-                        _update_one(sid, title, source, i)
-                        for i, (sid, title, source) in enumerate(series)
+                        _update_one(sid, title, source, root, i)
+                        for i, (sid, title, source, root) in enumerate(series)
                     )
                 )
         else:
             await asyncio.gather(
                 *(
-                    _update_one(sid, title, source, i)
-                    for i, (sid, title, source) in enumerate(series)
+                    _update_one(sid, title, source, root, i)
+                    for i, (sid, title, source, root) in enumerate(series)
                 )
             )
         results = [r for r in results if r is not None]
@@ -4054,6 +4095,7 @@ async def _run_update(argv: list[str]) -> int:
                 json.dumps(
                     {
                         "schema_version": JSON_SCHEMA_VERSION,
+                        "dry_run": args.dry_run,
                         "checked": checked,
                         "changed": changed,
                         "skipped": skipped,
@@ -4071,6 +4113,8 @@ async def _run_update(argv: list[str]) -> int:
         console.print(Rule(style="dim"))
         if args.quiet:
             return EXIT_ERROR if failed else EXIT_OK
+        if args.dry_run:
+            print_dim("Dry run: nothing was downloaded.")
         if checked:
             print_success(f"Checked {checked} series, {changed} had new chapters.")
         if skipped:

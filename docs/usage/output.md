@@ -9,9 +9,12 @@
     cover.jpg                    # series cover (when available)
     <Chapter Title>.cbz          # one archive per chapter
   .comic-dl/
-    library.db                   # SQLite download history
+    trash/                       # removed series, purged after 7 days
   .nomedia                       # Android gallery exclusion marker
 ```
+
+Download history lives in a single library database outside the output
+folders — see [Library Management](library.md).
 
 ## Archive formats
 
@@ -91,8 +94,8 @@ the plain `Series Title` folder.
 
 ## Removed series
 
-Removed series move to `<output>/.comic-dl/trash/` and are purged after 7
-days.
+Removed series move to `<output-root>/.comic-dl/trash/` (the trash next
+to where the series lives) and are purged after 7 days.
 
 ## Temporary files
 

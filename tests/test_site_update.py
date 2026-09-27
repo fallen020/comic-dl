@@ -299,7 +299,7 @@ class TestSiteList:
         rc = await run_site_list_command(json_mode=True)
         assert rc == EXIT_OK
         out = _text(capsys)
-        assert '"schema_version": 1' in out
+        assert '"schema_version": 2' in out
         assert '"site_id": "webtoon"' in out
 
 

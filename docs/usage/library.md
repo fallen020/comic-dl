@@ -1,7 +1,15 @@
 # Library Management
 
-comic-dl tracks every download in a local SQLite database. This enables
+comic-dl tracks every download in a single local SQLite database. This enables
 skip/resume, subscription updates, and library queries.
+
+The database lives at the per-platform data directory:
+`~/.local/share/comic-dl/library.db` on Linux (`$XDG_DATA_HOME` honored),
+`~/Library/Application Support/comic-dl/library.db` on macOS, and
+`%LOCALAPPDATA%\comic-dl\library.db` on Windows. Override it with
+`$COMIC_DL_DATA_DIR`. Every row records which output folder it belongs to, so
+one database covers all your download folders — `list`, `info`, `latest`,
+`remove`, `restore`, and `update` all resolve across every root.
 
 ## List series
 
@@ -35,12 +43,14 @@ comic-dl latest --source e-hentai.org
 Re-scrape a series and download newly released chapters:
 
 ```bash
-comic-dl update all                      # every tracked series
+comic-dl update all                      # every tracked series, every folder
 comic-dl update "My Favorite Series"     # one series by title, ID, or URL
+comic-dl update all --dry-run            # preview only, download nothing
 ```
 
 Only new chapters are fetched. Existing chapters are skipped via the library.
-The series' `last checked` and `last updated` timestamps are refreshed.
+The series' `last checked` and `last updated` timestamps are refreshed (a dry
+run refreshes nothing). Each series downloads into the folder recorded for it.
 
 Series without a stored source URL, or without a series-page endpoint, are
 reported as skipped.
@@ -62,8 +72,9 @@ comic-dl remove "My Favorite Series"
 comic-dl remove "My Favorite Series" --dry-run    # preview
 ```
 
-Moves the series folder to `<output>/.comic-dl/trash/` and forgets it.
-Trashed series are purged after 7 days.
+Moves the series folder to `<output-root>/.comic-dl/trash/` (the trash next
+to where the series lives) and forgets it. Trashed series are purged after 7
+days.
 
 ## Restore a series
 
@@ -71,37 +82,37 @@ Trashed series are purged after 7 days.
 comic-dl restore "My Favorite Series"
 ```
 
-Moves a trashed series back and restores its library entry, including original
-timestamps. Resolves by title, series ID, or source URL. Refuses to clobber an
-existing directory or entry.
+Searches the trash of every known output folder, moves a trashed series back,
+and restores its library entry, including original timestamps. Resolves by
+title, series ID, or source URL. Refuses to clobber an existing directory or
+entry.
 
 ## Resolving series names
 
-`info`, `remove`, `restore`, and `update` resolve series by title, ID, or URL.
-If the target cannot be resolved (no match, or ambiguous with candidates
-shown), the command exits with code `2`.
+`info`, `remove`, `restore`, and `update` resolve series by title, ID, or URL
+across the whole library. If the target cannot be resolved (no match, or
+ambiguous with candidates shown), the command exits with code `2`.
 
 A mistyped `--source` domain gets a "Did you mean" suggestion.
 
 ## JSON output
 
-All library commands support `--json` for scripting:
+All library commands support `--json` for scripting. Every row carries its
+`output_root`, so scripts always know which folder a series lives in:
 
 ```bash
 comic-dl list --json
-# {"schema_version": 1, "series": [...]}
+# {"schema_version": 2, "series": [...]}
 
 comic-dl info <series> --json
-# {"schema_version": 1, ..., "chapters": [...]}
+# {"schema_version": 2, ..., "chapters": [...]}
 
 comic-dl latest --json
-# {"schema_version": 1, "chapters": [...]}
+# {"schema_version": 2, "chapters": [...]}
+
+comic-dl update <series> --json
+# {"schema_version": 2, "dry_run": false, ..., "series": [...]}
 ```
 
 Error messages still go to stderr. The `schema_version` field enables scripts
 to detect breaking changes.
-
-## Bad output path
-
-A non-existent, non-directory, or non-writable `-o` path is a usage error
-(exit code `2`) with a hint pointing at the default output root.

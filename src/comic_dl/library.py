@@ -53,6 +53,8 @@ _CREATE_INDEX = "CREATE INDEX IF NOT EXISTS idx_chapters_series ON chapters(seri
 
 _CREATE_ROOT_INDEX = "CREATE INDEX IF NOT EXISTS idx_series_root ON series(output_root)"
 
+_CREATE_ROOTS = "CREATE TABLE IF NOT EXISTS roots (root TEXT PRIMARY KEY)"
+
 _CREATE_DOWNLOADS = """
 CREATE TABLE IF NOT EXISTS downloads (
     url           TEXT PRIMARY KEY,
@@ -111,15 +113,6 @@ def source_id(name: str, domain: str, version: str) -> str:
 def default_library_path() -> Path:
     """Location of the global library database (per-OS data dir)."""
     return data_dir() / "library.db"
-
-
-def library_path(output_dir: Path) -> Path:
-    """Location of the legacy per-root library DB.
-
-    Only the pre-rework library subcommands still open per-root databases;
-    the download path uses :func:`default_library_path`. Removed with them.
-    """
-    return Path(output_dir) / ".comic-dl" / "library.db"
 
 
 def _now() -> str:
@@ -200,6 +193,7 @@ class Library:
                 conn.execute(_CREATE_INDEX)
                 conn.execute(_CREATE_ROOT_INDEX)
                 conn.execute(_CREATE_DOWNLOADS)
+                conn.execute(_CREATE_ROOTS)
             elif version != SCHEMA_VERSION:
                 # Pre-v4 rows carry no output_root and can't be rehomed to
                 # one, so the schema is refused rather than misread. A newer
@@ -303,11 +297,28 @@ class Library:
     # ── reads ───────────────────────────────────────────────────
 
     @_serialized
+    def known_roots(self) -> list[str]:
+        """Every output root ever recorded, including fully-removed ones.
+
+        Drives trash purge/restore scans: a root whose last series was
+        removed has no series rows left, but its trash may still hold
+        restorable entries until the TTL purges them.
+        """
+        if not self.available:
+            return []
+        try:
+            rows = self._db.execute("SELECT root FROM roots ORDER BY root").fetchall()
+            return [r[0] for r in rows if r[0]]
+        except sqlite3.Error:
+            return []
+
+    @_serialized
     def list_series(self) -> list[dict]:
         """Return every recorded series with chapter counts and sizes.
 
-        Columns: series_id, title, source, source_site, relative_path,
-        chapter_count, total_size, last_checked, last_updated.
+        Columns: series_id, title, source, source_site, output_root,
+        relative_path, chapter_count, total_size, last_checked,
+        last_updated.
         """
         if not self.available:
             return []
@@ -315,9 +326,10 @@ class Library:
             rows = self._db.execute(
                 """
                 SELECT s.series_id, s.title, s.source, s.source_site,
-                       s.relative_path, s.last_checked, s.last_updated,
-                       COUNT(c.url) AS chapter_count,
-                       COALESCE(SUM(c.size_bytes), 0) AS total_size
+                        s.output_root, s.relative_path, s.last_checked,
+                        s.last_updated,
+                        COUNT(c.url) AS chapter_count,
+                        COALESCE(SUM(c.size_bytes), 0) AS total_size
                 FROM series s
                 LEFT JOIN chapters c ON c.series_id = s.series_id
                 GROUP BY s.series_id
@@ -401,8 +413,8 @@ class Library:
             rows = self._db.execute(
                 """
                 SELECT c.series_id, c.url, c.chapter_no, c.title AS chapter_title,
-                       c.cbz, c.size_bytes, c.page_count, c.downloaded_at,
-                       s.title AS series_title
+                        c.cbz, c.size_bytes, c.page_count, c.downloaded_at,
+                        s.title AS series_title, s.output_root AS output_root
                 FROM chapters c
                 JOIN series s ON s.series_id = c.series_id
                 WHERE c.downloaded_at >= ?
@@ -471,6 +483,7 @@ class Library:
                     _now(),
                 ),
             )
+            self._db.execute("INSERT OR IGNORE INTO roots(root) VALUES (?)", (output_root,))
             self._db.commit()
         except sqlite3.Error as exc:
             raise LibraryError(f"Failed to record series {series_id}: {exc}") from exc
@@ -619,6 +632,7 @@ class Library:
                 """,
                 (normalize_url(url), output_root, path, kind),
             )
+            self._db.execute("INSERT OR IGNORE INTO roots(root) VALUES (?)", (output_root,))
             self._db.commit()
         except sqlite3.Error as exc:
             raise LibraryError(f"Failed to record download {url}: {exc}") from exc

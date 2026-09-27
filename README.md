@@ -134,7 +134,8 @@ Selected 2/22 chapters
 Without `-o`, archives go to
 `~/Downloads/comic-dl/<Series>/<Chapter>.cbz` on Linux. Each finished archive
 contains numbered page images and `ComicInfo.xml`; the completed chapter is
-also recorded in `.comic-dl/library.db`.
+also recorded in the library database (`~/.local/share/comic-dl/library.db`
+on Linux).
 
 Image requests time out after 60 seconds and receive two retries by default.
 Known host rates are 1.5 requests/second for Kagane and 2 requests/second for

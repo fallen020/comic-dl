@@ -45,11 +45,13 @@ the URL and a hashed response body. Clear/prune with
 
 ## Library history
 
-Downloaded series are tracked in a SQLite database at
-`<output-dir>/.comic-dl/library.db` — one per output root, not a central
-store. It records the series source URL, per-chapter identity and counts,
-total size, and last-checked/-updated timestamps. Move it by moving the
-output directory; delete series with `comic-dl remove|restore`
+Downloaded series are tracked in a single SQLite database at the
+per-platform data directory (`~/.local/share/comic-dl/library.db` on Linux,
+`~/Library/Application Support/comic-dl/library.db` on macOS,
+`%LOCALAPPDATA%\comic-dl\library.db` on Windows; override with
+`$COMIC_DL_DATA_DIR`). It records the series source URL, per-chapter identity
+and counts, total size, last-checked/-updated timestamps, and which output
+folder each series lives in. Delete series with `comic-dl remove|restore`
 (see [Library Management](usage/library.md)).
 
 ## Logs
@@ -82,7 +84,8 @@ There is no account to delete. Removing the data is removing the files:
 - cookies: `cookies.db` (and its WAL sidecars: `cookies.db-wal`,
   `cookies.db-shm`) or `comic-dl cookie clear`;
 - cache: the cache directory or `comic-dl cache clear`;
-- library: the `.comic-dl/library.db` under each output directory.
+- library: the `library.db` in the data directory above, or
+  `comic-dl remove <series>` per series.
 
 See also [Legal](legal.md) for the terms under which content may be
 downloaded.

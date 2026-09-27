@@ -60,7 +60,7 @@ def test_status_json_shape(capsys):
     _store()
     assert _run_cache(["status", "--json"]) == 0
     payload = json.loads(capsys.readouterr().out)
-    assert payload["schema_version"] == 1
+    assert payload["schema_version"] == 2
     assert payload["entries"] == 1 and payload["fresh"] == 1
     assert payload["max_entries"] == 5000 and payload["scratch_dirs"] == 0
 

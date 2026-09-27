@@ -221,7 +221,7 @@ class TestRunListSources:
         self._run(["--json"])
         captured = capsys.readouterr()
         payload = json.loads(captured.out)
-        assert payload["schema_version"] == 1
+        assert payload["schema_version"] == 2
         assert "Supported sources" not in captured.out
 
     def test_json_output(self, capsys):
@@ -229,7 +229,7 @@ class TestRunListSources:
 
         self._run(["--json"])
         payload = json.loads(capsys.readouterr().out)
-        assert payload["schema_version"] == 1
+        assert payload["schema_version"] == 2
         entries = payload["sources"]
         assert entries, "expected at least one source"
         assert all(set(e) == {"domain", "origin"} for e in entries)
@@ -242,7 +242,7 @@ class TestRunListSources:
 
         self._run(["--json", "webtoons"])
         payload = json.loads(capsys.readouterr().out)
-        assert payload["schema_version"] == 1
+        assert payload["schema_version"] == 2
         assert [e["domain"] for e in payload["sources"]] == ["webtoons.com"]
 
     def test_plugin_flag_shows_only_third_party(self, capsys):

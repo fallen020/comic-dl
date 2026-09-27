@@ -1188,7 +1188,7 @@ class TestSeriesIncrementalUpdates:
             lambda domain: Mock3(),
         )
 
-        code = await cli_mod._run_update(["-o", str(tmp_path), "all"])
+        code = await cli_mod._run_update(["all"])
         assert code == 0
         # Only the newly-released chapter was fetched and saved.
         assert log == ["https://fsicomics.com/series-ep-3/"]

@@ -8,6 +8,12 @@ comic-dl reads the following environment variables.
 | :------- | :---------- |
 | `COMIC_DL_CONFIG` | Override the config file path |
 
+## Data
+
+| Variable | Description |
+| :------- | :---------- |
+| `COMIC_DL_DATA_DIR` | Override the data directory (library database location) |
+
 ## Color control
 
 These are checked in precedence order. Explicit `--color` flags always win.

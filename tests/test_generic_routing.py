@@ -424,7 +424,7 @@ class TestLibraryUpdate:
 
         monkeypatch.setattr(cli_module, "_process_series", stub)
 
-        code = asyncio.run(cli_module._run_update(["-o", str(tmp_path), "all"]))
+        code = asyncio.run(cli_module._run_update(["all"]))
         assert code == 0
         assert scrapers == [fake]
         assert fake.detect_calls == [SERIES_URL]
@@ -444,7 +444,7 @@ class TestLibraryUpdate:
 
         monkeypatch.setattr(cli_module, "_process_series", stub)
 
-        code = asyncio.run(cli_module._run_update(["-o", str(tmp_path), "all"]))
+        code = asyncio.run(cli_module._run_update(["all"]))
         assert code == 0
         assert fake.detect_calls == []
         out = capsys.readouterr().err

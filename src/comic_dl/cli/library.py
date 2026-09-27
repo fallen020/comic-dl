@@ -14,9 +14,8 @@ from pathlib import Path
 from rich.markup import escape as esc
 from rich.prompt import Prompt
 
-from ..config import configured_output_dir
 from ..errors import EXIT_ERROR, EXIT_INTERRUPTED, EXIT_OK, EXIT_USAGE
-from ..library import Library, library_path
+from ..library import Library, default_library_path
 from ..scrapers.registry import list_sources, url_in_domain
 from ..ui import (
     ERROR,
@@ -43,27 +42,6 @@ TRASH_TTL_DAYS = 7
 RESTORE_SIDECAR_SUFFIX = ".restore.json"
 
 COMMANDS = frozenset({"list", "info", "latest", "remove", "restore", "update"})
-
-
-def _validate_output_dir(output_dir: Path) -> str | None:
-    """Return a human explanation when ``output_dir`` can't be a library root.
-
-    Covers three distinct failures, all reported as usage errors (exit 2):
-    the path exists but isn't a directory, exists but isn't writable, or a
-    nonexistent path whose parent chain can't be created. Returns ``None``
-    (creating the directory if needed) when it can serve as a root.
-    """
-    try:
-        if output_dir.exists():
-            if not output_dir.is_dir():
-                return "It exists and is not a directory."
-            if not os.access(output_dir, os.W_OK):
-                return "It exists but is not writable."
-            return None
-        output_dir.mkdir(parents=True, exist_ok=True)
-        return None
-    except OSError as exc:
-        return f"It can't be created ({exc.strerror or exc})."
 
 
 def _source_domains() -> list[str]:
@@ -126,13 +104,6 @@ def _build_parser(cmd: str) -> argparse.ArgumentParser:
         prog=f"comic-dl {cmd}",
         description="",
     )
-    parser.add_argument(
-        "-o",
-        "--output",
-        type=Path,
-        default=None,
-        help="Library root directory (default: per-user downloads folder)",
-    )
     if cmd in ("list", "info", "latest"):
         parser.add_argument(
             "--json",
@@ -186,39 +157,27 @@ def run_library_command(cmd: str, argv: list[str]) -> int:
         # argparse raises for --help (0) and usage errors (2); keep the code.
         return exc.code if isinstance(exc.code, int) else 0
 
-    if args.output is None:
-        args.output = configured_output_dir()
-
-    if reason := _validate_output_dir(args.output):
-        print_error(f"Library path not found: {args.output}.")
-        print_dim(f"{reason} Or omit -o to use the default ({configured_output_dir()}).")
-        return EXIT_USAGE
-
     if cmd not in COMMANDS:
         return EXIT_USAGE
 
-    library = Library(library_path(args.output))
+    library = Library(default_library_path())
     try:
         library.open()
     except OSError as exc:
-        print_error(f"Cannot open library at {library_path(args.output)}.")
-        print_dim(
-            f"{exc.strerror or exc}. Or omit -o to use the default ({configured_output_dir()})."
-        )
+        print_error(f"Cannot open library at {default_library_path()}.")
+        print_dim(f"{exc.strerror or exc}.")
         return EXIT_USAGE
     try:
-        _purge_trash(args.output)
+        _purge_all_trash(library)
         if cmd == "list":
             return _cmd_list(
                 library,
-                args.output,
                 as_json=args.json,
                 source=args.source,
             )
         if cmd == "info":
             return _cmd_info(
                 library,
-                args.output,
                 args.series,
                 as_json=args.json,
             )
@@ -227,7 +186,6 @@ def run_library_command(cmd: str, argv: list[str]) -> int:
         if cmd == "remove":
             return _cmd_remove(
                 library,
-                args.output,
                 args.series,
                 yes=args.yes,
                 dry_run=args.dry_run,
@@ -236,7 +194,6 @@ def run_library_command(cmd: str, argv: list[str]) -> int:
         if cmd == "restore":
             return _cmd_restore(
                 library,
-                args.output,
                 args.series,
                 dry_run=args.dry_run,
                 as_json=args.json,
@@ -251,14 +208,13 @@ def run_library_command(cmd: str, argv: list[str]) -> int:
 
 def _cmd_list(
     library: Library,
-    output_dir: Path,
     *,
     as_json: bool,
     source: str | None = None,
 ) -> int:
     if not library.available:
-        print_error(f"No library database at {library_path(output_dir)}.")
-        print_dim("Download a series first, or point -o at the right output root.")
+        print_error(f"No library database at {default_library_path()}.")
+        print_dim("Download a series first.")
         return EXIT_ERROR
     series = library.list_series()
     if source is not None:
@@ -270,12 +226,13 @@ def _cmd_list(
                 "title": s["title"],
                 "source": s.get("source") or None,
                 "source_site": s.get("source_site") or None,
+                "output_root": s.get("output_root") or None,
                 "relative_path": s.get("relative_path") or None,
                 "chapter_count": s["chapter_count"],
                 "total_size": s["total_size"],
                 "last_checked": s.get("last_checked"),
                 "last_updated": s.get("last_updated"),
-                "directory": str(_resolve_series_dir(output_dir, s)),
+                "directory": str(_resolve_series_dir(Path(s.get("output_root") or ""), s)),
             }
             for s in series
         ]
@@ -296,7 +253,7 @@ def _cmd_list(
             _print_source_suggestion(source)
         else:
             print_dim(
-                f"Library is empty at {library_path(output_dir)}.",
+                f"Library is empty at {default_library_path()}.",
                 console_obj=console,
             )
             print_dim("Get started: comic-dl -u <URL>", console_obj=console)
@@ -314,7 +271,7 @@ def _cmd_list(
     print_table("Library", ["Title", "Source", "Chapters", "Size", "Last updated"], rows)
     console.print()
     print_dim(
-        f"{len(series)} series in {library_path(output_dir)}",
+        f"{len(series)} series in {default_library_path()}",
         console_obj=console,
     )
     return EXIT_OK
@@ -325,20 +282,19 @@ def _cmd_list(
 
 def _cmd_info(
     library: Library,
-    output_dir: Path,
     query: str,
     *,
     as_json: bool,
 ) -> int:
     if not library.available:
-        print_error(f"No library database at {library_path(output_dir)}.")
-        print_dim("Download a series first, or point -o at the right output root.")
+        print_error(f"No library database at {default_library_path()}.")
+        print_dim("Download a series first.")
         return EXIT_ERROR
     match = _resolve_series(library, query)
     if match is None:
         return EXIT_USAGE
     s = match
-    series_dir = _resolve_series_dir(output_dir, s)
+    series_dir = _resolve_series_dir(Path(s.get("output_root") or ""), s)
     chapters = library.get_chapters(s["series_id"])
 
     if as_json:
@@ -349,6 +305,7 @@ def _cmd_info(
             "title": s["title"],
             "source": s.get("source") or None,
             "source_site": s.get("source_site") or None,
+            "output_root": s.get("output_root") or None,
             "directory": str(series_dir),
             "chapter_count": len(chapters),
             "last_checked": s.get("last_checked"),
@@ -432,8 +389,8 @@ def _cmd_latest(
     as_json: bool,
 ) -> int:
     if not library.available:
-        print_error(f"No library database at {library_path(args.output)}.")
-        print_dim("Download a series first, or point -o at the right output root.")
+        print_error(f"No library database at {default_library_path()}.")
+        print_dim("Download a series first.")
         return EXIT_ERROR
     if args.days < 1:
         print_error("--days must be at least 1.")
@@ -448,6 +405,7 @@ def _cmd_latest(
             {
                 "series_id": c["series_id"],
                 "series_title": c["series_title"],
+                "output_root": c.get("output_root"),
                 "chapter_title": c.get("chapter_title"),
                 "chapter_no": c.get("chapter_no"),
                 "cbz": c.get("cbz"),
@@ -501,7 +459,6 @@ def _cmd_latest(
 
 def _cmd_remove(
     library: Library,
-    output_dir: Path,
     query: str,
     *,
     yes: bool,
@@ -509,13 +466,19 @@ def _cmd_remove(
     as_json: bool = False,
 ) -> int:
     if not library.available:
-        print_error(f"No library database at {library_path(output_dir)}.")
-        print_dim("Download a series first, or point -o at the right output root.")
+        print_error(f"No library database at {default_library_path()}.")
+        print_dim("Download a series first.")
         return EXIT_ERROR
     match = _resolve_series(library, query)
     if match is None:
         return EXIT_USAGE
     s = match
+    root = s.get("output_root") or ""
+    if not root:
+        print_error(f"Cannot remove '{s['title']}': no output root recorded.")
+        print_dim("Re-download the series so the library learns where it lives.")
+        return EXIT_ERROR
+    output_dir = Path(root)
     series_dir = _resolve_series_dir(output_dir, s)
 
     output_resolved = output_dir.resolve()
@@ -542,6 +505,7 @@ def _cmd_remove(
                         "dry_run": True,
                         "series_id": s["series_id"],
                         "title": s["title"],
+                        "output_root": root,
                         "directory": str(series_dir),
                         "chapter_count": len(chapters),
                         "size_bytes": total_size,
@@ -624,6 +588,7 @@ def _cmd_remove(
                     "schema_version": JSON_SCHEMA_VERSION,
                     "series_id": s["series_id"],
                     "title": s["title"],
+                    "output_root": root,
                     "directory": str(series_dir),
                     "chapter_count": len(chapters),
                     "size_bytes": total_size,
@@ -644,21 +609,23 @@ def _cmd_remove(
 
 def _cmd_restore(
     library: Library,
-    output_dir: Path,
     query: str,
     *,
     dry_run: bool,
     as_json: bool = False,
 ) -> int:
     if not library.available:
-        print_error(f"No library database at {library_path(output_dir)}.")
-        print_dim("Download a series first, or point -o at the right output root.")
+        print_error(f"No library database at {default_library_path()}.")
+        print_dim("Download a series first.")
         return EXIT_ERROR
-    entries = _trash_entries(output_dir)
+    entries = _all_trash_entries(library)
     matches = _match_trash_entries(entries, query)
     if not matches:
         print_error(f"No trashed series matches: {query}")
-        print_dim(f"Trash: {_trash_dir(output_dir)}")
+        if library.available:
+            roots = library.known_roots()
+            if roots:
+                print_dim(f"Trash roots: {', '.join(roots)}")
         return EXIT_USAGE
     if len(matches) > 1:
         print_error(f"'{query}' matches multiple trashed series:")
@@ -669,6 +636,12 @@ def _cmd_restore(
 
     s = matches[0]["series"]
     chapters = matches[0].get("chapters") or []
+    root = s.get("output_root") or matches[0].get("_root") or ""
+    if not root:
+        print_error(f"Cannot restore '{s.get('title')}': no output root recorded.")
+        print_dim("Re-download the series so the library learns where it lives.")
+        return EXIT_ERROR
+    output_dir = Path(root)
     series_dir = _resolve_series_dir(output_dir, s)
 
     output_resolved = output_dir.resolve()
@@ -695,6 +668,7 @@ def _cmd_restore(
                         "dry_run": True,
                         "series_id": s["series_id"],
                         "title": s["title"],
+                        "output_root": root,
                         "directory": str(series_dir),
                         "chapter_count": len(chapters),
                     },
@@ -740,6 +714,7 @@ def _cmd_restore(
                     "schema_version": JSON_SCHEMA_VERSION,
                     "series_id": s["series_id"],
                     "title": s["title"],
+                    "output_root": root,
                     "directory": str(series_dir),
                     "chapter_count": len(chapters),
                     "directory_restored": restored_dir,
@@ -765,18 +740,17 @@ def _resolve_series(library: Library, query: str) -> dict | None:
         if domain is not None:
             print_dim(
                 f"'{query}' looks like a source, not a series. Filter the "
-                f"library instead: comic-dl list -o <dir> --source {domain}"
+                f"library instead: comic-dl list --source {domain}"
             )
         elif query.lstrip().lower().startswith(("http://", "https://")):
             print_dim(
-                "No series in this library matches that URL. It may be in a "
-                "different -o root, or you may have passed a chapter URL."
+                "No series in this library matches that URL. You may have passed a chapter URL."
             )
         else:
             title = _suggest_series_title(library, query)
             if title is not None:
                 print_dim(f"Did you mean: {title}?")
-                print_dim(f"Try: comic-dl info -o <dir> '{title}'")
+                print_dim(f"Try: comic-dl info '{title}'")
             elif _looks_like_domain(query):
                 print_dim(
                     f"'{query}' looks like a web address or source domain, "
@@ -830,6 +804,7 @@ def _write_trash_sidecar(
                     "title",
                     "source",
                     "source_site",
+                    "output_root",
                     "relative_path",
                     "last_checked",
                     "last_updated",
@@ -864,6 +839,22 @@ def _trash_entries(output_dir: Path) -> list[dict]:
         meta["_sidecar"] = sidecar
         entries.append(meta)
     return entries
+
+
+def _all_trash_entries(library: Library) -> list[dict]:
+    """Merge trash sidecars from every known output root.
+
+    Each entry is tagged with ``_root`` (the root whose trash holds it) so
+    restore resolves directories against the right filesystem location.
+    """
+    if not library.available:
+        return []
+    merged: list[dict] = []
+    for root in library.known_roots():
+        for meta in _trash_entries(Path(root)):
+            meta["_root"] = root
+            merged.append(meta)
+    return merged
 
 
 def _match_trash_entries(entries: list[dict], query: str) -> list[dict]:
@@ -914,6 +905,14 @@ def _purge_trash(output_dir: Path) -> None:
                 continue
     except OSError:
         return
+
+
+def _purge_all_trash(library: Library) -> None:
+    """Purge expired trash entries for every known output root."""
+    if not library.available:
+        return
+    for root in library.known_roots():
+        _purge_trash(Path(root))
 
 
 def _num_key(value: str):

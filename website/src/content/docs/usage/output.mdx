@@ -17,7 +17,7 @@ Use the layout below to find files, then choose a container and compression mode
     cover.jpg                    # series cover (when available)
     <Chapter Title>.cbz          # one archive per chapter
   .comic-dl/
-    library.db                   # SQLite download history
+    trash/                       # removed series, purged after 7 days
   .nomedia                       # Android gallery exclusion marker
 ```
 
@@ -99,7 +99,7 @@ the plain `Series Title` folder.
 
 ## Removed series
 
-Removed series move to `<output>/.comic-dl/trash/` and are purged after 7
+Removed series move to `<output-root>/.comic-dl/trash/` and are purged after 7
 days. See [Remove a series](../library/#remove-a-series) and
 [Restore a series](../library/#restore-a-series) for the commands.
 

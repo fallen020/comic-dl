@@ -2084,7 +2084,7 @@ class TestDownloadJson:
 
         assert await main() == 0
         payload = json.loads(capsys.readouterr().out)
-        assert payload["schema_version"] == 1
+        assert payload["schema_version"] == 2
         assert payload["status"] == "success"
         assert payload["url"] == "https://a.com/"
         assert payload["output_path"] == "/out/a.cbz"
@@ -2127,7 +2127,7 @@ class TestDownloadJson:
 
         assert await main() == 1
         payload = json.loads(capsys.readouterr().out)
-        assert payload["schema_version"] == 1
+        assert payload["schema_version"] == 2
         assert payload["status"] == "failed"
         assert payload["error"] == 1
         assert payload["message"] == "Unexpected internal error."
@@ -2146,7 +2146,7 @@ class TestDownloadJson:
 
         assert await main() == 1
         payload = json.loads(capsys.readouterr().out)
-        assert payload["schema_version"] == 1
+        assert payload["schema_version"] == 2
         assert len(payload["urls"]) == 2
         assert payload["succeeded"] == 1
         assert payload["skipped"] == 0
@@ -2283,7 +2283,7 @@ class TestDryRun:
 
         assert await main() == 0
         payload = json.loads(capsys.readouterr().out)
-        assert payload["schema_version"] == 1
+        assert payload["schema_version"] == 2
         assert payload["urls"][0]["url"] == "https://a.com/"
         assert payload["urls"][0]["action"] == "skip"
         assert payload["urls"][0]["existing"] == "a.cbz"
@@ -3631,7 +3631,7 @@ class TestGracefulStopBoundary:
                 "close": lambda s: None,
             },
         )()
-        monkeypatch.setattr(cli, "_open_library", lambda p: fake_lib)
+        monkeypatch.setattr(cli, "_open_library", lambda: fake_lib)
 
         result = asyncio.run(cli._run_update(["all"]))
         assert result == EXIT_INTERRUPTED
@@ -3671,7 +3671,7 @@ class TestGracefulStopBoundary:
                 "close": lambda s: None,
             },
         )()
-        monkeypatch.setattr(cli, "_open_library", lambda p: fake_lib)
+        monkeypatch.setattr(cli, "_open_library", lambda: fake_lib)
 
         result = asyncio.run(cli._run_update(["all", "--parallel", "2", "-q"]))
         assert result == EXIT_OK
@@ -3690,7 +3690,7 @@ class TestGracefulStopBoundary:
                 "close": lambda s: None,
             },
         )()
-        monkeypatch.setattr(cli, "_open_library", lambda p: fake_lib)
+        monkeypatch.setattr(cli, "_open_library", lambda: fake_lib)
 
         result = asyncio.run(cli._run_update(["all", "--parallel", "0"]))
         assert result == EXIT_USAGE
@@ -4371,7 +4371,7 @@ class TestListSourcesJson:
             import json as _json
 
             payload = _json.loads(out)
-            assert payload["schema_version"] == 1
+            assert payload["schema_version"] == 2
             assert payload["sources"]
         finally:
             set_json_mode(False)
@@ -4387,7 +4387,7 @@ class TestListSourcesJson:
             import json as _json
 
             payload = _json.loads(out)
-            assert payload["schema_version"] == 1
+            assert payload["schema_version"] == 2
         finally:
             set_json_mode(False)
 

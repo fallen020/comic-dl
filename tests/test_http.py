@@ -565,7 +565,7 @@ class TestRunCookie:
         assert self._run(["ls", "--json"], tmp_path, monkeypatch) == 0
         captured = capsys.readouterr()
         payload = _json.loads(captured.out)
-        assert payload["schema_version"] == 1
+        assert payload["schema_version"] == 2
         assert "cookie(s)" not in captured.out
 
     def test_cookie_ls_json(self, capsys, tmp_path, monkeypatch):
@@ -582,7 +582,7 @@ class TestRunCookie:
         assert self._run(["ls", "--json"], tmp_path, monkeypatch) == 0
         out = capsys.readouterr().out
         payload = _json.loads(out)
-        assert payload["schema_version"] == 1
+        assert payload["schema_version"] == 2
         assert any(c["host"] == "e-hentai.org" and c["name"] == "sk" for c in payload["cookies"])
 
     def test_cookie_set_rejects_bad_host(self, capsys, tmp_path, monkeypatch):

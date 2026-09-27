@@ -43,7 +43,7 @@ from .utils import normalize_url_key
 
 FINAL_FRAME_DELAY = 0.15
 
-JSON_SCHEMA_VERSION = 1
+JSON_SCHEMA_VERSION = 2
 
 JSON_MODE = False
 
