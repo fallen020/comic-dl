@@ -29,7 +29,7 @@ from comic_dl.cli import (
     _is_verbosity_token,
     _open_library,
     _parse_size,
-    _read_urls_from_file,
+    _read_urls_from_file_indexed,
     _resolve_archive_path,
     _run_with_network_retry,
     _scan_global_flags,
@@ -359,43 +359,47 @@ async def _fake_coro(val):
 
 
 class TestReadUrlsFromFile:
+    def _urls(self, f):
+        result = _read_urls_from_file_indexed(f)
+        return None if result is None else [url for url, _ in result]
+
     def test_reads_nonempty_lines(self, tmp_path):
         f = tmp_path / "urls.txt"
         f.write_text("https://a.com/\nhttps://b.com/\n")
-        assert _read_urls_from_file(f) == ["https://a.com/", "https://b.com/"]
+        assert self._urls(f) == ["https://a.com/", "https://b.com/"]
 
     def test_skips_blank_lines(self, tmp_path):
         f = tmp_path / "urls.txt"
         f.write_text("https://a.com/\n\n\nhttps://b.com/\n")
-        assert _read_urls_from_file(f) == ["https://a.com/", "https://b.com/"]
+        assert self._urls(f) == ["https://a.com/", "https://b.com/"]
 
     def test_skips_comments(self, tmp_path):
         f = tmp_path / "urls.txt"
         f.write_text("# comment\nhttps://a.com/\n")
-        assert _read_urls_from_file(f) == ["https://a.com/"]
+        assert self._urls(f) == ["https://a.com/"]
 
     def test_strips_whitespace(self, tmp_path):
         f = tmp_path / "urls.txt"
         f.write_text("  https://a.com/  \n")
-        assert _read_urls_from_file(f) == ["https://a.com/"]
+        assert self._urls(f) == ["https://a.com/"]
 
     def test_dedupes_identical_urls_keeping_order(self, tmp_path):
         f = tmp_path / "urls.txt"
         f.write_text("https://a.com/\nhttps://a.com/\nhttps://b.com/\n")
-        assert _read_urls_from_file(f) == ["https://a.com/", "https://b.com/"]
+        assert self._urls(f) == ["https://a.com/", "https://b.com/"]
 
     def test_dedupes_normalized_variants(self, tmp_path):
         f = tmp_path / "urls.txt"
         f.write_text("https://a.com/\nhttp://a.com/\nhttps://A.com/\nhttps://b.com/\n")
-        assert _read_urls_from_file(f) == ["https://a.com/", "https://b.com/"]
+        assert self._urls(f) == ["https://a.com/", "https://b.com/"]
 
     def test_dedupes_keeps_first_spelling(self, tmp_path):
         f = tmp_path / "urls.txt"
         f.write_text("https://A.com/1\nhttps://a.com/1\n")
-        assert _read_urls_from_file(f) == ["https://A.com/1"]
+        assert self._urls(f) == ["https://A.com/1"]
 
     def test_returns_none_for_directory(self, tmp_path):
-        assert _read_urls_from_file(tmp_path) is None
+        assert self._urls(tmp_path) is None
 
     def test_skips_overlong_url(self, tmp_path, capsys):
         from comic_dl.cli import MAX_URL_LENGTH
@@ -403,7 +407,7 @@ class TestReadUrlsFromFile:
         f = tmp_path / "urls.txt"
         long_url = "https://a.com/" + "x" * (MAX_URL_LENGTH + 10)
         f.write_text(f"{long_url}\nhttps://b.com/\n")
-        assert _read_urls_from_file(f) == ["https://b.com/"]
+        assert self._urls(f) == ["https://b.com/"]
         assert "longer than" in (capsys.readouterr().err)
 
     def test_stops_at_max_urls(self, tmp_path, capsys):

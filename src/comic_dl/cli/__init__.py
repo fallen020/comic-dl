@@ -55,6 +55,7 @@ from ..config import (
     generic_enabled,
     http_setting,
     load_config,
+    reload_config,
     set_config_path,
     set_no_config,
     set_runtime_download,
@@ -67,6 +68,7 @@ from ..downloader import (
     close_shared_cover_session,
     download_cover_to,
     probe_download_size,
+    reset_host_breaker,
 )
 from ..errors import (
     EXIT_ERROR,
@@ -80,7 +82,7 @@ from ..errors import (
 from ..library import Library, library_path, source_id
 from ..manifest import MANIFEST_NAME
 from ..models import PostMetadata
-from ..netcheck import check_connectivity
+from ..netcheck import check_connectivity, reset_connectivity_cache
 from ..platform import default_editor as _default_editor
 from ..rate import rate_limiting_enabled
 from ..scrapers import get_entry, list_sources, load_plugins
@@ -441,18 +443,6 @@ def _read_urls_from_file_indexed(path: Path) -> list[tuple[str, int]] | None:
     except (OSError, UnicodeDecodeError):
         return None
     return urls
-
-
-def _read_urls_from_file(path: Path) -> list[str] | None:
-    """Read a URL-list file, skipping blanks and ``#`` comments.
-
-    Duplicate URLs (compared by :func:`normalize_url` identity) are dropped,
-    keeping the first occurrence's spelling and the file's order.
-    """
-    indexed = _read_urls_from_file_indexed(path)
-    if indexed is None:
-        return None
-    return [url for url, _ in indexed]
 
 
 def _existing_archives(series_dir: Path) -> dict[str, Path]:
@@ -1609,6 +1599,12 @@ async def _run_with_network_retry(
                 break
             if not quiet:
                 print_retry(attempt + 2, attempts, reason="network error")
+            # A transport failure may have parked the host's circuit breaker;
+            # the retried attempt must get a clean network shot, not fail fast.
+            reset_host_breaker()
+            # The cached "offline" verdict may itself be the stale artifact of
+            # the failure that triggered this retry; re-probe on the attempt.
+            reset_connectivity_cache()
             await asyncio.sleep((1.0 + attempt) * 0.8)
     if last_error is None:  # pragma: no cover - the loop always sets it
         raise RuntimeError("retry loop exhausted without recording an error")
@@ -3755,6 +3751,12 @@ async def _run_self_site(argv: list[str]) -> int:
     if args.action == "list":
         return await run_site_list_command(json_mode=args.json)
     if args.action == "check":
+        if args.live and not args.json:
+            return await _with_spinner(
+                "Running live site check",
+                False,
+                run_site_check_command(target=args.site, live=True, json_mode=False),
+            )
         return await run_site_check_command(target=args.site, live=args.live, json_mode=args.json)
     return await run_site_update_command(target=args.site, all_sites=args.all, yes=args.yes)
 
@@ -4683,7 +4685,13 @@ def _validate_config(path: Path) -> int:
 
 
 def _edit_config(path: Path) -> int:
-    """Open ``path`` in ``$VISUAL``/``$EDITOR``, creating it first if needed."""
+    """Open ``path`` in ``$VISUAL``/``$EDITOR``, creating it first if needed.
+
+    After the editor exits the file is re-loaded, so the validators and
+    effective-config caches reflect the new contents immediately instead of
+    keeping a stale parse from before the edit (or the pre-edit default when
+    the file was just created).
+    """
     if not path.exists():
         try:
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -4697,12 +4705,15 @@ def _edit_config(path: Path) -> int:
         editor = _default_editor()
     try:
         # Argv is a list, never a shell string.
-        return subprocess.call(  # nosec B603
+        rc = subprocess.call(  # nosec B603
             [editor, str(path)], shell=False
         )
     except OSError as exc:
         print_error(f"Could not start editor {editor!r}: {exc}")
         return EXIT_ERROR
+    if rc == 0:
+        reload_config()
+    return rc
 
 
 def _completion_global_flags() -> list[str]:

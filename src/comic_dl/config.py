@@ -358,10 +358,17 @@ def reload_config() -> dict[str, Any]:
 
     Normally :func:`load_config` serves a snapshot cached against the file's
     mtime and size; call this to pick up an edit made mid-run (for example a
-    ``comic-dl config`` subcommand that just rewrote the file).
+    ``comic-dl config`` subcommand that just rewrote the file). Cached
+    connectivity verdicts derived from the old file (per-host DNS safety,
+    reachability) are dropped so a proxy or source change takes effect
+    without a restart.
     """
     global _LOAD_CACHE
     _LOAD_CACHE = None
+    # Lazy: utils imports config, so a module-level import would be circular.
+    from .utils import clear_dns_cache
+
+    clear_dns_cache()
     return load_config()
 
 

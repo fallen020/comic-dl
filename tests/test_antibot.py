@@ -26,6 +26,13 @@ class TestClassifyBlock:
         assert verdict.kind == "interstitial"
         assert verdict.recommended_action == "retry"
 
+    def test_cloudflare_403_cf_ray_without_server_marker(self):
+        headers = {"cf-ray": "abc123", "cf-request-id": "01"}
+        verdict = classify_block(403, headers, body="<html>plain</html>")
+        assert verdict.vendor == "cloudflare"
+        assert verdict.kind == "interstitial"
+        assert verdict.recommended_action == "retry"
+
     def test_cloudflare_503_with_body_markers(self):
         headers = {"server": "nginx"}
         body = '<div id="cf-turnstile"></div>'

@@ -43,7 +43,6 @@ _CF_HEADERS = frozenset(
         "cf-mitigated",
         "cf-chl-bypass",
         "cf-request-id",
-        "server",
     }
 )
 _CF_BODY_MARKERS = (
@@ -342,9 +341,10 @@ def classify_block(
             honeypot=False,
         )
 
-    # 1. Cloudflare detection (most common)
+    # CF via server header set
     server = h.get("server", "").strip()
-    if status in (403, 503) and server in _CF_SERVER:
+    present_cf_headers = {name for name in _CF_HEADERS if name in h}
+    if status in (403, 503) and (server in _CF_SERVER or present_cf_headers):
         cf_error = _extract_cf_error_code(body)
         cf_challenge = _extract_cf_challenge_type(body)
         reason = None
@@ -374,7 +374,7 @@ def classify_block(
             recommended_action=action,
         )
 
-    # CF via cf-mitigated header
+    # CF via cf-mitigated header alone (no server header, other statuses)
     if h.get("cf-mitigated") == "challenge":
         cf_challenge = _extract_cf_challenge_type(body)
         return BlockVerdict(
@@ -497,7 +497,7 @@ def looks_like_challenge(
         return False
     h = _normalize_headers(headers)
     server = h.get("server", "").strip()
-    if server in _CF_SERVER:
+    if server in _CF_SERVER or any(name in h for name in _CF_HEADERS):
         return True
     if h.get("cf-mitigated") == "challenge":
         return True
