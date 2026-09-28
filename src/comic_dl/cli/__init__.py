@@ -3731,7 +3731,7 @@ async def _run_self(argv: list[str]) -> int:
 async def _run_self_site(argv: list[str]) -> int:
     """``comic-dl self site`` — per-site adapter support: list/check/update."""
     if not argv:
-        print_error("missing command.")
+        print_error("missing command (list, check, or update).")
         print_dim("Run 'comic-dl self site --help' for usage.")
         return EXIT_USAGE
     parser = ComicArgumentParser(
