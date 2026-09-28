@@ -58,8 +58,10 @@ _MANIFEST_MAX_AGE_SECONDS = 24 * 60 * 60
 
 _SEMVER_RE = re.compile(r"^\d+\.\d+\.\d+$")
 
-# Adapter-visible columns for list/check output.
-_COLUMNS = ("SITE", "VERSION", "DOMAINS", "STATUS")
+# Adapter-visible column sets: ``list`` reads local state (domains), while
+# ``check`` compares two versions (installed vs published).
+_LIST_COLUMNS = ("SITE", "VERSION", "DOMAINS", "STATUS")
+_CHECK_COLUMNS = ("SITE", "INSTALLED", "AVAILABLE", "STATUS")
 
 
 @dataclass(frozen=True)
@@ -327,7 +329,9 @@ def site_update_hint(domain: str) -> str:
 # Command entry points (return process exit codes)
 
 
-def _render_table(title: str, rows: list[list[str]], extra: str = "") -> None:
+def _render_table(
+    title: str, rows: list[list[str]], columns: tuple[str, ...], extra: str = ""
+) -> None:
     table = Table(
         box=None,
         show_header=True,
@@ -335,7 +339,7 @@ def _render_table(title: str, rows: list[list[str]], extra: str = "") -> None:
         pad_edge=False,
         padding=(0, 2),
     )
-    for col in _COLUMNS:
+    for col in columns:
         table.add_column(col)
     for row in rows:
         table.add_row(*row)
@@ -344,6 +348,38 @@ def _render_table(title: str, rows: list[list[str]], extra: str = "") -> None:
     console.print(table)
     if extra:
         print_dim(extra)
+
+
+def _tally_line(statuses: list[str]) -> str:
+    """One-line rollup of table statuses ('' when there is nothing to act on).
+
+    An all-clean table needs no summary; otherwise the tally names what
+    differs so one bad row is visible inside a wall of green.
+    """
+    counts: dict[str, int] = {}
+    for status in statuses:
+        counts[status] = counts.get(status, 0) + 1
+    if set(counts) <= {"up to date"}:
+        return ""
+    parts = [f"{n} {s}" for s, n in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))]
+    return "  " + ", ".join(parts) + "."
+
+
+def _manifest_age_line(manifest: SiteManifest | None) -> str:
+    """Provenance for a cached manifest ('' when there is none to cite)."""
+    if manifest is None:
+        return ""
+    try:
+        age = _age_seconds(_cache_path())
+    except OSError:
+        age = 0
+    if age < 3600:
+        age_text = f"{int(age // 60)}m ago" if age >= 60 else "just now"
+    elif age < 86400:
+        age_text = f"{int(age // 3600)}h ago"
+    else:
+        age_text = f"{int(age // 86400)}d ago"
+    return f"Status from cached manifest (core {manifest.core_version}, fetched {age_text})."
 
 
 async def run_site_list_command(*, json_mode: bool) -> int:
@@ -378,18 +414,24 @@ async def run_site_list_command(*, json_mode: bool) -> int:
             soft_wrap=True,
         )
         return EXIT_OK
-    if not json_mode:
-        rows = [
-            [
-                s.site_id,
-                s.version,
-                s.domain,
-                status_for(s, cached.sites.get(s.site_id) if cached else None, installed_core),
-            ]
-            for s in sites
+    rows = [
+        [
+            s.site_id,
+            s.version,
+            s.domain,
+            status_for(s, cached.sites.get(s.site_id) if cached else None, installed_core),
         ]
-        extra = "" if cached else "Status shows 'unable to check' until a site check is run."
-        _render_table(f"Installed site support ({len(sites)})", rows, extra)
+        for s in sites
+    ]
+    statuses = [row[3] for row in rows]
+    extra = _tally_line(statuses)
+    if cached is not None:
+        provenance = _manifest_age_line(cached)
+        extra = f"{extra}\n{provenance}" if extra else provenance
+    else:
+        hint = "Status shows 'unable to check' until a site check is run."
+        extra = f"{extra}\n{hint}" if extra else hint
+    _render_table(f"Installed site support ({len(sites)})", rows, _LIST_COLUMNS, extra)
     return EXIT_OK
 
 
@@ -419,12 +461,13 @@ async def run_site_check_command(*, target: str | None, live: bool, json_mode: b
     if live and target is not None:
         live_map[target] = await _live_check(sites[0])
 
+    unknown_sites: list[str] = []
     for s in sites:
         available = manifest.sites.get(s.site_id) if manifest else None
         status = status_for(s, available, installed_core)
         error_code: str | None = None
-        if status == "unable to check" and manifest is None and not live:
-            degraded = True
+        if available is None and manifest is not None:
+            unknown_sites.append(s.site_id)
         live_res = live_map.get(s.site_id)
         if live_res is not None:
             error_code = live_res.error_code
@@ -443,7 +486,13 @@ async def run_site_check_command(*, target: str | None, live: bool, json_mode: b
         )
 
     if not json_mode:
-        _render_table(f"Site support check ({len(sites)})", rows)
+        statuses = [row[3] for row in rows]
+        extra = _tally_line(statuses)
+        if unknown_sites:
+            names = ", ".join(sorted(unknown_sites))
+            missing = f"No manifest entry for: {names}."
+            extra = f"{extra}\n{missing}" if extra else missing
+        _render_table(f"Site support check ({len(sites)})", rows, _CHECK_COLUMNS, extra)
 
     if json_mode:
         console.print(
@@ -467,8 +516,12 @@ async def run_site_check_command(*, target: str | None, live: bool, json_mode: b
 async def run_site_update_command(*, target: str | None, all_sites: bool, yes: bool) -> int:
     """``self site update <id>`` / ``--all`` — route an adapter update through
     the core update strategy (bundled adapters update with the core)."""
-    if all_sites == (target is not None):
+    if target is not None and all_sites:
         print_error("Specify one site id or --all, not both.")
+        return EXIT_USAGE
+    if target is None and not all_sites:
+        print_error("Specify one site id or --all.")
+        print_dim("Run: comic-dl self site update <site-id>  or  comic-dl self site update --all")
         return EXIT_USAGE
 
     manifest = await fetch_site_manifest()

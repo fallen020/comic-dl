@@ -301,6 +301,27 @@ class TestSiteList:
         assert '"schema_version": 2' in out
         assert '"site_id": "webtoon"' in out
 
+    async def test_columns_and_row_shape(self, monkeypatch, capsys):
+        monkeypatch.setattr("comic_dl.site_update._read_manifest_cache", lambda: None)
+        rc = await run_site_list_command(json_mode=False)
+        assert rc == EXIT_OK
+        out = _text(capsys)
+        for col in ("SITE", "VERSION", "DOMAINS", "STATUS"):
+            assert col in out
+        assert "INSTALLED" not in out and "AVAILABLE" not in out
+
+    async def test_cached_manifest_shows_provenance(self, real_sites, monkeypatch, capsys):
+        m = _manifest(
+            {s.site_id: (s.version, "0.0.2") for s in real_sites},
+            core="0.0.3",
+        )
+        monkeypatch.setattr("comic_dl.site_update._read_manifest_cache", lambda: m)
+        rc = await run_site_list_command(json_mode=False)
+        assert rc == EXIT_OK
+        out = _text(capsys)
+        assert "Status from cached manifest (core 0.0.3" in out
+        assert "unable to check" not in out
+
 
 async def _noop_fetch():
     return None
@@ -354,15 +375,60 @@ class TestSiteCheck:
         assert rc == EXIT_OK
         assert "update available" in _text(capsys)
 
+    async def test_columns_name_installed_and_available(self, monkeypatch, capsys):
+        installed = next(s for s in local_sites() if s.domain == "webtoons.com")
+        m = _manifest({"webtoon": (installed.version, "0.0.2")})
+
+        async def fetch():
+            return m
+
+        monkeypatch.setattr("comic_dl.site_update.fetch_site_manifest", fetch)
+        rc = await run_site_check_command(target="webtoon", live=False, json_mode=False)
+        assert rc == EXIT_OK
+        out = _text(capsys)
+        for col in ("SITE", "INSTALLED", "AVAILABLE", "STATUS"):
+            assert col in out
+        assert "DOMAINS" not in out
+        assert "webtoon" in out
+        assert out.count(installed.version) >= 2
+
+    async def test_check_tallies_non_clean_status(self, monkeypatch, capsys):
+        m = _manifest({"webtoon": ("9.9.9", "0.0.2")})
+
+        async def fetch():
+            return m
+
+        monkeypatch.setattr("comic_dl.site_update.fetch_site_manifest", fetch)
+        rc = await run_site_check_command(target="webtoon", live=False, json_mode=False)
+        assert rc == EXIT_OK
+        assert "1 update available." in _text(capsys)
+
+    async def test_missing_manifest_entry_is_reported_not_fatal(self, monkeypatch, capsys):
+        m = _manifest({"e-hentai": ("1.0.0", "0.0.2")})
+
+        async def fetch():
+            return m
+
+        monkeypatch.setattr("comic_dl.site_update.fetch_site_manifest", fetch)
+        rc = await run_site_check_command(target="webtoon", live=False, json_mode=False)
+        assert rc == EXIT_OK
+        out = _text(capsys)
+        assert "No manifest entry for: webtoon." in out
+        assert "unknown" in out
+
 
 class TestSiteUpdate:
-    async def test_neither_target_nor_all(self, monkeypatch):
+    async def test_neither_target_nor_all(self, monkeypatch, capsys):
         rc = await run_site_update_command(target=None, all_sites=False, yes=False)
         assert rc == EXIT_USAGE
+        out = _text(capsys)
+        assert "Specify one site id or --all." in out
+        assert "not both" not in out
 
-    async def test_target_and_all_conflict(self, monkeypatch):
+    async def test_target_and_all_conflict(self, monkeypatch, capsys):
         rc = await run_site_update_command(target="webtoon", all_sites=True, yes=False)
         assert rc == EXIT_USAGE
+        assert "not both" in _text(capsys)
 
     async def test_offline(self, monkeypatch, capsys):
         monkeypatch.setattr("comic_dl.site_update.fetch_site_manifest", _noop_fetch)
