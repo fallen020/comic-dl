@@ -3166,7 +3166,7 @@ def print_help() -> None:
     _help_header("Manage")
     _help_opt_row("cookie", "ls|set|clear [HOST]", "Manage the persistent cookie jar")
     _help_opt_row("cache", "clear|prune|status", "Inspect or clear the scrape response cache")
-    _help_opt_row("config", "path|show|init", "Locate, inspect, or create config.toml")
+    _help_opt_row("config", "path|show|init|edit|validate", "Show, validate, or edit config.toml")
     console.print()
 
     _help_header("Inspect & integrate")
@@ -3337,7 +3337,7 @@ def print_help_summary() -> None:
     _help_header("Manage")
     _help_opt_row("cookie", "ls|set|clear [HOST]", "Manage the persistent cookie jar")
     _help_opt_row("cache", "clear|prune|status", "Inspect or clear the scrape response cache")
-    _help_opt_row("config", "path|show|init", "Locate, inspect, or create config.toml")
+    _help_opt_row("config", "path|show|init|edit|validate", "Show, validate, or edit config.toml")
     console.print()
 
     _help_header("Inspect & integrate")

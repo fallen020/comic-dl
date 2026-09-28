@@ -646,3 +646,38 @@ class TestDefaultConfigParity:
         assert conf["http"]["solver"] == "off"
         assert conf["archive"]["format"] == "cbz"
         assert conf["http"]["rate"]["kagane.to"] == 1.5
+
+    def test_starter_never_overrides_defaults(self):
+        """``config init`` output must be behavior-neutral: every active key
+        in the starter already equals the built-in default."""
+        import tomllib
+
+        starter = tomllib.loads(cfgmodule.DEFAULT_CONFIG_TOML)
+        assert cfgmodule.diff_from_defaults(starter) == []
+
+    def test_starter_mentions_every_default_key(self):
+        """No default may be undiscoverable: each one appears in the starter,
+        active or commented out."""
+        import re
+
+        text = cfgmodule.DEFAULT_CONFIG_TOML
+        missing = []
+        for key, value in cfgmodule._DEFAULTS.items():
+            if isinstance(value, dict):
+                if f"[{key}]" not in text:
+                    missing.append(key)
+                for leaf, leaf_value in value.items():
+                    if isinstance(leaf_value, dict):
+                        continue  # maps like rate: covered by the parent key
+                    if not re.search(rf"^#?{re.escape(leaf)}\s*=", text, re.M):
+                        missing.append(f"{key}.{leaf}")
+            elif not re.search(rf"^#?{re.escape(key)}\s*=", text, re.M):
+                missing.append(key)
+        assert missing == []
+
+    def test_diff_flags_overrides(self):
+        assert cfgmodule.diff_from_defaults({"concurrency": 8, "http": {"solver": "auto"}}) == [
+            "concurrency = 8 (default 5)",
+            "http.solver = 'auto' (default 'off')",
+        ]
+        assert cfgmodule.diff_from_defaults({}) == []

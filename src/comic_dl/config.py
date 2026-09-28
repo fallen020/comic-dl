@@ -27,134 +27,82 @@ _NO_CONFIG = False
 _LOAD_CACHE: tuple[Path, int, int, dict[str, Any]] | None = None
 
 DEFAULT_CONFIG_TOML = """\
-# comic-dl configuration file.
-# Location: ~/.config/comic-dl/config.toml (Linux),
-#           ~/Library/Application Support/comic-dl/config.toml (macOS),
-#           %APPDATA%\\comic-dl\\config.toml (Windows).
-#
-# Precedence: CLI flag > config file > built-in default.
-
-# Default download directory. CLI -o/--output still overrides this.
 output = "~/Downloads/comic-dl"
-
-# Number of parallel page downloads.
 concurrency = 5
-
-# Max URLs in flight across a batch file (1-16).
 parallel = 5
-
-# Max chapters of a series downloading at once (1-8).
 chapter_parallel = 1
-
-# Maximum size per image (accepts 500MB, 2GB, 512KB, or plain bytes).
-max_image_size = "100MB"
-
-# Maximum total download size per run (0 = unlimited).
-max_size = 0
+#max_image_size = "100MB"
+#max_size = 0
 
 # HTTP / anti-bot settings. Each key can be overridden per-run by a CLI flag.
 [http]
-# TLS/HTTP impersonation profile used for requests (--impersonate).
 impersonate = "chrome146"
+solver = "off"  # [off | auto | impersonation | webview]
 
-# Cloudflare challenge solver (--solver):
-#   off            default: never retry challenged requests; a challenged
-#                  site fails with a solver hint
-#   auto           detect a challenge, clear the stale cookie, retry once;
-#                  solve in the system webview when available, else fall
-#                  back to impersonation-only
-#   impersonation  never open a webview; rely on the fingerprint profile
-#   webview        force the system-webview solver
-# Enable a mode explicitly to opt in to challenge solving.
-solver = "off"
-
-# Persist session cookies across runs. --no-cookie disables for one run.
-# Inspect/clear with: comic-dl cookie ls|clear [HOST]
 cookie-jar = true
+cookie-encryption = "auto"  # [auto | keyring | off]
 
-# Encrypt cookie values at rest (AES-256-GCM).
-#   auto      encrypt from a key: the OS keyring, or $COMIC_DL_COOKIE_KEY
-#   keyring   OS keyring only; never read the environment variable
-#   off       plaintext jar (CI/throwaway runs that want no key source)
-cookie-encryption = "auto"
-
-# On-disk scrape response cache (metadata GETs). --no-cache disables for one
-# run; inspect/clear with: comic-dl cache status|clear|prune
 cache = true
-# Hours a cached scrape response is served without a revalidation request.
-cache-ttl = 6
-# Total on-disk size budget for cached responses (accepts 100MB, 2GB, 512KB,
-# or plain bytes). When the cache exceeds it, the oldest entries are evicted.
-cache-max-bytes = "50MB"
-# Advisory entry-count ceiling, retained for display; eviction is governed by
-# cache-max-bytes and the 14-day hard drop age, not this count.
-cache-max-entries = 5000
+#cache-ttl = 6
+#cache-max-bytes = "50MB"
+#cache-max-entries = 5000
 
-# Per-site request throttling. --no-rate disables for one run.
 rate-enabled = true
-
-# Requests/second per host. Built-in defaults cover kagane.to (1.5),
-# kstatic.to (2.0) and e-hentai.org (2.0); add or override hosts here.
 rate = { "kagane.to" = 1.5, "kstatic.to" = 2.0, "e-hentai.org" = 2.0 }
 
-# Hard bound on one image download: seconds before an in-flight page fetch is
-# abandoned (retries still apply). Raise for slow servers.
 download-timeout = 60
-
-# Retries after the first attempt per image (total attempts = this + 1).
-# Lower to fail faster on flaky hosts; the shared backoff still paces retries.
 download-retries = 2
+#pass2-enabled = true
+#pass2-concurrency = 1
+#pass2-retries = 2
+#pass2-timeout = 120
+#pass2-impersonate = "firefox136"
 
-# Second, low-rate retry sweep: after pass 1's per-image retries are spent,
-# pages that still failed get one more pass at low concurrency so a transient
-# site-wide blip costs an extra slow sweep instead of a whole rerun.
-pass2-enabled = true
-pass2-concurrency = 1      # pages in flight during the sweep
-pass2-retries = 2          # retries per page after the sweep's first attempt
-pass2-timeout = 120        # per-image timeout (s) for the sweep
-# pass2-impersonate = ""   # uncomment with a profile (e.g. "firefox136") to
-                           # swap TLS/HTTP fingerprints for the sweep only
-
-# Generic fallback scraper: when a URL's host has no dedicated/plugin scraper,
-# extract a direct image, a gallery, or a chapter-list series straight from the
-# page (static HTML + embedded JSON only). --no-generic disables for one run.
 [download]
 generic = true
+#tmp-dir = "/large/disk"
 
-# Scratch space for chapter staging (pages land here before archiving).
-# Defaults to the system temp dir; set this to a large stable disk when the
-# system temp is small or RAM-backed (many distros mount /tmp as tmpfs).
-# tmp-dir = ""
-
-# Archive output. format is the container: cbz (default, most widely supported),
-# zip (plain zip, still embeds ComicInfo.xml), or cbt (tar). --format
-# overrides for one run.
 [archive]
-format = "cbz"
+format = "cbz"  # [cbz | zip | cbt]
+compression = "stored"  # [stored | deflate | deflate:0-9]
 
-# CBZ archive compression. stored (default) writes pages as-is (fastest);
-# deflate | deflate:0-9 opts into zlib. Comic pages are already-compressed
-# raster, so deflate rarely shrinks the CBZ — enable deliberately.
-# Applies to zip-family archives only; cbt is never compressed.
-# --compress overrides for one run.
-compression = "stored"
-
-# Per-source overrides keyed by host. Host keys must be quoted (a bare
-# [sources.kagane.to] would nest into sources.kagane.to).
-# Supported keys: rate (req/s), mode (solver mode), impersonate (profile).
-# It beats the global [http] rate map and solver setting.
-# Example (uncomment to apply):
-# [sources."kagane.to"]
-# rate = 0.8
-# mode = "auto"        # auto | impersonation | webview | off
-# impersonate = "chrome146"
+#[sources."kagane.to"]  # host keys must be quoted; beats the [http] table
+#rate = 0.8
+#mode = "auto"  # [auto | impersonation | webview | off]
+#impersonate = "chrome146"
 """
 
-# The documented defaults, parsed once at import so :func:`effective_config`
-# deep-merges against an object instead of re-parsing the constant per call.
-# If the constant ever stops being valid TOML this module refuses to import —
-# loud and early, because a broken default would be silent data loss.
-_DEFAULT_CONFIG = tomllib.loads(DEFAULT_CONFIG_TOML)
+# Built-in defaults, the single source for :func:`effective_config`. Runtime
+# call sites each carry their own fallback (see :func:`http_setting`), so this
+# table only feeds ``config show`` — never a download path.
+_DEFAULTS: dict[str, Any] = {
+    "output": "~/Downloads/comic-dl",
+    "concurrency": 5,
+    "parallel": 5,
+    "chapter_parallel": 1,
+    "max_image_size": "100MB",
+    "max_size": 0,
+    "http": {
+        "impersonate": "chrome146",
+        "solver": "off",
+        "cookie-jar": True,
+        "cookie-encryption": "auto",
+        "cache": True,
+        "cache-ttl": 6,
+        "cache-max-bytes": "50MB",
+        "cache-max-entries": 5000,
+        "rate-enabled": True,
+        "rate": {"kagane.to": 1.5, "kstatic.to": 2.0, "e-hentai.org": 2.0},
+        "download-timeout": 60,
+        "download-retries": 2,
+        "pass2-enabled": True,
+        "pass2-concurrency": 1,
+        "pass2-retries": 2,
+        "pass2-timeout": 120,
+    },
+    "download": {"generic": True},
+    "archive": {"format": "cbz", "compression": "stored"},
+}
 
 
 def set_config_path(path: str | Path | None) -> None:
@@ -450,15 +398,8 @@ _TABLE_RULES: dict[str, dict[str, Any]] = {
 _KNOWN_TABLES = frozenset({"http", "download", "archive", "sources"})
 
 
-def _validate_config(path: Path, data: dict[str, Any]) -> None:
-    """Emit one warning per malformed or unknown key in ``data``.
-
-    Broken values are never mutated or dropped here — consumers already fall
-    back to their defaults — but a warning makes a typo or a wrong type
-    visible at load time instead of silently producing a different effective
-    configuration. Anything that is not a plain ``dict`` (e.g. a bare
-    ``toml = "string"`` table value) is reported like a wrong type.
-    """
+def collect_problems(data: dict[str, Any]) -> list[str]:
+    """Type/shape problems in a parsed config table, one string each."""
     problems: list[str] = []
     for key, value in data.items():
         if key in _KNOWN_TABLES:
@@ -480,6 +421,40 @@ def _validate_config(path: Path, data: dict[str, Any]) -> None:
             rule = _KNOWN_KEYS[key]
             if not _check_rule(rule, value):
                 problems.append(f"{key!r}: expected {_describe(rule)}, got {value!r}")
+    return problems
+
+
+def diff_from_defaults(data: dict[str, Any]) -> list[str]:
+    """File keys that differ from the built-in default, as dotted paths."""
+    diffs: list[str] = []
+
+    def walk(base: Any, override: Any, prefix: str) -> None:
+        if isinstance(base, dict) and isinstance(override, dict):
+            if all(not isinstance(v, dict) for v in (*base.values(), *override.values())):
+                for key, value in override.items():
+                    if key in base and base[key] != value:
+                        diffs.append(f'{prefix}["{key}"] = {value!r} (default {base[key]!r})')
+                return
+            for key, value in override.items():
+                if key in base:
+                    walk(base[key], value, f"{prefix}{key}.")
+        elif base != override:
+            diffs.append(f"{prefix.rstrip('.')} = {override!r} (default {base!r})")
+
+    walk(_DEFAULTS, data, "")
+    return diffs
+
+
+def _validate_config(path: Path, data: dict[str, Any]) -> None:
+    """Emit one warning per malformed or unknown key in ``data``.
+
+    Broken values are never mutated or dropped here — consumers already fall
+    back to their defaults — but a warning makes a typo or a wrong type
+    visible at load time instead of silently producing a different effective
+    configuration. Anything that is not a plain ``dict`` (e.g. a bare
+    ``toml = "string"`` table value) is reported like a wrong type.
+    """
+    problems = collect_problems(data)
     if problems:
         from .ui import print_warning  # lazy: ui imports utils -> config
 
@@ -563,10 +538,10 @@ def effective_config() -> dict[str, Any]:
     Values from the file win per key; nested tables (``[http]``, ``[archive]``,
     ``[sources]``) are merged recursively. Process-wide runtime overrides set
     by :func:`set_runtime_http` / :func:`set_runtime_download` are merged on
-    top so ``config list`` / ``config show`` reflect what a run would actually
+    top so ``config show`` reflects what a run would actually
     use, not just the on-disk file.
     """
-    eff = _deep_merge(_DEFAULT_CONFIG, load_config())
+    eff = _deep_merge(_DEFAULTS, load_config())
     if _RUNTIME_HTTP:
         http = eff.get("http")
         http = http if isinstance(http, dict) else {}

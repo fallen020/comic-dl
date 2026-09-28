@@ -47,9 +47,11 @@ from ..archiver import ARCHIVE_PATTERNS, parse_compression
 from ..comicinfo import generate_series_comicinfo_xml
 from ..config import (
     DEFAULT_CONFIG_TOML,
+    collect_problems,
     config_dir,
     config_path,
     configured_output_dir,
+    diff_from_defaults,
     download_setting,
     effective_config,
     generic_enabled,
@@ -4495,10 +4497,12 @@ def _run_config(argv: list[str]) -> int:
 
     ``config`` (bare) and ``config show`` print the resolved effective
     configuration (documented defaults merged with the file). ``path`` prints
-    the file path, ``list`` prints effective values as TOML, ``validate``
-    type-checks the file, ``init`` writes a documented default, ``edit`` opens
-    the file in ``$VISUAL``/``$EDITOR``.
+    the file path, ``validate`` type-checks the file and reports the keys
+    that differ from the defaults, ``init`` writes a short starter config,
+    ``edit`` opens the file in ``$VISUAL``/``$EDITOR``.
     """
+    if argv[:1] == ["help"]:
+        argv = ["--help"]
     parser = ComicArgumentParser(
         prog="comic-dl config",
         description="Locate, inspect, or manage the config.toml file.",
@@ -4512,8 +4516,10 @@ def _run_config(argv: list[str]) -> int:
         "show",
         help="print the resolved effective configuration (defaults + file)",
     )
-    sub.add_parser("list", help="print effective values as TOML to stdout")
-    sub.add_parser("validate", help="parse the config and report problems")
+    sub.add_parser(
+        "validate",
+        help="type-check the config and report keys that differ from the defaults",
+    )
     init = sub.add_parser(
         "init",
         help="write a documented default config file (refuses to overwrite)",
@@ -4539,9 +4545,6 @@ def _run_config(argv: list[str]) -> int:
         return EXIT_OK
     if action == "show":
         _print_effective_config(path)
-        return EXIT_OK
-    if action == "list":
-        console.print(_toml_dump(effective_config()), end="", markup=False)
         return EXIT_OK
     if action == "validate":
         return _validate_config(path)
@@ -4620,7 +4623,13 @@ def _toml_dump(data: dict[str, Any]) -> str:
 
 
 def _validate_config(path: Path) -> int:
-    """Parse ``path`` and type-check the known keys; exit 0 when valid."""
+    """Type-check ``path`` against the known keys; exit 0 when valid.
+
+    Rules come from the shared engine in :mod:`comic_dl.config`, so the
+    advisory load-time warnings and this command can never disagree. On
+    success the file keys that differ from the built-in defaults are also
+    reported, so a stale or surprising value is visible without diffing.
+    """
     if not path.exists():
         print_dim(f"No config file at {path}; built-in defaults apply.")
         return EXIT_OK
@@ -4637,85 +4646,21 @@ def _validate_config(path: Path) -> int:
         print_error(f"{path} does not contain a TOML table.")
         return EXIT_ERROR
 
-    problems: list[str] = []
-    for key in ("concurrency", "parallel", "chapter_parallel"):
-        if key in data:
-            v = data[key]
-            if isinstance(v, bool) or not isinstance(v, int) or v < 1:
-                problems.append(f"{key}: expected an integer >= 1, got {v!r}")
+    problems = collect_problems(data)
     for key in ("max_image_size", "max_size"):
-        if key in data:
-            v = data[key]
-            if isinstance(v, bool) or not isinstance(v, (int, str)):
-                problems.append(f"{key}: expected a size like '100MB' or bytes, got {v!r}")
-            elif isinstance(v, str):
-                try:
-                    _parse_size(v)
-                except (ValueError, argparse.ArgumentTypeError):
-                    problems.append(f"{key}: unparseable size {v!r}")
-
-    http = data.get("http")
-    if isinstance(http, dict):
-        if "impersonate" in http and not isinstance(http["impersonate"], str):
-            problems.append("http.impersonate: expected a string")
-        if "solver" in http and http["solver"] not in {
-            "auto",
-            "impersonation",
-            "webview",
-            "off",
-        }:
-            problems.append(
-                f"http.solver: expected auto|impersonation|webview|off, got {http['solver']!r}"
-            )
-        for key in ("cookie-jar", "cache", "rate-enabled"):
-            if key in http and not isinstance(http[key], bool):
-                problems.append(f"http.{key}: expected true or false")
-        if "cache-ttl" in http and (
-            isinstance(http["cache-ttl"], bool)
-            or not isinstance(http["cache-ttl"], int)
-            or http["cache-ttl"] < 1
-        ):
-            problems.append(f"http.cache-ttl: expected an integer >= 1, got {http['cache-ttl']!r}")
-        if "cache-max-entries" in http and (
-            isinstance(http["cache-max-entries"], bool)
-            or not isinstance(http["cache-max-entries"], int)
-            or http["cache-max-entries"] < 1
-        ):
-            problems.append(
-                "http.cache-max-entries: expected an integer >= 1, "
-                f"got {http['cache-max-entries']!r}"
-            )
-        rate = http.get("rate")
-        if isinstance(rate, dict):
-            for host, value in rate.items():
-                if isinstance(value, bool) or not isinstance(value, (int, float)) or value <= 0:
-                    problems.append(
-                        f"http.rate[{host!r}]: expected a positive number, got {value!r}"
-                    )
-        elif rate is not None:
-            problems.append('http.rate: expected a table like { "host" = 1.5 }')
+        value = data.get(key)
+        if isinstance(value, str):
+            try:
+                _parse_size(value)
+            except (ValueError, argparse.ArgumentTypeError):
+                problems.append(f"{key}: unparseable size {value!r}")
 
     archive = data.get("archive")
-    if isinstance(archive, dict):
-        if "format" in archive and archive["format"] not in {"cbz", "zip", "cbt"}:
-            problems.append(f"archive.format: expected cbz|zip|cbt, got {archive['format']!r}")
-        if "compression" in archive:
-            try:
-                parse_compression(archive["compression"])
-            except ValueError as exc:
-                problems.append(f"archive.compression: {exc}")
-
-    sources = data.get("sources")
-    if isinstance(sources, dict):
-        for host, table in sources.items():
-            if not isinstance(table, dict):
-                problems.append(f"sources[{host!r}]: expected a table")
-                continue
-            rate = table.get("rate")
-            if rate is not None and (
-                isinstance(rate, bool) or not isinstance(rate, (int, float)) or rate <= 0
-            ):
-                problems.append(f"sources[{host!r}].rate: expected a positive number, got {rate!r}")
+    if isinstance(archive, dict) and "compression" in archive:
+        try:
+            parse_compression(archive["compression"])
+        except ValueError as exc:
+            problems.append(f"archive.compression: {exc}")
 
     if problems:
         for problem in problems:
@@ -4723,6 +4668,8 @@ def _validate_config(path: Path) -> int:
         print_dim(f"{len(problems)} problem(s) in {path}.")
         return EXIT_ERROR
     print_success(f"Config OK: {path}")
+    for diff in diff_from_defaults(data):
+        print_dim(diff)
     return EXIT_OK
 
 

@@ -4260,17 +4260,6 @@ class TestConfigVerb:
         assert 'output = "/tmp/x"' in out
         assert "parallel = 5" in out
 
-    async def test_list_outputs_plain_toml(self, monkeypatch, capsys, tmp_path):
-        from comic_dl.cli import main
-
-        cfg = tmp_path / "c.toml"
-        cfg.write_text("concurrency = 3\n", encoding="utf-8")
-        monkeypatch.setattr("sys.argv", ["prog", "config", "list", "--config", str(cfg)])
-        assert await main() == 0
-        out = capsys.readouterr().out
-        assert "concurrency = 3" in out
-        assert "Loaded from" not in out
-
     async def test_validate_ok(self, monkeypatch, capsys, tmp_path):
         from comic_dl.cli import main
 
@@ -4299,6 +4288,27 @@ class TestConfigVerb:
         monkeypatch.setattr("sys.argv", ["prog", "config", "validate", "--config", str(cfg)])
         assert await main() == 1
         assert "Invalid TOML" in capsys.readouterr().err
+
+    async def test_help_alias_prints_config_help(self, monkeypatch, capsys):
+        from comic_dl.cli import main
+
+        monkeypatch.setattr("sys.argv", ["prog", "config", "help"])
+        assert await main() == 0
+        assert "config.toml" in capsys.readouterr().out
+
+    async def test_validate_reports_keys_differing_from_defaults(
+        self, monkeypatch, capsys, tmp_path
+    ):
+        from comic_dl.cli import main
+
+        cfg = tmp_path / "c.toml"
+        cfg.write_text('concurrency = 8\n[http]\nsolver = "auto"\n', encoding="utf-8")
+        monkeypatch.setattr("sys.argv", ["prog", "config", "validate", "--config", str(cfg)])
+        assert await main() == 0
+        out = capsys.readouterr()
+        assert "Config OK" in out.out
+        assert "concurrency = 8 (default 5)" in out.err
+        assert "http.solver" in out.err and "'auto'" in out.err
 
     async def test_edit_creates_and_opens(self, monkeypatch, capsys, tmp_path):
         from comic_dl.cli import main
