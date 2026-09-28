@@ -283,7 +283,6 @@ class CookieJar:
                     rows.append({"host": h, "path": p, "name": name, "expires": None})
         except sqlite3.Error:
             self._reset_conn()
-            pass
         rows.sort(key=lambda r: (r["host"], r["name"], r["path"]))
         return rows
 
@@ -363,7 +362,6 @@ class CookieJar:
                         )
             except sqlite3.Error:
                 self._reset_conn()
-                pass
         if session or to_delete:
             with self._lock:
                 for host, path, name, value in session:
@@ -402,7 +400,6 @@ class CookieJar:
                     )
         except sqlite3.Error:
             self._reset_conn()
-            pass
 
     def delete(self, host: str, name: str, path: str = "/") -> None:
         try:
@@ -415,7 +412,6 @@ class CookieJar:
                     )
         except sqlite3.Error:
             self._reset_conn()
-            pass
 
     def clear(self, host: str | None = None) -> None:
         """Drop all cookies, or just one host's."""
@@ -430,7 +426,6 @@ class CookieJar:
                 self._session_only.clear()
         except sqlite3.Error:
             self._reset_conn()
-            pass
 
     def flush(self) -> None:
         """Remove expired rows (best-effort)."""
@@ -444,7 +439,6 @@ class CookieJar:
                     )
         except sqlite3.Error:
             self._reset_conn()
-            pass
 
     def __len__(self) -> int:
         try:

@@ -167,7 +167,7 @@ def run_library_command(cmd: str, argv: list[str]) -> int:
         print_error(f"Cannot open library at {default_library_path()}.")
         print_dim(f"{exc.strerror or exc}.")
         return EXIT_USAGE
-    try:
+    with library:
         _purge_all_trash(library)
         if cmd == "list":
             return _cmd_list(
@@ -199,8 +199,6 @@ def run_library_command(cmd: str, argv: list[str]) -> int:
                 as_json=args.json,
             )
         return EXIT_USAGE
-    finally:
-        library.close()
 
 
 # ── list ───────────────────────────────────────────────────────

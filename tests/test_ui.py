@@ -2318,13 +2318,12 @@ class TestSinkDurability:
 
     @pytest.mark.asyncio
     async def test_succeed_prints_through_live_console(self, monkeypatch):
-        import comic_dl.ui as ui_mod
 
         printed = []
-        act = ui_mod.Activity(quiet=False)
+        act = ui_module.Activity(quiet=False)
         async with act:
-            assert ui_mod._ACTIVE_LIVE is not None
-            live_console = ui_mod._ACTIVE_LIVE.console
+            assert ui_module._ACTIVE_LIVE is not None
+            live_console = ui_module._ACTIVE_LIVE.console
             monkeypatch.setattr(live_console, "print", lambda x: printed.append(str(x)))
             sink = act.row("main")
             await sink.succeed("Saved: X.cbz (1.0 MB)")
@@ -2332,12 +2331,11 @@ class TestSinkDurability:
 
     @pytest.mark.asyncio
     async def test_fail_prints_through_live_console(self, monkeypatch):
-        import comic_dl.ui as ui_mod
 
         printed = []
-        act = ui_mod.Activity(quiet=False)
+        act = ui_module.Activity(quiet=False)
         async with act:
-            live_console = ui_mod._ACTIVE_LIVE.console
+            live_console = ui_module._ACTIVE_LIVE.console
             monkeypatch.setattr(live_console, "print", lambda x: printed.append(str(x)))
             sink = act.row("main")
             await sink.fail("No valid pages downloaded (3 failed).")
@@ -2345,30 +2343,27 @@ class TestSinkDurability:
 
     @pytest.mark.asyncio
     async def test_succeed_without_live_uses_plain_console(self, monkeypatch):
-        import comic_dl.ui as ui_mod
 
         printed = []
-        monkeypatch.setattr(ui_mod.console, "print", lambda x: printed.append(str(x)))
-        act = ui_mod.Activity(quiet=True)
+        monkeypatch.setattr(ui_module.console, "print", lambda x: printed.append(str(x)))
+        act = ui_module.Activity(quiet=True)
         async with act:
-            assert ui_mod._ACTIVE_LIVE is None
+            assert ui_module._ACTIVE_LIVE is None
             sink = act.row("main")
             await sink.succeed("Saved: X.cbz")
         assert any("Saved: X.cbz" in line for line in printed)
 
     def test_running_row_never_renders_internal_key(self):
-        import comic_dl.ui as ui_mod
 
-        state = ui_mod.RowState(key="main", stage="Creating CBZ archive...")
-        group = ui_mod._running_row_renderable(state, None, 0)
+        state = ui_module.RowState(key="main", stage="Creating CBZ archive...")
+        group = ui_module._running_row_renderable(state, None, 0)
         rendered = "".join(line.plain for line in group.renderables)
         assert "main" not in rendered
         assert "Creating CBZ archive..." in rendered
 
     def test_single_chapter_overall_uses_page_fraction(self):
-        import comic_dl.ui as ui_mod
 
-        act = ui_mod.Activity(quiet=False)  # quiet=True drops progress state
+        act = ui_module.Activity(quiet=False)  # quiet=True drops progress state
         act.begin_batch(1)
         act.mark_running("ch", stage="Downloading images...")
         act.show_progress("ch", total=84)
@@ -2380,9 +2375,8 @@ class TestSinkDurability:
         assert "0/1 chapters" in line
 
     def test_multi_chapter_overall_keeps_chapter_fraction(self):
-        import comic_dl.ui as ui_mod
 
-        act = ui_mod.Activity(quiet=False)
+        act = ui_module.Activity(quiet=False)
         act.begin_batch(10)
         act.mark_running("ch1", stage="Downloading images...")
         act.show_progress("ch1", total=50)

@@ -311,10 +311,13 @@ class TestEntryPointDiscovery:
             def load(self):
                 return _PluginSource
 
+        def _select(self, group):
+            return [_Ep()]
+
         monkeypatch.setattr(
             registry,
             "entry_points",
-            lambda: type("EPs", (), {"select": lambda self, group: [_Ep()]})(),
+            lambda: type("EPs", (), {"select": _select})(),
         )
 
         before = registry._loaded_plugins.copy()

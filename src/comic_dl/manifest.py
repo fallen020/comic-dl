@@ -163,7 +163,6 @@ class ChapterManifest:
             filename,
             {"page": 0, "status": STATE_PENDING, "error": "", "size": 0},
         )
-        entry = self._pages[filename]
         entry["status"] = status
         entry["error"] = error
         entry["size"] = size

@@ -652,7 +652,8 @@ def test_clear_drives_progress_callback():
     _store()
     _store("https://kagane.to/series/bar", body=b"x")
     seen = []
-    assert cache.clear(on_file=lambda: seen.append(1)) == 2
+    cleared = cache.clear(on_file=lambda: seen.append(1))
+    assert cleared == 2
     assert len(seen) == 2
 
 

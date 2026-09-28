@@ -240,12 +240,10 @@ class TestCLIPrecedence:
         assert args.no_cookie is True
         assert args.no_rate is True
         try:
-            from comic_dl.config import _RUNTIME_HTTP
-
-            assert _RUNTIME_HTTP["impersonate"] == "chrome131"
-            assert _RUNTIME_HTTP["solver"] == "off"
-            assert _RUNTIME_HTTP["cookie-jar"] is False
-            assert _RUNTIME_HTTP["rate-enabled"] is False
+            assert cfgmodule._RUNTIME_HTTP["impersonate"] == "chrome131"
+            assert cfgmodule._RUNTIME_HTTP["solver"] == "off"
+            assert cfgmodule._RUNTIME_HTTP["cookie-jar"] is False
+            assert cfgmodule._RUNTIME_HTTP["rate-enabled"] is False
         finally:
             cfgmodule._RUNTIME_HTTP.clear()
 

@@ -721,27 +721,25 @@ class TestAsyncDnsValidation:
         import socket as socket_module
 
         import comic_dl.utils as u
-        from comic_dl.utils import RequestBlockedError
 
         def boom(*args, **kwargs):
             raise AssertionError("resolver must not be consulted for literals")
 
         monkeypatch.setattr(socket_module, "getaddrinfo", boom)
-        with pytest.raises(RequestBlockedError):
+        with pytest.raises(u.RequestBlockedError):
             await u.validate_request_url_async("http://127.0.0.1/x")
 
     async def test_private_resolution_blocked_async(self, monkeypatch):
         import socket as socket_module
 
         import comic_dl.utils as u
-        from comic_dl.utils import RequestBlockedError
 
         monkeypatch.setattr(
             socket_module,
             "getaddrinfo",
             lambda h, *a, **k: [(2, 1, 6, "", ("10.0.0.5", 0))],
         )
-        with pytest.raises(RequestBlockedError):
+        with pytest.raises(u.RequestBlockedError):
             await u.validate_request_url_async("https://evil.test/x")
 
     async def test_unresolvable_host_is_blocked(self, monkeypatch):
@@ -750,22 +748,21 @@ class TestAsyncDnsValidation:
         import socket as socket_module
 
         import comic_dl.utils as u
-        from comic_dl.utils import RequestBlockedError
 
         def boom(*args, **kwargs):
             raise OSError("Name or service not known")
 
         monkeypatch.setattr(socket_module, "getaddrinfo", boom)
-        with pytest.raises(RequestBlockedError):
+        with pytest.raises(u.RequestBlockedError):
             await u.validate_request_url_async("https://unresolvable.test/x")
 
     async def test_dns_cache_ttl_short(self, monkeypatch):
         """DNS verdicts expire quickly to narrow the rebinding window."""
         import socket as socket_module
 
-        from comic_dl.utils import _DNS_CACHE_TTL
+        import comic_dl.utils as u
 
-        assert _DNS_CACHE_TTL <= 5.0
+        assert u._DNS_CACHE_TTL <= 5.0
 
         calls = []
 

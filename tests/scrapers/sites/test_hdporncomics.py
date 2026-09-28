@@ -3,7 +3,6 @@ from __future__ import annotations
 import pytest
 from bs4 import BeautifulSoup
 
-import comic_dl.scrapers.sites.hdporncomics as hd_module
 from comic_dl.errors import ScrapeError
 from comic_dl.scrapers.sites.hdporncomics import (
     DOMAIN,
@@ -54,7 +53,7 @@ class _FakeSession:
 
 @pytest.fixture(autouse=True)
 def _isolated(monkeypatch):
-    monkeypatch.setattr(hd_module, "jar_cookies_for", lambda url: {})
+    monkeypatch.setattr("comic_dl.scrapers.sites.hdporncomics.jar_cookies_for", lambda url: {})
     from comic_dl import cf as cf_module
 
     cf_module._replay_dead.clear()
@@ -106,11 +105,13 @@ class TestExtraction:
 class TestHDPornComicsScraper:
     @pytest.mark.asyncio
     async def test_scrape_plain_replay_wins(self, monkeypatch):
-        monkeypatch.setattr(hd_module, "jar_cookies_for", lambda url: {"cf_clearance": "abc"})
-        monkeypatch.setattr(hd_module.webview, "session_enabled", lambda: True)
         monkeypatch.setattr(
-            hd_module.webview,
-            "ensure_session",
+            "comic_dl.scrapers.sites.hdporncomics.jar_cookies_for",
+            lambda url: {"cf_clearance": "abc"},
+        )
+        monkeypatch.setattr("comic_dl.webview.session_enabled", lambda: True)
+        monkeypatch.setattr(
+            "comic_dl.webview.ensure_session",
             lambda url: (_ for _ in ()).throw(AssertionError("no session on fresh cookie")),
         )
         scraper = HDPornComicsScraper()
@@ -124,7 +125,10 @@ class TestHDPornComicsScraper:
 
     @pytest.mark.asyncio
     async def test_scrape_session_fallback(self, monkeypatch):
-        monkeypatch.setattr(hd_module, "jar_cookies_for", lambda url: {"cf_clearance": "stale"})
+        monkeypatch.setattr(
+            "comic_dl.scrapers.sites.hdporncomics.jar_cookies_for",
+            lambda url: {"cf_clearance": "stale"},
+        )
         challenged = _MockResponse(b"Just a moment", status=403)
         challenged.headers = {"server": "cloudflare"}
         fake = _FakeSession(GALLERY_PAGE)
@@ -132,8 +136,8 @@ class TestHDPornComicsScraper:
         async def _fake_ensure_session(url):
             return fake
 
-        monkeypatch.setattr(hd_module.webview, "session_enabled", lambda: True)
-        monkeypatch.setattr(hd_module.webview, "ensure_session", _fake_ensure_session)
+        monkeypatch.setattr("comic_dl.webview.session_enabled", lambda: True)
+        monkeypatch.setattr("comic_dl.webview.ensure_session", _fake_ensure_session)
         scraper = HDPornComicsScraper()
         meta = await scraper.scrape(GALLERY_URL, _MockSession(lambda url: challenged))
 
@@ -145,7 +149,7 @@ class TestHDPornComicsScraper:
     async def test_scrape_challenge_without_session_raises_hint(self, monkeypatch):
         challenged = _MockResponse(b"Just a moment", status=403)
         challenged.headers = {"server": "cloudflare"}
-        monkeypatch.setattr(hd_module.webview, "session_enabled", lambda: False)
+        monkeypatch.setattr("comic_dl.webview.session_enabled", lambda: False)
 
         async def _no_retry(url):
             return False
