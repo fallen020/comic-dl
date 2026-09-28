@@ -204,7 +204,9 @@ class MangadexScraper(BaseScraper):
     domain = DOMAIN
     name = "mangadex"
     site_id = "mangadex"
-    version = "1.0.1"
+    version = "1.0.2"
+    test_url = "https://mangadex.org/chapter/6310f6a1-17ee-4890-b837-2ec1b372905b"
+    test_url_kind = "chapter"
     minimum_core_version = "0.0.2"
 
     def matches_url(self, url: str) -> bool:

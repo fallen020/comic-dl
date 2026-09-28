@@ -374,7 +374,9 @@ class FsicomixScraper(BaseScraper):
     domain = DOMAIN
     name = "fsicomics"
     site_id = "fsicomics"
-    version = "1.0.2"
+    version = "1.0.3"
+    test_url = "https://fsicomics.com/taming-the-beast-chapter-5-kizaru3d/"
+    test_url_kind = "chapter"
     minimum_core_version = "0.0.2"
 
     def matches_url(self, url: str) -> bool:

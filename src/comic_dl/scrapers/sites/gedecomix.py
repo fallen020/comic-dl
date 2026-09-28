@@ -238,7 +238,9 @@ class GedecomixScraper(MadaraScraper):
     domain = DOMAIN
     name = "gedecomix"
     site_id = "gedecomix"
-    version = "1.0.1"
+    version = "1.0.2"
+    test_url = "https://gedecomix.com/porncomic/hell-village/5-hell-village-ch-05/"
+    test_url_kind = "chapter"
     minimum_core_version = "0.0.2"
     base_url = BASE
     series_segment = "porncomic"

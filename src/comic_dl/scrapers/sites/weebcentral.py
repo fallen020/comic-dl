@@ -145,7 +145,9 @@ class WeebCentralScraper(BaseScraper):
     domain = DOMAIN
     name = "weebcentral"
     site_id = "weebcentral"
-    version = "1.0.1"
+    version = "1.0.2"
+    test_url = "https://weebcentral.com/chapters/01M3HPDSAT2JTQBP0V7A6AZJWX"
+    test_url_kind = "chapter"
     minimum_core_version = "0.0.2"
 
     def matches_url(self, url: str) -> bool:

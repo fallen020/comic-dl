@@ -125,7 +125,9 @@ class IMHentaiScraper(BaseScraper):
     domain = DOMAIN
     name = "imhentai"
     site_id = "imhentai"
-    version = "1.0.0"
+    version = "1.0.1"
+    test_url = "https://imhentai.xxx/gallery/1746793/"
+    test_url_kind = "chapter"
     minimum_core_version = "0.0.2"
 
     def matches_url(self, url: str) -> bool:

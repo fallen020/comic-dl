@@ -6,6 +6,7 @@ no network, release asset, or package manager is ever touched.
 
 from __future__ import annotations
 
+import json
 from dataclasses import replace
 
 import pytest
@@ -20,8 +21,10 @@ from comic_dl.errors import (
 from comic_dl.scrapers.registry import register_builtin, register_scraper
 from comic_dl.site_update import (
     LiveResult,
+    LocalSite,
     SiteManifest,
     SiteRelease,
+    _live_check,
     local_sites,
     run_site_check_command,
     run_site_list_command,
@@ -161,6 +164,59 @@ class TestRegistryMetadata:
                 version = "1.0.0"
                 site_id = "broken-min"
                 minimum_core_version = "nope"
+
+    def test_invalid_test_url_kind_rejected(self, monkeypatch):
+        _empty_registry(monkeypatch)
+        with pytest.raises(SiteRegistryError):
+            register_builtin(
+                _Scraper(),
+                domain="bad-kind.example",
+                capabilities={"chapter"},
+                name="Bad",
+                version="1.0.0",
+                site_id="bad-kind",
+                minimum_core_version="0.0.1",
+                test_url="https://bad-kind.example/c/1",
+                test_url_kind="episode",
+            )
+
+    # Adapters with no verifiable public URL stay live-unchecked; the set is
+    # explicit so a newly added adapter cannot silently join it.
+    _LIVE_CHECK_EXEMPT = {
+        # Cloudflare-walled on every transport probed; nothing verifiable.
+        "genztoons": "no reachable public URL",
+        # Cloudflare-walled on every transport probed; nothing verifiable.
+        "hdporncomics": "no reachable public URL",
+    }
+
+    def test_every_builtin_declares_live_check_url(self, real_sites):
+        missing = [
+            s.site_id
+            for s in real_sites
+            if not s.test_url and s.site_id not in self._LIVE_CHECK_EXEMPT
+        ]
+        assert not missing, f"adapters without test_url: {missing}"
+        bad_kind = [s.site_id for s in real_sites if s.test_url_kind not in ("series", "chapter")]
+        assert not bad_kind, f"adapters with bad test_url_kind: {bad_kind}"
+        stale_exemptions = [
+            sid for sid in self._LIVE_CHECK_EXEMPT if sid not in {s.site_id for s in real_sites}
+        ]
+        assert not stale_exemptions, f"exemptions for unknown sites: {stale_exemptions}"
+
+    def test_manifest_versions_match_registry(self, real_sites):
+        from pathlib import Path
+
+        manifest_path = Path(__file__).resolve().parents[1] / "site-support.json"
+        payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest = SiteManifest.from_dict(payload)
+        assert manifest is not None, "site-support.json must parse"
+        drifted = [
+            s.site_id
+            for s in real_sites
+            if manifest.sites.get(s.site_id) is None
+            or manifest.sites[s.site_id].version != s.version
+        ]
+        assert not drifted, f"registry/manifest version drift: {drifted}"
 
 
 # -------------------------------------------------------------------------
@@ -351,6 +407,91 @@ class TestSiteCheck:
         rc = await run_site_check_command(target="webtoon", live=True, json_mode=False)
         assert rc == EXIT_OK
         assert "live: healthy" in _text(capsys)
+
+    class _ChapterScraper:
+        """Records which scrape entrypoint the live check drives."""
+
+        def __init__(self):
+            self.calls: list[str] = []
+
+        async def scrape(self, url, client):
+            self.calls.append("scrape")
+
+            class Meta:
+                images = ["p1"]
+
+            return Meta()
+
+        async def scrape_series(self, url, client):
+            self.calls.append("scrape_series")
+
+            class Meta:
+                chapters = [{"title": "c1"}]
+
+            return Meta()
+
+    def _live_site(self, **kw) -> LocalSite:
+        base = {
+            "site_id": "probe",
+            "name": "Probe",
+            "domain": "probe.example",
+            "version": "1.0.0",
+            "minimum_core_version": "0.0.1",
+            "test_url": "https://probe.example/c/1",
+            "test_url_kind": "chapter",
+            "has_series": True,
+            "has_chapter": True,
+            "entry": self._ChapterScraper(),
+        }
+        base.update(kw)
+        return LocalSite(**base)
+
+    async def test_live_check_prefers_chapter_kind(self):
+        site = self._live_site(test_url_kind="chapter")
+        result = await _live_check(site)
+        assert result.status == "healthy"
+        assert site.entry.calls == ["scrape"]
+
+    async def test_live_check_defaults_to_series(self):
+        site = self._live_site(test_url_kind="series")
+        result = await _live_check(site)
+        assert result.status == "healthy"
+        assert site.entry.calls == ["scrape_series"]
+
+    async def test_live_check_dead_url_is_url_gone(self):
+        from comic_dl.errors import SITE_GONE
+
+        class GoneResponse:
+            status_code = 404
+
+        class GoneError(Exception):
+            def __init__(self):
+                self.response = GoneResponse()
+
+        class GoneScraper(self._ChapterScraper):
+            async def scrape(self, url, client):
+                raise GoneError()
+
+        site = self._live_site(entry=GoneScraper())
+        result = await _live_check(site)
+        assert result.status == "url gone"
+        assert result.error_code == SITE_GONE
+
+    async def test_live_check_server_error_stays_broken(self):
+        class DownResponse:
+            status_code = 500
+
+        class DownError(Exception):
+            def __init__(self):
+                self.response = DownResponse()
+
+        class DownScraper(self._ChapterScraper):
+            async def scrape(self, url, client):
+                raise DownError()
+
+        site = self._live_site(entry=DownScraper())
+        result = await _live_check(site)
+        assert result.status == "broken"
 
     async def test_manifest_shows_up_to_date(self, real_sites, monkeypatch, capsys):
         installed = next(s for s in real_sites if s.domain == "webtoons.com")

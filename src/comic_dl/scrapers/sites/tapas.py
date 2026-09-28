@@ -146,7 +146,9 @@ class TapasScraper(BaseScraper):
     domain = DOMAIN
     name = "tapas"
     site_id = "tapas"
-    version = "1.0.0"
+    version = "1.0.1"
+    test_url = "https://tapas.io/episode/879913"
+    test_url_kind = "chapter"
     minimum_core_version = "0.0.2"
 
     def matches_url(self, url: str) -> bool:

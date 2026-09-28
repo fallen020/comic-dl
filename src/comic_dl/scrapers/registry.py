@@ -35,6 +35,7 @@ class SourceEntry:
     site_id: str | None = None
     minimum_core_version: str | None = None
     test_url: str | None = None
+    test_url_kind: str = "series"
 
     @property
     def has_chapter(self) -> bool:
@@ -91,6 +92,7 @@ def register(
     site_id: str | None = None,
     minimum_core_version: str | None = None,
     test_url: str | None = None,
+    test_url_kind: str = "series",
 ) -> SourceEntry:
     """Register ``instance`` for ``domain`` with deterministic conflict handling.
 
@@ -102,12 +104,22 @@ def register(
     ``site_id``/``minimum_core_version`` are part of the public site-support
     contract (see ``comic_dl.site_update``); they are optional for plugins and
     mandatory for built-ins, which the manifest generator enforces.
+    ``test_url_kind`` names which page ``test_url`` points at (``"series"``
+    or ``"chapter"``); chapter permalinks are preferred since taxonomy
+    listings rot faster than chapter URLs.
     """
     existing = _sourcemap.get(domain)
     if existing is not None and priority <= existing.priority:
         return existing
     if builtin and site_id is not None:
         _check_builtin_id_unique(domain, site_id)
+    if test_url_kind not in ("series", "chapter"):
+        from ..errors import SiteRegistryError
+
+        raise SiteRegistryError(
+            f"Built-in scraper for {domain!r} declares an invalid test_url_kind {test_url_kind!r}.",
+            hint="Use 'series' or 'chapter'.",
+        )
     entry = SourceEntry(
         instance=instance,
         domain=domain,
@@ -119,6 +131,7 @@ def register(
         site_id=site_id,
         minimum_core_version=minimum_core_version,
         test_url=test_url,
+        test_url_kind=test_url_kind,
     )
     _sourcemap[domain] = entry
     return entry
@@ -163,6 +176,7 @@ def register_builtin(
     site_id: str | None = None,
     minimum_core_version: str | None = None,
     test_url: str | None = None,
+    test_url_kind: str = "series",
 ) -> SourceEntry:
     """Register a built-in source with the default priority.
 
@@ -180,6 +194,7 @@ def register_builtin(
         site_id=site_id,
         minimum_core_version=minimum_core_version,
         test_url=test_url,
+        test_url_kind=test_url_kind,
     )
 
 
@@ -190,9 +205,10 @@ def register_scraper(
 ) -> Callable[[type], type]:
     """Decorator registering a built-in scraper class for ``domain``.
 
-    The decorated class may declare ``site_id``, ``version``, and
-    ``minimum_core_version`` attributes; they flow into the registry and feed
-    the site-support manifest (see ``comic_dl.site_update``).
+    The decorated class may declare ``site_id``, ``version``,
+    ``minimum_core_version``, ``test_url``, and ``test_url_kind`` attributes;
+    they flow into the registry and feed the site-support manifest (see
+    ``comic_dl.site_update``).
     """
 
     def decorator(cls: type) -> type:
@@ -200,6 +216,7 @@ def register_scraper(
         site_id = getattr(cls, "site_id", None)
         min_core = getattr(cls, "minimum_core_version", None)
         test_url = getattr(cls, "test_url", None)
+        test_url_kind = getattr(cls, "test_url_kind", None) or "series"
         if isinstance(site_id, str) and not site_id.strip():
             site_id = None
         if isinstance(min_core, str) and not min_core.strip():
@@ -223,6 +240,7 @@ def register_scraper(
             site_id=site_id,
             minimum_core_version=min_core,
             test_url=test_url,
+            test_url_kind=test_url_kind,
         )
         return cls
 

@@ -227,7 +227,9 @@ class QiMangaScraper(BaseScraper):
     domain = DOMAIN
     name = "qimanga"
     site_id = "qimanga"
-    version = "1.0.1"
+    version = "1.0.2"
+    test_url = "https://qimanga.com/series/4190634673-eleceed/chapter-419"
+    test_url_kind = "chapter"
     minimum_core_version = "0.0.2"
 
     def __init__(self) -> None:

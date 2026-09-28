@@ -140,7 +140,9 @@ class ToonilyScraper(MadaraSeriesSiteScraper):
     domain = DOMAIN
     name = "toonily"
     site_id = "toonily"
-    version = "1.0.1"
+    version = "1.0.2"
+    test_url = "https://toonily.com/serie/solo-leveling-574def58/chapter-1/"
+    test_url_kind = "chapter"
     minimum_core_version = "0.0.2"
     base_url = BASE
     series_segment = "serie"

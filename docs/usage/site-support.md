@@ -41,9 +41,16 @@ manifest — a local dev build), and `unable to check` (no manifest reached).
 
 `--live` runs the real adapter against the site's declared test URL,
 reusing its normal extraction (never a separate parser) and validating that a
-series/chapter with content came back. Sites without a declared test URL are
+series/chapter with content came back. Each adapter declares which page its
+URL points at (`test_url_kind`: `chapter` permalinks are preferred — taxonomy
+listings rot faster than chapter URLs). Sites without a declared test URL are
 reported `live: skipped`. A non-`healthy` live result makes the command exit
 nonzero, so it can gate scheduled checks.
+
+A dead test URL (HTTP 404/410) reports `live: url gone` instead of
+`live: broken`: the URL needs refreshing, not the parser. `url gone` still
+exits nonzero — the site could not be verified — but it must never be read
+as evidence the adapter broke.
 
 A network or manifest failure is reported as `unable to check` — it is never
 treated as evidence that a site is broken — and only affects this command.
@@ -94,6 +101,8 @@ Site-versioning rules:
 - `PATCH` — selector fixes, parser corrections, small compatibility fixes.
 - `MINOR` — new extraction capabilities or supported site variants.
 - `MAJOR` — incompatible adapter-interface or configuration changes.
+
+Metadata-only additions (a `test_url` for live checks) are `PATCH`.
 
 Bump the adapter version whenever its parsing code changes, and never reuse a
 version. The release runbook covers regenerating the manifest.

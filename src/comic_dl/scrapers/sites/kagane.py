@@ -257,7 +257,9 @@ class KaganeScraper(BaseScraper):
     domain = DOMAIN
     name = "kagane"
     site_id = "kagane"
-    version = "1.0.1"
+    version = "1.0.2"
+    test_url = "https://kagane.to/series/019c2b1c-cc9b-745f-afed-09c230759162/reader/019c2bda-f619-716e-b0f5-043564eecffe"
+    test_url_kind = "chapter"
     minimum_core_version = "0.0.2"
 
     def matches_url(self, url: str) -> bool:

@@ -130,7 +130,9 @@ class PawchiveScraper(BaseScraper):
     domain = "pawchive.pw"
     name = "pawchive"
     site_id = "pawchive"
-    version = "1.0.1"
+    version = "1.0.2"
+    test_url = "https://pawchive.pw/patreon/user/103282485/post/170771074"
+    test_url_kind = "chapter"
     minimum_core_version = "0.0.2"
 
     async def scrape(self, url: str, client: AsyncSession) -> PostMetadata:

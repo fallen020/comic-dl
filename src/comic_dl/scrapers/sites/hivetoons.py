@@ -301,7 +301,9 @@ class HiveToonsScraper(BaseScraper):
     domain = DOMAIN
     name = "hivetoons"
     site_id = "hivetoons"
-    version = "1.0.1"
+    version = "1.0.2"
+    test_url = "https://hivetoons.org/series/lookism/chapter-1/"
+    test_url_kind = "chapter"
     minimum_core_version = "0.0.2"
 
     def __init__(self) -> None:

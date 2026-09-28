@@ -62,7 +62,9 @@ class FlameScraper(BaseScraper):
     domain = DOMAIN
     name = "flamecomics"
     site_id = "flamecomics"
-    version = "1.0.1"
+    version = "1.0.2"
+    test_url = "https://flamecomics.xyz/series/1/3efdb83fccbc577a"
+    test_url_kind = "chapter"
     minimum_core_version = "0.0.2"
 
     def matches_url(self, url: str) -> bool:

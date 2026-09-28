@@ -5,32 +5,38 @@
     "asurascans": {
       "minimum_core_version": "0.0.2",
       "status": "supported",
-      "version": "1.0.1"
+      "test_url": "https://asurascans.com/comics/nano-machine-3ec3b16f/chapter/1",
+      "version": "1.0.2"
     },
     "divascans": {
       "minimum_core_version": "0.0.2",
       "status": "supported",
-      "version": "1.0.0"
+      "test_url": "https://divascans.org/series/comic/obedient-pregnancy/chapter/1",
+      "version": "1.0.1"
     },
     "e-hentai": {
       "minimum_core_version": "0.0.2",
       "status": "supported",
-      "version": "1.0.1"
+      "test_url": "https://e-hentai.org/g/4217284/6dddc119b6/",
+      "version": "1.0.2"
     },
     "flamecomics": {
       "minimum_core_version": "0.0.2",
       "status": "supported",
-      "version": "1.0.1"
+      "test_url": "https://flamecomics.xyz/series/1/3efdb83fccbc577a",
+      "version": "1.0.2"
     },
     "fsicomics": {
       "minimum_core_version": "0.0.2",
       "status": "supported",
-      "version": "1.0.2"
+      "test_url": "https://fsicomics.com/taming-the-beast-chapter-5-kizaru3d/",
+      "version": "1.0.3"
     },
     "gedecomix": {
       "minimum_core_version": "0.0.2",
       "status": "supported",
-      "version": "1.0.1"
+      "test_url": "https://gedecomix.com/porncomic/hell-village/5-hell-village-ch-05/",
+      "version": "1.0.2"
     },
     "genztoons": {
       "minimum_core_version": "0.0.2",
@@ -45,107 +51,128 @@
     "hivetoons": {
       "minimum_core_version": "0.0.2",
       "status": "supported",
-      "version": "1.0.1"
+      "test_url": "https://hivetoons.org/series/lookism/chapter-1/",
+      "version": "1.0.2"
     },
     "imhentai": {
       "minimum_core_version": "0.0.2",
       "status": "supported",
-      "version": "1.0.0"
+      "test_url": "https://imhentai.xxx/gallery/1746793/",
+      "version": "1.0.1"
     },
     "kagane": {
       "minimum_core_version": "0.0.2",
       "status": "supported",
-      "version": "1.0.1"
+      "test_url": "https://kagane.to/series/019c2b1c-cc9b-745f-afed-09c230759162/reader/019c2bda-f619-716e-b0f5-043564eecffe",
+      "version": "1.0.2"
     },
     "kingofshojo": {
       "minimum_core_version": "0.0.2",
       "status": "supported",
-      "version": "1.0.1"
+      "test_url": "https://kingofshojo.com/back-to-spring-chapter-81/",
+      "version": "1.0.2"
     },
     "kodokueasyaccess": {
       "minimum_core_version": "0.0.2",
       "status": "supported",
-      "version": "1.0.0"
+      "test_url": "https://kodokueasyaccess.com/read/reverend-insanity/en/1",
+      "version": "1.0.1"
     },
     "lgbtics": {
       "minimum_core_version": "0.0.2",
       "status": "supported",
-      "version": "1.0.1"
+      "test_url": "https://lgbtics.com/comic/are-cross-dressing-lesbians-gay-ningen-janai/1-are-cross-dressing-lesbians-gay-chapter-1-ningen-janai/",
+      "version": "1.0.2"
     },
     "mangadex": {
       "minimum_core_version": "0.0.2",
       "status": "supported",
-      "version": "1.0.1"
+      "test_url": "https://mangadex.org/chapter/6310f6a1-17ee-4890-b837-2ec1b372905b",
+      "version": "1.0.2"
     },
     "manhuato": {
       "minimum_core_version": "0.0.2",
       "status": "supported",
-      "version": "1.0.0"
+      "test_url": "https://manhuato.com/manhua/blue-lock-chapter-362-ch403952",
+      "version": "1.0.1"
     },
     "manhwatop": {
       "minimum_core_version": "0.0.2",
       "status": "supported",
-      "version": "1.0.1"
+      "test_url": "https://manhwatop.com/manga/the-tutorial-is-too-hard-series/chapter-289/",
+      "version": "1.0.2"
     },
     "nyxscans": {
       "minimum_core_version": "0.0.2",
       "status": "supported",
-      "version": "1.0.0"
+      "test_url": "https://nyxscans.com/series/operation-true-love/chapter-1",
+      "version": "1.0.1"
     },
     "pawchive": {
       "minimum_core_version": "0.0.2",
       "status": "supported",
-      "version": "1.0.1"
+      "test_url": "https://pawchive.pw/patreon/user/103282485/post/170771074",
+      "version": "1.0.2"
     },
     "qimanga": {
       "minimum_core_version": "0.0.2",
       "status": "supported",
-      "version": "1.0.1"
+      "test_url": "https://qimanga.com/series/4190634673-eleceed/chapter-419",
+      "version": "1.0.2"
     },
     "stonescape": {
       "minimum_core_version": "0.0.2",
       "status": "supported",
-      "version": "1.0.1"
+      "test_url": "https://stonescape.xyz/series/ghost-story-work/ch-1",
+      "version": "1.0.2"
     },
     "tapas": {
       "minimum_core_version": "0.0.2",
       "status": "supported",
-      "version": "1.0.0"
+      "test_url": "https://tapas.io/episode/879913",
+      "version": "1.0.1"
     },
     "thunderscans": {
       "minimum_core_version": "0.0.2",
       "status": "supported",
-      "version": "1.0.1"
+      "test_url": "https://en-thunderscans.com/shadow-slave-chapter-1/",
+      "version": "1.0.2"
     },
     "toonily": {
       "minimum_core_version": "0.0.2",
       "status": "supported",
-      "version": "1.0.1"
+      "test_url": "https://toonily.com/serie/solo-leveling-574def58/chapter-1/",
+      "version": "1.0.2"
     },
     "toonverse": {
       "minimum_core_version": "0.0.2",
       "status": "supported",
-      "version": "1.0.0"
+      "test_url": "https://toonverse.net/read/solo-leveling/1",
+      "version": "1.0.1"
     },
     "valirscans": {
       "minimum_core_version": "0.0.2",
       "status": "supported",
-      "version": "1.0.0"
+      "test_url": "https://valirscans.org/series/comic/not-your-typical-reincarnation-story/chapter/1",
+      "version": "1.0.1"
     },
     "vortexscans": {
       "minimum_core_version": "0.0.2",
       "status": "supported",
-      "version": "1.0.0"
+      "test_url": "https://vortexscans.org/series/shadow-slave/chapter-1",
+      "version": "1.0.1"
     },
     "webtoon": {
       "minimum_core_version": "0.0.2",
       "status": "supported",
-      "version": "1.0.1"
+      "test_url": "https://www.webtoons.com/en/action/tower-of-god/season-1-ep-0/viewer?title_no=95&episode_no=1",
+      "version": "1.0.2"
     },
     "weebcentral": {
       "minimum_core_version": "0.0.2",
       "status": "supported",
-      "version": "1.0.1"
+      "test_url": "https://weebcentral.com/chapters/01M3HPDSAT2JTQBP0V7A6AZJWX",
+      "version": "1.0.2"
     }
   }
 }

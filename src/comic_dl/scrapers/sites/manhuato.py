@@ -180,7 +180,9 @@ class ManhuatoScraper(BaseScraper):
     domain = DOMAIN
     name = "manhuato"
     site_id = "manhuato"
-    version = "1.0.0"
+    version = "1.0.1"
+    test_url = "https://manhuato.com/manhua/blue-lock-chapter-362-ch403952"
+    test_url_kind = "chapter"
     minimum_core_version = "0.0.2"
 
     def matches_url(self, url: str) -> bool:

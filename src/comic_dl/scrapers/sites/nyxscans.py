@@ -15,7 +15,9 @@ class NyxScansScraper(VComicsScraper):
     domain = DOMAIN
     name = "nyxscans"
     site_id = "nyxscans"
-    version = "1.0.0"
+    version = "1.0.1"
+    test_url = "https://nyxscans.com/series/operation-true-love/chapter-1"
+    test_url_kind = "chapter"
     minimum_core_version = "0.0.2"
     api_base = "https://api.nyxscans.com"
     site_label = "Nyx Scans"

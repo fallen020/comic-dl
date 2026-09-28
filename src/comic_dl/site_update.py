@@ -33,6 +33,7 @@ from .errors import (
     EXIT_ERROR,
     EXIT_OK,
     EXIT_USAGE,
+    SITE_GONE,
     SITE_INVALID_RESPONSE,
     SITE_NO_CHAPTERS,
     SITE_NO_PAGES,
@@ -125,6 +126,7 @@ class LocalSite:
     version: str
     minimum_core_version: str
     test_url: str | None
+    test_url_kind: str
     has_series: bool
     has_chapter: bool
     entry: Any
@@ -152,6 +154,7 @@ def local_sites() -> list[LocalSite]:
                 version=entry.version,
                 minimum_core_version=entry.minimum_core_version or "",
                 test_url=entry.test_url,
+                test_url_kind=entry.test_url_kind,
                 has_series=entry.has_series,
                 has_chapter=entry.has_chapter,
                 entry=entry.instance,
@@ -271,19 +274,51 @@ async def fetch_site_manifest() -> SiteManifest | None:
     return manifest
 
 
+_GONE_STATUSES = frozenset({404, 410})
+
+
+def _gone_status_code(exc: BaseException) -> int | None:
+    """An HTTP 404/410 carried by ``exc`` (or its cause chain), if any.
+
+    ``fetch_html_raw`` raises curl_cffi's ``HTTPError`` with the response
+    attached, but adapters may wrap it before it reaches us — so the chain
+    is walked instead of trusting the top-level type.
+    """
+    seen: set[int] = set()
+    stack = [exc]
+    while stack:
+        current = stack.pop()
+        if id(current) in seen:
+            continue
+        seen.add(id(current))
+        status = getattr(getattr(current, "response", None), "status_code", None)
+        if isinstance(status, int) and status in _GONE_STATUSES:
+            return status
+        for nxt in (getattr(current, "__cause__", None), getattr(current, "__context__", None)):
+            if isinstance(nxt, BaseException):
+                stack.append(nxt)
+    return None
+
+
 async def _live_check(site: LocalSite) -> LiveResult:
     """Run the real adapter against its declared test URL.
 
     Reuses the adapter's own extraction so the check cannot drift from
     production behavior; validates that a series/chapter with content came
-    back. A site without a ``test_url`` is ``skipped``, not condemned.
+    back. A site without a ``test_url`` is ``skipped``, not condemned — and
+    a test URL that itself 404s/410s reports ``url gone`` (refresh the URL),
+    never ``broken``.
     """
     if not site.test_url:
         return LiveResult("skipped")
     scraper = site.entry
     try:
         async with AsyncSession(**http_client_args(host=site.domain)) as client:
-            if site.has_series:
+            if site.test_url_kind == "chapter" and site.has_chapter:
+                meta = await scraper.scrape(site.test_url, client)
+                if not getattr(meta, "images", None):
+                    return LiveResult("broken", SITE_NO_PAGES)
+            elif site.has_series:
                 meta = await scraper.scrape_series(site.test_url, client)
                 if not getattr(meta, "chapters", None):
                     return LiveResult("broken", SITE_NO_CHAPTERS)
@@ -296,10 +331,14 @@ async def _live_check(site: LocalSite) -> LiveResult:
     except ScrapeTimeout:
         return LiveResult("unavailable", SITE_TIMEOUT)
     except ScrapeError as exc:
+        if _gone_status_code(exc) is not None:
+            return LiveResult("url gone", SITE_GONE)
         return LiveResult("broken", exc.site_error_code)
     except TimeoutError:
         return LiveResult("unavailable", SITE_TIMEOUT)
-    except Exception:
+    except Exception as exc:
+        if _gone_status_code(exc) is not None:
+            return LiveResult("url gone", SITE_GONE)
         return LiveResult("broken", SITE_INVALID_RESPONSE)
     return LiveResult("healthy")
 

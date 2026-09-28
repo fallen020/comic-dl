@@ -277,7 +277,9 @@ class WebtoonScraper(BaseScraper):
     domain = WEBTOON_DOMAIN
     name = "webtoons"
     site_id = "webtoon"
-    version = "1.0.1"
+    version = "1.0.2"
+    test_url = "https://www.webtoons.com/en/action/tower-of-god/season-1-ep-0/viewer?title_no=95&episode_no=1"
+    test_url_kind = "chapter"
     minimum_core_version = "0.0.2"
 
     def matches_url(self, url: str) -> bool:
