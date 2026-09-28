@@ -202,8 +202,42 @@ def _extract_meta(soup: BeautifulSoup, idx: dict[str, list[str]] | None = None) 
 
 
 def _extract_description(soup: BeautifulSoup, idx: dict[str, list[str]] | None = None) -> str:
+    body = _extract_body_description(soup)
+    if body:
+        return body
     idx = idx if idx is not None else meta_index(soup)
     return meta_get(idx, "og:description", "twitter:description", "description")
+
+
+_BOILERPLATE_MARKERS = (
+    "is the publisher of this comic book episode",
+    "watch comics feature genres such as",
+    "join the new channel for latest comics",
+    "join our telegram channel",
+    "support the artist from",
+)
+
+
+def _extract_body_description(soup: BeautifulSoup) -> str:
+    """Full summary from the post body, not the truncated meta tags.
+
+    RankMath caps ``og:description`` mid-sentence, while ``.entry-content``
+    holds the complete text. SEO filler paragraphs (publisher boast, genre
+    keyword dump, Telegram promo) are dropped; genuine notes (e.g. the
+    split-chapter notice) are kept.
+    """
+    entry = soup.select_one(".entry-content")
+    if entry is None:
+        return ""
+    paragraphs = []
+    for p in entry.find_all("p"):
+        text = p.get_text(" ", strip=True)
+        if not text:
+            continue
+        if any(m in text.lower() for m in _BOILERPLATE_MARKERS):
+            continue
+        paragraphs.append(text)
+    return "\n\n".join(paragraphs)
 
 
 def _extract_cover(soup: BeautifulSoup, idx: dict[str, list[str]] | None = None) -> str:
@@ -219,6 +253,26 @@ def _extract_chapter_number(title: str) -> str | None:
     if m:
         return m.group(1)
     return None
+
+
+# Chapter links are the taxonomy grid's ``h4`` title anchors. The theme's
+# cross-promo carousel reuses the same ``.entry-title`` class at ``h1`` level
+# for *other* artists' comics, so its cards are excluded by ancestor class
+# rather than broadening the heading selector to ``.entry-title``.
+def _in_carousel(tag) -> bool:
+    """True when ``tag`` sits inside the cross-promo carousel block."""
+    for parent in tag.parents:
+        classes = parent.get("class") or []
+        if any(c == "post-carousel" or c.startswith("swiper") for c in classes):
+            return True
+    return False
+
+
+def _chapter_card_links(soup: BeautifulSoup) -> list:
+    """Title anchors of this taxonomy's own chapters (foreign carousel cards out)."""
+    return [
+        link for link in soup.select(".p-wrap h4.entry-title a[href]") if not _in_carousel(link)
+    ]
 
 
 _POSTID_CLASS_RE = re.compile(r"\bpostid-(\d+)")
@@ -320,7 +374,7 @@ class FsicomixScraper(BaseScraper):
     domain = DOMAIN
     name = "fsicomics"
     site_id = "fsicomics"
-    version = "1.0.1"
+    version = "1.0.2"
     minimum_core_version = "0.0.2"
 
     def matches_url(self, url: str) -> bool:
@@ -401,13 +455,10 @@ class FsicomixScraper(BaseScraper):
         url: str,
         client: AsyncSession,
     ) -> SeriesMetadata:
+        # A series URL is a WordPress taxonomy page (``archive category``),
+        # so the archive guard used in chapter mode must not fire here. An
+        # empty listing raises ``no_chapters_error`` below instead.
         soup = await self.fetch_html(url, client)
-
-        if _is_archive_page(soup):
-            raise listing_page_error(
-                "FSI Comics",
-                f"{BASE}/{{comic-slug}}/",
-            )
 
         idx = meta_index(soup)
 
@@ -450,10 +501,7 @@ class FsicomixScraper(BaseScraper):
         for _page_url, ps in pages_to_fetch:
             if ps is None:
                 continue
-            for article in ps.select("article"):
-                link = article.select_one("h2.entry-title a[href]")
-                if not link:
-                    continue
+            for link in _chapter_card_links(ps):
                 href = _attr_text(link.get("href"))
                 if not href or href in seen_urls:
                     continue
@@ -463,7 +511,7 @@ class FsicomixScraper(BaseScraper):
                     {
                         "title": ch_title,
                         "url": urljoin(url, href),
-                        "episode_no": str(len(chapters) + 1),
+                        "episode_no": _extract_chapter_number(ch_title) or str(len(chapters) + 1),
                     }
                 )
 

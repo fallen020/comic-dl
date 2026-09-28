@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 from bs4 import BeautifulSoup
 
+from comic_dl.scrapers.base import meta_index
 from comic_dl.scrapers.sites.fsicomics import (
     DOMAIN,
     FsicomixScraper,
@@ -10,6 +11,7 @@ from comic_dl.scrapers.sites.fsicomics import (
     _derive_series_title,
     _extract_artists,
     _extract_chapter_number,
+    _extract_description,
     _extract_genres,
     _extract_images,
     _extract_meta,
@@ -462,7 +464,129 @@ class TestFsicomixScraper:
         assert chapter.info.publisher == "Super Melons"
 
     @pytest.mark.asyncio
-    async def test_scrape_series_rejects_category_archive_page(self):
+    async def test_scrape_series_reads_foxiz_taxonomy_grid(self):
+        html = b"""
+        <html><head><title>Kizaru3D - FSIComics</title>
+            <meta property="og:description" content="Kizaru3D comics."/>
+        </head>
+        <body class="archive category category-kizaru3d category-2391">
+        <div class="block-wrap" id="uid_c2391"><div class="block-inner">
+            <div class="p-wrap p-grid p-grid-1"><div class="p-content">
+                <h4 class="entry-title"><a href="https://fsicomics.com/taming-chapter-5-x/">
+                Taming Chapter 5 - X</a></h4>
+            </div></div>
+            <div class="p-wrap p-grid p-grid-1"><div class="p-content">
+                <h4 class="entry-title"><a href="https://fsicomics.com/taming-chapter-4-x/">
+                Taming Chapter 4 - X</a></h4>
+            </div></div>
+        </div></div>
+        </body></html>
+        """
+
+        async def run():
+            session = _MockSession(lambda url: _MockResponse(html))
+            scraper = FsicomixScraper()
+            return await scraper.scrape_series(
+                "https://fsicomics.com/all-porn-comics/3d-porn-comics/kizaru3d/",
+                session,
+            )
+
+        series = await run()
+        assert series.series_title == "Kizaru3D"
+        assert [c["url"] for c in series.chapters] == [
+            "https://fsicomics.com/taming-chapter-5-x/",
+            "https://fsicomics.com/taming-chapter-4-x/",
+        ]
+        assert [c["episode_no"] for c in series.chapters] == ["5", "4"]
+        assert series.description == "Kizaru3D comics."
+
+    @pytest.mark.asyncio
+    async def test_scrape_series_skips_cross_promo_carousel(self):
+        html = b"""
+        <html><head><title>Kizaru3D - FSIComics</title></head>
+        <body class="archive category category-kizaru3d">
+        <div class="block-wrap" id="uid_c2391"><div class="block-inner">
+            <div class="p-wrap p-grid p-grid-1"><div class="p-content">
+                <h4 class="entry-title"><a href="https://fsicomics.com/mine-chapter-1-x/">
+                Mine Chapter 1 - X</a></h4>
+            </div></div>
+        </div></div>
+        <div class="block-wrap"><div class="block-inner">
+            <div class="post-carousel swiper-container"><div class="swiper-wrapper">
+                <div class="p-wrap p-grid p-box"><div class="grid-box">
+                    <h1 class="entry-title"><a href="https://fsicomics.com/theirs-chapter-9-y/">
+                    Theirs Chapter 9 - Y</a></h1>
+                </div></div>
+            </div></div>
+        </div></div>
+        </body></html>
+        """
+
+        session = _MockSession(lambda url: _MockResponse(html))
+        scraper = FsicomixScraper()
+        series = await scraper.scrape_series(
+            "https://fsicomics.com/all-porn-comics/3d-porn-comics/kizaru3d/",
+            session,
+        )
+        assert [c["url"] for c in series.chapters] == ["https://fsicomics.com/mine-chapter-1-x/"]
+
+    @pytest.mark.asyncio
+    async def test_scrape_series_follows_pagination(self):
+        page2 = b"""
+        <html><head><title>Kizaru3D - FSIComics</title></head>
+        <body class="archive category category-kizaru3d">
+        <div class="block-inner">
+            <div class="p-wrap p-grid p-grid-1"><div class="p-content">
+                <h4 class="entry-title"><a href="https://fsicomics.com/mine-chapter-1-x/">
+                Mine Chapter 1 - X</a></h4>
+            </div></div>
+        </div>
+        </body></html>
+        """
+        page1 = (
+            page2.replace(
+                b"https://fsicomics.com/mine-chapter-1-x/",
+                b"https://fsicomics.com/mine-chapter-2-x/",
+            )
+            .replace(
+                b"Mine Chapter 1 - X",
+                b"Mine Chapter 2 - X",
+            )
+            # The pager anchor must live inside <body>: markup trailing
+            # </html> is dropped by some libxml2 builds (Windows CI).
+            .replace(
+                b"</body>",
+                b'<a class="next page-numbers" href="/page/2/">Next</a></body>',
+            )
+        )
+
+        session = _MockSession(lambda url: _MockResponse(page2 if "/page/2/" in url else page1))
+        scraper = FsicomixScraper()
+        series = await scraper.scrape_series(
+            "https://fsicomics.com/all-porn-comics/3d-porn-comics/kizaru3d/",
+            session,
+        )
+        assert [c["episode_no"] for c in series.chapters] == ["2", "1"]
+
+    @pytest.mark.asyncio
+    async def test_scrape_series_empty_listing_raises(self):
+        html = b"""
+        <html><head><title>Empty - FSIComics</title></head>
+        <body class="archive category category-empty">
+        <div class="block-inner"></div>
+        </body></html>
+        """
+
+        session = _MockSession(lambda url: _MockResponse(html))
+        scraper = FsicomixScraper()
+        with pytest.raises(ValueError, match="No chapters found"):
+            await scraper.scrape_series(
+                "https://fsicomics.com/all-porn-comics/empty/",
+                session,
+            )
+
+    @pytest.mark.asyncio
+    async def test_scrape_chapter_still_rejects_archive_page(self):
         html = b"""
         <html><head><title>Indian Porn Comics - FSIComics</title></head>
         <body class="archive category category-indian-porn-comics">
@@ -475,10 +599,7 @@ class TestFsicomixScraper:
         session = _MockSession(lambda url: _MockResponse(html))
         scraper = FsicomixScraper()
         with pytest.raises(ValueError, match="category/tag listing"):
-            await scraper.scrape_series(
-                "https://fsicomics.com/all-porn-comics/indian-porn-comics/",
-                session,
-            )
+            await scraper.scrape("https://fsicomics.com/thumb/", session)
 
     @pytest.mark.asyncio
     async def test_scrape_with_images_success(self):
@@ -635,6 +756,47 @@ class TestFsicomixScraper:
     def test_extract_post_id_returns_empty(self):
         soup = BeautifulSoup("<html><body></body></html>", "lxml")
         assert _extract_post_id(soup) == ""
+
+    def test_description_prefers_full_body_over_truncated_meta(self):
+        soup = BeautifulSoup(
+            """
+            <html><head>
+                <meta property="og:description" content="Left alone, a"/>
+            </head><body>
+            <div class="entry-content">
+                <h2>Episode Description</h2>
+                <p>Left alone, a dark-skinned guy seduced his new acquaintance.</p>
+                <p>Kizaru3D Is The Publisher of This Comic Book Episode. Watch comics
+                feature genres such as Anal, Blowjob, and more. Support the artist
+                from here.</p>
+                <div><p>Join the new channel for latest comics and manga updates:
+                Join our Telegram channel.</p></div>
+                <p><em><strong>Note: The original comic is a single chapter.</strong></em></p>
+            </div>
+            </body></html>
+            """,
+            "lxml",
+        )
+        desc = _extract_description(soup, meta_index(soup))
+        assert "dark-skinned guy seduced" in desc
+        assert "Publisher of This Comic Book" not in desc
+        assert "Telegram" not in desc
+        assert "single chapter" in desc
+
+    def test_description_falls_back_to_meta_without_body_paragraphs(self):
+        soup = BeautifulSoup(
+            """
+            <html><head>
+                <meta property="og:description" content="Meta only summary"/>
+            </head><body>
+            <div class="entry-content">
+                <figure><img src="https://fsicomics.com/wp-content/uploads/2026/07/comic-001.webp"/></figure>
+            </div>
+            </body></html>
+            """,
+            "lxml",
+        )
+        assert _extract_description(soup, meta_index(soup)) == "Meta only summary"
 
     @pytest.mark.asyncio
     async def test_scrape_groups_single_part_title_by_series_and_artist(self):
