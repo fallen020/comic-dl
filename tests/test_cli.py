@@ -2988,6 +2988,22 @@ class TestBuildDownloadedIndex:
         (sdir / "notes.md").write_text("# Not a post\n", encoding="utf-8")
         assert _build_downloaded_index(tmp_path) == {}
 
+    def test_tolerates_entries_vanishing_mid_scan(self, monkeypatch, tmp_path):
+        from comic_dl.cli import _iter_library_files as real_iter
+
+        sdir = tmp_path / "Series"
+        sdir.mkdir()
+        cbz = sdir / "Chapter 1.cbz"
+        self._make_cbz(cbz, "https://x.com/c/1/")
+
+        def vanishing(output_dir, pattern):
+            yield from real_iter(output_dir, pattern)
+            raise FileNotFoundError("cleaner removed an entry mid-scan")
+
+        monkeypatch.setattr("comic_dl.cli._iter_library_files", vanishing)
+        index = _build_downloaded_index(tmp_path)
+        assert index[normalize_url("http://x.com/c/1")] == cbz
+
     def test_ignores_malformed_marker(self, tmp_path):
         sdir = tmp_path / "Series"
         sdir.mkdir()

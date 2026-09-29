@@ -690,15 +690,22 @@ def _build_downloaded_index(output_dir: Path) -> dict[str, Path]:
 
     known_paths = set(index.values())
     for pattern in ARCHIVE_PATTERNS:
-        for path in _iter_library_files(output_dir, pattern):
-            if path in known_paths or _is_partial(path):
-                continue
-            url = _cbz_source_url(path)
-            if not url.startswith(("http://", "https://")):
-                continue
-            key = normalize_url_key(url)
-            if key:
-                index[key] = path
+        try:
+            paths = _iter_library_files(output_dir, pattern)
+            for path in paths:
+                if path in known_paths or _is_partial(path):
+                    continue
+                url = _cbz_source_url(path)
+                if not url.startswith(("http://", "https://")):
+                    continue
+                key = normalize_url_key(url)
+                if key:
+                    index[key] = path
+        except (FileNotFoundError, NotADirectoryError):
+            # An entry vanished mid-scan (concurrent cleaner, another run).
+            # The on-disk scan is only a fallback — the Library DB is
+            # primary — so a partial index beats a crashed run.
+            continue
 
     # Any partially-downloaded CBZ (regardless of how it was indexed) must not
     # pre-skip a rerun: the missing pages still need to be fetched.
@@ -706,23 +713,28 @@ def _build_downloaded_index(output_dir: Path) -> dict[str, Path]:
         if _is_partial(path):
             del index[key]
 
-    for path in _iter_library_files(output_dir, "*.md"):
-        try:
-            with path.open("r", encoding="utf-8") as fh:
-                first = fh.readline()
-        except OSError:
-            continue
-        stripped = first.strip()
-        if not (
-            stripped.startswith(_TEXT_SOURCE_PREFIX) and stripped.endswith(_TEXT_SOURCE_SUFFIX)
-        ):
-            continue
-        url = stripped[len(_TEXT_SOURCE_PREFIX) : -len(_TEXT_SOURCE_SUFFIX)].strip()
-        if not url.startswith(("http://", "https://")):
-            continue
-        key = normalize_url_key(url)
-        if key:
-            index[key] = path
+    try:
+        md_paths = _iter_library_files(output_dir, "*.md")
+        for path in md_paths:
+            try:
+                with path.open("r", encoding="utf-8") as fh:
+                    first = fh.readline()
+            except OSError:
+                continue
+            stripped = first.strip()
+            if not (
+                stripped.startswith(_TEXT_SOURCE_PREFIX) and stripped.endswith(_TEXT_SOURCE_SUFFIX)
+            ):
+                continue
+            url = stripped[len(_TEXT_SOURCE_PREFIX) : -len(_TEXT_SOURCE_SUFFIX)].strip()
+            if not url.startswith(("http://", "https://")):
+                continue
+            key = normalize_url_key(url)
+            if key:
+                index[key] = path
+    except (FileNotFoundError, NotADirectoryError):
+        # Same mid-scan race as above; keep whatever was indexed.
+        pass
     return index
 
 
