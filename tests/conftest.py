@@ -7,38 +7,29 @@ import pytest
 
 @pytest.fixture(autouse=True)
 def _stub_unresolvable_test_dns(monkeypatch):
-    """Resolve fake test-only hosts to a public documentation IP.
+    """Resolve every hostname to a public documentation IP — no real DNS.
 
-    The suite is offline-safe and uses mock HTTP clients with fake
-    domains (``*.example``, ``*.hath.network``, ...).
-    SSRF validation is fail-closed on DNS errors, so those hosts would
-    otherwise be blocked before the mock client is reached. Stub only
-    hosts that fail real resolution and look like test fixtures; real
-    DNS failures (e.g. ``unresolvable.test``) still propagate so the
-    fail-closed behavior stays covered.
+    The suite is offline-safe and uses mock HTTP clients, but SSRF
+    validation resolves every hostname it checks. Delegating unknown hosts
+    to the real resolver stalls restricted networks for seconds per test
+    (the verdict cache is cleared between tests, so nothing is reused).
+    Real resolution is never load-bearing here: IP literals bypass the
+    resolver, and every test that asserts resolver behavior
+    (slow/failing/hostile resolution) patches ``getaddrinfo`` itself.
+
+    Two names keep real resolution: ``localhost`` (hosts-file fast, and the
+    SSRF tests require it to stay blocked) and ``unresolvable.test``
+    (fail-closed intent; nothing in the suite queries it today).
     """
     real_getaddrinfo = socket.getaddrinfo
-    fake_hosts = frozenset(
-        {
-            "x.com",
-            "example.com",
-            "www.site",
-            "cdn.site",
-            "www.webtoons.com",
-        }
-    )
-    fake_suffixes = (".example", ".hath.network", ".invalid")
-    test_suffixes = (".test",)
-    passthrough_failures = frozenset({"unresolvable.test"})
+    real_names = frozenset({"localhost", "unresolvable.test"})
     fake_result = [(2, 1, 6, "", ("93.184.216.34", 0))]
 
     def _fake_getaddrinfo(host, *args, **kwargs):
         name = host.lower().rstrip(".") if isinstance(host, str) else ""
-        if name in passthrough_failures:
+        if name in real_names:
             return real_getaddrinfo(host, *args, **kwargs)
-        if name in fake_hosts or name.endswith(fake_suffixes) or name.endswith(test_suffixes):
-            return fake_result
-        return real_getaddrinfo(host, *args, **kwargs)
+        return fake_result
 
     monkeypatch.setattr(socket, "getaddrinfo", _fake_getaddrinfo)
     yield
@@ -72,13 +63,14 @@ def _reset_cli_globals(tmp_path):
     config path, runtime [http] overrides — that otherwise leaks across tests
     and reorders rendering/config assertions.
     """
-    from comic_dl import cache, config, cookies, downloader, utils
+    from comic_dl import cache, config, cookies, downloader, rate, utils
     from comic_dl import ui as ui_module
 
     cache.set_cache_dir(tmp_path / "http-cache")
     config.set_config_dir(tmp_path / "config-dir")
     config.set_data_dir(tmp_path / "data-dir")
     downloader.reset_host_breaker()
+    rate._limiter = None
     utils.clear_dns_cache()
     consoles = (ui_module.console, ui_module.err_console)
     before = [(c.no_color, c._force_terminal, c._color_system) for c in consoles]

@@ -1164,6 +1164,15 @@ class TestProcessUrl:
         mock = MismatchScraper()
         _patch_chapter_scraper(monkeypatch, {"e-hentai.org": mock})
 
+        async def mock_download(images, dest_dir, *args, **kwargs):
+            dest_dir.mkdir(parents=True, exist_ok=True)
+            for img in images:
+                (dest_dir / img.filename).write_bytes(b"\xff\xd8\xff")
+            return set()
+
+        monkeypatch.setattr("comic_dl.downloader.download_httpx", mock_download)
+        monkeypatch.setattr("comic_dl.cli._chapter_gap_delay", lambda: 0)
+
         with tempfile.TemporaryDirectory() as td:
             await process_url(
                 url="https://e-hentai.org/g/1/abc/",
@@ -1809,8 +1818,13 @@ class TestRunWithNetworkRetry:
         assert result == "ok"
         assert attempts[0] == 2
 
-    async def test_gives_up_after_budget(self):
+    async def test_gives_up_after_budget(self, monkeypatch):
         """A persistently failing stream raises after the retry budget."""
+
+        async def _no_sleep(delay):
+            return None
+
+        monkeypatch.setattr("comic_dl.cli.asyncio.sleep", _no_sleep)
         attempts = [0]
 
         async def run_once():

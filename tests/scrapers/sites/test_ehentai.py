@@ -218,7 +218,12 @@ class TestImagePageUrl:
         assert url == "https://ehgt.org/123.jpg?abc"
         assert ext == "jpg"
 
-    async def test_no_img_element(self):
+    async def test_no_img_element(self, monkeypatch):
+        async def _no_sleep(delay):
+            return None
+
+        monkeypatch.setattr("comic_dl.scrapers.sites.ehentai.asyncio.sleep", _no_sleep)
+
         class MockResponse:
             status_code = 200
             text = "<html><body>no image</body></html>"
@@ -243,7 +248,12 @@ class TestImagePageUrl:
         )
         assert result is None
 
-    async def test_http_error_returns_none(self):
+    async def test_http_error_returns_none(self, monkeypatch):
+        async def _no_sleep(delay):
+            return None
+
+        monkeypatch.setattr("comic_dl.scrapers.sites.ehentai.asyncio.sleep", _no_sleep)
+
         class MockClient:
             async def get(self, url, **kwargs):
                 raise Exception("http error")
@@ -713,12 +723,17 @@ class TestFetchGalleryPageWithRetry:
         assert urls == ["https://e-hentai.org/s/abc/1-1"]
         assert attempts[0] == 2
 
-    async def test_gives_up_after_retries(self):
+    async def test_gives_up_after_retries(self, monkeypatch):
         """A persistently failing page raises after the retry budget."""
         from comic_dl.scrapers.sites.ehentai import (
             _GALLERY_PAGE_RETRIES,
             _fetch_gallery_page_with_retry,
         )
+
+        async def _no_sleep(delay):
+            return None
+
+        monkeypatch.setattr("comic_dl.scrapers.sites.ehentai.asyncio.sleep", _no_sleep)
 
         attempts = [0]
         with pytest.raises(ConnectionError):
@@ -953,7 +968,12 @@ class TestIterImageItems:
         assert count == 8
         assert client.max_active <= 2
 
-    async def test_skips_failed_pages(self):
+    async def test_skips_failed_pages(self, monkeypatch):
+        async def _no_sleep(delay):
+            return None
+
+        monkeypatch.setattr("comic_dl.scrapers.sites.ehentai.asyncio.sleep", _no_sleep)
+
         class FailingClient(_StreamMockClient):
             async def get(self, url, **kwargs):
                 if url.endswith("-2"):

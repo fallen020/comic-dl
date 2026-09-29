@@ -403,7 +403,11 @@ class TestSiteCheck:
         async def healthy(site):
             return LiveResult("healthy")
 
+        async def fetch():
+            return _manifest({"webtoon": ("1.0.1", "0.0.2")})
+
         monkeypatch.setattr("comic_dl.site_update._live_check", healthy)
+        monkeypatch.setattr("comic_dl.site_update.fetch_site_manifest", fetch)
         rc = await run_site_check_command(target="webtoon", live=True, json_mode=False)
         assert rc == EXIT_OK
         assert "live: healthy" in _text(capsys)

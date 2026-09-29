@@ -494,6 +494,11 @@ class TestProcessUrlE2E:
     pytestmark = pytest.mark.asyncio
 
     async def test_unsupported_url_does_not_crash(self):
+        from comic_dl.config import set_runtime_download
+
+        # Disable the generic fallback so no scraper claims the URL: the
+        # failure path is exercised without any network fetch.
+        set_runtime_download(generic=False)
         with tempfile.TemporaryDirectory() as td:
             status, _label = await process_url(
                 url="https://example.com/bad",
@@ -871,6 +876,14 @@ class TestSeriesCoverAndNomedia:
         _patch_chapter_scraper(monkeypatch, {"webtoons.com": MockWebtoon()})
         monkeypatch.setattr("comic_dl.cli.download_cover_to", mock_cover)
 
+        async def mock_download(images, dest_dir, *args, **kwargs):
+            dest_dir.mkdir(parents=True, exist_ok=True)
+            for img in images:
+                (dest_dir / img.filename).write_bytes(b"\xff\xd8\xff")
+            return set()
+
+        monkeypatch.setattr("comic_dl.downloader.download_httpx", mock_download)
+
         with tempfile.TemporaryDirectory() as td:
             out = Path(td)
             await process_url(
@@ -953,6 +966,7 @@ class TestSeriesSameTitleCollision:
             return set()
 
         monkeypatch.setattr("comic_dl.downloader.download_httpx", mock_download)
+        monkeypatch.setattr("comic_dl.cli._chapter_gap_delay", lambda: 0)
         return await _process_series(
             scraper,
             url="https://fsicomics.com/all-porn-comics/s/",
@@ -1051,6 +1065,7 @@ class TestSeriesIncrementalUpdates:
             return set()
 
         monkeypatch.setattr("comic_dl.downloader.download_httpx", mock_download)
+        monkeypatch.setattr("comic_dl.cli._chapter_gap_delay", lambda: 0)
         return await _process_series(
             scraper,
             url="https://fsicomics.com/all-porn-comics/s/",
@@ -1272,6 +1287,7 @@ class TestSeriesChapterSelection:
 
     async def _run(self, monkeypatch, tmp_path, log, **kwargs):
         self._mock_download(monkeypatch)
+        monkeypatch.setattr("comic_dl.cli._chapter_gap_delay", lambda: 0)
         kwargs.setdefault("force", False)
         kwargs.setdefault("quiet", True)
         return await _process_series(
@@ -1417,8 +1433,11 @@ class TestMakeSpinner:
 class TestNetworkErrorHandling:
     pytestmark = pytest.mark.asyncio
 
-    async def test_http_404_error(self):
+    async def test_http_404_error(self, monkeypatch):
         """404 should NOT be retried; file should be added to failed set."""
+        import comic_dl.downloader as _dl
+
+        monkeypatch.setattr(_dl, "_backoff_delay", lambda *a, **k: 0)
 
         class MockResponse:
             status_code = 404
@@ -1451,7 +1470,10 @@ class TestNetworkErrorHandling:
             failed = await download_httpx(images, Path(td), concurrency=1, client=MockClient())
             assert "fail.jpg" in failed
 
-    async def test_http_429_retry_then_succeed(self):
+    async def test_http_429_retry_then_succeed(self, monkeypatch):
+        import comic_dl.downloader as _dl
+
+        monkeypatch.setattr(_dl, "_backoff_delay", lambda *a, **k: 0)
         from curl_cffi.requests import Response as CurlResponse
 
         call_count = [0]
@@ -1625,6 +1647,7 @@ class TestSeriesPartialChapterAccounting:
             return set()
 
         monkeypatch.setattr("comic_dl.downloader.download_httpx", mock_download)
+        monkeypatch.setattr("comic_dl.cli._chapter_gap_delay", lambda: 0)
         from comic_dl.cli import DownloadStats
 
         stats = DownloadStats()

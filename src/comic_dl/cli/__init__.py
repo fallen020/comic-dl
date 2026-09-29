@@ -2102,6 +2102,15 @@ async def process_url(
         return "failed", ""
 
 
+def _chapter_gap_delay() -> float:
+    """Randomized inter-chapter pause for the sequential path (mean ~1.5s).
+
+    A named seam (rather than an inline expression) so tests can pin it to
+    zero without touching the politeness behavior it paces.
+    """
+    return max(0.3, min(4.0, random.gauss(1.5, 0.5)))
+
+
 async def _process_series(
     scraper,
     url: str,
@@ -2428,7 +2437,7 @@ async def _process_series(
                     # interleave naturally.
                     if chapter_parallel == 1:
                         sink.stage("Waiting for rate limit...")
-                        await asyncio.sleep(max(0.3, min(4.0, random.gauss(1.5, 0.5))))
+                        await asyncio.sleep(_chapter_gap_delay())
 
                     async with chapter_sem:
                         meta = None
