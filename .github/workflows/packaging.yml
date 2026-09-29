@@ -137,6 +137,8 @@ jobs:
         with:
           name: ${{ matrix.distro }}-${{ matrix.platform }}
           path: ${{ matrix.outdir }}/*
+          # Debug-only payload for a broken PR; two weeks to investigate.
+          retention-days: 14
 
   # Windows standalone exe built natively on a Windows runner and smoke-tested.
   windows-build:
@@ -170,3 +172,5 @@ jobs:
         with:
           name: windows-exe
           path: dist/comic-dl.exe
+          # Debug-only payload for a broken PR; two weeks to investigate.
+          retention-days: 14
