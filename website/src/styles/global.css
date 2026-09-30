@@ -9,70 +9,95 @@
   --color-surface-2: var(--surface-2);
   --color-surface-3: var(--surface-3);
   --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
   --color-fg: var(--fg);
   --color-fg-secondary: var(--fg-secondary);
   --color-fg-muted: var(--fg-muted);
   --color-accent: var(--accent);
-  --color-accent-dim: var(--accent-dim);
   --color-accent-hover: var(--accent-hover);
   --color-accent-active: var(--accent-active);
   --color-accent-muted: var(--accent-muted);
+  --color-accent-subtle: var(--accent-subtle);
   --color-accent-text: var(--accent-text);
-  --color-note-border: var(--note-border);
-  --color-warn-border: var(--warn-border);
-  --color-tip-border: var(--tip-border);
-  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.35), 0 2px 8px rgb(0 0 0 / 0.18);
-  --shadow-lift: 0 2px 4px rgb(0 0 0 / 0.4), 0 10px 28px rgb(0 0 0 / 0.3);
-  --shadow-pop: 0 8px 24px rgb(0 0 0 / 0.4), 0 20px 60px rgb(0 0 0 / 0.35);
+  --color-on-accent: var(--on-accent);
+  --color-note: var(--note);
+  --color-warn: var(--warn);
+  --color-tip: var(--tip);
   --font-sans: "Inter Variable", "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, "Cascadia Mono", "Segoe UI Mono", "Liberation Mono", Menlo, Monaco, monospace;
 }
 
-/* ---- Dark theme (default) ---- */
-:root,
-[data-theme="dark"] {
-  --surface: #0d1117;
-  --surface-1: #141b23;
-  --surface-2: #1a232e;
-  --surface-3: #202b38;
-  --line: #2c3542;
-  --fg: #e7edf3;
-  --fg-secondary: #aab4c2;
-  --fg-muted: #8b98a8;
-  --accent: #ff4d4d;
-  --accent-dim: #cf222e;
-  --accent-hover: #ff6b6b;
-  --accent-active: #e63946;
-  --accent-muted: rgba(255, 77, 77, 0.1);
-  --accent-text: #ff8080;
-  --note-border: #2f81f7;
-  --warn-border: #d29922;
-  --tip-border: #3fb950;
+/* ---- Layout scale ---- */
+/* One place for the numbers the shell repeats: header height, page gutter,
+   reading measure. Components read these instead of hardcoding rem, so the
+   proportions stay consistent as any one of them is retuned. */
+:root {
+  --header-h: 3.5rem;
+  --gutter: clamp(1rem, 2.5vw, 2.5rem);
+  --measure: 72ch;
+  /* The article as a whole, so the TOC rail sits next to the text instead of
+     a column's worth of slack away from it. */
+  --content-max: 46rem;
+  --rail: 15rem;
+  --toc-rail: 13rem;
+  --shell-max: 88rem;
+  /* The accent's translucent edge, identical in both themes because the
+     accent is the only input. */
+  --accent-border: color-mix(in srgb, var(--accent) 45%, transparent);
 }
 
-/* ---- Light theme ---- */
-[data-theme="light"] {
-  --surface: #ffffff;
-  --surface-1: #f6f8fa;
-  --surface-2: #eef1f5;
-  --surface-3: #e6ebf1;
-  --line: #d0d7de;
-  --fg: #1f2328;
-  --fg-secondary: #59636e;
-  --fg-muted: #626c78;
-  --accent: #cf222e;
-  --accent-dim: #fcd9db;
-  --accent-hover: #d1242f;
-  --accent-active: #a40e26;
-  --accent-muted: rgba(207, 34, 46, 0.12);
-  --accent-text: #cf222e;
-  --note-border: #0969da;
-  --warn-border: #9a6700;
-  --tip-border: #1a7f37;
+/* ---- Palette ---- */
+/* One declaration per token; the theme picks a branch through `color-scheme`,
+   so the two themes cannot drift apart and print gets the light palette for
+   free. Warm graphite, one step per surface role, all on a fixed hue so the
+   vermilion accent sits on neutrals that share its temperature. Contrast of
+   every pair the UI uses is enforced by scripts/check-contrast.mjs. */
+:root {
+  --surface: light-dark(#fefdfc, #0f0d0c);
+  --surface-1: light-dark(#f9f7f6, #171414);
+  --surface-2: light-dark(#f2efed, #1e1b1a);
+  --surface-3: light-dark(#e8e5e3, #262322);
+  --line: light-dark(#d9d5d2, #312d2c);
+  --line-strong: light-dark(#95918f, #676260);
+  --fg: light-dark(#27211f, #f1f0ef);
+  --fg-secondary: light-dark(#595452, #b9b5b3);
+  --fg-muted: light-dark(#696361, #948f8e);
+  --accent: light-dark(#cb2d26, #f25a47);
+  --accent-hover: light-dark(#b91415, #fd7562);
+  --accent-active: light-dark(#ab0e11, #da4433);
+  --accent-text: light-dark(#b71a18, #fc937f);
+  --accent-subtle: light-dark(#ffe6e2, #321a16);
+  --accent-muted: light-dark(#f6cfca, #46201a);
+  --on-accent: light-dark(#fefdfc, #0f0d0c);
+  --focus: light-dark(#b71a18, #fd7562);
+  --note: light-dark(#1467c2, #7dbbfb);
+  --note-bg: light-dark(#e8e8ef, #0f2840);
+  --warn: light-dark(#895b16, #e4b750);
+  --warn-bg: light-dark(#ece7e5, #372709);
+  --tip: light-dark(#067132, #60c781);
+  --tip-bg: light-dark(#e8e8e5, #142d1b);
+  /* Light mode is paper, not white: a warmer neutral reads calmer under long
+     reading, so its shadow ink is a dilute brown at low alpha rather than the
+     near-opaque black that reads as a smudge on paper. */
+  --shadow-ink: light-dark(rgb(39 33 31 / 0.1), rgb(0 0 0 / 0.5));
+  --shadow-ink-soft: light-dark(rgb(39 33 31 / 0.06), rgb(0 0 0 / 0.32));
+  --shadow-card: 0 1px 2px var(--shadow-ink-soft), 0 2px 6px var(--shadow-ink-soft);
+  --shadow-lift: 0 2px 4px var(--shadow-ink-soft), 0 10px 24px var(--shadow-ink);
+  --shadow-pop: 0 8px 20px var(--shadow-ink), 0 24px 56px var(--shadow-ink);
 }
 
 /* ---- Base reset ---- */
 html {
+  color-scheme: light;
+  -webkit-text-size-adjust: 100%;
+  /* Doc pages vary from 30 to 240 lines. Without a reserved gutter, moving
+     between a short page and a long one shifts every column sideways by the
+     scrollbar width. */
+  scrollbar-gutter: stable;
+}
+/* The toggle drives `color-scheme`, which is what picks each token's
+   light-dark() branch. */
+[data-theme="dark"] {
   color-scheme: dark;
 }
 [data-theme="light"] {
@@ -103,8 +128,34 @@ body {
   color: var(--fg);
 }
 .skip-link:focus { transform: translateY(0); }
-#main-content { scroll-margin-top: 4rem; }
+#main-content { scroll-margin-top: var(--header-h); }
 [data-sidebar-drawer]::backdrop { background-color: rgb(0 0 0 / 60%); }
+
+/* ---- Touch targets ---- */
+/* Desktop-sized hit areas are fine for a mouse and wrong for a thumb. Keyed on
+   pointer type rather than width so a tablet gets them too, not just a phone.
+   2.75rem clears the 44px that both the Apple and Material guidelines ask
+   for; the icon-only controls re-centre once the box grows around them. */
+@media (pointer: coarse) {
+  header :is(button, a[data-search-trigger], nav a) {
+    min-height: 2.75rem;
+    min-width: 2.75rem;
+  }
+  header :is(button, a[data-search-trigger]) { justify-content: center; }
+  .drawer-close { min-height: 2.75rem; }
+  .code-copy { min-height: 2.25rem; padding-inline: 0.75rem; }
+  .tabs-tab { padding-block: 0.625rem; }
+  .toc-link { padding-block: 0.4375rem; }
+  .sidebar-link { padding-block: 0.5rem; }
+}
+
+/* ---- Short viewports (landscape phone) ---- */
+/* A 3.5rem header plus its own padding eats a seventh of a 390px-tall screen
+   and pushes the first heading under the fold. */
+@media (max-height: 30rem) {
+  :root { --header-h: 3rem; }
+  .skip-link { top: 0.25rem; }
+}
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
@@ -112,6 +163,35 @@ body {
     animation-duration: 0.01ms !important;
     animation-delay: 0ms !important;
     scroll-behavior: auto !important;
+  }
+}
+
+/* ---- Reader overrides ---- */
+/* Windows High Contrast and forced-colors drop author colours, which leaves
+   the accent-filled buttons, callout edges and active nav items as flat
+   silhouettes. Re-state what carries meaning with system colours. */
+@media (forced-colors: active) {
+  .btn-primary,
+  .callout,
+  .codeblock,
+  .tabs-tab[aria-selected="true"],
+  .toc-link.is-active {
+    border: 1px solid CanvasText;
+  }
+  .callout { border-left-width: 4px; }
+  .card, .btn-secondary { border: 1px solid CanvasText; }
+  ::selection { background: Highlight; color: HighlightText; }
+  *:focus-visible { outline: 2px solid CanvasText; }
+}
+
+/* Raised contrast is a request for stronger separation, not a different
+   palette: push the hairlines and the muted ink apart. Scoped to the themed
+   root so it wins over the palette block regardless of order. */
+@media (prefers-contrast: more) {
+  html[data-theme] {
+    --line: light-dark(#8a8583, #6b6563);
+    --line-strong: light-dark(#595452, #8a8583);
+    --fg-muted: light-dark(#403a38, #c2bcba);
   }
 }
 
@@ -140,11 +220,15 @@ html[data-theme="dark"] .theme-toggle__icon--moon {
 
 /* ---- Focus ring ---- */
 *:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--focus);
   outline-offset: 2px;
 }
 
 /* ---- Scrollbar ---- */
+* {
+  scrollbar-color: var(--line) transparent;
+  scrollbar-width: thin;
+}
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--line); border-radius: 999px; }
@@ -175,6 +259,78 @@ html[data-theme="dark"] .theme-toggle__icon--moon {
 .nav-link:hover::after,
 .nav-link:focus-visible::after {
   transform: scaleX(1);
+}
+
+/* ---- Shared primitives ---- */
+/* The three shapes every page is built from. Kept here rather than repeated as
+   utility soup in each template, so a card or a button is tuned once. */
+.card {
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  background-color: var(--surface-1);
+  box-shadow: var(--shadow-card);
+}
+.card-link {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 150ms ease, background-color 150ms ease,
+    box-shadow 150ms ease, transform 150ms ease;
+}
+.card-link:hover {
+  border-color: var(--accent-border);
+  background-color: var(--surface-2);
+  transform: translateY(-2px);
+}
+.card-link:active { transform: translateY(0); }
+.card-kicker {
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+  transition: color 150ms ease;
+}
+.card-link:hover .card-kicker { color: var(--accent-text); }
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 0.375rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.25rem;
+  text-decoration: none;
+  transition: background-color 150ms ease, border-color 150ms ease,
+    color 150ms ease, box-shadow 150ms ease;
+}
+.btn-primary {
+  background-color: var(--accent);
+  border: 1px solid var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+  box-shadow: var(--shadow-card);
+}
+.btn-primary:hover { background-color: var(--accent-hover); border-color: var(--accent-hover); }
+.btn-primary:active { background-color: var(--accent-active); border-color: var(--accent-active); box-shadow: none; }
+.btn-secondary {
+  background-color: transparent;
+  border: 1px solid var(--line);
+  color: var(--fg);
+  box-shadow: var(--shadow-card);
+}
+.btn-secondary:hover { border-color: var(--accent); color: var(--accent-text); }
+.btn-secondary:active { background-color: var(--surface-2); box-shadow: none; }
+
+/* Section label above a band of cards. */
+.eyebrow {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
 }
 
 /* ---- Shiki dual-theme ---- */
@@ -280,8 +436,8 @@ code:not(pre code) {
 .code-copy:active { transform: scale(0.92); }
 .code-copy:hover { color: var(--accent-text); }
 .code-copy.copied {
-  color: var(--tip-border);
-  border-color: var(--tip-border);
+  color: var(--tip);
+  border-color: var(--tip);
 }
 .code-copy__icons {
   display: inline-grid;
@@ -332,18 +488,29 @@ code:not(pre code) {
   --tw-prose-kbd-border: var(--line);
   max-width: none;
 }
+/* Reading measure. The shell column is allowed to grow so tables and code
+   blocks fit, but the prose inside it stops at a line length the eye can
+   track; reference material is read column-wise and stays uncapped. */
+.prose-docs :where(p, ul, ol, dl, blockquote, h1, h2, h3, h4, h5, h6, hr, .callout, .steps) {
+  max-width: var(--measure);
+}
+.prose-docs :where(table) { font-size: 0.9375rem; }
+.prose-docs :where(th, td) { padding: 0.5rem 0.75rem; vertical-align: top; }
+/* Command tables are mostly numbers and versions; lining the digits up makes
+   the columns scannable. */
+.prose-docs :where(table) { font-variant-numeric: tabular-nums; }
 .prose-docs :where(a):hover { color: var(--accent-hover); text-decoration-thickness: 1px; }
 .prose-docs :where(h1) { letter-spacing: -0.02em; text-wrap: balance; }
 .prose-docs :where(h4) { letter-spacing: 0.005em; }
 .prose-docs :where(h2) {
   margin-top: 2.5em;
   padding-top: 0.5em;
-  scroll-margin-top: 4rem;
+  scroll-margin-top: var(--header-h);
   text-wrap: balance;
   letter-spacing: -0.01em;
 }
 .prose-docs :where(h3) {
-  scroll-margin-top: 4rem;
+  scroll-margin-top: var(--header-h);
   text-wrap: balance;
   letter-spacing: -0.005em;
 }
@@ -358,13 +525,15 @@ code:not(pre code) {
 .docs-table-scroll > table { margin: 0; }
 
 /* ---- Callouts ---- */
+/* Filled, not tinted: each variant carries its own background token so the
+   border and the fill are one flat colour instead of a hue mixed into a
+   neutral (which reads as mud, worst of all on amber). */
 .callout {
-  border-left: 3px solid var(--note-border);
-  background-color: color-mix(in srgb, var(--surface-1) 60%, var(--surface));
+  border-left: 3px solid var(--note);
+  background-color: var(--note-bg);
   border-radius: 0.375rem;
   padding: 0.875rem 1.125rem;
   margin: 1.25rem 0;
-  box-shadow: var(--shadow-card);
 }
 .callout-heading {
   display: flex;
@@ -379,24 +548,19 @@ code:not(pre code) {
 }
 .callout :where(p) { margin: 0.25rem 0; }
 .callout :where(pre) { margin: 0.5rem 0; }
-.callout-note {
-  border-left-color: var(--note-border);
-  background-color: color-mix(in srgb, var(--note-border) 6%, var(--surface-1));
-}
 .callout-note .callout-icon,
-.callout-note .callout-title { color: var(--note-border); }
-.callout-warn {
-  border-left-color: var(--warn-border);
-  background-color: color-mix(in srgb, var(--warn-border) 8%, var(--surface-1));
-}
+.callout-note .callout-title { color: var(--note); }
+.callout-warn { border-left-color: var(--warn); background-color: var(--warn-bg); }
 .callout-warn .callout-icon,
-.callout-warn .callout-title { color: var(--warn-border); }
-.callout-tip {
-  border-left-color: var(--tip-border);
-  background-color: color-mix(in srgb, var(--tip-border) 7%, var(--surface-1));
-}
+.callout-warn .callout-title { color: var(--warn); }
+.callout-tip { border-left-color: var(--tip); background-color: var(--tip-bg); }
 .callout-tip .callout-icon,
-.callout-tip .callout-title { color: var(--tip-border); }
+.callout-tip .callout-title { color: var(--tip); }
+/* A code block inside a callout has to match that callout's fill, or the
+   neutral code surface punches a hole in the tint. */
+.callout :where(pre.astro-code, pre.shiki) {
+  background-color: var(--surface-1) !important;
+}
 
 /* ---- Steps ---- */
 .steps {
@@ -407,7 +571,7 @@ code:not(pre code) {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  scroll-margin-top: 4rem;
+  scroll-margin-top: var(--header-h);
 }
 .steps > :is(h2, h3)::before {
   content: counter(step);
@@ -418,13 +582,10 @@ code:not(pre code) {
   height: 1.75rem;
   border-radius: 9999px;
   background-color: var(--accent);
-  color: var(--surface);
+  color: var(--on-accent);
   font-size: 0.8rem;
   font-weight: 600;
   flex-shrink: 0;
-}
-[data-theme="light"] .steps > :is(h2, h3)::before {
-  color: #ffffff;
 }
 
 /* ---- Badge ---- */
@@ -437,14 +598,7 @@ code:not(pre code) {
   line-height: 1.5;
   white-space: nowrap;
 }
-[data-theme="dark"] .badge-supported { background-color: rgba(63, 185, 80, 0.15); color: #3fb950; }
-[data-theme="dark"] .badge-partial   { background-color: rgba(210, 153, 34, 0.15); color: #d29922; }
-[data-theme="dark"] .badge-broken    { background-color: rgba(248, 81, 73, 0.15); color: #f85149; }
-[data-theme="dark"] .badge-untested  { background-color: var(--surface-2); color: var(--fg-muted); }
-[data-theme="light"] .badge-supported { background-color: #dafbe1; color: #116329; }
-[data-theme="light"] .badge-partial   { background-color: #fff8c5; color: #633c01; }
-[data-theme="light"] .badge-broken    { background-color: #ffebe9; color: #82071e; }
-[data-theme="light"] .badge-untested  { background-color: var(--surface-1); color: var(--fg-muted); }
+.badge-supported { background-color: var(--tip-bg); color: var(--tip); }
 
 /* ---- Tabs ---- */
 .tabs {
@@ -490,8 +644,8 @@ code:not(pre code) {
 }
 .toc-link:hover { color: var(--fg); background-color: var(--surface-1); }
 .toc-link.is-active {
-  color: var(--accent);
-  background-color: color-mix(in srgb, var(--accent-dim) 10%, transparent);
+  color: var(--accent-text);
+  background-color: var(--accent-subtle);
   border-left-color: var(--accent);
   font-weight: 500;
 }
@@ -499,22 +653,14 @@ code:not(pre code) {
 /* ---- Pagefind overrides ---- */
 /* pagefind's default-ui.css is injected at runtime after this stylesheet and
    sets every color via --pagefind-ui-* vars (light-theme values) on :root.
-   Remap those vars per theme so the injected css resolves to our palette;
-   the [data-theme] selectors out-specify the bare :root that pagefind uses. */
-:root,
-:root[data-theme="dark"] {
-  --pagefind-ui-primary: var(--accent);
-  --pagefind-ui-text: var(--fg);
-  --pagefind-ui-background: var(--surface-3);
-  --pagefind-ui-border: var(--line);
-  --pagefind-ui-tag: var(--surface-2);
-}
-:root[data-theme="light"] {
+   One override block is enough now: the vars it points at are tokens, so they
+   follow the active theme without a second copy to keep in step. */
+:root {
   --pagefind-ui-primary: var(--accent);
   --pagefind-ui-text: var(--fg);
   --pagefind-ui-background: var(--surface-1);
   --pagefind-ui-border: var(--line);
-  --pagefind-ui-tag: var(--surface-1);
+  --pagefind-ui-tag: var(--surface-2);
 }
 .pagefind-ui { font-family: var(--font-sans); }
 .pagefind-ui__result-title { color: var(--accent); }
@@ -547,13 +693,11 @@ code:not(pre code) {
   color: var(--accent-text);
   border-radius: 0.125rem;
 }
-.pagefind-ui__indicator path { stroke: var(--accent); }
 .pagefind-ui__button:hover {
   border-color: var(--accent) !important;
   color: var(--accent) !important;
 }
 
-/* ---- Print: light ink-on-paper, chrome hidden ---- */
 /* ---- Search modal ---- */
 dialog[data-search-modal][open] > div {
   animation: modal-pop 180ms ease-out;
@@ -585,27 +729,27 @@ dialog[data-search-modal][data-closing]::backdrop {
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* ---- Print: light ink-on-paper, chrome hidden ---- */
+/* Forcing the light branch of every token *is* the print palette, so a theme
+   tweak can no longer leave printed pages in dark ink. */
 @media print {
-  [data-theme="dark"] {
-    --surface: #ffffff;
-    --surface-1: #f6f8fa;
-    --surface-2: #eef1f5;
-    --line: #d0d7de;
-    --fg: #1f2328;
-    --fg-secondary: #59636e;
-    --fg-muted: #626c78;
-    --accent: #cf222e;
-    --accent-dim: #fcd9db;
-    --accent-hover: #d1242f;
-    --accent-active: #a40e26;
-    --accent-muted: rgba(207, 34, 46, 0.12);
-    --accent-text: #cf222e;
-    --note-border: #0969da;
-    --warn-border: #9a6700;
-    --tip-border: #1a7f37;
+  /* Outranks the [data-theme] rule above, so a dark page still prints light. */
+  html[data-theme] { color-scheme: light; }
+  /* Shiki picks its theme off the attribute, not color-scheme, so the dark
+     token set has to be overruled here too. Same specificity as the rule it
+     overrides, and later in the file, so it wins. */
+  [data-theme] .shiki, [data-theme] .shiki code, [data-theme] .shiki span,
+  [data-theme] .astro-code, [data-theme] .astro-code code, [data-theme] .astro-code span {
+    color: var(--shiki-light);
   }
   header, nav, details, .codeblock-header, [data-search] {
     display: none !important;
   }
   .prose-docs a { color: var(--fg); }
+  /* Backgrounds are dropped by default when printing, which would hollow out
+     every callout and code block. */
+  .callout, .codeblock, pre.astro-code, pre.shiki, .badge {
+    print-color-adjust: exact;
+  }
+  .docs-table-scroll { overflow: visible; }
 }

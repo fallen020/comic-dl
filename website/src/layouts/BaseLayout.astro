@@ -40,8 +40,10 @@ const ogImage = new URL(pagePath('og-image.png'), siteRoot + '/').toString();
       <script type="application/ld+json" set:html={JSON.stringify(schema)} />
     )}
     <link rel="icon" type="image/svg+xml" href={pagePath('favicon.svg')} />
-    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
-    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0d1117" />
+    <!-- Must track --surface in global.css; scripts/check-contrast.mjs fails the
+         build when these drift. -->
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#fefdfc" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0f0d0c" />
     <script is:inline>
       (() => {
         let theme = null;

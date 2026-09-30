@@ -43,6 +43,9 @@ jobs:
       - run: npm run build:search
       # Published files, SEO/AI surfaces, and internal link integrity.
       - run: python3 scripts/check-site.py
+      # Theme token contrast, both themes, against the WCAG minimums the UI
+      # needs. Run after check-site.py so a broken build fails on links first.
+      - run: node scripts/check-contrast.mjs
       - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5
         with:
