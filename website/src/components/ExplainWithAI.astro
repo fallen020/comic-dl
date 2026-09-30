@@ -1,0 +1,69 @@
+---
+import { ChevronDown, Sparkles } from '@lucide/astro';
+import BrandIcon from './icons/BrandIcon.astro';
+import { pagePath } from '../utils/base';
+
+interface Props {
+  /** Production canonical URL of the page being read. */
+  pageUrl: string;
+}
+const { pageUrl } = Astro.props;
+
+// Astro.site is the production host, so a preview build still names pages the
+// AI can actually fetch.
+const root = (Astro.site ?? Astro.url).toString().replace(/\/$/, '');
+const llmsUrl = `${root}${pagePath('llms.txt')}`;
+// Newlines are collapsed because search-style endpoints mangle them into the
+// rest of the URL, and no chat model here needs the formatting.
+const prompt = [
+  `I am reading the comic-dl documentation page at ${pageUrl}.`,
+  `Use the documentation index at ${llmsUrl}: fetch that page and any linked pages you need to answer.`,
+  'Explain this page step by step for a beginner, using only the documentation, then help with my follow-up questions.',
+].join(' ').replace(/\s+/g, ' ');
+
+// Each is a prompt-in-URL parameter, not a documented API: vendors change the
+// parameter names without notice, so keep them in one list to re-verify. Duck.ai
+// has no parameter of its own and is reached through duckduckgo.com?ia=chat.
+const providers: {
+  name: string;
+  icon: 'openai' | 'claude' | 'perplexity' | 'duckduckgo';
+  base: string;
+}[] = [
+  { name: 'ChatGPT', icon: 'openai', base: 'https://chatgpt.com/?q=' },
+  { name: 'Claude', icon: 'claude', base: 'https://claude.ai/new?q=' },
+  { name: 'Perplexity', icon: 'perplexity', base: 'https://www.perplexity.ai/search?q=' },
+  { name: 'Duck.ai', icon: 'duckduckgo', base: 'https://duckduckgo.com/?ia=chat&q=' },
+];
+---
+<!-- Native disclosure: open/close, focus, and keyboard behaviour come from the
+     platform, so there is no script to load before the control works. -->
+<details class="not-prose group relative">
+  <summary
+    class="inline-flex cursor-pointer list-none items-center gap-1.5 rounded border border-line bg-surface-1 px-2 py-1 text-xs font-medium text-fg-secondary transition-colors hover:border-accent hover:text-fg [&::-webkit-details-marker]:hidden"
+  >
+    <Sparkles size={13} aria-hidden="true" />
+    Explain with AI
+    <ChevronDown size={13} aria-hidden="true" class="transition-transform group-open:rotate-180" />
+  </summary>
+
+  <div
+    class="absolute end-0 top-full z-30 mt-2 w-64 rounded-lg border border-line bg-surface-1 p-1 text-start shadow-[var(--shadow-pop)]"
+  >
+    {providers.map((provider) => (
+      <a
+        href={`${provider.base}${encodeURIComponent(prompt)}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        class="flex items-center gap-2.5 rounded px-2.5 py-2 text-sm text-fg-secondary transition-colors hover:bg-surface-2 hover:text-fg"
+      >
+        <BrandIcon name={provider.icon} size={15} />
+        Open in {provider.name}
+        <span class="sr-only">(opens in a new tab)</span>
+        <span class="ms-auto text-fg-muted" aria-hidden="true">↗</span>
+      </a>
+    ))}
+    <p class="mt-1 border-t border-line px-2.5 py-2 text-xs text-fg-muted">
+      Opens your own AI account with the prompt ready. comic-dl sends nothing itself.
+    </p>
+  </div>
+</details>

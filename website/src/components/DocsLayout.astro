@@ -2,6 +2,7 @@
 import Header from './Header.astro';
 import Sidebar from './Sidebar.astro';
 import TableOfContents from './TableOfContents.astro';
+import ExplainWithAI from './ExplainWithAI.astro';
 import { ArrowLeft, ArrowRight, X } from '@lucide/astro';
 import { docsPath } from '../utils/base';
 
@@ -23,9 +24,11 @@ interface Props {
   next?: PageLink;
   section?: string;
   lastUpdated?: string;
+  /** Production URL of this page, so the AI hand-off names a page it can fetch. */
+  pageUrl: string;
 }
 
-const { title, description, headings, currentId, prev, next, section, lastUpdated } = Astro.props;
+const { title, description, headings, currentId, prev, next, section, lastUpdated, pageUrl } = Astro.props;
 const docHref = (id: string) => docsPath(id);
 ---
 <div class="flex min-h-dvh flex-col">
@@ -68,7 +71,7 @@ const docHref = (id: string) => docsPath(id);
 
     <!-- Content -->
     <main id="main-content" tabindex="-1" class="min-w-0 py-8 lg:py-10">
-      <div class="not-prose mb-4 flex items-center justify-between gap-3 text-xs text-fg-muted">
+      <div class="not-prose mb-4 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 text-xs text-fg-muted">
         <nav aria-label="Breadcrumb">
           <ol class="flex flex-wrap items-center gap-1.5">
             <li><a href={docsPath('')} class="transition-colors hover:text-fg">Docs</a></li>
@@ -80,16 +83,19 @@ const docHref = (id: string) => docsPath(id);
             )}
           </ol>
         </nav>
-        <a
-          href={`https://github.com/fallen020/comic-dl/edit/main/docs/${currentId}.md`}
-          target="_blank"
-          rel="noopener noreferrer"
-          class="flex shrink-0 items-center gap-1 transition-colors hover:text-fg"
-          title="Help improve this page"
-        >
-          <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /></svg>
-          Edit this page
-        </a>
+        <div class="ms-auto flex shrink-0 items-center gap-3">
+          <ExplainWithAI pageUrl={pageUrl} />
+          <a
+            href={`https://github.com/fallen020/comic-dl/edit/main/docs/${currentId}.md`}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="flex shrink-0 items-center gap-1 transition-colors hover:text-fg"
+            title="Help improve this page"
+          >
+            <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /></svg>
+            Edit this page
+          </a>
+        </div>
       </div>
       <article class="prose prose-docs mx-auto max-w-[var(--content-max)]" data-pagefind-body>
         <h1 class="text-balance !mt-0">{title}</h1>

@@ -67,6 +67,7 @@ const schema = {
     next={pageLink(next)}
     section={entry.data.section}
     lastUpdated={lastUpdatedDate}
+    pageUrl={crumbs[2].url}
   >
     <slot />
   </DocsLayout>
