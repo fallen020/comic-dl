@@ -26,7 +26,7 @@ function lastUpdated(filePath: string | undefined): string {
     return '';
   }
 }
-const lastUpdatedDate = lastUpdated(entry.filePath);
+const lastUpdatedDate = entry.data.lastUpdated || lastUpdated(entry.filePath);
 
 const all = (await getCollection('docs')).sort((a, b) => a.data.order - b.data.order);
 const idx = all.findIndex((e) => e.id === entry.id);

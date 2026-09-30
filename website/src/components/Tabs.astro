@@ -2,13 +2,31 @@
 import { Terminal } from '@lucide/astro';
 import BrandIcon from './icons/BrandIcon.astro';
 interface Tab { label: string; value: string }
-interface Props { tabs: Tab[]; label?: string }
-const { tabs, label = 'Platform' } = Astro.props;
-const brandFor: Record<string, 'windows' | 'debian' | 'fedora' | 'archlinux' | undefined> = {
+interface Props {
+  tabs: Tab[];
+  label?: string;
+  /**
+   * Namespace for the generated element ids. A page can carry more than one
+   * tab set using the same values (install commands and their system packages,
+   * say), and without this both sets would emit `id="tab-debian"` — duplicate
+   * ids, with each panel's `aria-labelledby` pointing at the first one. The
+   * panels written in the content must use the matching `id`, e.g.
+   * `idPrefix="pkg"` pairs with `id="panel-pkg-debian"`.
+   */
+  idPrefix?: string;
+}
+const { tabs, label = 'Platform', idPrefix = 'tab' } = Astro.props;
+const brandFor: Record<string, 'windows' | 'debian' | 'fedora' | 'archlinux' | 'bash' | 'zsh' | 'fishshell' | 'apple' | 'android' | 'linux' | undefined> = {
   windows: 'windows',
+  linux: 'linux',
   debian: 'debian',
   fedora: 'fedora',
   arch: 'archlinux',
+  macos: 'apple',
+  android: 'android',
+  bash: 'bash',
+  zsh: 'zsh',
+  fish: 'fishshell',
 };
 ---
 <div class="tabs" data-tabs>
@@ -17,8 +35,8 @@ const brandFor: Record<string, 'windows' | 'debian' | 'fedora' | 'archlinux' | u
       <button
         type="button"
         role="tab"
-        id={`tab-${t.value}`}
-        aria-controls={`panel-${t.value}`}
+        id={`${idPrefix}-${t.value}`}
+        aria-controls={`panel-${idPrefix}-${t.value}`}
         aria-selected={String(i === 0)}
         data-tab-button={t.value}
         class="tabs-tab"

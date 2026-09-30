@@ -9,6 +9,9 @@ const docs = defineCollection({
     description: z.string().optional(),
     order: z.number(),
     section: z.string().optional(),
+    // Overrides the git-derived date. Only set it when a commit will not
+    // follow the content edit (an in-flight docs fix, for example).
+    lastUpdated: z.string().optional(),
   }),
 });
 
