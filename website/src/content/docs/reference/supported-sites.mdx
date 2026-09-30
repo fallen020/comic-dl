@@ -9,62 +9,41 @@ The 29 built-in scrapers shipped with comic-dl. The live registry — including 
 
 ## Sites
 
-| Site | Domain | URL pattern | Chapters | Series |
-| :--- | :----- | :---------- | :------- | :----- |
-| **Asura Scans** | `asurascans.com` | `/comics/{series}/` | — | <Badge status="supported" /> |
-| **Asura Scans** | `asurascans.com` | `/comics/{series}/chapter/{n}` | <Badge status="supported" /> | — |
-| **DivaScans** | `divascans.org` | `/series/comic/{slug}/` | — | <Badge status="supported" /> |
-| **DivaScans** | `divascans.org` | `/series/comic/{slug}/chapter/{n}` | <Badge status="supported" /> | — |
+<Filter>
+
+| Site | Domain | URL patterns | Chapters | Series |
+| :--- | :----- | :----------- | :------- | :----- |
+| **Asura Scans** | `asurascans.com` | `/comics/{series}/`, `/comics/{series}/chapter/{n}` | <Badge status="supported" /> | <Badge status="supported" /> |
+| **DivaScans** | `divascans.org` | `/series/comic/{slug}/`, `/series/comic/{slug}/chapter/{n}` | <Badge status="supported" /> | <Badge status="supported" /> |
 | **E-Hentai** | `e-hentai.org` | `/g/{gid}/{token}/` | <Badge status="supported" /> | — |
-| **Thunderscans** | `en-thunderscans.com` | `/comics/{slug}/` | — | <Badge status="supported" /> |
-| **Thunderscans** | `en-thunderscans.com` | `/{slug}-chapter-{n}/` | <Badge status="supported" /> | — |
-| **FlameComics** | `flamecomics.xyz` | `/series/{id}/` | — | <Badge status="supported" /> |
-| **FlameComics** | `flamecomics.xyz` | `/series/{id}/{token}/` | <Badge status="supported" /> | — |
-| **FSIComics** | `fsicomics.com` | `/all-porn-comics/...` | — | <Badge status="supported" /> |
-| **FSIComics** | `fsicomics.com` | `/{comic-slug}/` | <Badge status="supported" /> | — |
-| **GEDE Comix** | `gedecomix.com` | `/porncomic/{series}/` | — | <Badge status="supported" /> |
-| **GEDE Comix** | `gedecomix.com` | `/porncomic/{series}/{chapter}/` | <Badge status="supported" /> | — |
-| **GenzToons** | `genztoons.org` | `/series/{slug}/` | — | <Badge status="supported" /> |
-| **GenzToons** | `genztoons.org` | `/chapter/{uid}/` | <Badge status="supported" /> | — |
+| **Thunderscans** | `en-thunderscans.com` | `/comics/{slug}/`, `/{slug}-chapter-{n}/` | <Badge status="supported" /> | <Badge status="supported" /> |
+| **FlameComics** | `flamecomics.xyz` | `/series/{id}/`, `/series/{id}/{token}/` | <Badge status="supported" /> | <Badge status="supported" /> |
+| **FSIComics** | `fsicomics.com` | `/all-porn-comics/...`, `/{comic-slug}/` | <Badge status="supported" /> | <Badge status="supported" /> |
+| **GEDE Comix** | `gedecomix.com` | `/porncomic/{series}/`, `/porncomic/{series}/{chapter}/` | <Badge status="supported" /> | <Badge status="supported" /> |
+| **GenzToons** | `genztoons.org` | `/series/{slug}/`, `/chapter/{uid}/` | <Badge status="supported" /> | <Badge status="supported" /> |
 | **HD Porn Comics** | `hdporncomics.com` | `/{slug}-sex-comic/` | <Badge status="supported" /> | — |
-| **HiveToons** | `hivetoons.org` | `/series/{slug}/` | — | <Badge status="supported" /> |
-| **HiveToons** | `hivetoons.org` | `/series/{slug}/chapter-{n}/` | <Badge status="supported" /> | — |
-| **IMHentai** | `imhentai.xxx` | `/gallery/{id}/` | — | — |
-| **IMHentai** | `imhentai.xxx` | `/view/{id}/{n}/` | <Badge status="supported" /> | — |
-| **Kagane** | `kagane.to` | `/series/{id}/` | — | <Badge status="supported" /> |
-| **Kagane** | `kagane.to` | `/series/{id}/reader/{book}` | <Badge status="supported" /> | — |
+| **HiveToons** | `hivetoons.org` | `/series/{slug}/`, `/series/{slug}/chapter-{n}/` | <Badge status="supported" /> | <Badge status="supported" /> |
+| **IMHentai** | `imhentai.xxx` | `/gallery/{id}/`, `/view/{id}/{n}/` | <Badge status="supported" /> | — |
+| **Kagane** | `kagane.to` | `/series/{id}/`, `/series/{id}/reader/{book}` | <Badge status="supported" /> | <Badge status="supported" /> |
 | **Kingofshojo** | `kingofshojo.com` | `/{slug}-chapter-{n}/` | <Badge status="supported" /> | — |
-| **Kodoku** | `kodokueasyaccess.com` | `/manhwa/{slug}/` | — | <Badge status="supported" /> |
-| **Kodoku** | `kodokueasyaccess.com` | `/read/{slug}/{lang}/{n}/` | <Badge status="supported" /> | — |
-| **LGBTics** | `lgbtics.com` | `/comic/{slug}/` | — | <Badge status="supported" /> |
-| **LGBTics** | `lgbtics.com` | `/comic/{slug}/{chapter}/` | <Badge status="supported" /> | — |
-| **MangaDex** | `mangadex.org` | `/title/{manga-uuid} or /manga/{manga-uuid}` | — | <Badge status="supported" /> |
-| **MangaDex** | `mangadex.org` | `/chapter/{chapter-uuid}` | <Badge status="supported" /> | — |
-| **ManhuaTo** | `manhuato.com` | `/manhua/{slug}/` | — | <Badge status="supported" /> |
-| **ManhuaTo** | `manhuato.com` | `/manhua/{slug}/chapter-{n}-ch{id}` | <Badge status="supported" /> | — |
-| **ManhwaTop** | `manhwatop.com` | `/manga/{slug}/` | — | <Badge status="supported" /> |
-| **ManhwaTop** | `manhwatop.com` | `/manga/{slug}/chapter-{n}/` | <Badge status="supported" /> | — |
-| **Nyx Scans** | `nyxscans.com` | `/series/{slug}/` | — | <Badge status="supported" /> |
-| **Nyx Scans** | `nyxscans.com` | `/series/{slug}/chapter-{n}` | <Badge status="supported" /> | — |
+| **Kodoku** | `kodokueasyaccess.com` | `/manhwa/{slug}/`, `/read/{slug}/{lang}/{n}/` | <Badge status="supported" /> | <Badge status="supported" /> |
+| **LGBTics** | `lgbtics.com` | `/comic/{slug}/`, `/comic/{slug}/{chapter}/` | <Badge status="supported" /> | <Badge status="supported" /> |
+| **MangaDex** | `mangadex.org` | `/title/{manga-uuid} or /manga/{manga-uuid}`, `/chapter/{chapter-uuid}` | <Badge status="supported" /> | <Badge status="supported" /> |
+| **ManhuaTo** | `manhuato.com` | `/manhua/{slug}/`, `/manhua/{slug}/chapter-{n}-ch{id}` | <Badge status="supported" /> | <Badge status="supported" /> |
+| **ManhwaTop** | `manhwatop.com` | `/manga/{slug}/`, `/manga/{slug}/chapter-{n}/` | <Badge status="supported" /> | <Badge status="supported" /> |
+| **Nyx Scans** | `nyxscans.com` | `/series/{slug}/`, `/series/{slug}/chapter-{n}` | <Badge status="supported" /> | <Badge status="supported" /> |
 | **Pawchive** | `pawchive.pw` | `/{service}/user/{id}/post/{id}/` | <Badge status="supported" /> | — |
-| **QiScans** | `qimanga.com` | `/series/{slug}` | — | <Badge status="supported" /> |
-| **QiScans** | `qimanga.com` | `/series/{slug}/chapter-{n}` | <Badge status="supported" /> | — |
-| **StoneScape** | `stonescape.xyz` | `/series/{slug}` | — | <Badge status="supported" /> |
-| **StoneScape** | `stonescape.xyz` | `/series/{slug}/ch-{n}` | <Badge status="supported" /> | — |
-| **Tapas** | `tapas.io` | `/series/{slug}` | — | <Badge status="supported" /> |
-| **Tapas** | `tapas.io` | `/episode/{id}` | <Badge status="supported" /> | — |
-| **Toonily** | `toonily.com` | `/serie/{slug}/` | — | <Badge status="supported" /> |
-| **Toonily** | `toonily.com` | `/serie/{slug}/chapter-{n}/` | <Badge status="supported" /> | — |
-| **ToonVerse** | `toonverse.net` | `/series/{slug}/` | — | <Badge status="supported" /> |
-| **ToonVerse** | `toonverse.net` | `/read/{slug}/{n}` | <Badge status="supported" /> | — |
-| **ValirScans** | `valirscans.org` | `/series/comic/{slug}/` | — | <Badge status="supported" /> |
-| **ValirScans** | `valirscans.org` | `/series/comic/{slug}/chapter/{n}` | <Badge status="supported" /> | — |
-| **Vortex Scans** | `vortexscans.org` | `/series/{slug}/` | — | <Badge status="supported" /> |
-| **Vortex Scans** | `vortexscans.org` | `/series/{slug}/chapter-{n}` | <Badge status="supported" /> | — |
-| **WEBTOON** | `webtoons.com` | `/{lang}/{category}/{title}/list?title_no={id}` | — | <Badge status="supported" /> |
-| **WEBTOON** | `webtoons.com` | `/{lang}/{category}/{title}/ep-{n}/viewer?title_no={id}&episode_no={n}` | <Badge status="supported" /> | — |
-| **WeebCentral** | `weebcentral.com` | `/series/{id}/{slug}` | — | <Badge status="supported" /> |
-| **WeebCentral** | `weebcentral.com` | `/chapters/{id}` | <Badge status="supported" /> | — |
+| **QiScans** | `qimanga.com` | `/series/{slug}`, `/series/{slug}/chapter-{n}` | <Badge status="supported" /> | <Badge status="supported" /> |
+| **StoneScape** | `stonescape.xyz` | `/series/{slug}`, `/series/{slug}/ch-{n}` | <Badge status="supported" /> | <Badge status="supported" /> |
+| **Tapas** | `tapas.io` | `/series/{slug}`, `/episode/{id}` | <Badge status="supported" /> | <Badge status="supported" /> |
+| **Toonily** | `toonily.com` | `/serie/{slug}/`, `/serie/{slug}/chapter-{n}/` | <Badge status="supported" /> | <Badge status="supported" /> |
+| **ToonVerse** | `toonverse.net` | `/series/{slug}/`, `/read/{slug}/{n}` | <Badge status="supported" /> | <Badge status="supported" /> |
+| **ValirScans** | `valirscans.org` | `/series/comic/{slug}/`, `/series/comic/{slug}/chapter/{n}` | <Badge status="supported" /> | <Badge status="supported" /> |
+| **Vortex Scans** | `vortexscans.org` | `/series/{slug}/`, `/series/{slug}/chapter-{n}` | <Badge status="supported" /> | <Badge status="supported" /> |
+| **WEBTOON** | `webtoons.com` | `/{lang}/{category}/{title}/list?title_no={id}`, `/{lang}/{category}/{title}/ep-{n}/viewer?title_no={id}&episode_no={n}` | <Badge status="supported" /> | <Badge status="supported" /> |
+| **WeebCentral** | `weebcentral.com` | `/series/{id}/{slug}`, `/chapters/{id}` | <Badge status="supported" /> | <Badge status="supported" /> |
+
+</Filter>
 
 ## Per-site features
 
@@ -92,7 +71,7 @@ The 29 built-in scrapers shipped with comic-dl. The live registry — including 
 - **Kodoku** — A client-rendered SPA behind an 18+ age gate, so all content comes from the public JSON API under `/api`; the gate is client-side only and the API needs no token or consent. It publishes one series, *Reverend Insanity*, in several languages, and a chapter is addressed by `/read/{series}/{lang}/{number}`. The chapter list mixes every language together, so the series listing is English (`DEFAULT_LANGUAGE`) and any chapter URL can name its own language. New chapters release on a schedule: unavailable ones are left out of the listing and report their unlock date if requested directly. Cover and page URLs are presigned and expire after 30 minutes, so API responses are never read from the metadata cache.
 - **WeebCentral** — Server-rendered pages with HTMX image fragments. Chapter pages list no images inline; pages come from the chapter's `/images` endpoint (`reading_style=long_strip`). Chapter labels read `"<Type> <Number>"` (e.g. `Navigation 67.5`). Images are hotlink-protected and need the chapter page as `Referer`, supplied by comic-dl's per-download headers.
 - **LGBTics** — A Madara/WordPress site. Series pages list chapters in `.version-chap .wp-manga-chapter`. Chapter images are lazy-loaded via `data-src` on the same domain. No AJAX pagination for chapters; all links render server-side. Images use WebP format.
-- **Kingofshojo** — A Madara-style shoujo/romance site. Series pages render full chapter lists server-side under `.listing-chapters_wrap`. Chapters use a flat URL structure (`/{slug}-chapter-{n}/`) rather than nesting under the series path. Chapter images are plain `<img src>` inside `#readerarea`, served from `cdn.kingofshojo.com` and WordPress CDN (`i*.wp.com`).
+- **Kingofshojo** — A Madara-style shoujo/romance site. Series pages load chapter lists dynamically via JavaScript and cannot be scraped for series metadata or chapter listings. Chapter pages work normally with plain `<img src>` inside `#readerarea`, served from `cdn.kingofshojo.com` and WordPress CDN (`i*.wp.com`). Chapter-only support.
 - **ManhwaTop** — A large Madara/WordPress manhwa/manhua site hosting hundreds of series. Standard Madara URL grammar. Chapter pages use lazy-loaded `data-src` on `c*.manhwatop.com` subdomains. The series page sits behind a Cloudflare challenge; an opt-in solver (`--solver auto`) or a `cf_clearance` cookie may be required for series scraping.
 - **HiveToons** — An Astro manhwa site. Series pages server-render the full chapter list. Chapter titles come from the page's `Article` headline and page images live in `.comic-images-wrapper` on `storage.hivetoon.com`. The host serves slowly and drops parallel connections; interrupted runs resume where they left off, so rerun to complete them.
 - **GenzToons** — A custom scanlation platform. Series pages statically render the chapter list in `#chapters` and the reader ships placeholder `img` tags whose `uid` attribute indexes real files on `cdn.meowing.org`. The mirror host `genztoons.net` is accepted. Plain HTTP passes Cloudflare, so no webview solver is needed.

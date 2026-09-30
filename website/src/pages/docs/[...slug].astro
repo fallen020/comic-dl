@@ -8,7 +8,8 @@ import Steps from '../../components/Steps.astro';
 import Tabs from '../../components/Tabs.astro';
 import Badge from '../../components/Badge.astro';
 import VersionBadge from '../../components/VersionBadge.astro';
-import CodeBlock from '../../components/CodeBlock.astro';
+import Filter from '../../components/Filter.astro';
+import BrandIcon from '../../components/icons/BrandIcon.astro';
 
 export async function getStaticPaths() {
   const entries = await getCollection('docs');
@@ -31,7 +32,8 @@ const { Content, headings } = await render(entry);
       Tabs,
       Badge,
       VersionBadge,
-      CodeBlock,
+      Filter,
+      BrandIcon,
     }}
   />
 </DocsPageLayout>

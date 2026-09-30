@@ -1,13 +1,12 @@
 ---
+// Capability badge. `supported` is the only status the site-support manifest
+// can currently carry (see site-support.json, regenerated from the scraper
+// registry), so that is the only one rendered. An unrecognised value falls
+// through to the raw string rather than an empty pill: a status the docs do
+// not model yet should be visible, not silently blank.
 interface Props {
-  status: 'supported' | 'partial' | 'broken' | 'untested';
+  status: 'supported';
 }
 const { status } = Astro.props;
-const labels: Record<string, string> = {
-  supported: 'Supported',
-  partial: 'Partial',
-  broken: 'Broken',
-  untested: 'Untested',
-};
 ---
-<span class={`badge badge-${status}`}>{labels[status]}</span>
+<span class={`badge badge-${status}`}>Supported</span>

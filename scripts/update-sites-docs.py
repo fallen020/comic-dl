@@ -109,23 +109,27 @@ def _badge(flag: bool) -> str:
 
 
 def _sites_table(entries, cell):
+    """One row per site, not per URL pattern.
+
+    A visitor's question is "is my site here?", so the domain is the key they
+    scan for. Splitting chapter and series into separate rows repeated the
+    name and domain for every dual-capability site, doubling the list to scan
+    and making a supported site look like two sites.
+    """
     rows = [
-        "| Site | Domain | URL pattern | Chapters | Series |",
-        "| :--- | :----- | :---------- | :------- | :----- |",
+        "| Site | Domain | URL patterns | Chapters | Series |",
+        "| :--- | :----- | :----------- | :------- | :----- |",
     ]
     for domain, entry in entries:
         display, chapter, series = SITE_META[domain]
-        pattern_series = f"`{series}`" if series else "—"
-        pattern_chapter = f"`{chapter}`" if chapter else "—"
-        if series:
-            rows.append(
-                f"| **{display}** | `{domain}` | {pattern_series} | — | {cell(entry.has_series)} |"
-            )
-        if chapter:
-            rows.append(
-                f"| **{display}** | `{domain}` | {pattern_chapter} "
-                f"| {cell(entry.has_chapter)} | — |"
-            )
+        # Comma-joined, not <br>: this cell is emitted into a plain-Markdown
+        # file too, where a line break would need JSX markup that MDX only
+        # accepts self-closed.
+        patterns = ", ".join(f"`{p}`" for p in (series, chapter) if p)
+        rows.append(
+            f"| **{display}** | `{domain}` | {patterns} "
+            f"| {cell(entry.has_chapter)} | {cell(entry.has_series)} |"
+        )
     return rows
 
 
@@ -156,6 +160,16 @@ def _splice(text: str, start: str, end: str, body: list[str]) -> str:
     return "\n".join([*lines[: si + 1], "", *body, "", *lines[ei:]]) + "\n"
 
 
+def _wrap_filter(rows: list[str]) -> list[str]:
+    """Wrap a rendered table in the website's live filter component.
+
+    Only the site list is filtered. The per-site capability matrix is a
+    29-column grid of Yes/— that reads fine as-is and a filter would only hide
+    capability facts the reader came to compare.
+    """
+    return ["<Filter>", "", *rows, "", "</Filter>"]
+
+
 def generate() -> dict:
     """Rendered ``{path: text}`` pairs for the two docs files."""
     entries = _entries()
@@ -165,7 +179,8 @@ def generate() -> dict:
     md = _splice(md, "## Sites", "## Per-site features", _sites_table(entries, _yes))
     md = _splice(md, "## Per-site features", "## Site notes", _features_table(entries, _yes))
     md = _COUNT_RE.sub(f"The {count} built-in scrapers", md)
-    mdx = _splice(mdx, "## Sites", "## Per-site features", _sites_table(entries, _badge))
+    sites = _wrap_filter(_sites_table(entries, _badge))
+    mdx = _splice(mdx, "## Sites", "## Per-site features", sites)
     mdx = _splice(mdx, "## Per-site features", "## Site notes", _features_table(entries, _badge))
     mdx = _COUNT_RE.sub(f"The {count} built-in scrapers", mdx)
     return {str(DOCS): md, str(WEBSITE): mdx}

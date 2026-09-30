@@ -1,9 +1,6 @@
 ---
-import { readFileSync } from 'node:fs';
-const pyproject = readFileSync(new URL('../../../../pyproject.toml', import.meta.url), 'utf-8');
-const project = pyproject.slice(pyproject.indexOf('[project]'));
-const version = project.match(/^version\s*=\s*"([^"]+)"/m)?.[1] ?? '0.0.0';
+import { appVersion } from '../utils/site';
 ---
 <span class="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface-1 px-2.5 py-0.5 text-xs text-fg-secondary">
-  Latest release: <code class="font-mono text-tip-border">v{version}</code>
+  Latest release: <code class="font-mono text-tip">v{appVersion}</code>
 </span>

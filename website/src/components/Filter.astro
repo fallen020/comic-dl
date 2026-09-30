@@ -1,0 +1,60 @@
+---
+/**
+ * Live filter for a table of sites. The supported-sites list is the one page
+ * where a visitor arrives with a known answer ("is my site here?") and has to
+ * find a row, so it filters rather than making them read 29 rows.
+ *
+ * Wraps a table passed in the default slot. Rows are matched on their text;
+ * the count is announced so filtering is not a silent visual change.
+ */
+interface Props {
+  /** Placeholder for the input. */
+  label?: string;
+}
+const { label = 'Filter by name or domain' } = Astro.props;
+---
+<div data-filter>
+  <div class="not-prose mb-4 flex flex-wrap items-center gap-3">
+    <input
+      type="search"
+      data-filter-input
+      aria-label={label}
+      placeholder={label}
+      autocomplete="off"
+      class="w-full max-w-sm rounded border border-line-strong bg-surface-1 px-3 py-2 text-sm text-fg placeholder:text-fg-muted focus-visible:border-accent"
+    />
+    <p data-filter-status class="m-0 text-xs text-fg-muted" role="status" aria-live="polite"></p>
+  </div>
+  <slot />
+</div>
+
+<script>
+  for (const root of document.querySelectorAll<HTMLElement>('[data-filter]')) {
+    const input = root.querySelector<HTMLInputElement>('[data-filter-input]');
+    const status = root.querySelector<HTMLElement>('[data-filter-status]');
+    const table = root.querySelector('table');
+    if (!input || !table) continue;
+    const body = table.tBodies[0];
+    if (!body) continue;
+    // Header and the separate capability matrix are siblings of this table's
+    // rows; only tbody rows are toggleable.
+    const rows = Array.from(body.rows);
+
+    const apply = (): void => {
+      const q = input.value.trim().toLowerCase();
+      let shown = 0;
+      for (const row of rows) {
+        const hit = !q || row.textContent!.toLowerCase().includes(q);
+        row.hidden = !hit;
+        if (hit) shown += 1;
+      }
+      if (!status) return;
+      status.textContent = q
+        ? `${shown} of ${rows.length} sites`
+        : `${rows.length} sites`;
+    };
+
+    input.addEventListener('input', apply);
+    apply();
+  }
+</script>
