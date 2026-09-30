@@ -24,6 +24,7 @@ REQUIRED_FILES = [
 ]
 
 HREF_RE = re.compile(r'href="(/comic-dl/[^"#]+)(#[^"]*)?"')
+CANONICAL_RE = re.compile(r'<link rel="canonical" href="([^"]+)"')
 REQUIRED_HEAD_RES = [
     re.compile(r'<link rel="canonical"'),
     re.compile(r'<meta property="og:url"'),
@@ -43,11 +44,30 @@ def resolve(url: str) -> Path | None:
     return target if target.is_file() else None
 
 
+def check_llms_index(errors: list[str]) -> None:
+    """Every docs page must be listed in the index at its canonical URL.
+
+    A reader that trusts the index follows it instead of crawling, so a page
+    missing from it is invisible. Comparing against each page's own canonical
+    tag keeps the host in one place.
+    """
+    index = (DIST / "llms.txt").read_text()
+    if not index.startswith("# comic-dl\n"):
+        errors.append("llms.txt: does not start with the `# comic-dl` heading")
+    for page in sorted(DIST.glob("docs/**/index.html")):
+        match = CANONICAL_RE.search(page.read_text())
+        if match is None:
+            errors.append(f"llms.txt: no canonical URL on {page.relative_to(DIST)}")
+        elif match.group(1) not in index:
+            errors.append(f"llms.txt: does not list {match.group(1)}")
+
+
 def main() -> int:
     """Run the post-build integrity checks.
 
     Returns 0 when all required files exist, all HTML pages have canonical/og
-    tags, and all internal links resolve. Returns 1 on any failure.
+    tags, the llms.txt index covers every docs page, and all internal links
+    resolve. Returns 1 on any failure.
     """
     errors: list[str] = []
     for name in REQUIRED_FILES:
@@ -74,6 +94,9 @@ def main() -> int:
                 text = target.read_text()
                 if f'id="{anchor}"' not in text and f"id='{anchor}'" not in text:
                     errors.append(f"{page.relative_to(DIST)}: broken anchor {url}{frag}")
+
+    if (DIST / "llms.txt").is_file():
+        check_llms_index(errors)
 
     for error in sorted(set(errors)):
         print(f"check-site: {error}")
