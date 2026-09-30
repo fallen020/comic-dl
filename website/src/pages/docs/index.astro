@@ -33,9 +33,9 @@ const orderedGroups = Array.from(groups.values()).sort(
 >
   <Header />
 
-  <main id="main-content" tabindex="-1" class="mx-auto w-full max-w-4xl px-4 pb-24 pt-12 sm:px-6">
+  <main id="main-content" tabindex="-1" class="mx-auto w-full max-w-[var(--shell-max)] px-[var(--gutter)] pb-24 pt-12">
     <h1 class="text-3xl font-bold tracking-tight text-fg">Documentation</h1>
-    <p class="mt-2 max-w-xl text-fg-secondary">
+    <p class="mt-2 max-w-[var(--measure)] text-fg-secondary">
       Everything comic-dl can do, grouped by task. Start with
       <a href={docsPath('installation')} data-astro-prefetch="hover">Installation</a> or
       <a href={docsPath('quick-start')} data-astro-prefetch="hover">Quick Start</a>.
@@ -44,16 +44,16 @@ const orderedGroups = Array.from(groups.values()).sort(
     {orderedGroups.map((group) => (
       <section class="mt-10" aria-label={group.label || 'Guides'}>
         {group.label && (
-          <h2 class="text-xs font-semibold uppercase tracking-wide text-fg-muted">
+          <h2 class="eyebrow">
             {group.label}
           </h2>
         )}
-        <ul class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <ul class="mt-3 grid grid-cols-1 gap-3 min-[26rem]:grid-cols-2 min-[60rem]:grid-cols-3">
           {group.items.map((entry) => (
             <li>
               <a
                 href={docsPath(entry.id)} data-astro-prefetch="hover"
-                class="block h-full rounded-lg border border-line bg-surface-1 p-4 no-underline shadow-[var(--shadow-card)] transition-all hover:-translate-y-0.5 hover:border-accent hover:bg-surface-2"
+                class="card card-link h-full p-4"
               >
                 <p class="text-sm font-medium text-fg">{entry.data.title}</p>
                 {entry.data.description && (

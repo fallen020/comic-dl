@@ -2,15 +2,12 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 import Header from '../components/Header.astro';
 import CodeBlock from '../components/CodeBlock.astro';
-import { Bug, Download, FileArchive, GitBranch, Globe, Rocket, Star } from '@lucide/astro';
+import { Bug, Check, Download, FileArchive, GitBranch, Globe, Rocket, Star } from '@lucide/astro';
 import BrandIcon from '../components/icons/BrandIcon.astro';
 import { docsPath, siteBase } from '../utils/base';
-import { readFileSync } from 'node:fs';
+import { appVersion, scraperCount } from '../utils/site';
 import demoGif from '../../../docs/assets/demo.gif';
 const heroCommand = 'comic-dl -u "<gallery-or-series-url>"';
-const pyproject = readFileSync(new URL('../../../../pyproject.toml', import.meta.url), 'utf-8');
-const project = pyproject.slice(pyproject.indexOf('[project]'));
-const appVersion = project.match(/^version\s*=\s*"([^"]+)"/m)?.[1] ?? '0.0.0';
 
 const siteLogos = siteBase + 'assets/sites/';
 const featuredSites = [
@@ -29,6 +26,27 @@ const features = [
   { title: 'Resume interrupted downloads', line: 'Partially downloaded chapters continue from where they stopped.' },
   { title: 'Concurrent downloads', line: 'Pages download in parallel; concurrency runs 1–32.' },
   { title: 'Site auto-detection', line: 'Paste any supported URL; the scraper picks itself.' },
+];
+
+const startingPoints = [
+  {
+    href: docsPath('installation'),
+    title: 'Install',
+    line: 'Binaries or from source',
+    Icon: Download,
+  },
+  {
+    href: docsPath('quick-start'),
+    title: 'Quick Start',
+    line: 'Download a gallery',
+    Icon: Rocket,
+  },
+  {
+    href: docsPath('reference/supported-sites'),
+    title: 'Supported Sites',
+    line: `${scraperCount} built-in scrapers`,
+    Icon: Globe,
+  },
 ];
 
 const softwareSchema = {
@@ -51,7 +69,7 @@ const softwareSchema = {
 >
   <Header />
 
-  <main id="main-content" tabindex="-1" class="mx-auto flex w-full max-w-4xl flex-col items-center px-4 pb-24 pt-16 sm:px-6 sm:pt-24">
+  <main id="main-content" tabindex="-1" class="mx-auto flex w-full max-w-[var(--shell-max)] flex-col items-center px-[var(--gutter)] pb-24 pt-12 sm:pt-16">
     <!-- Hero -->
     <a
       href="https://github.com/fallen020/comic-dl/releases"
@@ -59,36 +77,35 @@ const softwareSchema = {
       rel="noopener noreferrer"
       class="mb-6 inline-flex items-center gap-2 rounded-full border border-line bg-surface-1 px-3 py-1 text-xs text-fg-secondary no-underline transition-colors hover:border-accent hover:text-fg"
     >
-      <span class="h-1.5 w-1.5 rounded-full bg-tip-border" aria-hidden="true"></span>
+      <span class="h-1.5 w-1.5 rounded-full bg-tip" aria-hidden="true"></span>
       v{appVersion} — early release, CLI options may change.
     </a>
 
-    <h1 class="text-balance text-center text-4xl font-bold tracking-tight text-fg sm:text-5xl">
+    <h1 class="max-w-3xl text-balance text-center text-[clamp(1.9rem,1.1rem+3.4vw,3.25rem)] leading-[1.1] font-bold tracking-tight text-fg">
       A command-line downloader for comics and manga.
     </h1>
-    <p class="mt-4 max-w-xl text-pretty text-center text-lg text-fg-secondary">
+    <p class="mt-5 max-w-[38rem] text-pretty text-center text-[clamp(1rem,0.95rem+0.25vw,1.125rem)] leading-relaxed text-fg-secondary">
       point comic-dl at any supported gallery URL and it downloads every page,
       then packages them into a CBZ, ZIP, or CBT archive — ready for your reader.
     </p>
 
     <div class="mt-8 flex flex-wrap items-center justify-center gap-3">
-      <a
-        href={docsPath(`installation`)} data-astro-prefetch="hover"
-        class="inline-flex items-center gap-2 rounded-md bg-accent px-4 py-2 text-sm font-semibold text-surface no-underline shadow-[var(--shadow-card)] transition-all duration-150 ease-out hover:scale-[1.02] hover:brightness-110 hover:bg-accent-hover active:scale-100 active:bg-accent-active active:shadow-none"
-      >
+      <a href={docsPath('installation')} data-astro-prefetch="hover" class="btn btn-primary">
         <Download size={16} aria-hidden="true" />
         Install comic-dl
       </a>
       <a
-        href="https://github.com/fallen020/comic-dl" target="_blank" rel="noopener noreferrer"
-        class="inline-flex items-center gap-2 rounded-md border border-line bg-transparent px-4 py-2 text-sm font-medium text-fg no-underline shadow-[var(--shadow-card)] transition-all duration-150 ease-out hover:border-accent hover:bg-surface-1/60 hover:text-accent active:scale-95 active:shadow-none"
+        href="https://github.com/fallen020/comic-dl"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="btn btn-secondary"
       >
         <BrandIcon name="github" size={14} />
         View on GitHub
       </a>
     </div>
 
-    <div class="mt-12 w-full">
+    <div class="mt-12 w-full max-w-[var(--content-max)]">
       <CodeBlock code={heroCommand} lang="bash" filename="terminal" />
       <p class="mt-3 text-sm text-fg-secondary">
         Replace <code>&lt;gallery-or-series-url&gt;</code> with a URL from a
@@ -97,33 +114,96 @@ const softwareSchema = {
       </p>
     </div>
 
-    <!-- Proof strip -->
-    <dl class="mt-10 grid w-full grid-cols-1 gap-3 sm:grid-cols-3">
-      <div class="rounded-lg border border-line bg-surface-1 p-4 text-center">
+    <!-- Proof strip: "CBZ · ZIP · CBT" is 216px of bold 24px type, so three-up
+         only starts once a cell can hold it on one line. -->
+    <dl class="mt-10 grid w-full max-w-[var(--content-max)] grid-cols-2 gap-3 min-[45rem]:grid-cols-3">
+      <div class="card p-4 text-center">
         <dt class="order-2 text-xs text-fg-secondary">built-in scrapers</dt>
-        <dd class="order-1 text-2xl font-bold text-fg">29</dd>
+        <dd class="order-1 text-2xl font-bold text-fg">{scraperCount}</dd>
       </div>
-      <div class="rounded-lg border border-line bg-surface-1 p-4 text-center">
+      <div class="card p-4 text-center">
         <dt class="text-xs text-fg-secondary">archive formats</dt>
         <dd class="text-2xl font-bold text-fg">CBZ · ZIP · CBT</dd>
       </div>
-      <div class="rounded-lg border border-line bg-surface-1 p-4 text-center">
+      <div class="card col-span-2 p-4 text-center min-[45rem]:col-span-1">
         <dt class="text-xs text-fg-secondary">license</dt>
         <dd class="text-2xl font-bold text-fg">MIT</dd>
       </div>
     </dl>
 
+    <!-- Supported sites preview -->
+    <section aria-labelledby="sites" class="mt-[clamp(3.5rem,6vw,5.5rem)] w-full">
+      <h2 id="sites" class="eyebrow text-center">
+        Supported sites
+      </h2>
+      <p class="mt-2 text-center text-sm text-fg-secondary">
+        {scraperCount} built-in scrapers; the right one is picked from the URL you paste.
+      </p>
+      <!-- 4-up needs ~138px per cell for the longest name plus its logo, which
+           lands at 640px. Below that two-up, rather than truncating names. -->
+      <ul class="mx-auto mt-6 grid w-full max-w-[var(--content-max)] grid-cols-2 gap-3 min-[40rem]:grid-cols-4">
+        {
+          featuredSites.map((site) => (
+            <li class="card flex items-center gap-2.5 px-3 py-2.5">
+              <img
+                src={siteLogos + site.domain + '.png'}
+                alt=""
+                width={24}
+                height={24}
+                class="shrink-0 rounded-sm object-contain"
+                loading="lazy"
+                decoding="async"
+              />
+              <span class="min-w-0 truncate text-sm font-medium text-fg">{site.name}</span>
+            </li>
+          ))
+        }
+      </ul>
+      <p class="mt-4 text-center">
+        <a
+          href={docsPath('reference/supported-sites')}
+          data-astro-prefetch="hover"
+          class="text-sm font-medium text-accent no-underline transition-colors hover:text-accent-text"
+        >
+          + {scraperCount - featuredSites.length} more built-in scrapers →
+        </a>
+      </p>
+    </section>
+
+    <!-- Core features -->
+    <section aria-labelledby="features" class="mt-[clamp(3.5rem,6vw,5.5rem)] w-full">
+      <h2 id="features" class="eyebrow text-center">
+        Capabilities
+      </h2>
+      <div class="mx-auto mt-6 grid w-full max-w-[var(--content-max)] grid-cols-1 gap-3 min-[24rem]:grid-cols-2">
+        {
+          features.map((f) => (
+            <div class="card flex items-start gap-3 p-4">
+              <Check size={16} class="mt-0.5 shrink-0 text-accent" aria-hidden="true" />
+              <div>
+                <p class="text-sm font-medium text-fg">{f.title}</p>
+                <p class="mt-0.5 text-xs text-fg-secondary">{f.line}</p>
+              </div>
+            </div>
+          ))
+        }
+      </div>
+    </section>
+
     <!-- See it work -->
-    <section aria-labelledby="see-it-work" class="mt-16 w-full">
-      <h2 id="see-it-work" class="text-center text-xs font-semibold uppercase tracking-widest text-fg-muted">
+    <section aria-labelledby="see-it-work" class="mt-[clamp(3.5rem,6vw,5.5rem)] w-full">
+      <h2 id="see-it-work" class="eyebrow text-center">
         See it work
       </h2>
-      <figure class="mt-6 w-full">
+      <figure class="mx-auto mt-6 w-full max-w-[var(--content-max)]">
         <img
           src={demoGif.src}
           alt="A terminal window running comic-dl: selected chapters downloaded and saved as CBZ files"
-          class="w-full rounded-lg border border-line shadow-[var(--shadow-card)]"
+          width={demoGif.width}
+          height={demoGif.height}
+          class="w-full rounded-lg border border-line shadow-[var(--shadow-lift)]"
           loading="lazy"
+          decoding="async"
         />
         <figcaption class="mt-3 flex flex-wrap items-center justify-center gap-2 text-sm text-fg-secondary">
           <span class="inline-flex items-center gap-1.5"><FileArchive size={14} class="text-accent" aria-hidden="true" /> gallery URL in</span>
@@ -135,99 +215,27 @@ const softwareSchema = {
       </figure>
     </section>
 
-    <!-- Core features -->
-    <section aria-labelledby="features" class="mt-16 w-full">
-      <h2 id="features" class="text-center text-xs font-semibold uppercase tracking-widest text-fg-muted">
-        Capabilities
-      </h2>
-      <div class="mt-6 grid w-full grid-cols-1 gap-3 sm:grid-cols-2">
-        {
-          features.map((f) => (
-            <div class="flex items-start gap-3 rounded-lg border border-line bg-surface-1 p-4">
-              <span class="mt-1 text-accent" aria-hidden="true">✓</span>
-              <div>
-                <p class="text-sm font-medium text-fg">{f.title}</p>
-                <p class="mt-0.5 text-xs text-fg-secondary">{f.line}</p>
-              </div>
-            </div>
-          ))
-        }
-      </div>
-    </section>
-
-    <!-- Supported sites preview -->
-    <section aria-labelledby="sites" class="mt-16 w-full">
-      <h2 id="sites" class="text-center text-xs font-semibold uppercase tracking-widest text-fg-muted">
-        Supported sites
-      </h2>
-      <p class="mt-2 text-center text-sm text-fg-secondary">
-        29 built-in scrapers; the right one is picked from the URL you paste.
-      </p>
-      <ul class="mt-6 grid w-full grid-cols-2 gap-3 sm:grid-cols-4">
-        {
-          featuredSites.map((site) => (
-            <li
-              class="flex items-center gap-2.5 rounded-lg border border-line bg-surface-1 px-3 py-2.5 transition-colors hover:border-accent"
-            >
-              <img
-                src={siteLogos + site.domain + '.png'}
-                alt=""
-                width={24}
-                height={24}
-                class="shrink-0 rounded-sm object-contain"
-                loading="lazy"
-              />
-              <span class="min-w-0 truncate text-sm font-medium text-fg">{site.name}</span>
-            </li>
-          ))
-        }
-      </ul>
-      <p class="mt-4 text-center">
-        <a
-          href={docsPath('reference/supported-sites')} data-astro-prefetch="hover"
-          class="text-sm font-medium text-accent no-underline transition-colors hover:text-accent-text"
-        >
-          + 21 more built-in scrapers →
-        </a>
-      </p>
-    </section>
-
     <!-- Path forward -->
-    <section aria-labelledby="get-started" class="mt-16 w-full">
-      <h2 id="get-started" class="text-center text-xs font-semibold uppercase tracking-widest text-fg-muted">
+    <section aria-labelledby="get-started" class="mt-[clamp(3.5rem,6vw,5.5rem)] w-full">
+      <h2 id="get-started" class="eyebrow text-center">
         Get started
       </h2>
-      <nav aria-label="Get started" class="mt-6 grid w-full grid-cols-1 gap-3 sm:grid-cols-3">
-        <a
-          href={docsPath(`installation`)} data-astro-prefetch="hover"
-          class="group rounded-lg border border-line bg-surface-1 p-4 no-underline shadow-[var(--shadow-card)] transition-all duration-150 ease-out hover:-translate-y-0.5 hover:border-accent hover:bg-surface-2 hover:shadow-[var(--shadow-pop)]"
-        >
-          <Download size={18} class="text-accent transition-transform duration-150 ease-out group-hover:-rotate-6 group-hover:text-accent-active" aria-hidden="true" />
-          <p class="mt-2 text-sm font-medium text-fg">Install</p>
-          <p class="mt-0.5 text-xs text-fg-secondary">Binaries or from source</p>
-        </a>
-        <a
-          href={docsPath(`quick-start`)} data-astro-prefetch="hover"
-          class="group rounded-lg border border-line bg-surface-1 p-4 no-underline shadow-[var(--shadow-card)] transition-all duration-150 ease-out hover:-translate-y-0.5 hover:border-accent hover:bg-surface-2 hover:shadow-[var(--shadow-pop)]"
-        >
-          <Rocket size={18} class="text-accent transition-transform duration-150 ease-out group-hover:-rotate-6 group-hover:text-accent-active" aria-hidden="true" />
-          <p class="mt-2 text-sm font-medium text-fg">Quick Start</p>
-          <p class="mt-0.5 text-xs text-fg-secondary">Download a gallery</p>
-        </a>
-        <a
-          href={docsPath(`reference/supported-sites`)} data-astro-prefetch="hover"
-          class="group rounded-lg border border-line bg-surface-1 p-4 no-underline shadow-[var(--shadow-card)] transition-all duration-150 ease-out hover:-translate-y-0.5 hover:border-accent hover:bg-surface-2 hover:shadow-[var(--shadow-pop)]"
-        >
-          <Globe size={18} class="text-accent transition-transform duration-150 ease-out group-hover:-rotate-6 group-hover:text-accent-active" aria-hidden="true" />
-          <p class="mt-2 text-sm font-medium text-fg">Supported Sites</p>
-          <p class="mt-0.5 text-xs text-fg-secondary">29 built-in scrapers</p>
-        </a>
+      <nav aria-label="Get started" class="mx-auto mt-6 grid w-full max-w-[var(--content-max)] grid-cols-1 gap-3 min-[35rem]:grid-cols-3">
+        {
+          startingPoints.map(({ href, title, line, Icon }) => (
+            <a href={href} data-astro-prefetch="hover" class="card card-link p-4">
+              <Icon size={18} class="text-accent" aria-hidden="true" />
+              <p class="mt-2 text-sm font-medium text-fg">{title}</p>
+              <p class="mt-0.5 text-xs text-fg-secondary">{line}</p>
+            </a>
+          ))
+        }
       </nav>
     </section>
   </main>
 
   <footer class="border-t border-line">
-    <div class="mx-auto flex w-full max-w-4xl flex-col items-center justify-between gap-4 px-4 py-6 text-xs text-fg-muted sm:px-6">
+    <div class="mx-auto flex w-full max-w-[var(--shell-max)] flex-col items-center justify-between gap-4 px-[var(--gutter)] py-6 text-xs text-fg-muted sm:flex-row">
       <p class="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
         © {new Date().getFullYear()} comic-dl — MIT-licensed.
         <a href="https://github.com/fallen020/comic-dl" target="_blank" rel="noopener noreferrer" class="nav-link inline-flex items-center gap-1.5">

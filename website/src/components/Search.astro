@@ -6,15 +6,15 @@ import { siteBase } from '../utils/base';
   <button
     type="button"
     data-search-trigger
-    class="inline-flex w-full items-center gap-2 rounded border border-line bg-surface-1 px-2.5 py-1.5 text-sm text-fg-secondary transition-colors hover:text-fg sm:w-48"
+    class="inline-flex h-9 w-9 items-center justify-center gap-2 rounded border border-line bg-surface-1 text-sm text-fg-secondary transition-colors hover:border-accent hover:text-fg min-[26rem]:h-auto min-[26rem]:w-40 min-[26rem]:justify-start min-[26rem]:px-2.5 min-[26rem]:py-1.5 lg:w-48"
     aria-label="Search documentation"
     aria-haspopup="dialog"
     aria-expanded="false"
     aria-controls="search-modal"
   >
     <Search size={15} aria-hidden="true" />
-    <span class="hidden sm:inline">Search</span>
-    <span class="ml-auto hidden xl:inline">
+    <span class="hidden min-[26rem]:inline">Search</span>
+    <span class="ml-auto hidden lg:inline">
       <kbd class="rounded border border-line bg-surface px-1 font-mono text-[0.65rem] text-fg-muted">Ctrl&nbsp;K</kbd>
     </span>
   </button>

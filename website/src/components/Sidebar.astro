@@ -55,10 +55,10 @@ const orderedGroups = Array.from(groups.values()).sort((a, b) => a.order - b.ord
                 href={href}
                 data-astro-prefetch="hover"
                 aria-current={active ? 'page' : undefined}
-                class={`block rounded px-2 py-1.5 text-sm no-underline transition-colors ${
+                class={`sidebar-link block rounded border-l-2 py-1.5 pr-2 pl-3 text-sm no-underline transition-colors ${
                   active
-                    ? 'bg-accent-dim/15 font-medium text-accent'
-                    : 'text-fg-secondary hover:bg-surface-2 hover:text-fg'
+                    ? 'border-accent bg-accent-subtle font-medium text-accent-text'
+                    : 'border-transparent text-fg-secondary hover:bg-surface-2 hover:text-fg'
                 }`}
               >
                 {entry.data.title}

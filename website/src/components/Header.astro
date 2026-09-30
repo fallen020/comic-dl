@@ -3,16 +3,22 @@ import { Menu, BookOpen } from '@lucide/astro';
 import BrandIcon from './icons/BrandIcon.astro';
 import Search from './Search.astro';
 import ThemeToggle from './ThemeToggle.astro';
-import { siteBase } from '../utils/base';
+import { docsPath, siteBase } from '../utils/base';
 
 interface Props {
   showMenu?: boolean;
 }
 
 const { showMenu = false } = Astro.props;
+// The two destinations a reader reaches for most: the docs root and the list
+// of sites the tool actually supports.
+const nav = [
+  { label: 'Docs', href: docsPath('') },
+  { label: 'Supported Sites', href: docsPath('reference/supported-sites') },
+];
 ---
-<header class="sticky top-0 z-30 border-b border-line bg-surface/80 backdrop-blur">
-  <div class="mx-auto flex h-14 max-w-[1440px] items-center gap-2 px-4 sm:px-6">
+<header class="sticky top-0 z-30 h-[var(--header-h)] border-b border-line bg-surface/80 backdrop-blur">
+  <div class="mx-auto flex h-full max-w-[var(--shell-max)] items-center gap-2 px-[var(--gutter)]">
     {showMenu && (
       <button
         type="button"
@@ -20,7 +26,7 @@ const { showMenu = false } = Astro.props;
         aria-label="Toggle navigation"
         aria-expanded="false"
         aria-controls="docs-nav"
-        class="inline-flex items-center rounded border border-line bg-surface-1 p-2 text-fg-secondary transition-colors hover:text-fg lg:hidden"
+        class="-ml-1.5 inline-flex items-center rounded border border-line bg-surface-1 p-2 text-fg-secondary transition-colors hover:border-accent hover:text-fg lg:hidden"
       >
         <Menu size={18} aria-hidden="true" />
       </button>
@@ -32,6 +38,17 @@ const { showMenu = false } = Astro.props;
       <BookOpen size={18} class="text-accent" aria-hidden="true" />
       <span>comic-dl</span>
     </a>
+    <nav aria-label="Main" class="ml-1 hidden items-center gap-1 md:flex">
+      {nav.map((item) => (
+        <a
+          href={item.href}
+          data-astro-prefetch="hover"
+          class="rounded px-2.5 py-1.5 text-sm text-fg-secondary no-underline transition-colors hover:bg-surface-1 hover:text-fg"
+        >
+          {item.label}
+        </a>
+      ))}
+    </nav>
     <div class="ml-auto flex items-center gap-2">
       <Search />
       <a
@@ -39,7 +56,7 @@ const { showMenu = false } = Astro.props;
         target="_blank"
         rel="noopener noreferrer"
         aria-label="comic-dl on GitHub"
-        class="inline-flex items-center rounded border border-line bg-surface-1 p-1.5 text-fg-secondary transition-colors hover:text-fg"
+        class="inline-flex items-center rounded border border-line bg-surface-1 p-1.5 text-fg-secondary transition-colors hover:border-accent hover:text-fg"
       >
         <BrandIcon name="github" size={16} />
       </a>

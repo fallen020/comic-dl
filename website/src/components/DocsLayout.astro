@@ -2,7 +2,7 @@
 import Header from './Header.astro';
 import Sidebar from './Sidebar.astro';
 import TableOfContents from './TableOfContents.astro';
-import { ArrowLeft, ArrowRight } from '@lucide/astro';
+import { ArrowLeft, ArrowRight, X } from '@lucide/astro';
 import { docsPath } from '../utils/base';
 
 interface PageLink {
@@ -28,13 +28,19 @@ interface Props {
 const { title, description, headings, currentId, prev, next, section, lastUpdated } = Astro.props;
 const docHref = (id: string) => docsPath(id);
 ---
-<div class="flex min-h-screen flex-col">
+<div class="flex min-h-dvh flex-col">
   <Header showMenu />
 
-  <div class="lg:mx-auto lg:w-full lg:max-w-[1440px] lg:grid lg:grid-cols-[260px_minmax(0,1fr)] lg:gap-8 xl:grid-cols-[260px_minmax(0,1fr)_220px]">
+  <!-- Rails are fluid, the middle column takes the slack, and the whole shell
+       stops growing at --shell-max: past that, more column width would only
+       stretch the measure that the prose is already capped at. -->
+  <div class="mx-auto grid w-full max-w-[var(--shell-max)] grid-cols-1 px-[var(--gutter)] lg:grid-cols-[var(--rail)_minmax(0,1fr)] lg:gap-x-8 2xl:gap-x-12 xl:grid-cols-[var(--rail)_minmax(0,1fr)_var(--toc-rail)]">
     <!-- Desktop sidebar -->
     <div class="hidden lg:block">
-      <div class="sticky top-14 max-h-[calc(100vh-3.5rem)] overflow-y-auto py-8 lg:pl-4">
+      <div
+        data-scroll-host
+        class="sticky top-[var(--header-h)] max-h-[calc(100dvh-var(--header-h))] overflow-y-auto py-8 pe-1"
+      >
         <Sidebar currentId={currentId} />
       </div>
     </div>
@@ -43,18 +49,26 @@ const docHref = (id: string) => docsPath(id);
     <dialog
       id="docs-nav"
       data-sidebar-drawer
-      class="fixed inset-y-0 left-0 m-0 h-dvh max-h-none w-72 max-w-full overflow-y-auto border-r border-line bg-surface px-4 py-4 text-fg shadow-[var(--shadow-pop)] lg:hidden"
+      data-scroll-host
+      class="fixed inset-y-0 left-0 m-0 h-dvh max-h-none w-[min(18rem,85vw)] max-w-full overscroll-contain overflow-y-auto border-r border-line bg-surface px-4 py-4 text-fg shadow-[var(--shadow-pop)] lg:hidden"
       aria-label="Documentation navigation"
     >
-      <form method="dialog" class="mb-4 flex justify-end">
-        <button autofocus class="rounded border border-line px-3 py-2 text-sm hover:bg-surface-2">Close navigation</button>
-      </form>
+      <div class="mb-4 flex justify-end">
+        <button
+          type="button"
+          data-sidebar-close
+          class="drawer-close inline-flex items-center gap-1.5 rounded border border-line bg-surface-1 px-2.5 py-1.5 text-sm text-fg-secondary transition-colors hover:border-accent hover:text-fg"
+        >
+          <X size={15} aria-hidden="true" />
+          Close
+        </button>
+      </div>
       <Sidebar currentId={currentId} />
     </dialog>
 
     <!-- Content -->
-    <main id="main-content" tabindex="-1" class="min-w-0 px-4 py-8 sm:px-8 lg:px-0 lg:py-10 xl:px-4">
-      <div class="not-prose mb-3 flex items-center justify-between gap-3 text-xs text-fg-muted">
+    <main id="main-content" tabindex="-1" class="min-w-0 py-8 lg:py-10">
+      <div class="not-prose mb-4 flex items-center justify-between gap-3 text-xs text-fg-muted">
         <nav aria-label="Breadcrumb">
           <ol class="flex flex-wrap items-center gap-1.5">
             <li><a href={docsPath('')} class="transition-colors hover:text-fg">Docs</a></li>
@@ -77,14 +91,14 @@ const docHref = (id: string) => docsPath(id);
           Edit this page
         </a>
       </div>
-      <article class="prose prose-docs" data-pagefind-body>
+      <article class="prose prose-docs mx-auto max-w-[var(--content-max)]" data-pagefind-body>
         <h1 class="text-balance !mt-0">{title}</h1>
         {lastUpdated && (
           <p class="not-prose -mt-1 mb-2 text-xs text-fg-muted">
             Last updated <time datetime={lastUpdated}>{lastUpdated}</time>
           </p>
         )}
-        {description && <p class="not-prose -mt-2 mb-6 text-base text-fg-secondary">{description}</p>}
+        {description && <p class="not-prose -mt-2 mb-6 max-w-[var(--measure)] text-base text-fg-secondary">{description}</p>}
         {headings.some((h) => h.depth >= 2 && h.depth <= 3) && (
           <details class="not-prose mb-6 rounded border border-line p-3 xl:hidden">
             <summary class="cursor-pointer text-sm font-medium">On this page</summary>
@@ -97,21 +111,21 @@ const docHref = (id: string) => docsPath(id);
       </article>
 
       {(prev || next) && (
-        <nav aria-label="Page navigation" class="mt-12 flex items-stretch justify-between gap-4 border-t border-line pt-6">
+        <nav aria-label="Page navigation" class="mx-auto mt-12 flex max-w-[var(--content-max)] flex-col items-stretch gap-3 border-t border-line pt-6 min-[26rem]:flex-row min-[26rem]:justify-between min-[26rem]:gap-4">
           {prev ? (
-            <a href={docHref(prev.id)} data-astro-prefetch="hover" class="group min-w-0 basis-1/2 rounded-lg border border-line p-4 no-underline shadow-[var(--shadow-card)] transition-all hover:-translate-y-0.5 hover:border-accent hover:bg-surface-2">
-              <span class="flex items-center gap-1 text-xs uppercase tracking-wide text-fg-muted group-hover:text-accent">
+            <a href={docHref(prev.id)} data-astro-prefetch="hover" class="card card-link min-w-0 basis-1/2 p-4">
+              <span class="card-kicker flex items-center gap-1">
                 <ArrowLeft size={14} aria-hidden="true" /> Previous
               </span>
-              <span class="mt-1 block truncate text-sm font-medium text-fg">{prev.title}</span>
+              <span class="mt-1 block text-sm font-medium text-fg min-[26rem]:truncate">{prev.title}</span>
             </a>
           ) : <span class="basis-1/2"></span>}
           {next ? (
-            <a href={docHref(next.id)} data-astro-prefetch="hover" class="group min-w-0 basis-1/2 rounded-lg border border-line p-4 text-right no-underline shadow-[var(--shadow-card)] transition-all hover:-translate-y-0.5 hover:border-accent hover:bg-surface-2">
-              <span class="flex items-center justify-end gap-1 text-xs uppercase tracking-wide text-fg-muted group-hover:text-accent">
+            <a href={docHref(next.id)} data-astro-prefetch="hover" class="card card-link min-w-0 basis-1/2 p-4 min-[26rem]:text-right">
+              <span class="card-kicker flex items-center gap-1 min-[26rem]:justify-end">
                 Next <ArrowRight size={14} aria-hidden="true" />
               </span>
-              <span class="mt-1 block truncate text-sm font-medium text-fg">{next.title}</span>
+              <span class="mt-1 block text-sm font-medium text-fg min-[26rem]:truncate">{next.title}</span>
             </a>
           ) : <span class="basis-1/2"></span>}
         </nav>
@@ -120,7 +134,10 @@ const docHref = (id: string) => docsPath(id);
 
     <!-- TOC -->
     <div class="hidden xl:block">
-      <div class="sticky top-14 max-h-[calc(100vh-3.5rem)] overflow-y-auto py-8 pl-2">
+      <div
+        data-scroll-host
+        class="sticky top-[var(--header-h)] max-h-[calc(100dvh-var(--header-h))] overflow-y-auto py-8 ps-1"
+      >
         <TableOfContents headings={headings} />
       </div>
     </div>
@@ -131,6 +148,7 @@ const docHref = (id: string) => docsPath(id);
 (() => {
   const toggle = document.querySelector('[data-sidebar-toggle]');
   const drawer = document.querySelector('[data-sidebar-drawer]');
+  const closeButton = document.querySelector('[data-sidebar-close]');
   if (!(toggle instanceof HTMLElement) || !(drawer instanceof HTMLDialogElement)) return;
 
   const desktop = window.matchMedia('(min-width: 64rem)');
@@ -142,7 +160,12 @@ const docHref = (id: string) => docsPath(id);
     drawer.showModal();
     toggle.setAttribute('aria-expanded', 'true');
     document.body.style.overflow = 'hidden';
+    // The drawer's own scroll starts at the top, which drops a reader deep in
+    // the tree into an unrelated part of the nav with no sign of where they are.
+    const current = drawer.querySelector('[aria-current="page"]');
+    if (current instanceof HTMLElement) current.scrollIntoView({ block: 'center' });
   });
+  closeButton?.addEventListener('click', () => drawer.close());
   drawer.addEventListener('close', () => {
     toggle.setAttribute('aria-expanded', 'false');
     document.body.style.overflow = previousOverflow;
@@ -165,13 +188,12 @@ const docHref = (id: string) => docsPath(id);
 <script is:inline>
 (() => {
   const KEY = 'comic-dl:sidebar-scroll';
-  const scrollHost = (el) => el.closest('.sticky.top-14, [data-sidebar-drawer]');
   // A sidebar click does a full page load; without this the sticky nav
   // resets to its top on every navigation. Remember where it was and put it
   // back, so a reader deep in the tree stays oriented.
   document.querySelectorAll('nav[aria-label="Documentation"] a').forEach((link) => {
     link.addEventListener('click', () => {
-      const host = scrollHost(link);
+      const host = link.closest('[data-scroll-host]');
       if (!host) return;
       try { sessionStorage.setItem(KEY, String(host.scrollTop)); } catch {}
     });
@@ -180,7 +202,7 @@ const docHref = (id: string) => docsPath(id);
     try { return sessionStorage.getItem(KEY); } catch { return null; }
   })();
   if (saved) {
-    document.querySelectorAll('.sticky.top-14, [data-sidebar-drawer]').forEach((host) => {
+    document.querySelectorAll('[data-scroll-host]').forEach((host) => {
       host.scrollTop = Number(saved);
     });
   }
