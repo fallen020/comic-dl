@@ -27,9 +27,9 @@ dev (unstable)  →  staging (validation)  →  main (production release)
 
 `dev` receives all work via squash-merged PRs. `staging` is cut from `dev`
 when release-ready and frozen for validation — full CI matrix plus packaging
-smoke. `main` is production: an approved `staging` state becomes a tagged
-`vX.Y.Z` release. The Monday review ceremony in the repo's `CHANGELOG.md`
-tracks releases.
+smoke. `main` is production: every Monday, a validated `staging` state is
+released to `main` as a new `vX.Y.Z`. `staging` proves the release before it
+blocks `dev`; `main` only ever gets a validated, tagged state.
 
 ## Before a release
 

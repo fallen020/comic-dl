@@ -49,7 +49,7 @@ git pull
 uv sync
 ```
 
-See [Update and uninstall](install.md#update-and-uninstall) for the
+See [Update](install.md#update) for the
 binary-by-binary instructions.
 
 ## Downloading
@@ -137,7 +137,7 @@ stores locally and sends over the network.
 
 The config file lives at `~/.config/comic-dl/config.toml` on Linux,
 `~/Library/Application Support/comic-dl/config.toml` on macOS, and
-`%APPDATA%\comic-dl\config.toml` on Windows.
+`%LOCALAPPDATA%\comic-dl\config.toml` on Windows.
 
 `comic-dl config init` writes a populated template (it refuses to overwrite
 an existing file). `comic-dl config show` prints the effective configuration —

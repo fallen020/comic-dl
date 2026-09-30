@@ -9,7 +9,7 @@ every run.
 | :------- | :--- |
 | Linux | `~/.config/comic-dl/config.toml` |
 | macOS | `~/Library/Application Support/comic-dl/config.toml` |
-| Windows | `%APPDATA%\comic-dl\config.toml` |
+| Windows | `%LOCALAPPDATA%\comic-dl\config.toml` |
 
 ## Precedence
 

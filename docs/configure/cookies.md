@@ -10,7 +10,7 @@ whether it has an expiry.
 | :------- | :------- |
 | Linux | `~/.config/comic-dl/cookies.db` |
 | macOS | `~/Library/Application Support/comic-dl/cookies.db` |
-| Windows | `%APPDATA%\comic-dl\cookies.db` |
+| Windows | `%LOCALAPPDATA%\comic-dl\cookies.db` |
 
 The jar uses SQLite in WAL mode. Cookies imported from an HTTP session are
 persisted only when they have an unexpired expiry; cookies without an expiry

@@ -17,7 +17,7 @@ comic-dl reads options from a TOML config file (`config_path()`):
 | :------- | :--- |
 | Linux | `~/.config/comic-dl/config.toml` |
 | macOS | `~/Library/Application Support/comic-dl/config.toml` |
-| Windows | `%APPDATA%\comic-dl\config.toml` |
+| Windows | `%LOCALAPPDATA%\comic-dl\config.toml` |
 
 Override the location with `--config <PATH>` or `$COMIC_DL_CONFIG`; skip it
 for one run with `--no-config`.
@@ -50,12 +50,14 @@ the URL and a hashed response body. Clear/prune with
 
 ## Library history
 
-Downloaded series are tracked in a SQLite database at
-`<output-dir>/.comic-dl/library.db` — one per output root, not a central
-store. It records the series source URL, per-chapter identity and counts,
-total size, and last-checked/-updated timestamps. Move it by moving the
-output directory; delete series with `comic-dl remove|restore`
-(see [Library Management](../usage/library/)).
+Downloaded series are tracked in a single SQLite database at the per-platform
+data directory (`~/.local/share/comic-dl/library.db` on Linux,
+`~/Library/Application Support/comic-dl/library.db` on macOS,
+`%LOCALAPPDATA%\comic-dl\library.db` on Windows; override with
+`$COMIC_DL_DATA_DIR`). It records the series source URL, per-chapter identity
+and counts, total size, and last-checked/-updated timestamps. Delete series
+with `comic-dl remove|restore` (see
+[Library Management](../usage/library/)).
 
 ## Logs
 
@@ -87,7 +89,7 @@ There is no account to delete. Removing the data is removing the files:
 - cookies: `cookies.db` (and its WAL sidecars: `cookies.db-wal`,
   `cookies.db-shm`) or `comic-dl cookie clear`;
 - cache: the cache directory or `comic-dl cache clear`;
-- library: the `.comic-dl/library.db` under each output directory.
+- library: `library.db` in the data directory above, or `comic-dl remove <series>` per series.
 
 See also [Legal](../legal/) for the terms under which content may be
 downloaded.

@@ -12,7 +12,7 @@ comic-dl reads options from a TOML config file (`config_path()`):
 | :------- | :--- |
 | Linux | `~/.config/comic-dl/config.toml` |
 | macOS | `~/Library/Application Support/comic-dl/config.toml` |
-| Windows | `%APPDATA%\comic-dl\config.toml` |
+| Windows | `%LOCALAPPDATA%\comic-dl\config.toml` |
 
 Override the location with `--config <PATH>` or `$COMIC_DL_CONFIG`; skip it
 for one run with `--no-config`.
