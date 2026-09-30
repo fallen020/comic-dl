@@ -1,57 +1,74 @@
 # Installation
 
-Two ways to install:
+Download a build from the
+[GitHub Releases page](https://github.com/fallen020/comic-dl/releases). It
+runs on its own — no Python, no Node.
 
-- **Prebuilt binary** from the
-  [GitHub Releases page](https://github.com/fallen020/comic-dl/releases) —
-  no Python needed.
-- **From source** with `git clone` + `uv sync` — needs Python 3.11+ and
-  [uv](https://docs.astral.sh/uv/getting-started/installation/).
+Building from source is the fallback, and the only option on macOS. It needs
+Python 3.11+ and [uv](https://docs.astral.sh/uv/getting-started/installation/).
 
-`pip install comic-dl` does not work: the package is not published on PyPI
-(the name is held by an unrelated project). Use a release binary or build
-from source.
+> [!WARNING]
+> `pip install comic-dl` fails: the name on PyPI belongs to an unrelated
+> project. Use a release binary or build from source.
 
 ## Check your architecture
 
-Release files differ by CPU architecture. Find yours first:
-
-```bash
-uname -m   # Linux / macOS
-```
+Filenames encode the CPU, so find yours first:
 
 ```powershell
 echo $env:PROCESSOR_ARCHITECTURE   # Windows PowerShell, prints AMD64 or ARM64
 ```
 
-| Output | Architecture | Filename hint |
-| :----- | :----------- | :------------ |
-| `x86_64`, `AMD64` | x86-64 (Intel/AMD) | `amd64`, `x86_64` |
-| `aarch64`, `ARM64` | ARM64 (Apple Silicon, Snapdragon, Raspberry Pi) | `arm64`, `aarch64` |
+```bash
+uname -m                           # Linux / macOS
+```
 
-(Debian packages use `amd64`/`arm64`; Fedora and Arch use
-`x86_64`/`aarch64` — same chips, different names.)
+Two answers, and every comic-dl filename is built from one of them:
+
+| What you got | Your CPU | Debian uses | Fedora / Arch use |
+| :----------- | :------- | :--------- | :---------------- |
+| `x86_64`, `AMD64` | Intel / AMD | `amd64` | `x86_64` |
+| `aarch64`, `ARM64` | Apple Silicon, Snapdragon, Raspberry Pi | `arm64` | `aarch64` |
+
+Same chips, different spellings.
 
 ## Which file do I need?
 
-| Your machine | What to get |
-| :----------- | :---------- |
-| Windows x86-64 | `comic-dl-0.0.4-windows-amd64.zip` (or the bare `.exe`) |
-| Debian / Ubuntu x86-64 | `comic-dl_0.0.4_amd64.deb` |
-| Debian / Ubuntu ARM64 | `comic-dl_0.0.4_arm64.deb` |
-| Fedora x86-64 / ARM64 | `comic-dl-0.0.4-1.fc44.x86_64.rpm` / `...aarch64.rpm` |
-| Arch Linux x86-64 | `comic-dl-0.0.4-1-x86_64.pkg.tar.zst` |
-| macOS, Android, anything else | Build from source |
+Pick your OS. The commands below use `0.0.4`; only the version number changes
+between releases.
 
-Release artifacts are tested in CI before publication. If one fails to
-install or run, please report it with the release version and operating
-system.
+| OS | x86-64 | ARM64 |
+| :-- | :----- | :---- |
+| Windows | `comic-dl-0.0.4-windows-amd64.zip` | Not built; the amd64 one runs emulated |
+| Debian / Ubuntu | `comic-dl_0.0.4_amd64.deb` | `comic-dl_0.0.4_arm64.deb` |
+| Fedora | `comic-dl-0.0.4-1.fc44.x86_64.rpm` | `comic-dl-0.0.4-1.fc44.aarch64.rpm` |
+| Arch Linux | `comic-dl-0.0.4-1-x86_64.pkg.tar.zst` | Not built |
 
-## Windows
+A bare `comic-dl-0.0.4-windows-amd64.exe` is attached too, if you would rather
+not unzip anything.
+| macOS | Build from source | Build from source |
+| Android | Not supported | Not supported |
 
-Download the `comic-dl-0.0.4-windows-amd64.zip` from the release page,
-unzip it, and run `comic-dl.exe` from a terminal. A bare
-`comic-dl-0.0.4-windows-amd64.exe` is also attached for direct use:
+Notes that cost people time:
+
+- **Fedora:** keep the `-1.fc44.` build marker exactly as written. RHEL
+  compatibility is not guaranteed.
+- **macOS:** builds are unsigned and unnotarized, so no binary is published.
+  The solver uses the built-in WKWebView and needs nothing extra.
+- **Android:** may run under [Termux](https://termux.dev) from source, but the
+  webview solver has not been validated there. Build the `.cbz` files on a
+  desktop and copy them across.
+
+Artifacts are tested in CI before publication. If one fails to install or run,
+report it with the release version and operating system.
+
+## Install by platform
+
+With the file downloaded, install it.
+
+### Windows
+
+Unzip it and run `comic-dl.exe` from a terminal:
 
 ```powershell
 .\comic-dl.exe self version
@@ -61,53 +78,41 @@ Use **Windows Terminal** — the CLI output uses Unicode glyphs. In classic
 `cmd.exe`, run `chcp 65001` first.
 
 > [!NOTE]
-> **Windows on ARM64:** there is no native ARM64 build; the amd64 binary
-> runs via emulation. For native speed, build from source instead.
+> **Windows on ARM64:** there is no native build; the amd64 binary runs
+> emulated. Build from source for native speed.
 
-The webview solver needs the Microsoft Edge WebView2 Runtime. It ships
-with current Windows versions; if the solver fails to start, install the
-runtime from Microsoft separately.
-
-## Linux
-
-Pick the file matching your distro and architecture from the
-[Releases page](https://github.com/fallen020/comic-dl/releases); the
-commands below use `0.0.4` (the current release). Filenames use the bare
-version (`0.0.4`); the download path uses the tag (`v0.0.4`).
+The webview solver needs the Microsoft Edge WebView2 Runtime. It ships with
+current Windows versions; if the solver fails to start, install it from
+Microsoft separately.
 
 ### Debian / Ubuntu
 
 ```bash
-curl -LO https://github.com/fallen020/comic-dl/releases/download/v0.0.4/comic-dl_0.0.4_amd64.deb
 sudo apt install ./comic-dl_0.0.4_amd64.deb
 ```
 
-On ARM64, use the `_arm64.deb` file instead.
+On ARM64, install the `_arm64.deb` file instead.
 
 ### Fedora
 
 ```bash
-curl -LO https://github.com/fallen020/comic-dl/releases/download/v0.0.4/comic-dl-0.0.4-1.fc44.x86_64.rpm
 sudo dnf install ./comic-dl-0.0.4-1.fc44.x86_64.rpm
 ```
 
-Use the exact filename from the release page, including the Fedora build
-marker (`-1.fc44.`), and substitute `.aarch64` for `.x86_64` on ARM64.
-RHEL compatibility is not guaranteed — if dependency resolution fails,
+Substitute `.aarch64` for `.x86_64` on ARM64. If dependency resolution fails,
 build from source.
 
 ### Arch Linux
 
 ```bash
-curl -LO https://github.com/fallen020/comic-dl/releases/download/v0.0.4/comic-dl-0.0.4-1-x86_64.pkg.tar.zst
 sudo pacman -U comic-dl-0.0.4-1-x86_64.pkg.tar.zst
 ```
 
 No ARM64 Arch package is provided; on ARM64, build from source.
 
-## From source
+### From source
 
-Requires Python 3.11+ and `uv` on your `PATH`:
+Needs Python 3.11+ and `uv` on your `PATH`:
 
 ```bash
 python3 --version
@@ -120,34 +125,25 @@ cd comic-dl
 uv sync
 ```
 
-`uv sync` creates `.venv/` and installs the project with its dependencies.
-Run it with `uv run`, which works on every platform including Windows
-PowerShell:
+`uv sync` creates `.venv/` and installs the project with its dependencies. Run
+it with `uv run` — the same command works everywhere, Windows PowerShell
+included:
 
 ```bash
 uv run comic-dl self version
 ```
 
-For the development environment (extra test/lint tooling), use
+For the development environment, with test and lint tooling, use
 `uv sync --extra dev --locked` instead.
 
-**macOS:** no binary is distributed (signing and notarization are not set
-up), so build from source. The solver uses the built-in WKWebView; nothing
-extra to install.
+## Webview solver libraries (Linux)
 
-**Android:** not supported. The CLI may run under
-[Termux](https://termux.dev) from source, but this is untested and the
-webview solver has not been validated there. The practical path is to
-create `.cbz` archives on a desktop machine and copy them to your phone.
-
-## Webview solver (Cloudflare)
-
-The Cloudflare challenge solver ships with the application. The Debian, Fedora,
-and Arch packages declare its GTK and WebKit dependencies, so installing
+The Cloudflare challenge solver ships with the application, and the Debian,
+Fedora, and Arch packages declare its GTK and WebKit dependencies — installing
 comic-dl pulls the whole stack in.
 
-Building from a source checkout needs those system libraries separately,
-because the pywebview wheel cannot ship them:
+A source checkout needs those libraries separately, because the pywebview wheel
+cannot ship them:
 
 ```bash
 # Debian / Ubuntu
@@ -160,40 +156,16 @@ sudo dnf install python3-gobject webkit2gtk4.1
 sudo pacman -S python-gobject webkit2gtk-4.1
 ```
 
-On headless Linux, run under `xvfb-run` or pass `--solver impersonation`
-to skip the webview entirely.
-
-## Shell completions
-
-Completions exist for bash, zsh, and fish. Binary installs put `comic-dl`
-on `PATH`; from a source checkout, prefix with `uv run`:
-
-```bash
-eval "$(comic-dl completion zsh)"          # zsh (binary install)
-source <(comic-dl completion bash)         # bash (binary install)
-comic-dl completion fish | source          # fish (binary install)
-eval "$(uv run comic-dl completion zsh)"   # zsh (source checkout)
-```
-
-## Update and uninstall
-
-- **Windows:** download the newer `.zip` and replace the old folder.
-- **Debian / Ubuntu:** install the newer `.deb` the same way; remove with
-  `sudo apt remove comic-dl`.
-- **Fedora:** install the newer `.rpm` the same way; remove with
-  `sudo dnf remove comic-dl`.
-- **Arch:** install the newer package the same way; remove with
-  `sudo pacman -Rns comic-dl`.
-- **From source:** `git pull` and `uv sync` again.
-
-Uninstalling removes the program only; your configuration and downloaded
-files stay in place.
+On headless Linux, run under `xvfb-run` or pass `--solver impersonation` to
+skip the webview entirely.
 
 ## Verify
 
+Check that it runs before your first download:
+
 ```bash
-comic-dl self version           # binary install
-uv run comic-dl self version    # source checkout
+comic-dl self version          # binary install
+uv run comic-dl self version   # source checkout
 ```
 
 ### Checksums
@@ -206,5 +178,125 @@ curl -LO https://github.com/fallen020/comic-dl/releases/download/v0.0.4/SHA256SU
 sha256sum -c SHA256SUMS --ignore-missing
 ```
 
-`OK` means the file matches the published checksum; `--ignore-missing`
-skips the release files you did not download.
+`OK` means the file matches the published checksum; `--ignore-missing` skips
+the release files you did not download.
+
+## Shell completions
+
+Completions exist for bash, zsh, and fish. Binary installs put `comic-dl` on
+`PATH`; from a source checkout, prefix with `uv run`:
+
+| Shell | Binary install | Source checkout |
+| :----- | :------------- | :-------------- |
+| bash | `source <(comic-dl completion bash)` | `source <(uv run comic-dl completion bash)` |
+| zsh | `eval "$(comic-dl completion zsh)"` | `eval "$(uv run comic-dl completion zsh)"` |
+| fish | `comic-dl completion fish \| source` | `uv run comic-dl completion fish \| source` |
+
+To load completions on every new shell, write the command to your shell's
+startup file — `~/.bashrc`, `~/.zshrc`, or `~/.config/fish/config.fish`.
+
+## Update
+
+`comic-dl self update` works out how comic-dl was installed and updates it
+through whichever tool owns that install. It never downgrades, and nothing
+changes until you confirm:
+
+```bash
+comic-dl self update
+```
+
+- `--check` reports the installed and latest versions and changes nothing.
+- `-y` / `--yes` skips the confirmation. Without a TTY and without `--yes`, it
+  refuses rather than running unattended.
+- `--channel beta` opts into pre-releases.
+
+What it does depends on the install:
+
+| Install | Update |
+| :------ | :----- |
+| Debian/Ubuntu | Downloads the `.deb`, then runs `sudo apt install --yes` on it |
+| Fedora | Downloads the `.rpm`, then runs `sudo dnf install --yes` on it |
+| Arch | Downloads the `.pkg.tar.zst`, then runs `sudo pacman -U --noconfirm` on it |
+| `uv tool` | Runs `uv tool upgrade comic-dl` |
+| Source checkout | Prints `git pull` and `uv sync`; never modifies the checkout |
+| Windows `.zip` | Prints the Releases page; does not replace itself |
+
+### Can I just install the newer package over the old one?
+
+Yes — on Linux that is what `self update` does anyway, since package managers
+upgrade in place. If you already downloaded the newer file, install it the same
+way you installed the first one:
+
+```bash
+# Debian / Ubuntu
+sudo apt install ./comic-dl_0.0.5_amd64.deb
+
+# Fedora
+sudo dnf install ./comic-dl-0.0.5-1.fc44.x86_64.rpm
+
+# Arch
+sudo pacman -U comic-dl-0.0.5-1-x86_64.pkg.tar.zst
+```
+
+Swap in the version you downloaded. No uninstall first — the package manager
+upgrades over the existing install, and your config, cookies, and library
+database are left alone.
+
+See [Version and Updates](usage/self-update.md) for more detail.
+
+## Uninstall
+
+Two steps, and only the first removes the program. **Your downloads are never
+touched.**
+
+### 1. Remove the program
+
+```bash
+# Windows: delete the folder you unzipped comic-dl into
+
+# Debian / Ubuntu
+sudo apt remove comic-dl
+
+# Fedora
+sudo dnf remove comic-dl
+
+# Arch
+sudo pacman -Rns comic-dl
+
+# From source
+rm -rf comic-dl
+```
+
+### 2. Optionally remove the data
+
+Skip this if you plan to reinstall — keeping the directories means
+`comic-dl library list` still knows your series when you come back. comic-dl is
+already gone at this point, so this is plain file removal. Each platform's
+commands remove the config, the cookie jar, the scrape cache, and the library
+database.
+
+```bash
+# Linux
+rm -rf ~/.config/comic-dl         # config.toml + cookies.db
+rm -rf ~/.cache/comic-dl          # scrape cache
+rm -rf ~/.local/share/comic-dl    # library.db
+```
+
+```bash
+# macOS
+rm -rf ~/Library/Application\ Support/comic-dl   # config.toml + cookies.db + library.db
+rm -rf ~/Library/Caches/comic-dl                 # scrape cache
+```
+
+```powershell
+# Windows
+rmdir /s /q "%LOCALAPPDATA%\comic-dl"   # config.toml + cookies.db + library.db + cache
+```
+
+Your downloaded `.cbz` archives live wherever you told comic-dl to put them —
+nothing here removes those.
+
+To clear just the cookies and cache without deleting anything, run
+`comic-dl cookie clear` and `comic-dl cache clear` *before* removing the
+program. Exact paths, including the `$COMIC_DL_CONFIG` and `$COMIC_DL_DATA_DIR`
+overrides: [Privacy](privacy.md).
