@@ -15,6 +15,9 @@ const html = await codeToHtml(code, {
   defaultColor: false,
   wrap: false,
 });
+// Shiki paints the token colours for GitHub's own surfaces. Ours are a
+// different neutral at close enough luminance that the themes still read, so
+// the dual output is kept and global.css swaps between the two variables.
 ---
 <div data-codeblock class="codeblock">
   <div class="codeblock-header">

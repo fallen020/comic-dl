@@ -1,4 +1,4 @@
-export async function copyText(text: string): Promise<boolean> {
+async function copyText(text: string): Promise<boolean> {
   if (navigator.clipboard?.writeText) {
     try {
       await navigator.clipboard.writeText(text);
@@ -43,7 +43,7 @@ function flashCopied(btn: HTMLButtonElement, ok: boolean): void {
   }, 1500);
 }
 
-export function createCopyButton(getText: () => string): HTMLButtonElement {
+function createCopyButton(getText: () => string): HTMLButtonElement {
   const btn = document.createElement('button');
   btn.type = 'button';
   btn.className = 'code-copy';
