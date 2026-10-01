@@ -2185,6 +2185,33 @@ class TestHostBreaker:
         # Window expires.
         assert host_parked("dead.hath.network", now + HOST_PARK_SECONDS + 1) is False
 
+    async def test_success_lifts_active_park(self):
+        """A page landing proves the node serves again, so the park must go.
+
+        Clearing only ``fails`` left ``parked_until`` set, failing every later
+        page on that host for the rest of the window even though other pages on
+        it were downloading fine.
+        """
+        from comic_dl.downloader import (
+            HOST_PARK_THRESHOLD,
+            host_parked,
+            record_transport_failure,
+            record_transport_success,
+        )
+
+        now = 1000.0
+        for _ in range(HOST_PARK_THRESHOLD):
+            record_transport_failure("flaky.hath.network", now)
+        assert host_parked("flaky.hath.network", now) is True
+
+        record_transport_success("flaky.hath.network")
+        assert host_parked("flaky.hath.network", now) is False
+
+        # And the breaker still re-arms: a dead node parks again.
+        for _ in range(HOST_PARK_THRESHOLD):
+            record_transport_failure("flaky.hath.network", now)
+        assert host_parked("flaky.hath.network", now) is True
+
     async def test_success_resets_consecutive_count(self):
         from comic_dl.downloader import (
             HOST_PARK_THRESHOLD,
@@ -2643,6 +2670,71 @@ class TestPass2Retry:
         assert result.failed_images == {"a.jpg"}
         assert len(call_log) == 2
         assert call_log[1][0] == ["b.jpg"]
+
+    async def test_page_recovers_once_host_serves_again(self, tmp_path, monkeypatch):
+        """A host parked mid-run must not doom the rest of the chapter.
+
+        Reproduces the reported run: a burst of transport faults parks the host,
+        then a page already past the parked check lands (``record_transport_success``
+        at the point the engine calls it after ``os.replace``). Later pages must
+        download instead of failing fast for the rest of the 120s window.
+        """
+        from comic_dl.downloader import (
+            HOST_PARK_THRESHOLD,
+            record_transport_failure,
+            record_transport_success,
+        )
+
+        requested: list[str] = []
+
+        class Resp:
+            status_code = 200
+            headers = {"content-length": "3"}
+
+            def raise_for_status(self):
+                pass
+
+            async def aiter_content(self, chunk_size=None):
+                yield MAGIC_JPEG
+
+            async def aenter__(self):
+                return self
+
+            async def aexit__(self, *args):
+                pass
+
+        class Client:
+            def stream(self, method, url, **kwargs):
+                requested.append(url)
+                return Resp()
+
+        monkeypatch.setattr("comic_dl.downloader.SHARED_COOLDOWN_CAP", 0.01)
+        # A burst of transport faults trips the breaker, then an in-flight page
+        # lands and proves the host is serving again. Must use the loop's clock:
+        # the engine compares against loop.time().
+        loop_now = asyncio.get_running_loop().time()
+        for _ in range(HOST_PARK_THRESHOLD):
+            record_transport_failure("recovered.test", loop_now)
+        record_transport_success("recovered.test")
+
+        pipe = DownloadPipeline(
+            images=[
+                ImageItem(url="https://recovered.test/1", page_number=1, filename="a.jpg"),
+                ImageItem(url="https://recovered.test/2", page_number=2, filename="b.jpg"),
+            ],
+            tmp_dir=tmp_path / "tmp",
+            cbz_path=tmp_path / "out.cbz",
+            series_title="S",
+            chapter_title="C",
+            quiet=True,
+            client=Client(),  # type: ignore[arg-type]
+        )
+        result = await pipe.run()
+        assert result.ok is True
+        assert result.failed_images == set()
+        assert len(requested) == 2
+        assert (tmp_path / "tmp" / "a.jpg").exists()
+        assert (tmp_path / "out.cbz").exists()
 
 
 class TestPipelineManifest:

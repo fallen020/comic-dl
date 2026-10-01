@@ -632,13 +632,22 @@ def host_parked(host: str, now: float) -> bool:
 
 
 def record_transport_success(host: str) -> None:
-    """Reset the consecutive-failure count so isolated failures never park."""
+    """Reset the consecutive-failure count and lift any active park.
+
+    The breaker counts *consecutive* failures, so a page that lands proves the
+    node is serving again: clearing only ``fails`` would leave ``parked_until``
+    set and fail every later page on that host for the rest of the window, even
+    though the node is demonstrably healthy. A success can only come from a page
+    already past the parked check, so the extra exposure is bounded by the
+    concurrency in flight and the breaker re-trips on the next threshold.
+    """
     if not host:
         return
     with _host_breaker_lock:
         st = _host_breaker.get(host)
         if st is not None:
             st["fails"] = 0
+            st["parked_until"] = 0.0
 
 
 def record_transport_failure(host: str, now: float) -> None:
