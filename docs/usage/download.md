@@ -1,7 +1,5 @@
 # Downloading
 
-This page covers every way to download content with comic-dl.
-
 ## Download a single URL
 
 ```bash
@@ -29,8 +27,9 @@ a URL are stripped. Duplicate URLs are downloaded once. Lines that are not
 `http(s)://` URLs produce a warning naming the file and line.
 
 If any URL fails, processing continues and a summary is printed at the end.
-The exit code is `1` when one or more downloads fail. Each error is annotated
-with its origin (e.g. `Failed: https://... (urls.txt:12)`).
+The exit code is `1` when one or more downloads fail; see [Exit
+Codes](../reference/exit-codes.md). Each error is annotated with its origin
+(e.g. `Failed: https://... (urls.txt:12)`).
 
 ## Interactive mode
 

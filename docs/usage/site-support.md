@@ -37,23 +37,24 @@ comic-example  2.0.1     2.0.1       up to date
 
 Statuses: `up to date`, `update available`, `incompatible` (the adapter needs
 a newer core than is installed), `unpublished` (installed newer than the
-manifest — a local dev build), and `unable to check` (no manifest reached).
+manifest, which means a local dev build), and `unable to check` (no manifest
+reached).
 
 `--live` runs the real adapter against the site's declared test URL,
 reusing its normal extraction (never a separate parser) and validating that a
 series/chapter with content came back. Each adapter declares which page its
-URL points at (`test_url_kind`: `chapter` permalinks are preferred — taxonomy
-listings rot faster than chapter URLs). Sites without a declared test URL are
-reported `live: skipped`. A non-`healthy` live result makes the command exit
-nonzero, so it can gate scheduled checks.
+URL points at (`test_url_kind`); `chapter` permalinks are preferred because
+taxonomy listings rot faster than chapter URLs. Sites without a declared test
+URL are reported `live: skipped`. A non-`healthy` live result makes the
+command exit nonzero, so it can gate scheduled checks.
 
 A dead test URL (HTTP 404/410) reports `live: url gone` instead of
 `live: broken`: the URL needs refreshing, not the parser. `url gone` still
-exits nonzero — the site could not be verified — but it must never be read
-as evidence the adapter broke.
+exits nonzero, because the site could not be verified, but it must never be
+read as evidence the adapter broke.
 
-A network or manifest failure is reported as `unable to check` — it is never
-treated as evidence that a site is broken — and only affects this command.
+A network or manifest failure is reported as `unable to check`. That is never
+evidence a site is broken, and it only affects this command.
 
 ## Update site support
 
@@ -87,7 +88,7 @@ Run: comic-dl self site update manga-example
 
 The message says "may fix" unless the manifest proves otherwise, updates are
 never triggered automatically, and no network request happens at download
-time — only the last saved manifest is consulted.
+time. Only the last saved manifest is consulted.
 
 ## The site-support manifest
 

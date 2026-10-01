@@ -1,41 +1,12 @@
-# comic-dl
+# comic-dl documentation
 
 **comic-dl** downloads comic and manga galleries from supported websites and
-compiles them into CBZ, ZIP, and CBT archives. It automates the complete
-workflow — scraping metadata, downloading images with retries and rate limiting,
+compiles them into CBZ, ZIP, and CBT archives. It handles the whole workflow:
+scraping metadata, downloading images with retries and rate limiting,
 verifying file integrity, and packaging everything with ComicInfo.xml metadata.
 
-## Key features
-
-- **29 built-in sources** — e-hentai, WEBTOON, MangaDex, Kagane, and more
-- **Plugin system** — add any site as a Python plugin, no fork required
-- **Concurrent downloads** — parallel page images, batch URLs, and multi-chapter downloads
-- **Resumable** — interrupted downloads resume via Range requests; partial files are never lost
-- **Safe by default** — SSRF-guarded requests, magic-byte image verification, atomic archive writes
-- **Rate limiting** — per-site throttling with configurable overrides
-- **Standard formats** — CBZ, ZIP, and CBT archives with embedded ComicInfo.xml metadata
-
-## Install
-
-Download a binary from [GitHub Releases](https://github.com/fallen020/comic-dl/releases)
-(no Python needed), or build from source:
-
-```bash
-git clone https://github.com/fallen020/comic-dl
-cd comic-dl
-uv sync
-```
-
-See [Installation](install.md) for the full instructions.
-
-## Quick start
-
-```bash
-comic-dl -u https://e-hentai.org/g/3161202/e7a26f9e16/
-```
-
-Output lands in `~/Downloads/comic-dl/<Series Title>/<Chapter Title>.cbz`.
-See [Quick Start](quick-start.md) for a walkthrough.
+Start with [Installation](install.md), then [Quick Start](quick-start.md) for
+your first download.
 
 ## Documentation
 
@@ -50,9 +21,16 @@ See [Quick Start](quick-start.md) for a walkthrough.
 | [Plugins](usage/plugins.md) | Users | Finding and installing plugin sources |
 | [Writing a Plugin](usage/write-plugin.md) | Developers | Building a scraper plugin |
 | [Configuration](configure/config.md) | Users | Config format, locations, per-site options |
+| [Rate Limiting](configure/rate-limiting.md) | Users | Per-host request pacing |
+| [Cookies & Anti-Bot](configure/cookies.md) | Users | Cookie jar, solver modes, webview needs |
+| [Environment Variables](configure/environment.md) | Users | Overrides for paths and behavior |
 | [CLI Reference](reference/cli.md) | Everyone | All commands, flags, and options |
+| [Exit Codes](reference/exit-codes.md) | Everyone | What each status code means |
 | [Supported Sites](reference/supported-sites.md) | Users | Built-in sources, URL patterns, notes |
+| [Site Support](usage/site-support.md) | Users | Per-adapter versions and live checks |
+| [Version and Updates](usage/self-update.md) | Users | `comic-dl self` and its update paths |
 | [Troubleshooting](troubleshooting.md) | Users | Decision trees for failed downloads |
+| [FAQ](faq.md) | Everyone | Short answers and where to read more |
 | [Development Guide](develop/index.md) | Contributors | Reporting, workflow, setup, release |
 | [Architecture](develop/architecture.md) | Contributors | Design, data flow, security posture |
 

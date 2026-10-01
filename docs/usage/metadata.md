@@ -40,10 +40,10 @@ Calibre, Komga, Kavita, and other comic readers.
 | `<Manga>` | both | Reading direction (see below) |
 | `<CommunityRating>` | both | Rating on a 0–10 scale |
 
-!!! note
-    The ComicInfo schema forbids repeating elements. comic-dl writes exactly
-    one `<Writer>` and one `<Artist>` element, with multiple values
-    comma-separated.
+> [!NOTE]
+> The ComicInfo schema forbids repeating elements. comic-dl writes exactly
+> one `<Writer>` and one `<Artist>` element, with multiple values
+> comma-separated.
 
 ## Reading direction
 

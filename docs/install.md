@@ -43,11 +43,11 @@ between releases.
 | Debian / Ubuntu | `comic-dl_0.0.4_amd64.deb` | `comic-dl_0.0.4_arm64.deb` |
 | Fedora | `comic-dl-0.0.4-1.fc44.x86_64.rpm` | `comic-dl-0.0.4-1.fc44.aarch64.rpm` |
 | Arch Linux | `fallen020-comic-dl-0.0.4-1-x86_64.pkg.tar.zst` | Not built |
+| macOS | Build from source | Build from source |
+| Android | Not supported | Not supported |
 
 A bare `comic-dl-0.0.4-windows-amd64.exe` is attached too, if you would rather
 not unzip anything.
-| macOS | Build from source | Build from source |
-| Android | Not supported | Not supported |
 
 Notes that cost people time:
 

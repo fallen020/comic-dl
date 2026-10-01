@@ -4,9 +4,9 @@ Add a new site to comic-dl without forking the repository. A plugin is a
 separate Python package that registers a `Source` class through the
 `comic_dl.sources` entry-point group.
 
-!!! warning
-    Plugins are arbitrary code. A scraper plugin runs with your user
-    account's privileges on every scrape. Only install plugins you trust.
+> [!WARNING]
+> Plugins are arbitrary code. A scraper plugin runs with your user
+> account's privileges on every scrape. Only install plugins you trust.
 
 ## The plugin contract
 

@@ -1,9 +1,9 @@
 # Testing
 
 comic-dl's test suite is **offline-only and deterministic**: no live network
-calls anywhere, so the suite never flakes and CI is reproducible. This page is
-how to run it, how to find the right test, and how to write a new one without
-breaking those two properties.
+calls anywhere, so the suite never flakes and CI is reproducible. Both
+properties are load-bearing, so a change that would break either needs a
+different approach rather than an exception.
 
 ## Running the suite
 

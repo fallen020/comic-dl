@@ -15,7 +15,7 @@ ZIP, or CBT archives with embedded metadata.
 
 Any reader that accepts CBZ or ZIP archives. A `.cbz` is just a ZIP containing
 the page images and a `ComicInfo.xml`, which is why the extraction-friendly
-flavors — Tachiyomi, Komikku, Calibre — all work. The ZIP format carries the
+flavors (Tachiyomi, Komikku, Calibre) all work. The ZIP format carries the
 same metadata as CBZ; CBT is a TAR container (uncompressed) meant more for
 interop than for nice file managers.
 
@@ -23,7 +23,19 @@ interop than for nice file managers.
 
 Yes, under the MIT license.
 
-## Where do I read about X?
+## Do I need Python?
+
+Not if you install a prebuilt binary; on Windows the standalone `.exe`
+bundles the native `curl-cffi` runtime too, so there's nothing else to
+install. Linux packages (deb/rpm/Arch) work the same way. Only building from
+source requires Python 3.11+ and `uv`, and macOS ships no binary, so source is
+the only route there.
+
+To update, replace your binary with the newer release. A source checkout runs
+`git pull` and `uv sync`. [Installation](../installation/) has the
+binary-by-binary instructions.
+
+## Which page should I read?
 
 | If you want to | Read |
 | :--- | :---- |
@@ -31,12 +43,16 @@ Yes, under the MIT license.
 | Pick chapters, choose an output format, resume, or script it | [Downloading](../usage/basic/) |
 | Change a default, turn on rate limiting, or set the solver | [Configuration File](../configure/config/) |
 | Fix a failing download or a corrupt archive | [Troubleshooting](../troubleshooting/) |
+| Check what an exit code means | [Exit Codes](../reference/exit-codes/) |
 | Check whether your site is supported | [Supported Sites](../reference/supported-sites/) |
+| Check what comic-dl stores or sends | [Privacy](../privacy/) |
+| Check what you may download | [Legal](../legal/) |
 
 ## Development
 
-Contributing instructions — setup, tests, PR workflow — live in
-[CONTRIBUTING.md](https://github.com/fallen020/comic-dl/blob/main/CONTRIBUTING.md).
+Contributing instructions live in
+[CONTRIBUTING.md](https://github.com/fallen020/comic-dl/blob/main/CONTRIBUTING.md):
+setup, tests, and PR workflow.
 
 To support a new site, write a scraper plugin. The
 [Writing a Plugin](../usage/write-plugin/) guide walks through the class, the

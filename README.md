@@ -193,8 +193,10 @@ missing webviews, interrupted downloads, and debug logs.
 
 ## Documentation
 
+The [full documentation index](docs/index.md) lists every page by audience.
+The ones most readers open first:
+
 - [Usage](docs/usage/download.md) — flags, chapter and page selection, output layout
-- [Library](docs/usage/library.md) — the SQLite download history
 - [Configuration](docs/configure/config.md) — paths, per-site overrides, cache
 - [CLI reference](docs/reference/cli.md) — every command and flag
 - [Write a scraper](docs/usage/write-plugin.md) — add a new site

@@ -1,8 +1,7 @@
 # Privacy
 
-This page describes what comic-dl stores on your machine and what it sends
-over the network. Everything below is implemented today; if you do not see a
-feature in this list, comic-dl does not do it.
+Everything below is implemented today; if you do not see a feature in this
+list, comic-dl does not do it.
 
 ## Config file
 

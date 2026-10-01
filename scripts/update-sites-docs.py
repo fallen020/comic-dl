@@ -87,7 +87,13 @@ TITLES_FROM_TAGS = {"e-hentai.org", "webtoons.com"}
 DOCS = _REPO / "docs" / "reference" / "supported-sites.md"
 WEBSITE = _REPO / "website" / "src" / "content" / "docs" / "reference" / "supported-sites.mdx"
 
-_COUNT_RE = re.compile(r"The \d+ built-in scrapers")
+# Prose that states the scraper count outside the generated tables. Their tables
+# are untouched; only the number is kept in sync.
+COUNTED = (_REPO / "README.md",)
+
+# Any "N built-in scrapers/sources" phrase in prose, so a newly added site
+# cannot leave a stale count behind in a file the table generator never touches.
+_COUNT_RE = re.compile(r"\b\d+(\s+built-in\s+(?:sources|scrapers))\b")
 
 
 def _entries() -> list:
@@ -170,20 +176,29 @@ def _wrap_filter(rows: list[str]) -> list[str]:
     return ["<Filter>", "", *rows, "", "</Filter>"]
 
 
+def _set_count(text: str, count: int) -> str:
+    """Rewrite every ``N built-in scrapers`` phrase to the registry count."""
+    return _COUNT_RE.sub(lambda m: f"{count}{m.group(1)}", text)
+
+
 def generate() -> dict:
-    """Rendered ``{path: text}`` pairs for the two docs files."""
+    """Rendered ``{path: text}`` pairs for every file carrying a site count."""
     entries = _entries()
     count = len(entries)
     md = DOCS.read_text()
     mdx = WEBSITE.read_text()
     md = _splice(md, "## Sites", "## Per-site features", _sites_table(entries, _yes))
     md = _splice(md, "## Per-site features", "## Site notes", _features_table(entries, _yes))
-    md = _COUNT_RE.sub(f"The {count} built-in scrapers", md)
     sites = _wrap_filter(_sites_table(entries, _badge))
     mdx = _splice(mdx, "## Sites", "## Per-site features", sites)
     mdx = _splice(mdx, "## Per-site features", "## Site notes", _features_table(entries, _badge))
-    mdx = _COUNT_RE.sub(f"The {count} built-in scrapers", mdx)
-    return {str(DOCS): md, str(WEBSITE): mdx}
+    rendered = {
+        str(DOCS): _set_count(md, count),
+        str(WEBSITE): _set_count(mdx, count),
+    }
+    for path in COUNTED:
+        rendered[str(path)] = _set_count(path.read_text(), count)
+    return rendered
 
 
 def main(argv: list[str]) -> int:

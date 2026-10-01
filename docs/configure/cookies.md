@@ -29,10 +29,10 @@ comic-dl cookie clear                  # clear all cookies
 comic-dl cookie clear kagane.to        # clear cookies for a host
 ```
 
-!!! warning
-    `cookie set` passes the value on the command line, making it visible in
-    shell history and to other users via `ps`. Prefer letting the tool capture
-    cookies itself (via the webview solver), or clear the value afterwards.
+> [!WARNING]
+> `cookie set` passes the value on the command line, making it visible in
+> shell history and to other users via `ps`. Prefer letting the tool capture
+> cookies itself (via the webview solver), or clear the value afterwards.
 
 ## Disabling cookies
 
@@ -120,10 +120,10 @@ Override or add hosts under `[http] rate`. Per-host overrides in
 
 Disable entirely with `--no-rate` or `[http] rate-enabled = false`.
 
-!!! note "e-hentai"
-    The `/s/` image-page fetches run at 2 req/s matching the default. If you
-    see "image limit reached" errors, lower `e-hentai.org` toward `1.0`.
-    Throttled responses (HTTP 509) are detected and retried automatically.
+> [!NOTE]
+> The `/s/` image-page fetches run at 2 req/s matching the default. If you
+> see "image limit reached" errors, lower `e-hentai.org` toward `1.0`.
+> Throttled responses (HTTP 509) are detected and retried automatically.
 
 ## Encryption at rest
 
@@ -168,7 +168,7 @@ To rotate or revoke the key: `comic-dl cookie clear`, then delete the
 keyring entry (or unset `$COMIC_DL_COOKIE_KEY`). Existing `enc1.` rows
 become unreadable and are dropped on next use — that is the point.
 
-!!! note
-    At-rest encryption keeps cookie values hidden from file readers. It is
-    not protection against running the tool as someone it is not installed
-    for — the key lives in the same OS account.
+> [!NOTE]
+> At-rest encryption keeps cookie values hidden from file readers. It is
+> not protection against running the tool as someone it is not installed
+> for — the key lives in the same OS account.

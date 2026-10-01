@@ -5,6 +5,8 @@ order: 10
 section: Getting Started
 ---
 
+import { scraperCount } from '../../utils/site';
+
 comic-dl downloads comics and manga from the command line and packages them into CBZ, ZIP, or CBT archives for your reader.
 
 Give it a gallery, chapter, or series URL from a [supported site](../reference/supported-sites/). It handles page downloads, image verification, and metadata.
@@ -25,19 +27,21 @@ comic-dl -u "https://mangadex.org/title/<manga-uuid>"
 
 The saved path is printed when a download completes.
 
-## Features
+## What you get
 
-- Built-in adapters plus a generic HTML fallback for unrecognized sites
-- Interactive chapter picker, or scriptable `--chapters 1-3,5` selection
-- Interrupted downloads resume from the intact pages already on disk
-- Per-site rate limiting and shared retry cooldown for polite scraping
-- `ComicInfo.xml` metadata embedded in generated archives
-- CBZ, ZIP, and CBT output formats
-- Source runs on Linux, macOS, and Windows (binaries for Linux and Windows; macOS builds from source); no account required unless the source site requires one
+{scraperCount} built-in adapters, plus a generic HTML fallback that runs on any host without one. A site the tool has no adapter for can still be added as a separate Python package, without forking the project.
+
+A series URL opens an interactive chapter picker. Scripts skip it with `--chapters 1-3,5`, or `--chapters all`.
+
+Interrupted downloads resume from the pages already on disk, so a dropped connection costs you the missing pages and nothing else. Requests are paced per host, and every download that hits a retryable error pauses the whole run rather than pressing harder.
+
+Archives carry `ComicInfo.xml` metadata, so the extraction-friendly readers (Tachiyomi, Komikku, Calibre) see a series title, chapter number, and reading direction instead of a folder of numbered images.
+
+Linux and Windows ship prebuilt binaries. macOS builds from source. No account is needed beyond whatever the source site itself requires.
 
 ## When to use comic-dl
 
-Use it when you want to download content from a [supported site](../reference/supported-sites/) in a repeatable, scriptable way — one-off galleries, whole series, or nightly updates run from cron.
+Use it when you want to download content from a [supported site](../reference/supported-sites/) in a repeatable, scriptable way. That covers one-off galleries, whole series, and nightly updates run from cron.
 
 ## A note on maturity
 
@@ -51,8 +55,8 @@ comic-dl is an early release (`0.0.x`). Command-line options, configuration, and
 
 Use comic-dl only for content you are authorized to access. Respect terms of service, robots policies, copyright law, and the rights of content creators and publishers. comic-dl does not encourage bypassing authentication, paywalls, or other access controls.
 
-## Next
+## Next steps
 
-- [Installation](../installation/) — get comic-dl on your machine
-- [Quick Start](../quick-start/) — first download in minutes
-- [Supported Sites](../reference/supported-sites/) — what sources are available
+- [Installation](../installation/) to get comic-dl on your machine
+- [Quick Start](../quick-start/) for a first download
+- [Supported Sites](../reference/supported-sites/) to see what sources are available

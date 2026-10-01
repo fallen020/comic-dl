@@ -4,7 +4,7 @@ import Sidebar from './Sidebar.astro';
 import TableOfContents from './TableOfContents.astro';
 import ExplainWithAI from './ExplainWithAI.astro';
 import { ArrowLeft, ArrowRight, X } from '@lucide/astro';
-import { docsPath } from '../utils/base';
+import { docsPath, docsSourcePath } from '../utils/base';
 
 interface PageLink {
   id: string;
@@ -86,7 +86,7 @@ const docHref = (id: string) => docsPath(id);
         <div class="ms-auto flex shrink-0 items-center gap-3">
           <ExplainWithAI pageUrl={pageUrl} />
           <a
-            href={`https://github.com/fallen020/comic-dl/edit/main/docs/${currentId}.md`}
+            href={`https://github.com/fallen020/comic-dl/edit/main/docs/${docsSourcePath(currentId)}`}
             target="_blank"
             rel="noopener noreferrer"
             class="flex shrink-0 items-center gap-1 transition-colors hover:text-fg"

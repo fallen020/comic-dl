@@ -98,3 +98,5 @@ comic-dl
 - [Configuration](configure/config.md) — persist your preferences
 - [Supported Sites](reference/supported-sites.md) — what sources are available
 - [CLI Reference](reference/cli.md) — every command and flag
+- [Exit Codes](reference/exit-codes.md) — what a failing run returns
+- [Troubleshooting](troubleshooting.md) — if the download did not finish

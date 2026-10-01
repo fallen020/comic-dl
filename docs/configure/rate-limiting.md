@@ -48,10 +48,10 @@ Or in config:
 rate-enabled = false
 ```
 
-!!! warning
-    When rate limiting is disabled, page concurrency is clamped to 5 (the
-    recommended politeness ceiling) and a warning is emitted. This prevents
-    accidental thundering-herd behavior.
+> [!WARNING]
+> When rate limiting is disabled, page concurrency is clamped to 5 (the
+> recommended politeness ceiling) and a warning is emitted. This prevents
+> accidental thundering-herd behavior.
 
 ## How it works
 

@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Gate that catches docs/website drift CI cannot: broken internal links,
-`{#...}` heading IDs leaking into plain Markdown, and link targets that treat
-file extensions (.mdx) as URLs.
+`{#...}` heading IDs leaking into plain Markdown, link targets that treat file
+extensions (.mdx) as URLs, table rows orphaned after a paragraph, and MkDocs
+`!!!` blocks that GitHub renders as literal text.
 
 Astro maps `src/content/docs/<slug>.mdx` to the route `<slug>/` (the site sets
 `trailingSlash: 'always'`), so relative links inside website pages resolve
@@ -97,13 +98,75 @@ def check_heading_ids(prefix: str, root: Path) -> list[str]:
     return findings
 
 
+def _code_and_prose_lines(path: Path) -> list[tuple[int, str]]:
+    """Return `(line_no, text)` for lines outside fenced code blocks."""
+    out: list[tuple[int, str]] = []
+    fence = False
+    for line_no, line in enumerate(path.read_text().splitlines(), 1):
+        if line.lstrip().startswith("```"):
+            fence = not fence
+            continue
+        if fence:
+            continue
+        out.append((line_no, line.strip()))
+    return out
+
+
+def check_orphaned_table_rows(prefix: str, root: Path) -> list[str]:
+    """Flag a `|` line that continues no table.
+
+    A blank line closes a GFM table, so rows appended after a paragraph render
+    as literal text inside that paragraph and silently vanish from the reader's
+    view of the table above.
+    """
+    findings: list[str] = []
+    delimiter = re.compile(r"^\|[\s:\-|]+\|$")
+    for path in sorted(root.rglob("*.md")):
+        if not path.is_file():
+            continue
+        rel = path.relative_to(root)
+        lines = _code_and_prose_lines(path)
+        for index, (line_no, text) in enumerate(lines):
+            if not text.startswith("|"):
+                continue
+            previous = lines[index - 1][1] if index else ""
+            if previous.startswith("|"):
+                continue
+            following = next((t for _, t in lines[index + 1 :]), "")
+            if not delimiter.match(following):  # not a new table header
+                findings.append(
+                    f"{prefix}{rel}:{line_no}: table row after prose, renders as literal text"
+                )
+    return findings
+
+
+def check_admonition_syntax(prefix: str, root: Path) -> list[str]:
+    """Flag MkDocs `!!!` blocks, which render literally outside MkDocs."""
+    findings: list[str] = []
+    for path in sorted(root.rglob("*.md")):
+        if not path.is_file():
+            continue
+        rel = path.relative_to(root)
+        for line_no, text in _code_and_prose_lines(path):
+            if re.match(r"^!!!\s+\w", text):
+                findings.append(
+                    f"{prefix}{rel}:{line_no}: MkDocs `!!!` block"
+                    " does not render on GitHub, use `> [!NOTE]`"
+                )
+    return findings
+
+
 def main() -> int:
     """Run every mirror check; exit 1 on any finding."""
     check = "--check" in sys.argv
     site_findings = check_md_links("website: ", WEBSITE, routes=True)
     docs_findings = check_md_links("docs: ", DOCS, routes=False)
     id_findings = check_heading_ids("docs: ", DOCS)
-    all_findings = site_findings + docs_findings + id_findings
+    table_findings = check_orphaned_table_rows("docs: ", DOCS)
+    admonition_findings = check_admonition_syntax("docs: ", DOCS)
+    all_findings = (
+        site_findings + docs_findings + id_findings + table_findings + admonition_findings
+    )
     for finding in all_findings:
         print(finding)
     if all_findings:

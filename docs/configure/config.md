@@ -26,8 +26,8 @@ Options are resolved by priority (highest first):
 Every setting is optional: uncomment a key to override its built-in
 default. `comic-dl config show` prints the resolved result; `comic-dl
 config validate` additionally lists the keys your file sets differently
-from the defaults, which is how a stale value — e.g. a `solver` inherited
-from an older template — shows up.
+from the defaults, which is how a stale value (a `solver` inherited from an
+older template, say) shows up.
 
 ### Reference
 
@@ -64,7 +64,7 @@ built-in defaults, which surfaces values inherited from an older template.
 ## Per-source overrides
 
 Host-specific settings live in `[sources."<host>"]` tables. The host key
-**must be quoted** — unquoted `[sources.kagane.to]` would nest incorrectly.
+must be quoted; unquoted `[sources.kagane.to]` would nest incorrectly.
 
 The supported per-host keys are:
 - `rate` — requests/second, overrides both `[http] rate` and the built-in
@@ -93,7 +93,7 @@ Precedence: `--config` > `$COMIC_DL_CONFIG` > platform location.
 
 ## Error handling
 
-A missing or malformed config file is ignored — the tool always runs with
+A missing or malformed config file is ignored, so the tool always runs with
 defaults. A malformed file prints a one-time warning. `--no-config` skips the
 file entirely for a single run, which is the escape hatch for a broken config.
 
