@@ -4,6 +4,7 @@
       <source media="(prefers-color-scheme: dark)" srcset="docs/assets/wordmark-dark.svg">
       <img alt="comic-dl" src="docs/assets/wordmark-light.svg" width="550" height="118">
     </picture>
+<br>
 
 <a href="https://github.com/fallen020/comic-dl/actions">
   <img alt="CI" src="https://github.com/fallen020/comic-dl/workflows/CI/badge.svg">
