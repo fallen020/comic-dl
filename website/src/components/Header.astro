@@ -1,6 +1,7 @@
 ---
-import { Menu, BookOpen } from '@lucide/astro';
+import { Menu } from '@lucide/astro';
 import BrandIcon from './icons/BrandIcon.astro';
+import Wordmark from './Wordmark.astro';
 import Search from './Search.astro';
 import ThemeToggle from './ThemeToggle.astro';
 import { docsPath, siteBase } from '../utils/base';
@@ -31,12 +32,8 @@ const nav = [
         <Menu size={18} aria-hidden="true" />
       </button>
     )}
-    <a
-      href={siteBase}
-      class="flex items-center gap-2 font-mono text-lg font-semibold tracking-tight text-fg no-underline"
-    >
-      <BookOpen size={18} class="text-accent" aria-hidden="true" />
-      <span>comic-dl</span>
+    <a href={siteBase} class="flex items-center no-underline">
+      <Wordmark class="h-7" />
     </a>
     <nav aria-label="Main" class="ml-1 hidden items-center gap-1 md:flex">
       {nav.map((item) => (
