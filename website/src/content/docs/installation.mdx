@@ -88,7 +88,7 @@ Keep the `-1.fc44.` build marker exactly as written. RHEL compatibility is not g
 <div data-panel="arch" role="tabpanel" id="panel-file-arch" aria-labelledby="file-arch">
 
 ```text
-comic-dl-0.0.4-1-x86_64.pkg.tar.zst  x86-64
+fallen020-comic-dl-0.0.4-1-x86_64.pkg.tar.zst  x86-64
 ```
 
 No ARM64 package — build from source there.
@@ -155,10 +155,25 @@ Use the exact filename, including the Fedora build marker (`-1.fc44.`), and subs
 <div data-panel="arch" role="tabpanel" id="panel-install-arch" aria-labelledby="install-arch">
 
 ```bash
-$ sudo pacman -U comic-dl-0.0.4-1-x86_64.pkg.tar.zst
+$ sudo pacman -U fallen020-comic-dl-0.0.4-1-x86_64.pkg.tar.zst
 ```
 
 No ARM64 Arch package is provided; on ARM64, build from source.
+
+<Warning title="The AUR package is a different project">
+
+The AUR hosts an unrelated package also named `comic-dl`. Installing it with `yay` or `paru` swaps this program out for that one. Get the `fallen020-comic-dl-*.pkg.tar.zst` file from the release page instead; no AUR entry exists under that name, so helpers never touch it.
+
+</Warning>
+
+If you installed the old `comic-dl` package (0.0.4 or earlier), switch to the new name:
+
+```bash
+$ sudo pacman -Rns comic-dl   # remove the old package name
+$ sudo pacman -U fallen020-comic-dl-0.0.4-1-x86_64.pkg.tar.zst
+```
+
+Your config, cookies, and library database are untouched.
 
 </div>
 
@@ -379,7 +394,7 @@ $ sudo dnf install ./comic-dl-0.0.5-1.fc44.x86_64.rpm
 <div data-panel="arch" role="tabpanel" id="panel-man-arch" aria-labelledby="man-arch">
 
 ```bash
-$ sudo pacman -U comic-dl-0.0.5-1-x86_64.pkg.tar.zst
+$ sudo pacman -U fallen020-comic-dl-0.0.5-1-x86_64.pkg.tar.zst
 ```
 
 </div>
@@ -423,7 +438,7 @@ $ sudo dnf remove comic-dl
 <div data-panel="arch" role="tabpanel" id="panel-un-arch" aria-labelledby="un-arch">
 
 ```bash
-$ sudo pacman -Rns comic-dl
+$ sudo pacman -Rns fallen020-comic-dl
 ```
 
 </div>

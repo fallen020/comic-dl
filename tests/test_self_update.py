@@ -109,15 +109,15 @@ class TestSelectAsset:
 
     def test_pacman_x86_64(self, monkeypatch):
         monkeypatch.setattr("comic_dl.self_update.platform.machine", lambda: "x86_64")
-        rel = _rel("v0.0.3", "comic-dl-0.0.3-1-x86_64.pkg.tar.zst")
+        rel = _rel("v0.0.3", "fallen020-comic-dl-0.0.3-1-x86_64.pkg.tar.zst")
         assert select_asset(rel, InstallKind.PACMAN) == (
-            "comic-dl-0.0.3-1-x86_64.pkg.tar.zst",
-            "https://example.invalid/comic-dl-0.0.3-1-x86_64.pkg.tar.zst",
+            "fallen020-comic-dl-0.0.3-1-x86_64.pkg.tar.zst",
+            "https://example.invalid/fallen020-comic-dl-0.0.3-1-x86_64.pkg.tar.zst",
         )
 
     def test_pacman_arm64_none(self, monkeypatch):
         monkeypatch.setattr("comic_dl.self_update.platform.machine", lambda: "arm64")
-        rel = _rel("v0.0.3", "comic-dl-0.0.3-1-x86_64.pkg.tar.zst")
+        rel = _rel("v0.0.3", "fallen020-comic-dl-0.0.3-1-x86_64.pkg.tar.zst")
         assert select_asset(rel, InstallKind.PACMAN) is None
 
     def test_apt_ignores_other_arch(self, monkeypatch):

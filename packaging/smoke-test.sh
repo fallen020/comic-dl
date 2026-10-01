@@ -26,7 +26,7 @@ if [[ -n "$EXPECTED" && "$EXPECTED" != "dev" ]]; then
       exit 1
     fi
   elif command -v pacman >/dev/null 2>&1; then
-    installed="$(pacman -Qi comic-dl | awk -F': ' '/^Version/ {print $2}')"
+    installed="$(pacman -Qi fallen020-comic-dl | awk -F': ' '/^Version/ {print $2}')"
     case "$installed" in
       "$EXPECTED" | "$EXPECTED-"*) ;;
       *) echo "error: installed version '$installed' != expected '$EXPECTED'" >&2; exit 1 ;;

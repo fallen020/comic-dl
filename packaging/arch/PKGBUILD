@@ -3,11 +3,15 @@
 # libcurl-impersonate shared objects for the build architecture, so each arch
 # must be built on that architecture (amd64 -> x86_64, arm64 -> aarch64).
 # Build script: packaging/arch/build.sh.
-pkgname=comic-dl
+# pkgname is namespaced because the AUR already hosts an unrelated package
+# named `comic-dl` (Xonshiz/comic-dl); sharing that name makes AUR helpers
+# offer it as an "upgrade" and silently replace this package.
+pkgname=fallen020-comic-dl
 pkgver=0.0.1
 pkgrel=1
 pkgdesc="Download comic and manga galleries as CBZ archives"
 arch=('x86_64' 'aarch64')
+conflicts=('comic-dl')
 # makepkg.conf enables debug-symbol splitting by default; this is a launcher
 # package with no compiled code of its own, so never ship -debug artifacts.
 options=('!debug')

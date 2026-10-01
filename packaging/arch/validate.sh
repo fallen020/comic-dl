@@ -20,7 +20,7 @@ pacman -U --noconfirm $PKG_GLOB
 
 bash "$SCRIPT_DIR/smoke-test.sh" "$EXPECTED_VERSION"
 
-pacman -R --noconfirm comic-dl
+pacman -R --noconfirm fallen020-comic-dl
 if command -v comic-dl >/dev/null; then
   echo "error: comic-dl is still on PATH after removal" >&2
   exit 1

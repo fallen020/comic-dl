@@ -42,7 +42,7 @@ between releases.
 | Windows | `comic-dl-0.0.4-windows-amd64.zip` | Not built; the amd64 one runs emulated |
 | Debian / Ubuntu | `comic-dl_0.0.4_amd64.deb` | `comic-dl_0.0.4_arm64.deb` |
 | Fedora | `comic-dl-0.0.4-1.fc44.x86_64.rpm` | `comic-dl-0.0.4-1.fc44.aarch64.rpm` |
-| Arch Linux | `comic-dl-0.0.4-1-x86_64.pkg.tar.zst` | Not built |
+| Arch Linux | `fallen020-comic-dl-0.0.4-1-x86_64.pkg.tar.zst` | Not built |
 
 A bare `comic-dl-0.0.4-windows-amd64.exe` is attached too, if you would rather
 not unzip anything.
@@ -105,10 +105,26 @@ build from source.
 ### Arch Linux
 
 ```bash
-sudo pacman -U comic-dl-0.0.4-1-x86_64.pkg.tar.zst
+sudo pacman -U fallen020-comic-dl-0.0.4-1-x86_64.pkg.tar.zst
 ```
 
 No ARM64 Arch package is provided; on ARM64, build from source.
+
+> [!WARNING]
+> The AUR hosts an unrelated package also named `comic-dl`. Installing it
+> with `yay` or `paru` swaps this program out for that one. Get the
+> `fallen020-comic-dl-*.pkg.tar.zst` file from the release page instead;
+> no AUR entry exists under that name, so helpers never touch it.
+
+If you installed the old `comic-dl` package (0.0.4 or earlier), switch to
+the new name:
+
+```bash
+sudo pacman -Rns comic-dl   # remove the old package name
+sudo pacman -U fallen020-comic-dl-0.0.4-1-x86_64.pkg.tar.zst
+```
+
+Your config, cookies, and library database are untouched.
 
 ### From source
 
@@ -235,7 +251,7 @@ sudo apt install ./comic-dl_0.0.5_amd64.deb
 sudo dnf install ./comic-dl-0.0.5-1.fc44.x86_64.rpm
 
 # Arch
-sudo pacman -U comic-dl-0.0.5-1-x86_64.pkg.tar.zst
+sudo pacman -U fallen020-comic-dl-0.0.5-1-x86_64.pkg.tar.zst
 ```
 
 Swap in the version you downloaded. No uninstall first — the package manager
@@ -261,7 +277,7 @@ sudo apt remove comic-dl
 sudo dnf remove comic-dl
 
 # Arch
-sudo pacman -Rns comic-dl
+sudo pacman -Rns fallen020-comic-dl
 
 # From source
 rm -rf comic-dl

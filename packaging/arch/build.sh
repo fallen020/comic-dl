@@ -59,8 +59,8 @@ su builder -c \
 mkdir -p "$OUT_DIR"
 # Guard against -debug splits even if makepkg.conf re-enables them: the
 # release pipeline uploads every *.pkg.tar.zst in $OUT_DIR.
-rm -f "$BUILD_DIR"/comic-dl-debug-*.pkg.tar.zst
-cp "$BUILD_DIR"/comic-dl-*.pkg.tar.zst "$OUT_DIR"/
+rm -f "$BUILD_DIR"/fallen020-comic-dl-debug-*.pkg.tar.zst
+cp "$BUILD_DIR"/fallen020-comic-dl-*.pkg.tar.zst "$OUT_DIR"/
 echo
 echo "Package(s) written to $OUT_DIR:"
 ls -l "$OUT_DIR"
