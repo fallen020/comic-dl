@@ -385,7 +385,7 @@ class TestThrottlePageDetection:
 class TestApiGdata:
     pytestmark = pytest.mark.asyncio
 
-    async def test_api_error_raises_valueerror(self):
+    async def test_api_error_raises_scrape_error(self):
         class MockClient:
             async def post(self, url, json=None, **kwargs):
                 class MockResponse:
@@ -401,9 +401,10 @@ class TestApiGdata:
 
                 return MockResponse()
 
+        from comic_dl.errors import ScrapeError
         from comic_dl.scrapers.sites.ehentai import _api_gdata
 
-        with pytest.raises(ValueError, match="Gallery not found"):
+        with pytest.raises(ScrapeError, match="rejected this gallery request"):
             await _api_gdata(0, "token", MockClient())
 
     async def test_key_missing_gives_friendly_error(self):
@@ -725,6 +726,7 @@ class TestFetchGalleryPageWithRetry:
 
     async def test_gives_up_after_retries(self, monkeypatch):
         """A persistently failing page raises after the retry budget."""
+        from comic_dl.errors import ScrapeError
         from comic_dl.scrapers.sites.ehentai import (
             _GALLERY_PAGE_RETRIES,
             _fetch_gallery_page_with_retry,
@@ -736,7 +738,7 @@ class TestFetchGalleryPageWithRetry:
         monkeypatch.setattr("comic_dl.scrapers.sites.ehentai.asyncio.sleep", _no_sleep)
 
         attempts = [0]
-        with pytest.raises(ConnectionError):
+        with pytest.raises(ScrapeError):
             await _fetch_gallery_page_with_retry(
                 "https://e-hentai.org/g/123/abc/",
                 self._client(attempts, {1, 2, 3, 4}),

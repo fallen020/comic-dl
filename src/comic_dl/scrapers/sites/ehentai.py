@@ -38,6 +38,7 @@ from ...models import (
     SourceInfo,
     chapter_to_post_metadata,
 )
+from ...ui import trace
 from ...utils import (
     PART_PATTERN,
     clean_title,
@@ -246,8 +247,10 @@ async def _api_gdata(gid: int, token: str, client: AsyncSession) -> dict:
                 "ID/token in the URL is wrong.",
                 site_error_code=SITE_NOT_RECOGNIZED,
             )
+        trace(f"e-hentai API error detail: {error}")
         raise ScrapeError(
-            f"e-hentai API error: {error}",
+            "The e-hentai API rejected this gallery request.",
+            hint="the gallery may be throttled or restricted; run again later.",
             site_error_code=SITE_REQUEST_FAILED,
         )
     return data["gmetadata"][0]
@@ -347,9 +350,11 @@ async def _fetch_gallery_page_with_retry(page_url: str, client: AsyncSession) ->
             last_exc = exc
             if attempt < _GALLERY_PAGE_RETRIES - 1:
                 await asyncio.sleep((attempt + 1) * 0.8)
-    if last_exc is None:  # pragma: no cover - the loop always sets it
-        raise RuntimeError("gallery page retries exhausted without an error")
-    raise last_exc
+    raise ScrapeError(
+        "E-hentai gallery page failed after retries.",
+        hint="the gallery may be throttled or offline; run again later.",
+        site_error_code=SITE_REQUEST_FAILED,
+    ) from last_exc
 
 
 async def _gallery_page_urls(base_url: str, filecount: int, client: AsyncSession) -> list[str]:
