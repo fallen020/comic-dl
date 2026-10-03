@@ -296,7 +296,7 @@ async def _open_stream(
         inner = cast(_StreamResponse, None)
         for _ in range(MAX_REDIRECTS + 1):
             await validate_request_url_async(current)
-            await await_ratelimit(current)
+            await await_ratelimit(urlsplit(current).hostname or current)
             _started = time.monotonic()
             obj = client.stream(
                 "GET",

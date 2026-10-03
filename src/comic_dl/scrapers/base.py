@@ -7,6 +7,7 @@ import html
 import inspect
 import json
 import time
+from urllib.parse import urlsplit
 
 from bs4 import BeautifulSoup
 from curl_cffi.requests import AsyncSession
@@ -283,7 +284,7 @@ class BaseScraper:
             nonlocal current
             resp = None
             for _ in range(MAX_REDIRECTS + 1):
-                await await_ratelimit(current, rate=rate)
+                await await_ratelimit(urlsplit(current).hostname or current, rate=rate)
                 try:
                     _started = time.monotonic()
                     async with asyncio.timeout(SCRAPE_TIMEOUT):
