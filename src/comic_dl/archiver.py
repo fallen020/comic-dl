@@ -119,13 +119,17 @@ def _packed_members(
         if src is None or src_name in missing or src_name not in sizes:
             skipped.append(f"{src_name} (missing)")
             continue
+        unique_size = size_freq.get(sizes[src_name], 0) <= 1
         try:
-            fhash = sha256()
             with open(src, "rb") as f:
                 header = f.read(MAGIC_MAX)
-                fhash.update(header)
-                for chunk in iter(lambda: f.read(65536), b""):
-                    fhash.update(chunk)
+                if unique_size:
+                    fhash_hex: str | None = None
+                else:
+                    fhash = sha256(header)
+                    for chunk in iter(lambda: f.read(65536), b""):
+                        fhash.update(chunk)
+                    fhash_hex = fhash.hexdigest()
         except OSError:
             skipped.append(f"{src_name} (missing)")
             continue
@@ -134,12 +138,12 @@ def _packed_members(
             skipped.append(f"{src_name} (not a valid image)")
             src.unlink(missing_ok=True)
             continue
-        if size_freq.get(sizes[src_name], 0) > 1:
-            if fhash.hexdigest() in seen_hashes:
+        if fhash_hex is not None:
+            if fhash_hex in seen_hashes:
                 skipped.append(f"{src_name} (duplicate)")
                 src.unlink(missing_ok=True)
                 continue
-            seen_hashes.add(fhash.hexdigest())
+            seen_hashes.add(fhash_hex)
 
         ext = "." + fmt if fmt else (src.suffix or ".jpg")
         yield idx, src, f"Page_{idx:04d}{ext}"

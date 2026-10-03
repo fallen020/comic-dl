@@ -312,7 +312,7 @@ def _maybe_sweep() -> None:
         _unlink_best_effort(p)
 
 
-def _read_entry(path: Path) -> dict[str, Any] | None:
+def _read_entry(path: Path, *, with_body: bool = True) -> dict[str, Any] | None:
     try:
         size = path.stat().st_size
     except OSError:
@@ -321,7 +321,25 @@ def _read_entry(path: Path) -> dict[str, Any] | None:
         _unlink_best_effort(path)
         return None
     try:
-        data = path.read_bytes()
+        if with_body:
+            data = path.read_bytes()
+        else:
+            with open(path, "rb") as f:
+                data = f.read(12)
+                try:
+                    (version,) = struct.unpack(">I", data[4:8])
+                except struct.error:
+                    _unlink_best_effort(path)
+                    return None
+                if version != _VERSION:
+                    _unlink_best_effort(path)
+                    return None
+                try:
+                    (meta_len,) = struct.unpack(">I", data[8:12])
+                except struct.error:
+                    _unlink_best_effort(path)
+                    return None
+                data += f.read(meta_len)
     except OSError:
         return None
     if len(data) < 12 or not data.startswith(_MAGIC):
@@ -559,7 +577,7 @@ def stats() -> dict[str, int]:
             continue
         out["entries"] += 1
         out["bytes"] += size
-        entry = _read_entry(p)
+        entry = _read_entry(p, with_body=False)
         if entry is not None and _is_fresh(entry):
             out["fresh"] += 1
         else:
@@ -594,7 +612,7 @@ def prune() -> tuple[int, int]:
             continue
         if p.suffix != ".dat":
             continue
-        entry = _read_entry(p)
+        entry = _read_entry(p, with_body=False)
         if entry is None or not _is_fresh(entry) or _entry_age_hours(entry) > _MAX_ENTRY_AGE_HOURS:
             _unlink_best_effort(p)
             removed += 1
