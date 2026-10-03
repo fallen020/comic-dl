@@ -31,9 +31,12 @@ comic-dl <COMMAND> [ARGS]
 | `comic-dl list [--json] [--source <DOMAIN>]` | List series in the library |
 | `comic-dl info <SERIES> [--json]` | Show details for one series |
 | `comic-dl latest [-n N] [--json] [--source <DOMAIN>]` | Chapters downloaded in the last N days (default 7) |
-| `comic-dl update <SERIES\|all> [--dry-run]` | Re-scrape tracked series, download new chapters |
+| `comic-dl update <SERIES\|all> [-p N] [--dry-run]` | Re-scrape tracked series, download new chapters. `-p` sets how many series update at once (1–16, default 1) |
 | `comic-dl remove <SERIES> [--dry-run]` | Move a series to trash |
 | `comic-dl restore <SERIES>` | Bring a trashed series back |
+
+`update -p` runs series concurrently but every request still passes through the
+per-host rate limiter, so raising it never exceeds the politeness budget.
 
 ### Configuration
 
@@ -57,7 +60,7 @@ comic-dl <COMMAND> [ARGS]
 | `comic-dl cookie set <HOST> <NAME> <VALUE>` | Store a cookie |
 | `comic-dl cookie clear [HOST] [-y]` | Clear cookies |
 
-### Self
+### Self & plugins
 
 | Command | Description |
 | :------ | :---------- |
@@ -66,6 +69,9 @@ comic-dl <COMMAND> [ARGS]
 | `comic-dl self site list [--json]` | List installed site adapters, their versions, and cached status |
 | `comic-dl self site check [SITE] [--live] [--json]` | Compare installed adapter versions against the latest release manifest; `--live` runs a live check for one site |
 | `comic-dl self site update SITE` / `--all` | Update site support (bundled adapters update with the core) |
+| `comic-dl plugin list [--json]` | List installed third-party sources (including broken ones) |
+| `comic-dl plugin validate <PATH>` | Shape-check a plugin's `Source` class offline |
+| `comic-dl plugin scaffold <NAME> [--domain HOST]` | Generate a plugin package skeleton |
 
 `self update` refuses to guess: package-manager installs are updated by the
 owning package manager, pip/uv installs by the tool that created them, and a
@@ -73,94 +79,95 @@ source checkout or unknown installation is reported with manual
 instructions. See [Self-Management](../usage/self-update.md) and
 [Site Support](../usage/site-support.md) for the per-installation behaviour.
 
-### Other
+### Inspect & integrate
 
 | Command | Description |
 | :------ | :---------- |
 | `comic-dl --list-sources [--json] [--plugin] [QUERY]` | List/search supported sites |
-| `comic-dl plugin list [--json]` | List installed third-party sources (including broken ones) |
-| `comic-dl plugin validate <PATH>` | Shape-check a plugin's `Source` class offline |
-| `comic-dl plugin scaffold <NAME> [--domain HOST]` | Generate a plugin package skeleton |
 | `comic-dl completion bash\|zsh\|fish` | Print shell completion script |
+| `comic-dl --version` | Print the version |
 | `comic-dl help [COMMAND]` | Show help |
+
+`help` accepts subcommands, so `comic-dl help self site` prints the help for
+`self site` rather than the top-level screen.
 
 ## Global flags
 
-### Input/Output
+### Input
 
 | Flag | Short | Default | Description |
 | :--- | :---- | :------ | :---------- |
 | `--url` | `-u` | — | Single URL to download |
 | `--file` | `-f` | — | Text file with one URL per line |
+
+### Layout & output
+
+| Flag | Short | Default | Description |
+| :--- | :---- | :------ | :---------- |
 | `--output` | `-o` | `~/Downloads/comic-dl` | Output directory |
-| `--chapters` | | | Chapter subset by chapter number. Examples: `1-3,7` (1,2,3,7), `1-3,7,10-` (1,2,3,7,10+), `all` (all chapters), `0` (prologue/promo). Omit for interactive checkbox picker. |
+| `--force` | | | Overwrite existing archives. With `--file` and multiple URLs, asks before re-downloading |
+| `--dry-run` | | | Resolve each URL and list what would download, skip, or re-download, without writing |
+| `--chapters` | | interactive picker | Chapter subset. `1-3,7` (1, 2, 3, 7), `1-3,7,10-` (1, 2, 3, 7, 10 through the end), `all`, `0` (prologue/promo). Omit for a checkbox picker |
+| `--max-image-size` | | `100MB` | Maximum bytes per image. Accepts suffixes (`500MB`, `2GB`) |
+| `--max-size` | | `0` (unlimited) | Maximum total download size per batch; `0` also means unlimited |
 
-### Performance
+`--force` is the only way to overwrite. Never overwriting is already the
+default, so the old `--no-clobber` flag is a deprecated no-op and is no longer
+listed on the help screen.
 
-| Flag | Default | Description |
-| :--- | :------ | :---------- |
-| `--concurrency` / `-c` | `5` | Page images downloaded in parallel (1–32) |
-| `--parallel` | `5` | Max URLs in flight across a batch (1–16) |
-| `--chapter-parallel` | `1` | Max chapters of a series at once (1–8) |
+### Download tuning
 
-### Update
+| Flag | Short | Default | Description |
+| :--- | :---- | :------ | :---------- |
+| `--concurrency` | `-c` | `5` | Page images downloaded in parallel (1–32) |
+| `--parallel` | | `5` | Max URLs in flight across a batch (1–16) |
+| `--chapter-parallel` | | `1` | Max chapters of a series at once (1–8) |
+| `--compress` | | `stored` | Compression: `stored`, `deflate`, `deflate:0-9`. Overrides `[archive]` |
+| `--format` | | `cbz` | Archive format: `cbz`, `zip`, `cbt`. Overrides `[archive]` |
 
-| Flag | Default | Description |
-| :--- | :------ | :---------- |
-| `--parallel` / `-p` | `1` | Max series updating at once (1–16; default keeps runs sequential) |
+`--format cbz` is the most widely supported; `zip` and `cbt` are plain zip and
+tar containers.
 
-Series in parallel still pass through the per-host rate limiter, so raising
-`update --parallel` never exceeds the politeness budget.
+Size arguments accept suffixes — `500MB`, `2GB`, `512KB` — or a plain integer,
+which is read as bytes.
 
-### Safety & limits
-
-| Flag | Default | Description |
-| :--- | :------ | :---------- |
-| `--force` | | Overwrite existing archives |
-| `--no-clobber` | | Never overwrite existing archives (default; conflicts with `--force`) |
-| `--max-image-size` | `100 MB` | Maximum size per image |
-| `--max-size` | `0` (unlimited) | Maximum total download size per run |
-| `--impersonate` | `chrome146` | TLS/HTTP impersonation profile |
-| `--solver` | `off` | Cloudflare challenge solver. Enabled modes: `auto` (impersonation first, webview if needed), `impersonation` (TLS/HTTP fingerprint only; fast, no deps), `webview` (system WebView/GTK; needs display + GTK libs), `off` (disable solver; challenged sites fail). Default `off` — solving is opt-in |
-
-### Behavior toggles
+### HTTP & politeness
 
 | Flag | Default | Description |
 | :--- | :------ | :---------- |
-| `--no-cookie` | | Disable persistent cookie jar for this run |
-| `--no-cache` | | Disable scrape response cache for this run |
+| `--impersonate` | `chrome146` | TLS/HTTP impersonation profile (e.g. `chrome131`). Overrides `[http]` |
+| `--solver` | `off` | Cloudflare challenge solver. Overrides `[http]`. `auto` tries impersonation first, then webview if needed; `impersonation` is TLS/HTTP fingerprint only; `webview` uses the system WebView (GTK/WebKit) and needs a display plus GTK libs; `off` disables the solver and challenged sites will fail. Solving is opt-in |
+| `--no-cookie` | | Disable the persistent cookie jar for this run |
 | `--no-rate` | | Disable per-site rate limiting for this run |
-| `--no-generic` | | Disable generic fallback scraper for this run |
-| `--dry-run` | | Preview what would download without writing |
-| `--no-banner` | | Suppress the startup banner |
+| `--no-cache` | | Disable the on-disk scrape response cache for this run |
+| `--no-generic` | | Disable the generic fallback scraper, so unknown hosts report `Unsupported URL` instead of static extraction |
 
-### Output control
+### Output
 
-| Flag | Default | Description |
-| :--- | :------ | :---------- |
-| `--json` | | Machine-readable JSON on stdout |
-| `--quiet` / `-q` | | Errors only (scripts/cron) |
-| `--verbose` / `-v` | | Increase verbosity (up to `-vvv`) |
-| `--no-color` | | Disable ANSI colors |
-| `--color` | `auto` | `auto`, `always`, or `never` |
-| `--debug-file` | | Redirect `-vvv` trace to a file |
-| `--show-legal-notice` | | Re-show the first-run legal notice (acknowledges it and continues the run) |
+| Flag | Short | Default | Description |
+| :--- | :---- | :------ | :---------- |
+| `--quiet` | `-q` | | Suppress progress and status output; errors only (scripts/cron) |
+| `--json` | | | Machine-readable JSON on stdout; disables interactive prompts |
+| `--no-banner` | | | Suppress the ASCII brand banner |
+| `--color` | | `auto` | `auto` honors `NO_COLOR`, `CLICOLOR_FORCE`, `CLICOLOR`, and `FORCE_COLOR`; use `always` for `\| less -R` |
+| `--no-color` | | | Disable ANSI colors everywhere, including progress |
 
-### Archive
+### Diagnostics
 
-| Flag | Default | Description |
-| :--- | :------ | :---------- |
-| `--format` | `cbz` | Archive format: `cbz`, `zip`, `cbt` |
-| `--compress` | `stored` | Compression: `stored`, `deflate`, `deflate:0-9` |
+| Flag | Short | Default | Description |
+| :--- | :---- | :------ | :---------- |
+| `--verbose` | `-v` | | Increase verbosity: `-v` context, `-vv` HTTP requests and timing, `-vvv` full trace |
+| `--debug-file` | | | Divert the `-vvv` trace to a file instead of the screen |
+| `--show-legal-notice` | | | Re-show the first-run legal notice, then continue |
+
+`COMIC_DL_TRACE_HTTP=1` shows response headers even below `-vvv`.
 
 ### Config
 
-| Flag | Description |
-| :--- | :---------- |
-| `--config` | Path to a custom `config.toml` |
-| `--no-config` | Ignore `config.toml` for this run |
-| `--list-sources` | List registered sources and exit |
-| `--help` / `-h` / `-?` | Show help |
+| Flag | Short | Description |
+| :--- | :---- | :---------- |
+| `--config` | | Path to a custom `config.toml` (overrides `$COMIC_DL_CONFIG`) |
+| `--no-config` | | Ignore `config.toml` for this run; built-in defaults only |
 
 `--quiet` and `--verbose` are mutually exclusive.
 

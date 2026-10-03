@@ -608,7 +608,8 @@ class TestParseUrls:
         _, args = parse_urls()
         assert args.no_banner is True
 
-    def test_no_clobber_flag(self, monkeypatch):
+    def test_no_clobber_is_accepted_with_a_deprecation_warning(self, monkeypatch, capsys):
+        """Old scripts still run, but the flag is gone from the help screen."""
         monkeypatch.setattr(
             "sys.argv",
             ["prog", "--url", "https://e-hentai.org/g/1/a/", "--no-clobber"],
@@ -616,6 +617,8 @@ class TestParseUrls:
         _, args = parse_urls()
         assert args.no_clobber is True
         assert args.force is False
+        captured = capsys.readouterr()
+        assert "no-clobber is a no-op and deprecated" in captured.out + captured.err
 
     def test_no_clobber_conflicts_with_force(self, monkeypatch, capsys):
 

@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import argparse
 import ast
 import asyncio
 import io
 import re
 import time
+from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
@@ -805,50 +807,129 @@ class TestLightBackground:
         assert self._detect(monkeypatch, "15;x") is False
 
 
+_ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
+
+
+def _strip_ansi(text: str) -> str:
+    """Drop SGR sequences so assertions can match on plain text.
+
+    Console output carries the palette's styling; these tests care about layout,
+    not colour. The palette itself is pinned by the contrast tests above.
+    """
+    return _ANSI_RE.sub("", text)
+
+
+@contextmanager
+def _console_width(width: int):
+    """Run a block with the module console pinned to ``width`` columns."""
+    from comic_dl import ui as ui
+
+    original = ui.console
+    ui.console = Console(width=width, force_terminal=False, no_color=True)
+    try:
+        yield ui.console
+    finally:
+        ui.console = original
+
+
+def _render_renderable(emit, width: int = 80) -> str:
+    """Run ``emit()`` against a console of ``width`` columns and capture it."""
+    with _console_width(width) as console:
+        with console.capture() as capture:
+            emit()
+        return capture.get()
+
+
+def _relative_luminance(rgb: tuple[int, int, int]) -> float:
+    """WCAG relative luminance of an sRGB triple."""
+
+    def channel(value: int) -> float:
+        v = value / 255
+        return v / 12.92 if v <= 0.04045 else ((v + 0.055) / 1.055) ** 2.4
+
+    r, g, b = (channel(c) for c in rgb)
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+
+def _contrast_ratio(fg: tuple[int, int, int], bg: tuple[int, int, int]) -> float:
+    a, b = _relative_luminance(fg), _relative_luminance(bg)
+    return (max(a, b) + 0.05) / (min(a, b) + 0.05)
+
+
 class TestColorTokens:
-    ANSI = {
-        "black",
-        "red",
-        "green",
-        "yellow",
-        "blue",
-        "magenta",
-        "cyan",
-        "white",
-        "bright_black",
-        "bright_red",
-        "bright_green",
-        "bright_yellow",
-        "bright_blue",
-        "bright_magenta",
-        "bright_cyan",
-        "bright_white",
-    }
+    """The palette is pinned by measured contrast, not by colour names.
 
-    def test_all_roles_resolve_to_ansi_names(self, monkeypatch):
+    Every role carries text — help flags, ``[default: …]`` labels, error lines —
+    so the contract that matters is WCAG AA body text (4.5:1) against the
+    background the role is meant for. Asserting token *names* instead let
+    ``muted`` sit at 2.82:1 on a dark background for as long as the test passed.
+    """
+
+    BLACK = (0, 0, 0)
+    WHITE = (255, 255, 255)
+
+    def _ratio(self, token: str, bg: tuple[int, int, int]) -> float:
+        from rich.color import Color
+
+        true = Color.parse(token).get_truecolor()
+        return _contrast_ratio((true.red, true.green, true.blue), bg)
+
+    @pytest.mark.parametrize("role", sorted(ui_module._COLOR_ROLES))
+    def test_dark_roles_clear_wcag_aa_on_black(self, monkeypatch, role):
         monkeypatch.setattr(ui_module, "_LIGHT_BACKGROUND", False)
-        for role in ui_module._COLOR_ROLES:
-            assert ui_module._color_token(role) in self.ANSI, role
+        token = ui_module._color_token(role)
+        assert self._ratio(token, self.BLACK) >= 4.5, f"{role}={token}"
 
-    def test_dark_default_brand_and_muted(self, monkeypatch):
-        monkeypatch.setattr(ui_module, "_LIGHT_BACKGROUND", False)
-        assert ui_module.style("brand") == "bright_yellow"
-        assert ui_module.style("muted") == "bright_black"
-
-    def test_light_muted_gets_override(self, monkeypatch):
+    @pytest.mark.parametrize("role", sorted(ui_module._COLOR_ROLES))
+    def test_light_roles_clear_wcag_aa_on_white(self, monkeypatch, role):
         monkeypatch.setattr(ui_module, "_LIGHT_BACKGROUND", True)
-        assert ui_module.style("muted") == "grey37"
-        assert ui_module.style("brand") == "bright_yellow"
+        token = ui_module._color_token(role)
+        assert self._ratio(token, self.WHITE) >= 4.5, f"{role}={token}"
+
+    def test_dark_is_the_default_palette(self, monkeypatch):
+        monkeypatch.delenv("COLORFGBG", raising=False)
+        assert ui_module._detect_light_background() is False
+
+    def test_muted_is_lighter_on_dark_than_on_light(self, monkeypatch):
+        # The grey slot inverts: a token readable on black has to be darker on
+        # white, which is why ``_LIGHT_ROLE_OVERRIDES`` exists at all.
+        monkeypatch.setattr(ui_module, "_LIGHT_BACKGROUND", False)
+        dark = ui_module.style("muted")
+        monkeypatch.setattr(ui_module, "_LIGHT_BACKGROUND", True)
+        light = ui_module.style("muted")
+        assert dark != light
+        assert self._ratio(dark, self.BLACK) > self._ratio(light, self.BLACK)
+
+    def test_light_background_keeps_the_brand_hue(self, monkeypatch):
+        # brand stays in the amber family on both backgrounds — the light token
+        # is a darkened amber, not a re-hue that would cost the brand identity
+        # to buy contrast.
+
+        def channels(token: str) -> tuple[int, int, int]:
+            from rich.color import Color
+
+            true = Color.parse(token).get_truecolor()
+            return (true.red, true.green, true.blue)
+
+        monkeypatch.setattr(ui_module, "_LIGHT_BACKGROUND", False)
+        dark = ui_module.style("brand")
+        monkeypatch.setattr(ui_module, "_LIGHT_BACKGROUND", True)
+        light = ui_module.style("brand")
+        assert dark == "bright_yellow"
+        for token in (dark, light):
+            red, green, blue = channels(token)
+            assert red >= green, token
+            assert green > blue, token
 
     def test_bold_wraps_token(self, monkeypatch):
         monkeypatch.setattr(ui_module, "_LIGHT_BACKGROUND", False)
-        assert ui_module.style("brand", bold=True) == "bold bright_yellow"
+        assert ui_module.style("brand", bold=True) == f"bold {ui_module.style('brand')}"
 
     def test_constants_follow_dark_tokens(self, monkeypatch):
         monkeypatch.setattr(ui_module, "_LIGHT_BACKGROUND", False)
-        assert ui_module.BRAND == "bright_yellow"
-        assert ui_module.MUTED == "bright_black"
-        assert ui_module.WARNING == "yellow"
+        assert ui_module.style("brand") == ui_module.BRAND
+        assert ui_module.style("muted") == ui_module.MUTED
+        assert ui_module.style("warning") == ui_module.WARNING
 
 
 class TestBanner:
@@ -1897,210 +1978,199 @@ class TestFixedWidthLiveSlots:
 
 
 class TestPrintHelp:
-    def test_help_lists_verbose_and_list_sources(self, capsys):
+    """One help screen, rendered from the argparse parser.
+
+    The screen used to be two-tier (``-h`` compact, ``--help`` full) and hand-
+    transcribed, so ``self``, ``plugin``, ``--no-config`` and ``--no-clobber``
+    existed in the parser and the docs but never appeared. These tests pin the
+    grouping against the parser so that drift fails CI rather than shipping.
+    """
+
+    @staticmethod
+    def _render(parser=None, *, width=None) -> str:
         from comic_dl.ui import print_help
 
-        print_help()
-        out = capsys.readouterr().out
-        assert "-v, -vv, -vvv" in out
-        assert "--list-sources" in out
+        return _render_renderable(lambda: print_help(parser), width)
 
-    def test_help_lists_no_banner_and_debug_file(self, capsys):
-        from comic_dl.ui import print_help
+    @staticmethod
+    def _flat(parser=None) -> str:
+        return " ".join(TestPrintHelp._render(parser).replace("\n", " ").split())
 
-        print_help()
-        out = capsys.readouterr().out
-        assert "--no-banner" in out
-        assert "--debug-file" in out
+    def test_every_long_flag_is_grouped_or_explicitly_exempt(self):
+        """A flag in the parser but not in ``_HELP_GROUPS`` must be called out."""
+        from comic_dl.cli import _build_first_stage_parser
+        from comic_dl.ui import _HELP_COMMAND_FLAGS, _HELP_GROUPS
 
-    def test_help_lists_chapter_parallel(self, capsys):
-        from comic_dl.ui import print_help
+        grouped = {opt for _, members in _HELP_GROUPS for opt in members}
+        ungrouped = {
+            opt
+            for action in _build_first_stage_parser()._actions
+            if action.help != argparse.SUPPRESS
+            for opt in action.option_strings
+            if opt.startswith("--") and opt not in grouped
+        }
+        # ``--url``/``--file`` appear as commands; the rest are listed there too.
+        assert ungrouped <= _HELP_COMMAND_FLAGS | {"--url", "--file"}, ungrouped
 
-        print_help()
-        out = capsys.readouterr().out
-        assert "--chapter-parallel" in out
+    def test_help_shows_every_grouped_flag(self):
+        from comic_dl.ui import _HELP_GROUPS
 
-    def test_help_lists_update_command(self, capsys):
-        from comic_dl.ui import print_help
+        flat = self._flat()
+        for title, members in _HELP_GROUPS:
+            assert f"{title}:" in flat, title
+            for opt in members:
+                assert opt in flat, opt
 
-        print_help()
-        out = capsys.readouterr().out
-        assert "update <SERIES|all>" in out.replace("\n", " ")
+    def test_commands_now_present(self):
+        # ``self`` and ``plugin`` are dispatchable and documented; they were
+        # absent from the help screen entirely.
+        flat = self._flat()
+        assert "Self & plugins:" in flat
+        assert "self" in flat
+        assert "plugin" in flat
 
-    def test_help_list_sources_line_is_not_glued(self, capsys):
-        from comic_dl.ui import print_help
+    def test_option_groups_replace_the_old_display_group(self):
+        flat = self._flat()
+        assert "Output:" in flat
+        assert "Diagnostics:" in flat
+        assert "Config:" in flat
+        assert "Display:" not in flat
 
-        print_help()
-        out = " ".join(capsys.readouterr().out.replace("\n", " ").split())
-        assert "[QUERY]" in out and "Search supported sites" in out
+    def test_deprecated_flag_is_not_advertised(self):
+        # Still accepted so old scripts keep working, but it does nothing and
+        # must not claim a row on the help screen.
+        flat = self._flat()
+        assert "--no-clobber" not in flat
 
-    def test_help_mentions_help_subcommand(self, capsys):
-        from comic_dl.ui import print_help
+    def test_usage_lines(self):
+        flat = self._flat()
+        assert "comic-dl [OPTIONS]" in flat
+        assert "comic-dl [URL]" in flat
+        assert "comic-dl -u <URL> [OPTIONS]" in flat
+        assert "comic-dl help <COMMAND>" in flat
 
-        print_help()
-        out = " ".join(capsys.readouterr().out.replace("\n", " ").split())
-        assert "comic-dl help <command>" in out
+    def test_purpose_groups(self):
+        flat = self._flat()
+        for group in ("Download:", "Library:", "Manage:", "Inspect & integrate:"):
+            assert group in flat, group
 
-    def test_help_points_to_config_and_completion(self, capsys):
-        from comic_dl.ui import print_help
+    def test_named_value_blocks_spell_out_modes(self):
+        # A flat "[possible values: ...]" cannot say what webview does.
+        flat = self._flat()
+        assert "webview" in flat
+        assert "system WebView" in flat
+        assert "1-3,7,10-" in flat
+        assert "10 through the end" in flat
 
-        print_help()
-        out = capsys.readouterr().out
-        assert "config" in out
-        assert "completion" in out
-        assert "docs/reference/cli.md" in out
+    def test_choices_are_listed_for_plain_enums(self):
+        flat = self._flat()
+        assert "[possible values: cbz, zip, cbt]" in flat
+        assert "[possible values: auto, always, never]" in flat
 
-    def test_help_lists_no_color(self, capsys):
-        from comic_dl.ui import print_help
+    def test_choices_not_repeated_for_flags_with_a_mode_block(self):
+        """A mode block already enumerates the values; don't list them twice."""
+        from comic_dl.cli import _build_first_stage_parser
+        from comic_dl.ui import _HELP_MODES, _help_choices, _HelpTable
 
-        print_help()
-        out = capsys.readouterr().out
-        assert "--no-color" in out
+        actions = {
+            opt: action
+            for action in _build_first_stage_parser()._actions
+            for opt in action.option_strings
+        }
+        for opt, modes in _HELP_MODES.items():
+            action = actions[opt]
 
-    def test_help_shows_usage_lines(self, capsys):
-        from comic_dl.ui import print_help
+            def emit(opt=opt, action=action, modes=modes) -> None:
+                table = _HelpTable()
+                table.row(
+                    opt,
+                    "VALUE",
+                    "summary",
+                    choices=_help_choices(action),
+                    modes=modes,
+                )
+                table.print()
 
-        print_help()
-        out = capsys.readouterr().out
-        assert "comic-dl [OPTIONS]" in out
-        assert "comic-dl [URL]" in out
-        assert "comic-dl -u <URL> [OPTIONS]" in out
+            out = _render_renderable(emit)
+            assert "[possible values:" not in out, opt
+            assert all(name in out for name, _ in modes), opt
 
-    def test_help_shows_purpose_groups(self, capsys):
-        from comic_dl.ui import print_help
+    def test_metavars_are_readable_not_shouted(self):
+        flat = self._flat()
+        assert "<PARALLEL>" not in flat
+        assert "<FORMAT>" not in flat
+        assert "<CHAPTER_PARALLEL>" not in flat
+        assert "<N>" in flat
+        assert "<PROFILE>" in flat
 
-        print_help()
-        out = capsys.readouterr().out
-        assert "Download:" in out
-        assert "Library:" in out
-        assert "Manage:" in out
-        assert "Inspect & integrate:" in out
-
-    def test_help_shows_option_categories(self, capsys):
-        from comic_dl.ui import print_help
-
-        print_help()
-        out = capsys.readouterr().out
-        assert "Layout & output:" in out
-        assert "Download tuning:" in out
-        assert "HTTP & politeness:" in out
-        assert "Display:" in out
-
-    def test_help_shows_advanced_flags(self, capsys):
-        from comic_dl.ui import print_help
-
-        print_help()
-        out = capsys.readouterr().out
-        assert "--compress" in out
-        assert "--format" in out
-
-    def test_help_shows_exit_status(self, capsys):
-        from comic_dl.ui import print_help
-
-        print_help()
-        out = capsys.readouterr().out
-        assert "Exit status:" in out
-        assert "130  interrupted" in out
-
-    def test_help_shows_defaults(self, capsys):
-        from comic_dl.ui import print_help
-
-        print_help()
-        out = capsys.readouterr().out
-        assert "[default: 5]" in out
-        assert "chrome146" in out
-
-    def test_help_shows_choices(self, capsys):
-        from comic_dl.ui import print_help
-
-        print_help()
-        out = capsys.readouterr().out
-        assert "[possible values:" in out
-
-    def test_help_shows_aliases_note(self, capsys):
-        from comic_dl.ui import print_help
-
-        print_help()
-        out = capsys.readouterr().out
-        assert "Aliases:" in out
-
-
-class TestPrintHelpSummary:
-    def test_summary_shows_usage_lines(self, capsys):
-        from comic_dl.ui import print_help_summary
-
-        print_help_summary()
-        out = capsys.readouterr().out
-        assert "comic-dl [OPTIONS]" in out
-        assert "comic-dl [URL]" in out
-        assert "comic-dl -u <URL> [OPTIONS]" in out
-
-    def test_summary_shows_purpose_groups(self, capsys):
-        from comic_dl.ui import print_help_summary
-
-        print_help_summary()
-        out = capsys.readouterr().out
-        assert "Download:" in out
-        assert "Library:" in out
-        assert "Manage:" in out
-        assert "Inspect & integrate:" in out
-
-    def test_summary_shows_option_categories(self, capsys):
-        from comic_dl.ui import print_help_summary
-
-        print_help_summary()
-        out = capsys.readouterr().out
-        assert "Layout & output:" in out
-        assert "Download tuning:" in out
-        assert "HTTP & politeness:" in out
-        assert "Display:" in out
-
-    def test_summary_omits_verbosity_ladder(self, capsys):
-        from comic_dl.ui import print_help_summary
-
-        print_help_summary()
-        out = capsys.readouterr().out
-        assert "0 normal" not in out
-        assert "COMIC_DL_TRACE_HTTP" not in out
-
-    def test_summary_omits_exit_status(self, capsys):
-        from comic_dl.ui import print_help_summary
-
-        print_help_summary()
-        out = capsys.readouterr().out
-        assert "Exit status:" not in out
-
-    def test_summary_omits_full_reference(self, capsys):
-        from comic_dl.ui import print_help_summary
-
-        print_help_summary()
-        out = capsys.readouterr().out
-        assert "Full reference:" not in out
-
-    def test_summary_shows_commands_and_options(self, capsys):
-        from comic_dl.ui import print_help_summary
-
-        print_help_summary()
-        out = capsys.readouterr().out
-        assert "--list-sources" in out
-        assert "--concurrency" in out
-        assert "--no-color" in out
-        assert "completion" in out
-
-    def test_summary_shows_pointer(self, capsys):
-        from comic_dl.ui import print_help_summary
-
-        print_help_summary()
-        out = " ".join(capsys.readouterr().out.replace("\n", " ").split())
-        assert "comic-dl help <command>" in out
-
-    def test_full_help_shows_verbosity_ladder(self, capsys):
-        from comic_dl.ui import print_help
-
-        print_help()
-        out = capsys.readouterr().out
+    def test_verbosity_ladder_and_exit_status(self):
+        out = self._render()
         assert "0 normal" in out
         assert "COMIC_DL_TRACE_HTTP" in out
+        assert "Exit status:" in out
+        assert "130  interrupted (Ctrl-C / SIGINT)" in out
+
+    def test_pointer_and_reference(self):
+        flat = self._flat()
+        assert "comic-dl help <command>" in flat
+        # The published docs site, not the raw Markdown on GitHub: the site is
+        # the rendered version and stays on one line instead of word-wrapping.
+        assert "https://fallen020.github.io/comic-dl/docs/reference/cli/" in flat
+
+    @pytest.mark.parametrize("width", (48, 60, 80, 120))
+    def test_no_trailing_whitespace(self, width):
+        """Narrow terminals wrap most, and Rich leaves the break space behind."""
+        for line in self._render(width=width).splitlines():
+            assert line == line.rstrip(), repr(line)
+
+    @pytest.mark.parametrize("width", (48, 60, 80, 120))
+    def test_wrapped_lines_keep_the_gutter(self, width):
+        """Wrapped descriptions hang under the prose, not back at column 0."""
+        from comic_dl.ui import _HelpTable
+
+        def emit() -> None:
+            table = _HelpTable()
+            table.row("--medium-flag", "<VALUE>", "word " * 40)
+            table.print()
+
+        body = [line for line in _render_renderable(emit, width).splitlines() if line.strip()]
+        assert len(body) > 1
+        first = body[0]
+        flag_indent = len(first) - len(first.lstrip())
+        # The prose starts past the flag cell, and every continuation lines up
+        # with the first prose character.
+        desc_indent = first.index("word")
+        assert desc_indent > flag_indent
+        for line in body[1:]:
+            assert len(line) - len(line.lstrip()) == desc_indent, repr(line)
+
+    def test_overwide_flag_stacks_without_losing_its_metavar(self):
+        """A flag too wide for the gutter stacks rather than being cut off."""
+        from comic_dl.ui import _HelpTable
+
+        def emit() -> None:
+            table = _HelpTable()
+            table.row("--list-sources", "[--json] [--plugin] [QUERY]", "List registered sources")
+            table.print()
+
+        out = _render_renderable(emit, 60)
+        flat = out.replace("\n", "")
+        assert "--list-sources [--json] [--plugin] [QUERY]" in flat
+        assert "List registered sources" in flat
+        # Stacked: the flag owns its line, the prose starts on the next one.
+        assert out.splitlines()[0].strip() == "--list-sources [--json] [--plugin] [QUERY]"
+
+    def test_wide_flag_cell_is_not_truncated(self):
+        from comic_dl.ui import _HelpTable
+
+        def emit() -> None:
+            table = _HelpTable()
+            table.row("--list-sources", "[--json] [--plugin] [QUERY]", "List registered sources")
+            table.print()
+
+        out = _render_renderable(emit, 60).replace("\n", "")
+        assert "[QUERY]" in out
+        assert "List registered sources" in out
 
 
 class TestParserHelp:
@@ -2116,8 +2186,10 @@ class TestParserHelp:
         print_parser_help(parser)
         out = " ".join(capsys.readouterr().out.replace("\n", " ").split())
         assert "comic-dl demo" in out
-        assert "series SERIES" in out
-        assert "--days" in out
+        # Positional metavars are bracketed, not shouted, and the dest is shown
+        # lowercase so it reads as a name rather than a placeholder.
+        assert "series <SERIES>" in out
+        assert "--days <DAYS>" in out
         assert "[default: 7]" in out
         assert "--quiet" in out
 

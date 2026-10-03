@@ -154,7 +154,7 @@ class TestUnknownCommand:
 
 
 class TestSuggest:
-    """Fuzzy flag suggestions: prefix priority, edit distance, no noise."""
+    """Fuzzy flag suggestions: dash-blind prefixes, edit distance, no noise."""
 
     FLAGS = [
         "-h",
@@ -171,9 +171,12 @@ class TestSuggest:
         "--help",
     ]
 
-    def test_shared_prefix_outranks_edit_distance(self):
-        # A plain edit distance would pick --file; the shared "--fol" must win.
-        assert suggest("--folp", self.FLAGS) == "--force"
+    def test_dashes_are_not_a_signal(self):
+        # Every long flag shares "--", so counting it in the prefix made --folp
+        # look closer to --force. It is a transposition of --file.
+        assert suggest("--folp", self.FLAGS) == "--file"
+        assert suggest("--fole", self.FLAGS) == "--file"
+        assert suggest("--forc", self.FLAGS) == "--force"
 
     def test_transposition_caught(self):
         assert suggest("--tehs", self.FLAGS) == "--help"

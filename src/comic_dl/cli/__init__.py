@@ -182,7 +182,6 @@ from ..ui import (
     print_failure_recap,
     print_header,
     print_help,
-    print_help_summary,
     print_interrupt,
     print_legal_notice,
     print_meta,
@@ -340,11 +339,8 @@ class _HelpAction(argparse.Action):
         super().__init__(option_strings, dest, nargs=0, **kwargs)
 
     def __call__(self, parser, namespace, values, option_string=None):
-        # -h / -? → compact summary; --help → full page
-        if option_string in ("-h", "-?"):
-            print_help_summary()
-        else:
-            print_help()
+        # -h, --help, -?, and `comic-dl help` all print the same screen.
+        print_help(parser)
         sys.exit(EXIT_OK)
 
 
@@ -956,17 +952,20 @@ def _build_first_stage_parser() -> ComicArgumentParser:
         "--parallel",
         type=int,
         default=None,
+        metavar="N",
         help="Max URLs in flight across a batch (1-16; default 5)",
     )
     parser.add_argument(
         "--chapter-parallel",
         type=int,
         default=None,
+        metavar="N",
         help="Max chapters of a series downloading at once (1-8; default 1)",
     )
     parser.add_argument(
         "--impersonate",
         default=None,
+        metavar="PROFILE",
         help=(
             "TLS/HTTP impersonation profile (e.g. chrome131, chrome146); "
             "overrides [http] impersonate"
@@ -976,14 +975,8 @@ def _build_first_stage_parser() -> ComicArgumentParser:
         "--solver",
         choices=["auto", "impersonation", "webview", "off"],
         default=None,
-        help=(
-            "Cloudflare challenge solver:\n"
-            "  auto          try impersonation first, then webview if needed\n"
-            "  impersonation TLS/HTTP fingerprint only (chrome146); fast, no deps\n"
-            "  webview       system WebView (GTK/WebKit); needs display, GTK libs\n"
-            "  off           disable solver; sites with challenges will fail\n"
-            "Overrides [http] solver"
-        ),
+        metavar="MODE",
+        help="Cloudflare challenge solver; overrides [http] solver",
     )
     parser.add_argument(
         "--no-cookie",
@@ -1011,12 +1004,16 @@ def _build_first_stage_parser() -> ComicArgumentParser:
     parser.add_argument(
         "--force",
         action="store_true",
-        help="Overwrite existing CBZ files (conflicts with --no-clobber)",
+        help="Overwrite existing archives",
     )
+    # Deprecated: nothing ever read this. The downloader only ever tested
+    # ``--force``, so "never overwrite" was the default and the flag only
+    # existed to reject ``--force --no-clobber``. Kept hidden and warned so
+    # existing scripts keep working.
     parser.add_argument(
         "--no-clobber",
         action="store_true",
-        help="Never overwrite existing CBZ files (default; conflicts with --force)",
+        help=argparse.SUPPRESS,
     )
     parser.add_argument(
         "--dry-run",
@@ -1036,14 +1033,14 @@ def _build_first_stage_parser() -> ComicArgumentParser:
         type=_parse_size,
         default=None,
         metavar="SIZE",
-        help="Maximum bytes per image (e.g. 100MB; default 100MB)",
+        help="Maximum bytes per image (default 100MB); sizes accept suffixes like 500MB, 2GB",
     )
     parser.add_argument(
         "--max-size",
         type=_parse_size,
         default=None,
         metavar="SIZE",
-        help="Maximum total download size per batch (e.g. 2GB; default unlimited)",
+        help="Maximum total download size per batch (default unlimited); 0 also means unlimited",
     )
     parser.add_argument(
         "--compress",
@@ -1051,20 +1048,16 @@ def _build_first_stage_parser() -> ComicArgumentParser:
         const="deflate",
         default=None,
         metavar="MODE",
-        help=(
-            "CBZ compression: stored (default) | deflate | deflate:0-9 "
-            "(e.g. --compress deflate:9). Overrides [archive] compression"
-        ),
+        help="CBZ compression; overrides [archive] compression",
     )
     parser.add_argument(
         "--format",
         choices=("cbz", "zip", "cbt"),
         default=None,
-        metavar="FORMAT",
+        metavar="FMT",
         help=(
-            "Archive format: cbz (default) | zip | cbt. cbz is the most "
-            "widely supported; zip and cbt are plain zip/tar containers. Overrides "
-            "[archive] format"
+            "Archive format; cbz is the most widely supported, zip and cbt are "
+            "plain zip/tar containers. Overrides [archive] format"
         ),
     )
     verbosity = parser.add_mutually_exclusive_group()
@@ -1102,9 +1095,8 @@ def _build_first_stage_parser() -> ComicArgumentParser:
         default=None,
         metavar="MODE",
         help=(
-            "When to color output: auto (default; honors NO_COLOR, "
-            "CLICOLOR_FORCE, CLICOLOR, FORCE_COLOR), always (for | less -R), "
-            "or never"
+            "When to color output; auto honors NO_COLOR, CLICOLOR_FORCE, "
+            "CLICOLOR and FORCE_COLOR, always is for `| less -R`"
         ),
     )
     config_src = parser.add_mutually_exclusive_group()
@@ -1113,7 +1105,7 @@ def _build_first_stage_parser() -> ComicArgumentParser:
         type=Path,
         default=None,
         metavar="PATH",
-        help=("Path to a custom config.toml (overrides $COMIC_DL_CONFIG and the default location)"),
+        help="Path to a custom config.toml (overrides $COMIC_DL_CONFIG and the default location)",
     )
     config_src.add_argument(
         "--no-config",
@@ -1130,14 +1122,8 @@ def _build_first_stage_parser() -> ComicArgumentParser:
     parser.add_argument(
         "--chapters",
         default=None,
-        help=(
-            "Chapter selection by number. Examples:\n"
-            "  1-3,7        chapters 1,2,3 and 7\n"
-            "  1-3,7,10-    chapters 1,2,3,7, and 10 through end\n"
-            "  all          all chapters\n"
-            "  0            prologue/promo only\n"
-            "  (omitted)    interactive checkbox picker for series"
-        ),
+        metavar="SPEC",
+        help="Chapters to download in a series; omit for an interactive picker",
     )
 
     return parser
@@ -1202,6 +1188,11 @@ def parse_urls() -> tuple[list[str], argparse.Namespace]:
             print_error_detail("Invalid --chapters", str(exc))
             sys.exit(EXIT_USAGE)
 
+    if args.no_clobber:
+        print_warning(
+            "--no-clobber is a no-op and deprecated: never overwriting is already the "
+            "default. Drop it, or use --force to overwrite."
+        )
     if args.no_clobber and args.force:
         print_error("--no-clobber conflicts with --force.")
         sys.exit(EXIT_USAGE)
@@ -4862,29 +4853,39 @@ def _run_completion(argv: list[str]) -> int:
 
 
 async def _run_help(argv: list[str]) -> int:
-    """``comic-dl help [COMMAND]`` — styled help for a subcommand or the tool."""
-    if not argv:
+    """``comic-dl help [COMMAND [SUBCOMMAND]]`` — help for a command or the tool.
+
+    The whole argv is forwarded so a nested subcommand gets its own screen
+    (``comic-dl help cookie ls``); passing only ``["--help"]`` used to print the
+    parent group's help regardless of what followed it.
+    """
+    if not argv or argv == ["help"]:
         print_help()
         return EXIT_OK
+    # Strip a trailing help flag so `help cookie ls --help` reads the same.
+    rest = [a for a in argv[1:] if a not in ("--help", "-h", "-?")]
     command = argv[0]
+    forwarded = [*rest, "--help"]
     if command == "update":
-        return await _run_update(["--help"])
+        return await _run_update(forwarded)
     if command == "self":
-        return await _run_self(["--help"])
+        return await _run_self(forwarded)
     if command in _LIBRARY_COMMANDS:
-        return await asyncio.to_thread(run_library_command, command, ["--help"])
+        return await asyncio.to_thread(run_library_command, command, forwarded)
     if command == "list-sources":
-        return await _run_list_sources(["--help"])
+        return await _run_list_sources(forwarded)
     if command == "cookie":
-        return await asyncio.to_thread(_run_cookie, ["--help"])
+        return await asyncio.to_thread(_run_cookie, forwarded)
     if command == "cache":
-        return await asyncio.to_thread(_run_cache, ["--help"])
+        return await asyncio.to_thread(_run_cache, forwarded)
     if command == "config":
-        return await asyncio.to_thread(_run_config, ["--help"])
+        return await asyncio.to_thread(_run_config, forwarded)
     if command == "plugin":
-        return await asyncio.to_thread(run_plugin_command, "list", ["--help"])
+        # `help plugin` with no subcommand shows `plugin list`, the default action.
+        sub = rest[0] if rest else "list"
+        return await asyncio.to_thread(run_plugin_command, sub, [*rest[1:], "--help"])
     if command == "completion":
-        return await asyncio.to_thread(_run_completion, ["--help"])
+        return await asyncio.to_thread(_run_completion, forwarded)
     return _unknown_command(command)
 
 

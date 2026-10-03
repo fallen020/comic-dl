@@ -45,9 +45,9 @@ def run_plugin_command(cmd: str, argv: list[str]) -> int:
 
 def _cmd_list(argv: list[str]) -> int:
     """Show installed third-party sources, including ones that failed to load."""
-    import argparse
+    from ..ui import ComicArgumentParser
 
-    parser = argparse.ArgumentParser(
+    parser = ComicArgumentParser(
         prog="comic-dl plugin list",
         description="List third-party (plugin) sources.",
     )
@@ -109,9 +109,9 @@ def _cmd_list(argv: list[str]) -> int:
 
 def _cmd_validate(argv: list[str]) -> int:
     """Shape-check a Source class in a file or directory without running it."""
-    import argparse
+    from ..ui import ComicArgumentParser
 
-    parser = argparse.ArgumentParser(
+    parser = ComicArgumentParser(
         prog="comic-dl plugin validate",
         description="Validate a plugin's Source class shape.",
     )
@@ -296,9 +296,9 @@ class {class_name}:
 
 def _cmd_scaffold(argv: list[str]) -> int:
     """Create a plugin package skeleton (pyproject.toml + source.py)."""
-    import argparse
+    from ..ui import ComicArgumentParser
 
-    parser = argparse.ArgumentParser(
+    parser = ComicArgumentParser(
         prog="comic-dl plugin scaffold",
         description="Scaffold a new scraper plugin package in the current directory.",
     )

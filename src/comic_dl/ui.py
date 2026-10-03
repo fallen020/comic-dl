@@ -10,9 +10,10 @@ import locale
 import os
 import re
 import sys
+import textwrap
 import time
 import traceback
-from collections.abc import Callable, Coroutine, Mapping
+from collections.abc import Callable, Coroutine, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, NoReturn, TextIO, TypeVar
@@ -683,21 +684,42 @@ def get_ui_gate() -> asyncio.Semaphore:
     return _UI_GATE
 
 
+# Every token here must clear 4.5:1 (WCAG AA body text) against the background
+# it is meant for — these carry help text, so a token under that ratio makes the
+# help screen itself unreadable. Measured, not eyeballed; ``TestColorTokens`` in
+# tests/test_ui.py asserts the ratios so a future tweak cannot regress.
 _COLOR_ROLES: dict[str, str] = {
-    "brand": "bright_yellow",  # ANSI 93 — amber brand (banner, bars, spinners)
-    "accent": "bright_cyan",  # ANSI 96 — interactive accents (cursors, pickers)
-    "success": "green",  # ANSI 32
-    "error": "red",  # ANSI 31
-    "warning": "yellow",  # ANSI 33 — shares the brand family; the ⚠ glyph disambiguates
-    "info": "cyan",  # ANSI 36
-    "muted": "bright_black",  # ANSI 90 — the theme's grey slot (dark-mode default)
+    "brand": "bright_yellow",  # amber brand (banner, bars, spinners, help flags)
+    "accent": "bright_cyan",  # interactive accents (cursors, pickers, metavars)
+    "success": "bright_green",
+    "error": "bright_red",
+    # Shares the brand family: no second amber clears 4.5:1 on a light
+    # background, so the ⚠ glyph stays the sole disambiguator in both modes.
+    "warning": "yellow",
+    "info": "bright_cyan",
+    # The theme's grey slot, and the one that carries every ``[default: …]``,
+    # footnote, and help pointer. ``bright_black`` measured 2.82:1 here, which
+    # is why metadata was unreadable.
+    "muted": "grey62",
     "bar_complete": "bright_yellow",
-    "bar_finished": "green",
-    "bar_track": "bright_black",
+    "bar_finished": "bright_green",
+    "bar_track": "grey62",
 }
 
+# A light background inverts the whole table: ``bright_*`` tokens drop to
+# 1.07:1 (brand) and 1.25:1 (accent), so flags and metavars vanish. Each
+# override below is the darkest token of its hue that still clears 4.5:1.
 _LIGHT_ROLE_OVERRIDES: dict[str, str] = {
-    "muted": "grey37",
+    "brand": "orange4",  # 5.73:1
+    "accent": "blue",  # 16.01:1
+    "success": "green",  # 5.14:1
+    "error": "red",  # 10.95:1
+    "warning": "orange4",  # 5.73:1 — amber survives the inversion
+    "info": "blue",  # 16.01:1
+    "muted": "grey37",  # 6.39:1
+    "bar_complete": "orange4",
+    "bar_finished": "green",
+    "bar_track": "grey37",
 }
 
 
@@ -775,30 +797,41 @@ err_console = Console(
 def suggest(word: str, candidates: list[str]) -> str | None:
     """Best fuzzy match for ``word`` among ``candidates``, if any.
 
-    Longer shared prefixes win outright: a plain edit distance is fooled by
-    the shared leading dashes and outranks the right flag (``--folp`` is two
-    edits from ``--file`` but shares four chars with ``--force``). Without a
-    shared prefix, fall back to Damerau-Levenshtein similarity (the scheme Git
-    and Cargo use): hand-rolled, pure-python, transposition-aware, and cheap
-    at flag lengths. Accept only close matches (<= 3 edits and at most half
-    the word length) so a short typo can't drag in a much longer flag, and
+    A long shared prefix usually means partial typing of a long flag
+    (``--no-c``, ``--max-``) rather than a transposition, so it is tried first,
+    and only against a candidate that edit distance would also accept. Prefix
+    comparison runs on the names with their leading dashes stripped: the dashes
+    are shared by every long flag, so counting them made ``--folp`` look four
+    characters closer to ``--force`` than to ``--file`` when it is really a
+    transposition of the latter.
+
+    Without a winning prefix, fall back to Damerau-Levenshtein similarity (the
+    scheme Git and Cargo use): hand-rolled, pure-python, transposition-aware,
+    and cheap at flag lengths. Accept only close matches (<= 3 edits and at most
+    half the word length) so a short typo can't drag in a much longer flag, and
     require the typo to keep at least one real character so ``-l``/``-p``
-    (which are not short forms of anything) stay suggestion-free.
+    (short forms of nothing) stay suggestion-free.
+
+    Callers own the question of whether *any* hint helps: an exact match comes
+    back here, and :meth:`ComicArgumentParser._suggest_for` is what decides to
+    stay quiet about it.
     """
     if not candidates:
         return None
-    lower = word.lower()
+    # Case-insensitive exact match: argparse option strings are case-sensitive,
+    # so ``--URL`` is genuinely unrecognized and ``--url`` is the right hint.
+    # This also fires for a verbatim match, which is why the parser filters
+    # self-suggestions at the call site rather than relying on ``None`` here.
     for cand in candidates:
-        if cand.lower() == lower:
+        if cand.lower() == word.lower():
             return cand
 
     def similarity(cand: str) -> float:
         return 1 - _damerau(word, cand) / max(len(word), len(cand))
 
-    # A long shared prefix usually means partial typing of a long flag
-    # (``--no``, ``--max``), not a typo, so it wins outright.
-    prefix_best = max(candidates, key=lambda c: (_lcp(word, c), similarity(c)))
-    if _lcp(word, prefix_best) >= 3:
+    stem = word.lstrip("-")
+    prefix_best = max(candidates, key=lambda c: (_lcp(stem, c.lstrip("-")), similarity(c)))
+    if _lcp(stem, prefix_best.lstrip("-")) >= 3 and _damerau(word, prefix_best) <= 3:
         return prefix_best
     # No shared prefix: keep only plausible typos (<= 3 edits and at most half
     # the word length) that retained at least one real character, so ``-l`` /
@@ -811,7 +844,10 @@ def suggest(word: str, candidates: list[str]) -> str | None:
         and set(word.lstrip("-")) & set(cand.lstrip("-"))
     ]
     if close:
-        return max(close, key=lambda c: (_lcp(word, c), similarity(c)))
+        # Rank on distance first: similarity alone ties a transposition of a
+        # short flag against a longer near-prefix, and ``_lcp`` over the raw
+        # tokens would break that tie on the shared leading dashes.
+        return max(close, key=lambda c: (-_damerau(word, c), _lcp(stem, c.lstrip("-"))))
     return None
 
 
@@ -860,6 +896,12 @@ class ComicArgumentParser(argparse.ArgumentParser):
         print_parser_help(self)
 
     def _suggest_for(self, message: str) -> str | None:
+        # When argparse already named the offending flag, it recognized it and
+        # the problem is the *value* — "expected one argument", "invalid
+        # choice", "not allowed with". Suggesting a different flag there just
+        # tells the user to retype something they spelled correctly.
+        if _RECOGNIZED_FLAG_ERROR.search(message):
+            return None
         tokens = _option_tokens(message)
         if not tokens:
             return None
@@ -873,6 +915,12 @@ class ComicArgumentParser(argparse.ArgumentParser):
             if sibling is not None:
                 return sibling
         return None
+
+
+# argparse's way of saying "the flag was fine, the value was not".
+_RECOGNIZED_FLAG_ERROR = re.compile(
+    r"expected one argument|invalid choice|not allowed with|ignored explicit argument"
+)
 
 
 def _option_tokens(message: str) -> list[str]:
@@ -2977,7 +3025,13 @@ def format_bytes(n: int) -> str:
     return f"{n} B"
 
 
-_HELP_OPT_COL = 32
+# Narrowest description column before the flag gutter is allowed to eat the
+# screen. Below this, wrapping prose costs more than it saves.
+_HELP_MIN_DESC_COL = 24
+# Gap between the flag gutter and the prose column.
+_HELP_COL_GAP = 2
+# Indent used when a flag is too wide for the gutter and stacks above its prose.
+_HELP_STACK_INDENT = 2
 
 
 def _help_header(title: str) -> None:
@@ -2985,46 +3039,147 @@ def _help_header(title: str) -> None:
     console.print(Text(f"{title}:", style=style("info", bold=True)))
 
 
-def _help_opt_row(
-    flags: str,
-    metavar: str,
-    desc: str,
-    *,
-    default: str | None = None,
-    choices: str | None = None,
-) -> None:
-    """Render one option row with consistent gutter, description, and metadata.
+class _HelpTable:
+    """Two-column option renderer: a flag gutter and a wrapping description.
 
-    The row structure is::
-
-        <flags> <metavar>  <desc>    [default: X]  [possible values: …]
-
-    The gutter adapts to the widest flag+metavar column on the screen.
+    The gutter width comes from the flag rows alone (mode names live in the
+    gutter but must not stretch it) and is clamped so a long flag column cannot
+    squeeze the prose. Wrapped lines hang under the description rather than
+    returning to column 0, and no row is padded to the terminal width —
+    trailing spaces are noise when the help is piped, and they defeat naive
+    substring assertions in tests.
     """
-    t = Text("  ")
-    t.append(flags, style=style("brand", bold=True))
-    if metavar:
-        t.append(" ")
-        t.append(metavar, style=style("accent"))
-    pad = _HELP_OPT_COL - len(t.plain)
-    if pad > 0:
-        t.append(" " * pad)
-    else:
-        t.append("  ")
-    t.append(desc)
-    meta_parts: list[str] = []
-    if default:
-        meta_parts.append(f"[default: {default}]")
-    if choices:
-        meta_parts.append(f"[possible values: {choices}]")
-    if meta_parts:
-        t.append("    " + "  ".join(meta_parts), style=style("muted"))
-    console.print(t)
+
+    def __init__(self) -> None:
+        # (gutter cell, metavar, description, is_mode)
+        self._rows: list[tuple[str, str, Text, bool]] = []
+
+    def _gutter(self) -> int:
+        widest = max(
+            (len(f) + (len(m) + 1 if m else 0) for f, m, _, is_mode in self._rows if not is_mode),
+            default=0,
+        )
+        # Content-driven, capped so the prose keeps a readable share of the
+        # screen. Rows that do not fit the cap stack instead of being cut off.
+        return min(widest + _HELP_COL_GAP, max(_HELP_COL_GAP, console.width // 2))
+
+    def row(
+        self,
+        flags: str,
+        metavar: str,
+        desc: str,
+        *,
+        default: str | None = None,
+        choices: str | None = None,
+        modes: Sequence[tuple[str, str]] | None = None,
+    ) -> None:
+        """Add one option row: ``<flags> <metavar>`` beside its description.
+
+        ``modes`` renders a named-value block for options whose few values each
+        need a sentence (the shape ``bat`` uses for
+        ``--nonprintable-notation``). A flat ``[possible values: …]`` cannot say
+        what ``webview`` does, so supplying ``modes`` suppresses ``choices``
+        rather than printing the same names twice.
+        """
+        self._rows.append((flags, _angle_metavar(metavar) if metavar else "", Text(desc), False))
+        # Mode names go in the gutter cell so a wrapped meaning lands under the
+        # text, not under the gutter. Embedding them as newlines in the cell
+        # above re-wraps at column 0 once the line runs long, which is what made
+        # ``10 through / the end`` look like a new row.
+        for name, meaning in modes or ():
+            self._rows.append((name, "", Text(meaning), True))
+        meta: list[str] = []
+        if default:
+            meta.append(f"[default: {default}]")
+        if choices and not modes:
+            meta.append(f"[possible values: {choices}]")
+        if meta:
+            self._rows.append(("", "", Text("  ".join(meta), style=style("muted")), False))
+
+    def print(self) -> None:
+        if not self._rows:
+            return
+        # Two columns, laid out here rather than by a Rich ``Table``. A table
+        # negotiates its own column widths and pads every cell to them, which
+        # meant invisible trailing spaces on every row and no control over where
+        # a wrapped line resumes. Wrapping the prose against a known description
+        # column is the whole job.
+        gutter = self._gutter()
+        desc_col = gutter + _HELP_COL_GAP
+        for flags, metavar, right, is_mode in self._rows:
+            if is_mode:
+                # Indented past the flag column so the block reads as part of the
+                # option above it rather than as another flag.
+                self._emit(Text(("    " + flags).ljust(desc_col), style=style("accent")), right)
+                continue
+            if not flags and not metavar:
+                self._hang(right, desc_col)
+                continue
+            head = Text("  ")
+            head.append(flags, style=style("brand", bold=True))
+            if metavar:
+                head.append(" ")
+                head.append(metavar, style=style("accent"))
+            if len(head.plain) > gutter:
+                # Too wide for the flag column: stack it above the prose, which
+                # is what git and bat do for long invocations.
+                console.print(head, soft_wrap=True)
+                self._hang(right, _HELP_STACK_INDENT)
+                continue
+            head.append(" " * (desc_col - len(head.plain)))
+            self._emit(head, right)
+
+    def _emit(self, left: Text, right: Text) -> None:
+        """Print ``left`` beside the first prose line, then hang the rest."""
+        col = len(left.plain)
+        chunks = _wrap_plain(right.plain, console.width - col)
+        console.print(left + chunks[0], soft_wrap=True)
+        for chunk in chunks[1:]:
+            console.print(Text(" " * col + chunk, style=right.style), soft_wrap=True)
+
+    def _hang(self, right: Text, col: int) -> None:
+        """Print ``right`` entirely at column ``col`` with no gutter label."""
+        for chunk in _wrap_plain(right.plain, console.width - col):
+            console.print(Text(" " * col + chunk, style=right.style), soft_wrap=True)
+
+
+def _wrap_plain(text: str, width: int) -> list[str]:
+    """Word-wrap ``text``; never returns an empty list, so a row always prints."""
+    return textwrap.wrap(text, width=max(width, 1)) or [text]
+
+
+def _help_note(text: str) -> None:
+    """Render an indented note, wrapped here rather than by Rich.
+
+    Rich's word-wrap leaves the break point's space at the end of a line, which
+    is invisible on a terminal and trailing whitespace in a pipe.
+    """
+    _help_prose(text, role="muted")
+
+
+def _help_prose(text: str, *, role: str | None = None, indent: int = 2) -> None:
+    """Print an indented paragraph, wrapped here rather than by Rich.
+
+    Rich's word-wrap keeps the space at the break point, so every wrapped line
+    ends in trailing whitespace — invisible on a terminal, but noise in a pipe.
+    """
+    width = max(console.width - indent, _HELP_MIN_DESC_COL)
+    prefix = " " * indent
+    for line in textwrap.wrap(text, width=width):
+        if role is None:
+            console.print(prefix + esc(line), soft_wrap=True, markup=False)
+        else:
+            console.print(f"{prefix}[{style(role)}]{esc(line)}[/]", soft_wrap=True)
 
 
 def _help_pointer(text: str) -> None:
-    """Render a muted footer pointer line."""
-    console.print(f"  [{style('muted')}]{text}[/]")
+    """Render a muted footer pointer line.
+
+    ``soft_wrap`` keeps a reference URL on one line: word-wrapping a 71-char URL
+    leaves the label stranded above it with a trailing space, and a URL split
+    across lines cannot be copied.
+    """
+    console.print(f"  [{style('muted')}]{text}[/]", soft_wrap=True)
 
 
 def _help_usage(lines: list[str]) -> None:
@@ -3063,6 +3218,22 @@ def _is_help_action(action: argparse.Action) -> bool:
     return bool(set(action.option_strings) & {"-h", "--help"})
 
 
+def _arg_label(action: argparse.Action) -> str:
+    """Display name for a positional: the dest, not argparse's shouting copy."""
+    return action.dest.lower()
+
+
+def _angle_metavar(metavar: str) -> str:
+    """Wrap a bare placeholder in angle brackets: ``DIR`` -> ``<DIR>``.
+
+    Brace form (``{bash,zsh,fish}``) already marks itself as a value list and
+    passes through.
+    """
+    if not metavar or metavar.startswith(("{", "<", "[")):
+        return metavar
+    return f"<{metavar}>"
+
+
 def print_parser_help(parser: argparse.ArgumentParser) -> None:
     """Styled help for an argparse (sub)command parser.
 
@@ -3093,35 +3264,121 @@ def print_parser_help(parser: argparse.ArgumentParser) -> None:
 
     if positionals:
         _help_header("Arguments")
+        args_table = _HelpTable()
         for a in positionals:
-            _help_opt_row(a.dest, _arg_metavar(a), a.help or "")
+            args_table.row(_arg_label(a), _arg_metavar(a), a.help or "")
+        args_table.print()
         console.print()
 
     _help_header("Options")
+    opt_table = _HelpTable()
     for a in optionals:
         if a.help == argparse.SUPPRESS:
             continue
-        flags = ", ".join(a.option_strings)
         choices_str = ", ".join(str(c) for c in a.choices) if a.choices else None
-        _help_opt_row(
-            flags, _arg_metavar(a), a.help or "", default=_arg_default(a), choices=choices_str
+        opt_table.row(
+            ", ".join(a.option_strings),
+            _arg_metavar(a),
+            a.help or "",
+            default=_arg_default(a),
+            choices=choices_str,
         )
     for a in help_options:
-        flags = ", ".join(a.option_strings)
-        _help_opt_row(flags, "", a.help or "")
+        opt_table.row(", ".join(a.option_strings), "", a.help or "")
+    opt_table.print()
     console.print()
 
     for a in subparsers:
         if a.help == argparse.SUPPRESS:
             continue
         _help_header("Commands")
+        cmd_table = _HelpTable()
         for choice in a._choices_actions:
-            _help_opt_row(choice.dest, "", choice.help or "")
+            cmd_table.row(choice.dest, "", choice.help or "")
+        cmd_table.print()
         console.print()
 
 
-def print_help() -> None:
-    """Print the built-in help screen (full ``--help`` version)."""
+# Grouped rendering order for the top-level flag sections. Keyed on the long
+# option so a flag's short forms (``-o``) do not need separate entries.
+#
+# The option rows themselves are read off the argparse parser, so this table
+# only decides *where* a flag appears, never what it says. ``test_help`` pins
+# the two in sync: a flag declared in argparse but missing here fails CI
+# instead of silently vanishing from the help screen, which is how ``self``,
+# ``plugin``, ``--no-config``, and ``--no-clobber`` disappeared before.
+_HELP_GROUPS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    (
+        "Layout & output",
+        ("--output", "--force", "--dry-run", "--chapters", "--max-image-size", "--max-size"),
+    ),
+    (
+        "Download tuning",
+        ("--concurrency", "--parallel", "--chapter-parallel", "--compress", "--format"),
+    ),
+    (
+        "HTTP & politeness",
+        (
+            "--impersonate",
+            "--solver",
+            "--no-cookie",
+            "--no-rate",
+            "--no-cache",
+            "--no-generic",
+        ),
+    ),
+    ("Output", ("--quiet", "--json", "--no-banner", "--color", "--no-color")),
+    ("Diagnostics", ("--verbose", "--debug-file", "--show-legal-notice")),
+    ("Config", ("--config", "--no-config")),
+)
+
+# Flags listed under Commands rather than the option sections, because they are
+# really entry points, not tuning knobs.
+_HELP_COMMAND_FLAGS: frozenset[str] = frozenset({"--list-sources", "--version", "--help"})
+
+# Options whose handful of named values each need a sentence. A flat
+# "[possible values: …]" cannot say what ``webview`` does or that ``10-`` means
+# "to the end", so these get the indented block treatment.
+_HELP_MODES: dict[str, tuple[tuple[str, str], ...]] = {
+    "--solver": (
+        ("auto", "try impersonation first, then webview if needed"),
+        ("impersonation", "TLS/HTTP fingerprint only; fast, no dependencies"),
+        ("webview", "system WebView (GTK/WebKit); needs a display and GTK libs"),
+        ("off", "disable the solver; challenged sites will fail"),
+    ),
+    "--chapters": (
+        ("1-3,7", "chapters 1, 2, 3 and 7"),
+        ("1-3,7,10-", "chapters 1, 2, 3, 7, and 10 through the end"),
+        ("all", "every chapter"),
+        ("0", "prologue/promo only"),
+        ("(omitted)", "interactive checkbox picker for a series"),
+    ),
+    "--compress": (
+        ("stored", "no compression; fastest to write, largest file"),
+        ("deflate", "zlib default level"),
+        ("deflate:0-9", "explicit zlib level; --compress alone means deflate"),
+    ),
+}
+
+# Footnotes that qualify a group as a whole rather than one option.
+_HELP_GROUP_NOTES: dict[str, tuple[str, ...]] = {
+    "Layout & output": ("--force with --file and multiple URLs asks before re-downloading",),
+    "Download tuning": ("Size suffixes: 500MB, 2GB, 512KB; plain integers (bytes) also work",),
+}
+
+
+def print_help(parser: argparse.ArgumentParser | None = None) -> None:
+    """Print the help screen, shared by ``-h``, ``--help``, ``-?`` and ``help``.
+
+    Option rows are read from ``parser`` so the screen cannot drift from what
+    argparse actually accepts; the fallback builds the first-stage parser
+    lazily to keep this module free of a circular import on ``comic_dl.cli``.
+    """
+    if parser is None:
+        from comic_dl.cli import _build_first_stage_parser
+
+        parser = _build_first_stage_parser()
+
     console.print()
 
     _help_usage(
@@ -3130,265 +3387,138 @@ def print_help() -> None:
             "comic-dl [URL]",
             "comic-dl -u <URL> [OPTIONS]",
             "comic-dl -f <FILE> [OPTIONS]",
+            "comic-dl <COMMAND> [OPTIONS]",
             "comic-dl help <COMMAND>",
         ]
     )
 
-    console.print("Download comic and manga galleries from supported sites and compile")
-    console.print("them into CBZ, ZIP, and CBT archives.")
-    console.print(
-        f"  [{style('muted')}]Run without options to enter interactive mode (requires a TTY).[/]"
+    _help_prose(
+        "Download comic and manga galleries from supported sites and compile them "
+        "into CBZ, ZIP, and CBT archives.",
+        indent=0,
     )
+    _help_note("Run without options to enter interactive mode (requires a TTY).")
     console.print()
+
+    actions = {
+        opt: a
+        for a in parser._actions
+        if a.help != argparse.SUPPRESS
+        for opt in a.option_strings
+        if opt.startswith("--")
+    }
 
     # ── Commands (purpose-grouped) ──────────────────────────────
     _help_header("Download")
-    _help_opt_row("-u, --url", "<URL>", "Download a single gallery URL")
-    _help_opt_row("-f, --file", "<FILE>", "Download URLs from a text file (errors cite file:line)")
-    _help_opt_row("update", "<SERIES|all>", "Download newly-released chapters for tracked series")
+    table = _HelpTable()
+    table.row("-u, --url", "<URL>", _summary(actions, "--url"))
+    table.row("-f, --file", "<FILE>", _summary(actions, "--file"))
+    table.row("update", "<SERIES|all>", "Download newly-released chapters for tracked series")
+    table.print()
     console.print()
 
     _help_header("Library")
-    console.print(
-        f"  [{style('muted')}](-o selects the library root; series by title, ID, or URL)[/]"
-    )
-    _help_opt_row("list", "", "List series in the library", choices=None)
-    _help_opt_row("info", "<SERIES>", "Show details for one series")
-    _help_opt_row("latest", "[-n N]", "Chapters downloaded in the last N days", default="7")
-    _help_opt_row("remove", "<SERIES>", "Move a series to trash and forget it")
-    _help_opt_row("restore", "<SERIES>", "Bring a trashed series back")
-    console.print(
-        f"  [{style('muted')}]Aliases: --list, --info, --latest, --remove, --restore  "
-        f"({glyphs().dash} list/info/latest accept --json; remove/restore accept --dry-run)[/]"
+    _help_note("(one database in the data dir; series by title, ID, or URL)")
+    table = _HelpTable()
+    table.row("list", "", "List series in the library")
+    table.row("info", "<SERIES>", "Show details for one series")
+    table.row("latest", "[-n N]", "Chapters downloaded in the last N days", default="7")
+    table.row("remove", "<SERIES>", "Move a series to trash and forget it")
+    table.row("restore", "<SERIES>", "Bring a trashed series back")
+    table.print()
+    _help_note(
+        "Aliases: --list, --info, --latest, --remove, --restore  "
+        f"({glyphs().dash} list/info/latest accept --json; remove/restore accept --dry-run)"
     )
     console.print()
 
     _help_header("Manage")
-    _help_opt_row("cookie", "ls|set|clear [HOST]", "Manage the persistent cookie jar")
-    _help_opt_row("cache", "clear|prune|status", "Inspect or clear the scrape response cache")
-    _help_opt_row("config", "path|show|init|edit|validate", "Show, validate, or edit config.toml")
+    table = _HelpTable()
+    table.row("cookie", "ls|set|clear [HOST]", "Manage the persistent cookie jar")
+    table.row("cache", "clear|prune|status", "Inspect or clear the scrape response cache")
+    table.row("config", "path|show|init|edit|validate", "Show, validate, or edit config.toml")
+    table.print()
+    console.print()
+
+    _help_header("Self & plugins")
+    table = _HelpTable()
+    table.row("self", "version|site|update", "Check the install source and update comic-dl")
+    table.row("plugin", "list|validate|scaffold", "Manage third-party scraper packages")
+    table.print()
     console.print()
 
     _help_header("Inspect & integrate")
-    _help_opt_row(
+    table = _HelpTable()
+    table.row(
         "--list-sources",
         "[--json] [--plugin] [QUERY]",
-        "Search supported sites (TTY: interactive)",
+        _summary(actions, "--list-sources") + " (interactive picker on a TTY)",
     )
-    _help_opt_row("completion", "bash|zsh|fish", "Print a shell completion script")
-    _help_opt_row("--version", "", "Show version")
-    _help_opt_row("-h, --help, -?", "", "Show this help message")
+    table.row("completion", "bash|zsh|fish", "Print a shell completion script")
+    table.row("--version", "", "Show version")
+    table.row("-h, --help, -?", "", "Show this help message")
+    table.print()
     console.print()
 
     # ── Options (category-grouped) ──────────────────────────────
-    _help_header("Layout & output")
-    _help_opt_row("-o, --output", "<DIR>", "Output directory", default="~/Downloads/comic-dl")
-    _help_opt_row("--force", "", "Overwrite existing CBZ files")
-    _help_opt_row(
-        "--dry-run",
-        "",
-        "Resolve each URL and preview what would download/skip/redownload",
-    )
-    _help_opt_row("--json", "", "Emit machine-readable JSON on stdout; disables prompts")
-    console.print(
-        f"  [{style('muted')}]--force with --file and multiple URLs asks before re-downloading[/]"
-    )
-    console.print()
-
-    _help_header("Download tuning")
-    _help_opt_row("-c, --concurrency", "<N>", "Parallel page downloads per chapter", default="5")
-    _help_opt_row("--parallel", "<N>", "Max URLs in flight across a batch (1-16)", default="5")
-    _help_opt_row(
-        "--chapter-parallel",
-        "<N>",
-        "Max chapters of a series downloading at once (1-8)",
-        default="1",
-    )
-    _help_opt_row(
-        "--chapters",
-        "<SPEC>",
-        "Chapters to download in a series (all, or 1-3,5 ranges)",
-    )
-    _help_opt_row(
-        "--compress",
-        "<MODE>",
-        "CBZ compression: stored (default), deflate, deflate:0-9",
-        default="stored",
-    )
-    _help_opt_row(
-        "--format",
-        "<FMT>",
-        "Archive format",
-        default="cbz",
-        choices="cbz, zip, cbt",
-    )
-    _help_opt_row("--max-image-size", "<SIZE>", "Maximum size per image", default="100MB")
-    _help_opt_row("--max-size", "<SIZE>", "Maximum total download size (0 = unlimited)")
-    console.print(
-        f"  [{style('muted')}]Size suffixes: 500MB, 2GB, 512KB; plain integers (bytes) also work[/]"
-    )
-    console.print()
-
-    _help_header("HTTP & politeness")
-    _help_opt_row(
-        "--impersonate",
-        "<PROFILE>",
-        "TLS/HTTP impersonation profile",
-        default="chrome146",
-    )
-    _help_opt_row(
-        "--solver",
-        "<MODE>",
-        "Cloudflare challenge solver",
-        default="off",
-        choices="auto, impersonation, webview, off",
-    )
-    _help_opt_row("--no-cookie", "", "Disable the persistent cookie jar for this run")
-    _help_opt_row("--no-rate", "", "Disable per-site rate limiting for this run")
-    _help_opt_row("--no-cache", "", "Disable the on-disk scrape response cache for this run")
-    _help_opt_row(
-        "--no-generic",
-        "",
-        "Disable the generic fallback scraper (unknown hosts report Unsupported URL)",
-    )
-    console.print()
-
-    _help_header("Display")
-    _help_opt_row("-q, --quiet", "", "Show errors only (mutually exclusive with -v)")
-    _help_opt_row("-v, -vv, -vvv", "", "Increase diagnostic verbosity (see below)")
-    _help_opt_row("--no-banner", "", "Suppress the ASCII brand banner (shown only on a terminal)")
-    _help_opt_row(
-        "--color",
-        "<MODE>",
-        "Control ANSI colors",
-        default="auto",
-        choices="auto, always, never",
-    )
-    _help_opt_row("--no-color", "", "Disable ANSI colors (alias for --color never)")
-    _help_opt_row("--debug-file", "<PATH>", "Divert -vvv trace diagnostics to PATH")
-    _help_opt_row("--config", "<PATH>", "Path to a custom config.toml")
-    _help_opt_row("--show-legal-notice", "", "Re-show the first-run legal notice")
-    console.print()
+    for title, members in _HELP_GROUPS:
+        _help_header(title)
+        table = _HelpTable()
+        for opt in members:
+            action = actions.get(opt)
+            if action is None:
+                continue
+            table.row(
+                ", ".join(action.option_strings),
+                _arg_metavar(action),
+                _summary(actions, opt),
+                default=_arg_default(action),
+                choices=_help_choices(action),
+                modes=_HELP_MODES.get(opt),
+            )
+        table.print()
+        for note in _HELP_GROUP_NOTES.get(title, ()):
+            _help_note(note)
+        console.print()
 
     console.print("  [bold]Verbosity:[/]")
-    console.print(f"    0 normal   {glyphs().dash} progress, status, warnings, errors, summary")
-    console.print(
-        f"    1 -v       {glyphs().dash} more context (source, paths, options, stats, stages)"
-    )
-    console.print(f"    2 -vv      {glyphs().dash} diagnostics (HTTP requests + timing, retries)")
-    console.print(
-        f"    3 -vvv     {glyphs().dash} full trace (response headers per request, tracebacks)"
-    )
-    console.print(
-        f"    env        {glyphs().dash} COMIC_DL_TRACE_HTTP=1 always shows response headers"
-    )
+    table = _HelpTable()
+    table.row("0 normal", "", "progress, status, warnings, errors, summary")
+    table.row("1 -v", "", "more context (source, paths, options, stats, stages)")
+    table.row("2 -vv", "", "diagnostics (HTTP requests + timing, retries)")
+    table.row("3 -vvv", "", "full trace (response headers per request, tracebacks)")
+    table.row("env", "", "COMIC_DL_TRACE_HTTP=1 always shows response headers")
+    table.print()
     console.print()
 
     # ── Footer ──────────────────────────────────────────────────
     _help_pointer("Run [bold]comic-dl help <command>[/] for help on a specific command.")
-    _help_pointer(
-        "Full reference: https://github.com/fallen020/comic-dl/blob/main/docs/reference/cli.md"
-    )
+    _help_pointer("Full reference: https://fallen020.github.io/comic-dl/docs/reference/cli/")
     console.print()
     _help_header("Exit status")
-    console.print("  0  success")
-    console.print("  1  an error occurred (download failed, library error)")
-    console.print("  2  usage error (bad arguments or configuration)")
-    console.print("  130  interrupted (Ctrl-C / SIGINT)")
+    table = _HelpTable()
+    table.row("0", "", "success")
+    table.row("1", "", "an error occurred (download failed, library error)")
+    table.row("2", "", "usage error (bad arguments or configuration)")
+    table.row("130", "", "interrupted (Ctrl-C / SIGINT)")
+    table.print()
 
 
-def print_help_summary() -> None:
-    """Print the compact ``-h`` / ``-?`` help summary.
+def _summary(actions: dict[str, argparse.Action], opt: str) -> str:
+    """First line of a flag's argparse help, stripped of its embedded tables.
 
-    One-line-per-option, no rationale blocks, no verbosity ladder, no
-    exit-status block — just the essential scannable surface.
+    Several ``help=`` strings carry a multi-line explainer (``--solver``,
+    ``--chapters``) that would fold into garbage inside a table cell. Those
+    tables now live in ``_HELP_MODES``; keep the summary single-line so the
+    two cannot disagree in the rendered output.
     """
-    console.print()
+    action = actions.get(opt)
+    if action is None or not action.help:
+        return ""
+    return action.help.splitlines()[0].strip()
 
-    _help_usage(
-        [
-            "comic-dl [OPTIONS]",
-            "comic-dl [URL]",
-            "comic-dl -u <URL> [OPTIONS]",
-            "comic-dl -f <FILE> [OPTIONS]",
-            "comic-dl help <COMMAND>",
-        ]
-    )
 
-    console.print("Download comic and manga galleries from supported sites and compile")
-    console.print("them into CBZ, ZIP, and CBT archives.")
-    console.print()
-
-    # ── Commands (purpose-grouped, names only) ──────────────────
-    _help_header("Download")
-    _help_opt_row("-u, --url", "<URL>", "Download a single gallery URL")
-    _help_opt_row("-f, --file", "<FILE>", "Download URLs from a text file")
-    _help_opt_row("update", "<SERIES|all>", "Download new chapters for tracked series")
-    console.print()
-
-    _help_header("Library")
-    _help_opt_row("list", "", "List series in the library")
-    _help_opt_row("info", "<SERIES>", "Show details for one series")
-    _help_opt_row("latest", "[-n N]", "Chapters downloaded in the last N days")
-    _help_opt_row("remove", "<SERIES>", "Move a series to trash")
-    _help_opt_row("restore", "<SERIES>", "Bring a trashed series back")
-    console.print()
-
-    _help_header("Manage")
-    _help_opt_row("cookie", "ls|set|clear [HOST]", "Manage the persistent cookie jar")
-    _help_opt_row("cache", "clear|prune|status", "Inspect or clear the scrape response cache")
-    _help_opt_row("config", "path|show|init|edit|validate", "Show, validate, or edit config.toml")
-    console.print()
-
-    _help_header("Inspect & integrate")
-    _help_opt_row("--list-sources", "", "Search supported sites")
-    _help_opt_row("completion", "bash|zsh|fish", "Print a shell completion script")
-    _help_opt_row("--version", "", "Show version")
-    _help_opt_row("-h, --help, -?", "", "Show this help message")
-    console.print()
-
-    # ── Options (category-grouped, one line each) ───────────────
-    _help_header("Layout & output")
-    _help_opt_row("-o, --output", "<DIR>", "Output directory", default="~/Downloads/comic-dl")
-    _help_opt_row("--force", "", "Overwrite existing CBZ files")
-    _help_opt_row("--dry-run", "", "Preview what would download/skip/redownload")
-    _help_opt_row("--json", "", "Machine-readable JSON on stdout")
-    console.print()
-
-    _help_header("Download tuning")
-    _help_opt_row("-c, --concurrency", "<N>", "Parallel page downloads per chapter", default="5")
-    _help_opt_row("--parallel", "<N>", "Max URLs in flight across a batch", default="5")
-    _help_opt_row("--chapter-parallel", "<N>", "Max chapters downloading at once", default="1")
-    _help_opt_row("--chapters", "<SPEC>", "Chapters to download (all, or 1-3,5)")
-    _help_opt_row("--compress", "<MODE>", "CBZ compression", default="stored")
-    _help_opt_row("--format", "<FMT>", "Archive format", default="cbz", choices="cbz, zip, cbt")
-    _help_opt_row("--max-image-size", "<SIZE>", "Maximum size per image", default="100MB")
-    _help_opt_row("--max-size", "<SIZE>", "Maximum total download size")
-    console.print()
-
-    _help_header("HTTP & politeness")
-    _help_opt_row(
-        "--impersonate",
-        "<PROFILE>",
-        "TLS/HTTP impersonation profile",
-        default="chrome146",
-    )
-    _help_opt_row("--solver", "<MODE>", "Cloudflare challenge solver", default="off")
-    _help_opt_row("--no-cookie", "", "Disable the persistent cookie jar")
-    _help_opt_row("--no-rate", "", "Disable per-site rate limiting")
-    _help_opt_row("--no-cache", "", "Disable the scrape response cache")
-    _help_opt_row("--no-generic", "", "Disable the generic fallback scraper")
-    console.print()
-
-    _help_header("Display")
-    _help_opt_row("-q, --quiet", "", "Show errors only")
-    _help_opt_row("-v, -vv, -vvv", "", "Increase diagnostic verbosity")
-    _help_opt_row("--no-banner", "", "Suppress the ASCII brand banner")
-    _help_opt_row("--color", "<MODE>", "Control ANSI colors", default="auto")
-    _help_opt_row("--no-color", "", "Disable ANSI colors")
-    _help_opt_row("--debug-file", "<PATH>", "Divert trace diagnostics to PATH")
-    _help_opt_row("--config", "<PATH>", "Path to a custom config.toml")
-    _help_opt_row("--show-legal-notice", "", "Re-show the first-run legal notice")
-    console.print()
-
-    _help_pointer("Run [bold]comic-dl help <command>[/] for help on a specific command.")
+def _help_choices(action: argparse.Action) -> str | None:
+    if not action.choices:
+        return None
+    return ", ".join(str(c) for c in action.choices)
