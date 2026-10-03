@@ -14,7 +14,6 @@ import shutil
 import tarfile
 import tempfile
 from collections.abc import Callable, Iterator
-from functools import partial
 from hashlib import sha256
 from pathlib import Path
 from zipfile import ZIP_DEFLATED, ZIP_STORED, ZipFile
@@ -147,41 +146,6 @@ def _packed_members(
 
         ext = "." + fmt if fmt else (src.suffix or ".jpg")
         yield idx, src, f"Page_{idx:04d}{ext}"
-
-
-def _comicinfo_bytes(
-    page_count: int,
-    series_title: str,
-    chapter_title: str,
-    source_url: str,
-    chapter_number: str | None,
-    volume_number: str | None,
-    series_meta: PostMetadata | None = None,
-) -> str | None:
-    if not (series_title or chapter_title):
-        return None
-    return generate_comicinfo_xml(
-        series_title=series_title or chapter_title,
-        chapter_title=chapter_title or series_title,
-        page_count=page_count,
-        source_url=source_url,
-        chapter_number=chapter_number,
-        volume_number=volume_number,
-        description=(getattr(series_meta, "description", "") if series_meta else ""),
-        authors=getattr(series_meta, "authors", None) if series_meta else None,
-        artists=getattr(series_meta, "artists", None) if series_meta else None,
-        colorists=getattr(series_meta, "colorists", None) if series_meta else None,
-        genres=getattr(series_meta, "genres", None) if series_meta else None,
-        language=getattr(series_meta, "language", None) if series_meta else None,
-        publisher=getattr(series_meta, "publisher", None) if series_meta else None,
-        status=getattr(series_meta, "status", None) if series_meta else None,
-        reading_direction=(
-            getattr(series_meta, "reading_direction", None) if series_meta else None
-        ),
-        community_rating=(getattr(series_meta, "community_rating", None) if series_meta else None),
-        year=getattr(series_meta, "year", None) if series_meta else None,
-        has_cover=True,
-    )
 
 
 def _write_zip(
@@ -344,15 +308,31 @@ def create_archive(
 
         members = _packed_members(images, source_dir, verified_formats or {}, skipped)
         total = len(images)
-        comicinfo = partial(
-            _comicinfo_bytes,
-            series_title=series_title,
-            chapter_title=chapter_title,
-            source_url=source_url,
-            chapter_number=chapter_number,
-            volume_number=volume_number,
-            series_meta=series_meta,
-        )
+        meta = series_meta
+        meta_kwargs: dict[str, object] = {
+            "series_title": series_title or chapter_title,
+            "chapter_title": chapter_title or series_title,
+            "source_url": source_url,
+            "chapter_number": chapter_number,
+            "volume_number": volume_number,
+            "description": getattr(meta, "description", "") if meta else "",
+            "authors": getattr(meta, "authors", None) if meta else None,
+            "artists": getattr(meta, "artists", None) if meta else None,
+            "colorists": getattr(meta, "colorists", None) if meta else None,
+            "genres": getattr(meta, "genres", None) if meta else None,
+            "language": getattr(meta, "language", None) if meta else None,
+            "publisher": getattr(meta, "publisher", None) if meta else None,
+            "status": getattr(meta, "status", None) if meta else None,
+            "reading_direction": getattr(meta, "reading_direction", None) if meta else None,
+            "community_rating": getattr(meta, "community_rating", None) if meta else None,
+            "year": getattr(meta, "year", None) if meta else None,
+            "has_cover": True,
+        }
+
+        def comicinfo(added: int) -> str | None:
+            if not (series_title or chapter_title):
+                return None
+            return generate_comicinfo_xml(page_count=added, **meta_kwargs)  # type: ignore[arg-type]
 
         if fmt == ".cbt":
             added = _write_tar(tmp_path, members, on_packed, total, comicinfo)
