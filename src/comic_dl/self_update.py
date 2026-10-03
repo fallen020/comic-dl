@@ -43,6 +43,7 @@ GITHUB_RELEASES_PAGE = "https://github.com/fallen020/comic-dl/releases"
 #: Package artifacts ship per release; extension + arch select the right one.
 _ARCH_SUFFIX = "-x86_64."
 _PACMAN_SUFFIX = ".pkg.tar.zst"
+_MAX_ARTIFACT_BYTES = 200 * 1024 * 1024
 
 
 class InstallKind(enum.Enum):
@@ -291,6 +292,7 @@ async def fetch_latest_release() -> ReleaseInfo | None:
 
 async def download_artifact(url: str, dest: Path) -> None:
     """Stream a release asset to ``dest`` with the shared validated streamer."""
+    size = 0
     async with AsyncSession(**http_client_args()) as client:
         resp = await _open_stream(client, url)
         try:
@@ -298,6 +300,9 @@ async def download_artifact(url: str, dest: Path) -> None:
                 raise OSError(f"HTTP {resp.status_code}")
             with dest.open("wb") as fh:
                 async for chunk in resp.aiter_content(1 << 16):
+                    size += len(chunk)
+                    if size > _MAX_ARTIFACT_BYTES:
+                        raise OSError("release asset exceeds size cap")
                     fh.write(chunk)
         finally:
             await resp.aclose()

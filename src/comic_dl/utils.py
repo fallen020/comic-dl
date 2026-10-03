@@ -441,8 +441,16 @@ def referer_headers(referer_url: str) -> dict[str, str]:
     (a shared cover session, for instance) can pass these per-request.
     """
     parsed = urlsplit(referer_url)
-    origin = f"{parsed.scheme}://{parsed.netloc}" if parsed.scheme and parsed.netloc else ""
-    headers: dict[str, str] = {"Referer": referer_url}
+    host = parsed.hostname or parsed.netloc
+    if host and ":" in host and not host.startswith("["):
+        host = f"[{host}]"
+    port = f":{parsed.port}" if parsed.port else ""
+    clean_netloc = f"{host}{port}" if host else parsed.netloc
+    origin = f"{parsed.scheme}://{clean_netloc}" if parsed.scheme and clean_netloc else ""
+    clean_referer = (
+        parsed._replace(netloc=clean_netloc).geturl() if parsed.username else referer_url
+    )
+    headers: dict[str, str] = {"Referer": clean_referer}
     if origin:
         headers["Origin"] = origin
     return headers

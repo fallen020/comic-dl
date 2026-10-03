@@ -360,10 +360,14 @@ class Library:
             ]
             if q.lower().startswith(("http://", "https://")):
                 candidates.append(("SELECT * FROM series WHERE source = ?", normalize_url(q)))
+            escaped = q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
             candidates.extend(
                 (
                     ("SELECT * FROM series WHERE title = ? COLLATE NOCASE", q),
-                    ("SELECT * FROM series WHERE title LIKE ? COLLATE NOCASE", f"%{q}%"),
+                    (
+                        "SELECT * FROM series WHERE title LIKE ? ESCAPE '\\' COLLATE NOCASE",
+                        f"%{escaped}%",
+                    ),
                 )
             )
             for sql, param in candidates:

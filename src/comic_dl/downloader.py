@@ -880,7 +880,10 @@ async def _stream_to_disk(
         resp.raise_for_status()
         content_length = resp.headers.get("content-length")
         if content_length is not None:
-            size = int(content_length)
+            try:
+                size = int(content_length)
+            except (TypeError, ValueError):
+                size = 0
             if size > max_image_size:
                 raise ValueError(
                     f"Image too large ({size / 1024 / 1024:.1f} MB, "

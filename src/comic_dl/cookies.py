@@ -146,7 +146,7 @@ class CookieJar:
         which every outbound request paid for. WAL allows concurrent access;
         holding ``_lock`` serializes use of this single connection.
         """
-        self._path.parent.mkdir(parents=True, exist_ok=True)
+        self._path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
         if self._conn is None:
             self._conn = sqlite3.connect(self._path, timeout=5, check_same_thread=False)
             self._restrict_perms()
