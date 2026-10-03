@@ -43,8 +43,6 @@ _CHAPTER_PATH_RE = re.compile(
     r"contact-us|privacy-policy|terms|about|search)[^/]+/?$"
 )
 
-_VALID_EXTS = frozenset({"jpg", "jpeg", "png", "webp", "gif", "bmp"})
-
 _WORDPRESS_RESIZE_RE = re.compile(r"-\d+x\d+(?=\.\w+$)")
 
 _CHAPTER_NUMBER_RE = re.compile(r"(?:chapter|ch)[.\s]*#?\s*(\d+)", re.IGNORECASE)
@@ -127,16 +125,6 @@ def _clean_image_url(raw: str) -> str:
     clean = raw.split("?")[0].split("#")[0]
     clean = _WORDPRESS_RESIZE_RE.sub("", clean)
     return clean
-
-
-def _get_image_ext(url: str) -> str:
-    path = url.split("?")[0]
-    try:
-        _, ext = path.rsplit(".", 1)
-    except ValueError:
-        return "jpg"
-    ext = ext.lower()
-    return ext if ext in _VALID_EXTS else "jpg"
 
 
 def _extract_images(soup: BeautifulSoup) -> list[ImageItem]:

@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 from bs4 import BeautifulSoup
 
-from comic_dl.scrapers.base import meta_index
+from comic_dl.scrapers.base import BaseScraper, meta_index
 from comic_dl.scrapers.sites.fsicomics import (
     DOMAIN,
     FsicomixScraper,
@@ -16,7 +16,6 @@ from comic_dl.scrapers.sites.fsicomics import (
     _extract_images,
     _extract_meta,
     _extract_post_id,
-    _get_image_ext,
     is_chapter_url,
     is_series_url,
 )
@@ -83,15 +82,15 @@ class TestImageUrlCleaning:
 
 class TestGetImageExt:
     def test_valid_extensions(self):
-        assert _get_image_ext("https://example.com/img.jpg") == "jpg"
-        assert _get_image_ext("https://example.com/img.jpeg") == "jpeg"
-        assert _get_image_ext("https://example.com/img.png") == "png"
-        assert _get_image_ext("https://example.com/img.webp") == "webp"
-        assert _get_image_ext("https://example.com/img.gif") == "gif"
+        assert BaseScraper.image_ext("https://example.com/img.jpg") == "jpg"
+        assert BaseScraper.image_ext("https://example.com/img.jpeg") == "jpeg"
+        assert BaseScraper.image_ext("https://example.com/img.png") == "png"
+        assert BaseScraper.image_ext("https://example.com/img.webp") == "webp"
+        assert BaseScraper.image_ext("https://example.com/img.gif") == "gif"
 
     def test_fallback_extension(self):
-        assert _get_image_ext("https://example.com/img") == "jpg"
-        assert _get_image_ext("https://example.com/img.unknown") == "jpg"
+        assert BaseScraper.image_ext("https://example.com/img") == "jpg"
+        assert BaseScraper.image_ext("https://example.com/img.unknown") == "jpg"
 
 
 class TestMetaExtraction:
