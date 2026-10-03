@@ -29,6 +29,7 @@ from ...models import (
 from ..base import (
     BaseScraper,
     _attr_text,
+    best_effort_series_data,
     no_chapters_error,
     no_images_error,
 )
@@ -280,17 +281,14 @@ class ThunderscansScraper(BaseScraper):
         cached = self._series_cache.get(series_slug)
         if cached is not None:
             return cached
-        data: dict = {}
-        try:
+
+        async def _load() -> dict:
             response = await BaseScraper._timeout_get(f"{BASE}/comics/{series_slug}/", client)
             response.raise_for_status()
             soup = BeautifulSoup(response.text, "lxml")
-            data = _series_page(soup)
-        # Enrichment is best-effort.
-        except Exception:  # nosec
-            pass
-        self._series_cache[series_slug] = data
-        return data
+            return _series_page(soup)
+
+        return await best_effort_series_data(self._series_cache, series_slug, _load)
 
     async def _scrape_chapter(
         self,

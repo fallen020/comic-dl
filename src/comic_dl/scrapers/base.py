@@ -6,6 +6,7 @@ import asyncio
 import html
 import json
 import time
+from collections.abc import Awaitable, Callable
 from urllib.parse import urlsplit
 
 from bs4 import BeautifulSoup
@@ -157,6 +158,30 @@ def meta_get(idx: dict[str, list[str]], *names: str) -> str:
         if vals:
             return vals[0]
     return ""
+
+
+async def best_effort_series_data(
+    cache: dict[str, dict],
+    key: str,
+    loader: Callable[[], Awaitable[dict]],
+) -> dict:
+    """Cached best-effort series enrichment fetch shared by site scrapers.
+
+    Returns the cached entry when present; otherwise awaits ``loader()`` and
+    stores the result. Any loader failure degrades to an empty dict, which
+    is also stored so a dead series page is fetched once per key, not once
+    per chapter.
+    """
+    cached = cache.get(key)
+    if cached is not None:
+        return cached
+    try:
+        data = await loader()
+    # Enrichment is best-effort.
+    except Exception:  # nosec
+        data = {}
+    cache[key] = data
+    return data
 
 
 class BaseScraper:

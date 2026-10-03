@@ -29,6 +29,7 @@ from ...models import (
 from ..base import (
     BaseScraper,
     _attr_text,
+    best_effort_series_data,
     listing_page_error,
     meta_get,
     meta_index,
@@ -251,8 +252,8 @@ class GenzToonsScraper(BaseScraper):
         cached = self._series_cache.get(series_slug)
         if cached is not None:
             return cached
-        data: dict = {}
-        try:
+
+        async def _load() -> dict:
             response = await BaseScraper._timeout_get(f"{BASE}/series/{series_slug}/", client)
             response.raise_for_status()
             soup = BeautifulSoup(response.text, "lxml")
@@ -261,7 +262,7 @@ class GenzToonsScraper(BaseScraper):
             genres = _extract_genres(soup)
             if stats.get("Type") and stats["Type"] not in genres:
                 genres.append(stats["Type"])
-            data = {
+            return {
                 "series_title": _extract_series_title(soup, idx),
                 "description": _extract_description(soup, idx),
                 "cover_url": _extract_cover(soup, idx),
@@ -270,11 +271,8 @@ class GenzToonsScraper(BaseScraper):
                 "artists": _split_names(stats.get("Artist", "")),
                 "status": stats.get("Status"),
             }
-        # Enrichment is best-effort.
-        except Exception:  # nosec B110
-            pass
-        self._series_cache[series_slug] = data
-        return data
+
+        return await best_effort_series_data(self._series_cache, series_slug, _load)
 
     async def _scrape_chapter(
         self,

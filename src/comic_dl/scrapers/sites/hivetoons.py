@@ -31,6 +31,7 @@ from ..base import (
     BaseScraper,
     _attr_text,
     article_jsonld_nodes,
+    best_effort_series_data,
     meta_get,
     meta_index,
     no_chapters_error,
@@ -343,13 +344,13 @@ class HiveToonsScraper(BaseScraper):
         cached = self._series_cache.get(series_slug)
         if cached is not None:
             return cached
-        data: dict = {}
-        try:
+
+        async def _load() -> dict:
             response = await BaseScraper._timeout_get(f"{BASE}/series/{series_slug}/", client)
             response.raise_for_status()
             soup = BeautifulSoup(response.text, "lxml")
             idx = meta_index(soup)
-            data = {
+            return {
                 "series_title": _extract_series_title(soup, idx),
                 "description": _extract_description(soup, idx),
                 "cover_url": _extract_cover(soup, idx),
@@ -357,11 +358,8 @@ class HiveToonsScraper(BaseScraper):
                 "authors": _extract_authors(soup),
                 "status": _extract_status(soup),
             }
-        # Enrichment is best-effort.
-        except Exception:  # nosec
-            pass
-        self._series_cache[series_slug] = data
-        return data
+
+        return await best_effort_series_data(self._series_cache, series_slug, _load)
 
     async def _scrape_chapter(
         self,
