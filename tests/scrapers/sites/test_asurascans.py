@@ -3,11 +3,11 @@ from __future__ import annotations
 import pytest
 from bs4 import BeautifulSoup
 
+from comic_dl.scrapers.base import BaseScraper
 from comic_dl.scrapers.sites.asurascans import (
     DOMAIN,
     AsurascansScraper,
     _chapter_number_from_slug,
-    _clean_image_url,
     _extract_chapter_title,
     _extract_description,
     _extract_images,
@@ -99,7 +99,7 @@ class TestUrlPatterns:
 class TestHelpers:
     def test_clean_image_url_strips_cache_buster(self):
         assert (
-            _clean_image_url(
+            BaseScraper.clean_image_url(
                 "https://cdn.asurascans.com/asura-images/chapters/s/1/001.webp?v=1748971234"
             )
             == "https://cdn.asurascans.com/asura-images/chapters/s/1/001.webp"

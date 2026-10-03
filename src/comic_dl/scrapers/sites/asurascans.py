@@ -60,11 +60,6 @@ def is_chapter_url(url: str) -> bool:
     return bool(_CHAPTER_PATH_RE.match(url))
 
 
-def _clean_image_url(raw: str) -> str:
-    """Strip the ``?v=...`` cache-buster (and any fragment) from an image URL."""
-    return raw.split("?")[0].split("#")[0]
-
-
 def _extract_node(soup: BeautifulSoup, wanted: str) -> dict | None:
     for node in extract_jsonld(soup):
         if jsonld_type_includes(node, wanted):
@@ -219,10 +214,10 @@ def _extract_description(soup: BeautifulSoup, idx: dict[str, list[str]]) -> str:
 def _extract_cover(soup: BeautifulSoup, idx: dict[str, list[str]]) -> str:
     content = meta_get(idx, "og:image", "twitter:image")
     if content:
-        return _clean_image_url(content.split(",")[0].strip())
+        return BaseScraper.clean_image_url(content.split(",")[0].strip())
     article = _article_node(soup)
     if article:
-        return _clean_image_url(_node_image_url(article.get("image")))
+        return BaseScraper.clean_image_url(_node_image_url(article.get("image")))
     return _extract_meta(soup).get("cover_url", "")
 
 
@@ -278,7 +273,7 @@ def _extract_images(soup: BeautifulSoup) -> list[ImageItem]:
         ):
             continue
 
-        clean = _clean_image_url(src)
+        clean = BaseScraper.clean_image_url(src)
         if clean in seen:
             continue
         seen.add(clean)

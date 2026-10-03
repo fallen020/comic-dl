@@ -68,11 +68,6 @@ def is_chapter_url(url: str) -> bool:
     return bool(_CHAPTER_PATH_RE.match(url))
 
 
-def _clean_image_url(raw: str) -> str:
-    """Strip the query/cache-buster (and any fragment) from an image URL."""
-    return raw.split("?")[0].split("#")[0]
-
-
 def _series_slug_from_url(url: str) -> str:
     parts = [p for p in url.rstrip("/").split("/") if p]
     try:
@@ -112,10 +107,10 @@ def _extract_cover(soup: BeautifulSoup, idx: dict[str, list[str]]) -> str:
     if img is not None:
         src = _attr_text(img.get("src"))
         if src and not src.startswith("data:"):
-            return _clean_image_url(src)
+            return BaseScraper.clean_image_url(src)
     content = meta_get(idx, "og:image", "twitter:image")
     if content:
-        return _clean_image_url(content.split(",")[0].strip())
+        return BaseScraper.clean_image_url(content.split(",")[0].strip())
     return ""
 
 
@@ -204,7 +199,7 @@ def _extract_images(soup: BeautifulSoup) -> list[ImageItem]:
         src = _attr_text(img.get("src")) or _attr_text(img.get("data-src"))
         if not src or src.startswith("data:"):
             continue
-        clean = _clean_image_url(src)
+        clean = BaseScraper.clean_image_url(src)
         if clean in seen:
             continue
         seen.add(clean)

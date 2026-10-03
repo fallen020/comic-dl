@@ -10,7 +10,6 @@ from bs4 import BeautifulSoup
 from ..base import meta_get, meta_index
 from ..madara import (
     MadaraSeriesSiteScraper,
-    clean_image_url,
     cover_from_meta,
     extract_lang,
     extract_meta_rows,
@@ -46,10 +45,6 @@ def is_series_url(url: str) -> bool:
 def is_chapter_url(url: str) -> bool:
     """True when ``url`` points at a chapter/gallery page for this source."""
     return bool(_CHAPTER_PATH_RE.match(url))
-
-
-def _clean_image_url(raw: str) -> str:
-    return clean_image_url(raw)
 
 
 def _on_image_cdn(raw: str) -> bool:
