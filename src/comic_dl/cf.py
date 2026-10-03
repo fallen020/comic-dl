@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import inspect
 from collections.abc import Awaitable, Callable
 from typing import Any
 from urllib.parse import urlsplit
@@ -10,6 +9,7 @@ from urllib.parse import urlsplit
 from .antibot import BlockVerdict, looks_like_challenge
 from .config import _RUNTIME_HTTP, http_setting
 from .ui import TAG_WARNING, trace, vlog
+from .utils import aclose_response
 
 
 def solver_mode(host: str | None = None) -> str:
@@ -149,18 +149,6 @@ def _response_is_challenge(resp: Any) -> bool:
     return isinstance(text, str) and looks_like_challenge(status, headers, text)
 
 
-async def _close_resp(resp: Any) -> None:
-    """Best-effort close of a (possibly streaming) response before a retry."""
-    closer = getattr(resp, "aclose", None) or getattr(resp, "close", None)
-    if callable(closer):
-        try:
-            result = closer()
-            if inspect.isawaitable(result):
-                await result
-        except Exception:  # nosec B110
-            pass
-
-
 async def retry_challenge_once(
     fetch: Callable[[], Awaitable[Any]],
     url: str,
@@ -176,6 +164,6 @@ async def retry_challenge_once(
         return resp
     trace(f"cf: challenge detected on {urlsplit(url).hostname}")
     if await handle_challenge(url):
-        await _close_resp(resp)
+        await aclose_response(resp)
         return await fetch()
     return resp
