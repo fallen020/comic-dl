@@ -445,7 +445,7 @@ class KaganeScraper(BaseScraper):
                     site_error_code=SITE_BLOCKED,
                 ) from exc
             raise ScrapeError(
-                f"Could not reach the kagane.to API ({type(exc).__name__}).",
+                "Could not reach the kagane.to API.",
                 hint=(
                     "This site requires a passing Cloudflare session — "
                     "install the webview solver (`comic-dl[webview]`) and "

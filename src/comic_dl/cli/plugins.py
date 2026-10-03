@@ -165,7 +165,7 @@ def _import_source_module(path: Path) -> types.ModuleType | None:
         spec.loader.exec_module(module)
         return module
     except Exception as exc:
-        print_error(f"Import failed: {type(exc).__name__}: {exc}")
+        print_error(f"Import failed: {path}: {exc}")
         return None
     finally:
         sys.modules.pop(name, None)
