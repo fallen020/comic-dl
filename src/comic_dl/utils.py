@@ -175,16 +175,6 @@ def _search_referer_for_host(host: str) -> str:
     return _SEARCH_ORIGINS[h % len(_SEARCH_ORIGINS)]
 
 
-def search_referer(host: str | None = None) -> str:
-    """Return a search-engine referrer for ``host`` (or a default if None).
-
-    This is the public helper used by callers that need a humane referrer.
-    The choice is stable per host so a given source consistently presents the
-    same entry-point referrer.
-    """
-    return _search_referer_for_host(host or "")
-
-
 _DEPRECATED_IMPERSONATE = frozenset(
     {
         "chrome99",

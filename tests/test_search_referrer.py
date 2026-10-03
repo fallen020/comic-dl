@@ -10,7 +10,6 @@ from comic_dl.utils import (
     _SEARCH_ORIGINS,
     _search_referer_for_host,
     http_client_args,
-    search_referer,
 )
 
 
@@ -53,11 +52,11 @@ class TestSearchReferer:
         assert result == _SEARCH_ORIGINS[0]
 
     def test_search_referer_public_helper(self):
-        result = search_referer("mangadex.org")
+        result = _search_referer_for_host("mangadex.org")
         assert result in _SEARCH_ORIGINS
 
     def test_search_referer_none_host_returns_default(self):
-        result = search_referer(None)
+        result = _search_referer_for_host("")
         assert result == _SEARCH_ORIGINS[0]
 
 
