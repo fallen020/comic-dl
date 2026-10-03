@@ -349,8 +349,8 @@ class TestRetryBlocked:
 
         monkeypatch.setattr("comic_dl.downloader.asyncio.sleep", _sleep)
         monkeypatch.setattr(
-            "comic_dl.downloader._humane_backoff_delay",
-            lambda attempt: 0.001,
+            "comic_dl.downloader._backoff_delay",
+            lambda *args, **kwargs: 0.001,
         )
 
         calls = []
@@ -372,8 +372,8 @@ class TestRetryBlocked:
 
         monkeypatch.setattr("comic_dl.downloader.asyncio.sleep", _sleep)
         monkeypatch.setattr(
-            "comic_dl.downloader._humane_backoff_delay",
-            lambda attempt: 0.001,
+            "comic_dl.downloader._backoff_delay",
+            lambda *args, **kwargs: 0.001,
         )
 
         class RateLimitedBig:
@@ -1820,8 +1820,8 @@ class TestDownloadCoverTo:
         # The 500 is retried as a generic block before failing gracefully;
         # shrink the humane backoff so the test doesn't sleep ~7s.
         monkeypatch.setattr(
-            "comic_dl.downloader._humane_backoff_delay",
-            lambda attempt, **kwargs: 0.001,
+            "comic_dl.downloader._backoff_delay",
+            lambda *args, **kwargs: 0.001,
         )
         resp = self._make_response(500)
         client = self._make_client(resp)

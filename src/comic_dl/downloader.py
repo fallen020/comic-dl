@@ -136,15 +136,6 @@ async def _close_response(inner: object) -> None:
 # gets a short, bounded retry with exponential backoff. CF-specific
 # challenge solving is handled separately by the CF solver.
 _HUMANE_MAX_RETRIES = 3
-_HUMANE_BACKOFF_BASE = 1.0  # seconds
-_HUMANE_BACKOFF_MAX = 4.0  # cap
-
-
-def _humane_backoff_delay(attempt: int) -> float:
-    """Exponential backoff with ±20% jitter, capped."""
-    delay = min(_HUMANE_BACKOFF_BASE * (2**attempt), _HUMANE_BACKOFF_MAX)
-    jitter = delay * BACKOFF_JITTER
-    return delay + random.uniform(-jitter, jitter)  # nosec B311
 
 
 async def _retry_blocked(
@@ -246,7 +237,7 @@ async def _retry_blocked(
 
         # General block (non-CF) → bounded retry with backoff
         if verdict.vendor != "none":
-            delay = _humane_backoff_delay(attempt)
+            delay = _backoff_delay(attempt, base=1.0, max_delay=4.0, jitter=True)
             retry_after = _retry_after_wait_seconds(headers)
             if retry_after is not None:
                 # The host named a wait; honor it (capped) so a rate/5xx

@@ -5,7 +5,7 @@ from __future__ import annotations
 from urllib.parse import urlsplit
 
 import comic_dl.config as cfgmodule
-from comic_dl.downloader import _humane_backoff_delay
+from comic_dl.downloader import _backoff_delay
 from comic_dl.utils import (
     _SEARCH_ORIGINS,
     _search_referer_for_host,
@@ -94,28 +94,31 @@ class TestHttpClientArgsReferrer:
 
 
 class TestHumaneBackoffDelay:
-    """Tests for _humane_backoff_delay()."""
+    """Tests for the humane-block backoff schedule."""
+
+    def _delay(self, attempt):
+        return _backoff_delay(attempt, base=1.0, max_delay=4.0, jitter=True)
 
     def test_first_attempt_base_delay(self):
-        delay = _humane_backoff_delay(0)
+        delay = self._delay(0)
         # Base is 1.0, with ±20% jitter, should be in [0.8, 1.2]
         assert 0.8 <= delay <= 1.2
 
     def test_second_attempt_doubles(self):
-        delays = [_humane_backoff_delay(1) for _ in range(100)]
+        delays = [self._delay(1) for _ in range(100)]
         avg = sum(delays) / len(delays)
         # Base is 2.0, with ±20% jitter, avg should be ~2.0
         assert 1.8 <= avg <= 2.2
 
     def test_third_attempt_caps_at_max(self):
-        delays = [_humane_backoff_delay(2) for _ in range(100)]
+        delays = [self._delay(2) for _ in range(100)]
         avg = sum(delays) / len(delays)
         # Base is 4.0 (capped), with ±20% jitter, avg should be ~4.0
         assert 3.8 <= avg <= 4.2
 
     def test_higher_attempts_stay_capped(self):
-        delay_10 = _humane_backoff_delay(10)
-        delay_100 = _humane_backoff_delay(100)
+        delay_10 = self._delay(10)
+        delay_100 = self._delay(100)
         # Both should be capped at ~4.0 (with jitter)
         assert delay_10 < 5.0
         assert delay_100 < 5.0
