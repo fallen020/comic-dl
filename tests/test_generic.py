@@ -14,7 +14,6 @@ from comic_dl.scrapers.generic import (
     _extract_gallery_images,
     _is_image_url,
     _largest_srcset,
-    _looks_like_direct_image,
     _page_title,
     _path_segment,
     _series_title_for,
@@ -57,11 +56,11 @@ class TestPathHelpers:
         assert not _is_image_url("https://cdn.example.com/p/1")
         assert not _is_image_url("https://cdn.example.com/p/1.JS")
 
-    def test_looks_like_direct_image_with_query(self):
-        assert _looks_like_direct_image("https://cdn.example.com/1.jpg?token=abc")
+    def test_is_image_url_with_query(self):
+        assert _is_image_url("https://cdn.example.com/1.jpg?token=abc")
 
-    def test_looks_like_direct_image_rejects_no_ext(self):
-        assert not _looks_like_direct_image("https://cdn.example.com/image/1234")
+    def test_is_image_url_rejects_no_ext(self):
+        assert not _is_image_url("https://cdn.example.com/image/1234")
 
     def test_path_segment_strips_extension_and_kebab(self):
         assert _path_segment("https://x.example/a/b/chapter-12/") == "chapter 12"

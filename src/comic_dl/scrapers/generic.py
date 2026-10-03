@@ -159,11 +159,6 @@ def _is_image_url(url: str) -> bool:
     return last.rsplit(".", 1)[-1].lower() in DIRECT_IMAGE_EXTS
 
 
-def _looks_like_direct_image(url: str) -> bool:
-    """Cheap path-extension test for a direct image URL (no fetch)."""
-    return _is_image_url(url)
-
-
 def _is_placeholder(url: str) -> bool:
     lowered = url.lower()
     return any(keyword in lowered for keyword in _PLACEHOLDER_KEYWORDS)
@@ -539,7 +534,7 @@ class GenericScraper(BaseScraper):
             return self._page_cache[key]
         if key in self._direct_urls:
             return None
-        if _looks_like_direct_image(url):
+        if _is_image_url(url):
             self._direct_urls.add(key)
             return None
         if await _is_image_response(url, client):
