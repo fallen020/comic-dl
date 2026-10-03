@@ -8,7 +8,7 @@ from urllib.parse import urlsplit
 from bs4 import BeautifulSoup
 from curl_cffi.requests import AsyncSession
 
-from ...errors import SITE_AUTH_REQUIRED, SITE_LAYOUT_CHANGED, SITE_NO_CHAPTERS, ScrapeError
+from ...errors import SITE_AUTH_REQUIRED, SITE_LAYOUT_CHANGED, ScrapeError
 from ...models import (
     ChapterInfo,
     ImageItem,
@@ -19,7 +19,7 @@ from ...models import (
     chapter_to_post_metadata,
 )
 from ...utils import sanitize_filename
-from ..base import BaseScraper, _attr_text, meta_get, meta_index
+from ..base import BaseScraper, _attr_text, meta_get, meta_index, no_chapters_error, no_images_error
 from ..registry import register_scraper
 
 DOMAIN = "weebcentral.com"
@@ -175,10 +175,7 @@ class WeebCentralScraper(BaseScraper):
         images_url = url.rstrip("/") + "/images?reading_style=long_strip"
         images = _extract_images(await self.fetch_html(images_url, client))
         if not images:
-            raise ScrapeError(
-                "No images found for this WeebCentral chapter — it may be locked or require login.",
-                site_error_code=SITE_AUTH_REQUIRED,
-            )
+            raise no_images_error("It may be locked or require login.", SITE_AUTH_REQUIRED)
 
         chapter_title, chapter_number = _split_chapter_label(chapter_label)
         if not series_title:
@@ -223,11 +220,7 @@ class WeebCentralScraper(BaseScraper):
         list_url = f"https://{DOMAIN}/series/{series_id}/full-chapter-list"
         entries = _extract_chapter_list(await self.fetch_html(list_url, client))
         if not entries:
-            raise ScrapeError(
-                "No chapters found for this WeebCentral series.",
-                hint="The series may have no published chapters yet.",
-                site_error_code=SITE_NO_CHAPTERS,
-            )
+            raise no_chapters_error("The series may have no published chapters yet.")
 
         chapters = []
         for label, chapter_url in reversed(entries):

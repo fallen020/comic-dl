@@ -21,7 +21,7 @@ from ...models import (
     chapter_to_post_metadata,
 )
 from ...utils import WEBTOON_PATTERN
-from ..base import BaseScraper, _attr_text, meta_get, meta_index, no_images_error
+from ..base import BaseScraper, _attr_text, meta_get, meta_index, no_chapters_error, no_images_error
 from ..registry import register_scraper
 
 WEBTOON_DOMAIN = "www.webtoons.com"
@@ -436,11 +436,7 @@ class WebtoonScraper(BaseScraper):
             )
 
         if not chapters:
-            raise ScrapeError(
-                "No chapters found on WEBTOON series page.",
-                hint="The series may require authentication.",
-                site_error_code=SITE_AUTH_REQUIRED,
-            )
+            raise no_chapters_error("The series may require authentication.", SITE_AUTH_REQUIRED)
 
         return SeriesMetadata(
             series_title=series_title,

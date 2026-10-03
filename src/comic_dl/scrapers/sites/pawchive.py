@@ -27,6 +27,7 @@ from ..base import (
     _attr_text,
     meta_get,
     meta_index,
+    no_images_error,
 )
 from ..registry import register_scraper
 
@@ -177,10 +178,7 @@ class PawchiveScraper(BaseScraper):
                     cover_url=meta_get(idx, "og:image"),
                     text_content=text_content,
                 )
-            raise ScrapeError(
-                "No images found on this post — it may be private or require login.",
-                site_error_code=SITE_AUTH_REQUIRED,
-            )
+            raise no_images_error("It may be private or require login.", SITE_AUTH_REQUIRED)
 
         if not service:
             service = "pawchive.pw"

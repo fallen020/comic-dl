@@ -5,7 +5,7 @@ import asyncio
 import pytest
 from bs4 import BeautifulSoup
 
-from comic_dl.errors import ScrapeTimeout
+from comic_dl.errors import ScrapeError, ScrapeTimeout
 from comic_dl.scrapers.sites.pawchive import (
     PawchiveScraper,
     _extract_images,
@@ -356,8 +356,9 @@ class TestScrapePost:
             async def get(self, url, **kwargs):
                 return MockResponse()
 
-        with pytest.raises(ValueError, match="require login"):
+        with pytest.raises(ScrapeError) as exc_info:
             await PawchiveScraper().scrape("https://pawchive.pw/p/user/1/post/2", MockClient())  # type: ignore
+        assert "require login" in exc_info.value.hint
 
     async def test_text_only_post_returns_text_content(self):
         html = """

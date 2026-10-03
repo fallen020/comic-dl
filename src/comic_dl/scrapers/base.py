@@ -37,11 +37,12 @@ def no_images_error(hint: str = "", code: str | None = None) -> ScrapeError:
     return ScrapeError("No images found on this page.", hint=hint or default, site_error_code=code)
 
 
-def no_chapters_error(code: str | None = None) -> ScrapeError:
+def no_chapters_error(hint: str = "", code: str | None = None) -> ScrapeError:
     """The standard "series page yielded no chapters" failure."""
+    default = "The series may be empty, or its page layout changed."
     return ScrapeError(
         "No chapters found on series page.",
-        hint="The series may be empty, or its page layout changed.",
+        hint=hint or default,
         site_error_code=code or SITE_NO_CHAPTERS,
     )
 
