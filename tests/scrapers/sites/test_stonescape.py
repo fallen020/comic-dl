@@ -321,6 +321,17 @@ class TestStoneScapeScraper:
             )
 
     @pytest.mark.asyncio
+    async def test_scrape_server_error_is_scrape_error(self):
+        from comic_dl.errors import SITE_REQUEST_FAILED, ScrapeError
+
+        session = _MockSession(lambda url: _MockResponse(json_data={"message": "boom"}, status=500))
+        with pytest.raises(ScrapeError) as exc_info:
+            await StoneScapeScraper().scrape(
+                "https://stonescape.xyz/series/gone-series/ch-1", session
+            )
+        assert exc_info.value.site_error_code == SITE_REQUEST_FAILED
+
+    @pytest.mark.asyncio
     async def test_scrape_series(self):
         session = self._session(self._series_handler())
         series = await StoneScapeScraper().scrape_series(self.SERIES_URL, session)

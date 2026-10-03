@@ -20,6 +20,7 @@ from ...errors import (
     SITE_LAYOUT_CHANGED,
     SITE_NO_PAGES,
     SITE_NO_SERIES,
+    SITE_REQUEST_FAILED,
     ScrapeError,
 )
 from ...models import (
@@ -189,7 +190,11 @@ class StoneScapeScraper(BaseScraper):
                     "this tool does not pay.",
                     site_error_code=SITE_AUTH_REQUIRED,
                 ) from None
-            raise
+            raise ScrapeError(
+                "Unexpected response from StoneScape.",
+                hint="the site may be rate-limiting or down; run again later.",
+                site_error_code=SITE_REQUEST_FAILED,
+            ) from exc
         data = response.json()
         if not isinstance(data, dict):
             raise ScrapeError(
