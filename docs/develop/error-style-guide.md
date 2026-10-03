@@ -8,7 +8,8 @@ comments when someone ships a bare `print(traceback.format_exc())`.
 
 ## The three hard rules
 
-1. **Start lowercase, end with a period.** Messages read mid-sentence.
+1. **Start capitalized, end with a period.** Messages read as standalone
+   sentences.
 2. **Lead with the object/context, then a colon, then the problem.**
    You name what failed before you say why.
 3. **Every error carries an actionable hint where one exists.** If there is a
@@ -25,7 +26,7 @@ And the two "never"s:
 ## Canonical examples
 
 ```text
-invalid size: '10x' (e.g. 100MB, 2GB, 512KB, 104857600)
+Invalid size: '10x' (e.g. 100MB, 2GB, 512KB, 104857600)
 Invalid chapter selection '5-2': reversed range 5-2.
 File not found: /nonexistent/urls.txt
 Could not create output directory: /data/dl (Permission denied)
