@@ -41,6 +41,10 @@ from comic_dl.utils import (
     verify_image_file,
 )
 
+#: Structurally complete minimal JPEG for valid-image fixtures (magic header
+#: plus FFD9 end marker, so header+tail verification accepts it).
+VALID_JPEG = b"\xff\xd8\xff\xe0\x00\x10JFIF\x00" + b"\x00" * 8 + b"\xff\xd9"
+
 
 def _patch_chapter_scraper(monkeypatch, overrides):
     """Route ``domain -> instance`` for chapter scraping during a test.
@@ -440,8 +444,10 @@ class TestCbzIntegrity:
         with tempfile.TemporaryDirectory() as td:
             tmp = Path(td) / "tmp"
             tmp.mkdir()
-            (tmp / image_source_name(1, "http://x.com/1.jpg")).write_bytes(b"\xff\xd8\xff")
-            (tmp / image_source_name(2, "http://x.com/2.png")).write_bytes(b"\x89PNG\r\n\x1a\n")
+            (tmp / image_source_name(1, "http://x.com/1.jpg")).write_bytes(VALID_JPEG)
+            (tmp / image_source_name(2, "http://x.com/2.png")).write_bytes(
+                b"\x89PNG\r\n\x1a\n" + b"\x00" * 8 + b"\x00\x00\x00\x00IEND\xaeB\x60\x82"
+            )
             images = [
                 ImageItem(
                     url="http://x.com/1.jpg",
@@ -474,7 +480,7 @@ class TestCbzIntegrity:
             for i in range(1, 4):
                 url = f"http://x.com/{i}.jpg"
                 src_name = image_source_name(i, url)
-                (tmp / src_name).write_bytes(b"\xff\xd8\xff" + bytes([i]))
+                (tmp / src_name).write_bytes(VALID_JPEG + bytes([i]))
                 images.append(ImageItem(url=url, page_number=i, filename=src_name))
             cbz = Path(td) / "test.cbz"
             create_archive(images, tmp, cbz, "S", "C")
@@ -526,7 +532,7 @@ class TestProcessUrlE2E:
         async def mock_download(images, dest_dir, *args, **kwargs):
             dest_dir.mkdir(parents=True, exist_ok=True)
             for img in images:
-                (dest_dir / img.filename).write_bytes(b"\xff\xd8\xff")
+                (dest_dir / img.filename).write_bytes(VALID_JPEG)
             return set()
 
         monkeypatch.setattr("comic_dl.downloader.download_httpx", mock_download)
@@ -593,7 +599,7 @@ class TestProcessUrlE2E:
         async def mock_download(images, dest_dir, *args, **kwargs):
             dest_dir.mkdir(parents=True, exist_ok=True)
             for img in images:
-                (dest_dir / img.filename).write_bytes(b"\xff\xd8\xff")
+                (dest_dir / img.filename).write_bytes(VALID_JPEG)
             return set()
 
         monkeypatch.setattr("comic_dl.downloader.download_httpx", mock_download)
@@ -747,7 +753,7 @@ class TestProcessWebtoonSeriesE2E:
             images = args[0]
             dest_dir = args[1]
             for img in images:
-                (dest_dir / img.filename).write_bytes(b"\xff\xd8\xff")
+                (dest_dir / img.filename).write_bytes(VALID_JPEG)
             return set()
 
         class MockWebtoon:
@@ -790,7 +796,7 @@ class TestSeriesCoverAndNomedia:
             images = args[0]
             dest_dir = args[1]
             for img in images:
-                (dest_dir / img.filename).write_bytes(b"\xff\xd8\xff")
+                (dest_dir / img.filename).write_bytes(VALID_JPEG)
             return set()
 
         async def mock_cover(url, dest_path, **kwargs):
@@ -879,7 +885,7 @@ class TestSeriesCoverAndNomedia:
         async def mock_download(images, dest_dir, *args, **kwargs):
             dest_dir.mkdir(parents=True, exist_ok=True)
             for img in images:
-                (dest_dir / img.filename).write_bytes(b"\xff\xd8\xff")
+                (dest_dir / img.filename).write_bytes(VALID_JPEG)
             return set()
 
         monkeypatch.setattr("comic_dl.downloader.download_httpx", mock_download)
@@ -962,7 +968,7 @@ class TestSeriesSameTitleCollision:
             dest_dir = args[1]
             dest_dir.mkdir(parents=True, exist_ok=True)
             for img in images:
-                (dest_dir / img.filename).write_bytes(b"\xff\xd8\xff")
+                (dest_dir / img.filename).write_bytes(VALID_JPEG)
             return set()
 
         monkeypatch.setattr("comic_dl.downloader.download_httpx", mock_download)
@@ -1061,7 +1067,7 @@ class TestSeriesIncrementalUpdates:
             dest_dir = args[1]
             dest_dir.mkdir(parents=True, exist_ok=True)
             for img in images:
-                (dest_dir / img.filename).write_bytes(b"\xff\xd8\xff")
+                (dest_dir / img.filename).write_bytes(VALID_JPEG)
             return set()
 
         monkeypatch.setattr("comic_dl.downloader.download_httpx", mock_download)
@@ -1194,7 +1200,7 @@ class TestSeriesIncrementalUpdates:
             dest_dir = args[1]
             dest_dir.mkdir(parents=True, exist_ok=True)
             for img in images:
-                (dest_dir / img.filename).write_bytes(b"\xff\xd8\xff")
+                (dest_dir / img.filename).write_bytes(VALID_JPEG)
             return set()
 
         monkeypatch.setattr("comic_dl.downloader.download_httpx", dummy_download)
@@ -1280,7 +1286,7 @@ class TestSeriesChapterSelection:
         async def mock_download(images, dest_dir, *args, **kwargs):
             dest_dir.mkdir(parents=True, exist_ok=True)
             for img in images:
-                (dest_dir / img.filename).write_bytes(b"\xff\xd8\xff")
+                (dest_dir / img.filename).write_bytes(VALID_JPEG)
             return set()
 
         monkeypatch.setattr("comic_dl.downloader.download_httpx", mock_download)
@@ -1490,7 +1496,7 @@ class TestNetworkErrorHandling:
                     raise CurlHTTPError("too many", response=resp)
 
             async def aiter_content(self, chunk_size=None):
-                yield b"\xff\xd8\xff"
+                yield VALID_JPEG
 
             async def __aenter__(self):
                 return self
@@ -1574,7 +1580,7 @@ class TestPerformance:
             for i in range(1, 101):
                 url = f"http://x.com/{i}.jpg"
                 src_name = image_source_name(i, url)
-                (tmp / src_name).write_bytes(b"\xff\xd8\xff" + bytes([i % 256]) + bytes([i // 256]))
+                (tmp / src_name).write_bytes(VALID_JPEG + bytes([i % 256]) + bytes([i // 256]))
                 images.append(ImageItem(url=url, page_number=i, filename=src_name))
             cbz = Path(td) / "test.cbz"
             added, skipped = create_archive(images, tmp, cbz, "S", "C")
@@ -1643,7 +1649,7 @@ class TestSeriesPartialChapterAccounting:
             # the verify step reports as missing.
             for i, img in enumerate(images):
                 if i == 0:
-                    (dest_dir / img.filename).write_bytes(b"\xff\xd8\xff")
+                    (dest_dir / img.filename).write_bytes(VALID_JPEG)
             return set()
 
         monkeypatch.setattr("comic_dl.downloader.download_httpx", mock_download)

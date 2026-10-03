@@ -716,8 +716,6 @@ def is_valid_webtoon_url(url: str) -> bool:
 
 def verify_image_bytes(data: bytes) -> str | None:
     """Detect an image format from a byte buffer via magic bytes, or None."""
-    # ponytail: magic-byte sniff only — the pipeline never decodes images,
-    # so a decompression bomb cannot expand here. Revisit if a decoder lands.
     for magic, offset, fmt in IMAGE_MAGIC:
         if len(data) < offset + len(magic):
             continue
@@ -731,6 +729,44 @@ def verify_image_bytes(data: bytes) -> str | None:
     return None
 
 
+#: Bytes of file tail searched for an end marker (encoders pad after EOI,
+#: so an exact-EOF check would false-negative real pages).
+_TAIL_WINDOW = 64
+
+
+def verify_image_structure(fmt: str, header: bytes, tail: bytes, size: int) -> bool:
+    """True when ``header``/``tail``/``size`` form a structurally complete image.
+
+    End markers come from each format's spec; self-describing size fields
+    must agree with ``size``. No decoding, header+tail slices only.
+    """
+    if fmt == "jpeg":
+        return b"\xff\xd9" in tail
+    if fmt == "png":
+        return b"\x00\x00\x00\x00IEND\xaeB\x60\x82" in tail
+    if fmt == "gif":
+        return b"\x3b" in tail
+    if fmt == "webp":
+        if len(header) < 12 or header[0:4] != b"RIFF" or header[8:12] != b"WEBP":
+            return False
+        return int.from_bytes(header[4:8], "little") == size - 8
+    if fmt == "bmp":
+        if len(header) < 6:
+            return False
+        return int.from_bytes(header[2:6], "little") == size
+    if fmt == "ico":
+        if len(header) < 6:
+            return False
+        count = int.from_bytes(header[4:6], "little")
+        return 6 + count * 16 <= size
+    if fmt == "avif":
+        if len(header) < 12 or header[4:12] != b"ftypavif":
+            return False
+        box_size = int.from_bytes(header[0:4], "big")
+        return 8 <= box_size <= size
+    return False
+
+
 MAGIC_MAX = max(
     max(offset + len(magic) for magic, offset, _ in IMAGE_MAGIC),
     12,
@@ -738,12 +774,25 @@ MAGIC_MAX = max(
 
 
 def verify_image_file(path: Path) -> str | None:
-    """Detect an image format from a file header via magic bytes, or None."""
+    """Detect an image format from a file's header, tail, and size, or None.
+
+    The header selects the format; the tail window must hold the spec
+    end marker and self-describing size fields must agree with the file
+    size, so truncated transfers and image-prefix polyglots fail instead
+    of archiving as pages. Header+tail slices only, never a full read.
+    """
     try:
         with open(path, "rb") as f:
             header = f.read(MAGIC_MAX)
-    except (OSError, PermissionError):
+            if not header:
+                return None
+            fmt = verify_image_bytes(header)
+            if fmt is None:
+                return None
+            f.seek(0, 2)
+            size = f.tell()
+            f.seek(max(0, size - _TAIL_WINDOW))
+            tail = f.read()
+    except (OSError, PermissionError, ValueError):
         return None
-    if not header:
-        return None
-    return verify_image_bytes(header)
+    return fmt if verify_image_structure(fmt, header, tail, size) else None

@@ -45,7 +45,7 @@ from comic_dl.models import ImageItem
 from comic_dl.utils import image_source_name, verify_image_file
 from comic_dl.webview import SessionTransportError
 
-MAGIC_JPEG = b"\xff\xd8\xff"
+MAGIC_JPEG = b"\xff\xd8\xff\xe0\x00\x10JFIF\x00" + b"\x00" * 8 + b"\xff\xd9"
 
 
 @pytest.fixture(autouse=True)
@@ -597,7 +597,7 @@ class TestTryResume:
             status_code = 206
 
             async def aiter_content(self):
-                yield b"complete"
+                yield b"complete\xff\xd9"
 
             async def __aenter__(self):
                 return self
@@ -689,8 +689,10 @@ class TestVerifyDownloads:
     def test_all_valid(self):
         with tempfile.TemporaryDirectory() as td:
             src = Path(td)
-            (src / "a.jpg").write_bytes(b"\xff\xd8\xff")
-            (src / "b.jpg").write_bytes(b"\x89PNG\r\n\x1a\n")
+            (src / "a.jpg").write_bytes(MAGIC_JPEG)
+            (src / "b.jpg").write_bytes(
+                b"\x89PNG\r\n\x1a\n" + b"\x00" * 8 + b"\x00\x00\x00\x00IEND\xaeB\x60\x82"
+            )
             images = [
                 ImageItem(url="http://x.com/1", page_number=1, filename="a.jpg"),
                 ImageItem(url="http://x.com/2", page_number=2, filename="b.jpg"),
@@ -745,7 +747,7 @@ class TestVerifyDownloads:
     def test_mixed_results(self):
         with tempfile.TemporaryDirectory() as td:
             src = Path(td)
-            (src / "good.jpg").write_bytes(b"\xff\xd8\xff")
+            (src / "good.jpg").write_bytes(MAGIC_JPEG)
             images = [
                 ImageItem(url="http://x.com/1", page_number=1, filename="good.jpg"),
                 ImageItem(url="http://x.com/2", page_number=2, filename="missing.jpg"),
@@ -761,7 +763,7 @@ class TestVerifyDownloads:
 class TestStreamToDisk:
     pytestmark = pytest.mark.asyncio
 
-    def _make_client(self, status=200, data=b"\xff\xd8\xff", content_length=None):
+    def _make_client(self, status=200, data=MAGIC_JPEG, content_length=None):
         """Create a mock httpx client for testing _stream_to_disk."""
 
         class MockResponse:
@@ -979,7 +981,7 @@ class TestDownloadHttpx:
                 pass
 
             async def aiter_content(self, chunk_size=None):
-                yield b"\xff\xd8\xff"
+                yield MAGIC_JPEG
 
             async def __aenter__(self):
                 return self
@@ -1288,7 +1290,7 @@ class TestAdaptiveCooldown:
 
             async def aiter_content(self, chunk_size=None):
                 served.append(_time.monotonic())
-                yield b"\xff\xd8\xff"
+                yield MAGIC_JPEG
 
             async def __aenter__(self):
                 return self
@@ -1635,7 +1637,7 @@ class TestExistingDestSkip:
 
             async def aiter_content(self, chunk_size=None):
                 range_requests[0] += 1
-                yield b"\xff" + b"\x00\x00\x10JFIF\x00"
+                yield b"\xff\xe0\x00\x10JFIF\x00" + b"\x00" * 8 + b"\xff\xd9"
 
             async def __aenter__(self):
                 return self
@@ -2066,7 +2068,7 @@ class TestStaleLinkRefresh:
                 pass
 
             async def aiter_content(self, chunk_size=None):
-                yield b"\xff\xd8\xff"
+                yield MAGIC_JPEG
 
             async def __aenter__(self):
                 if self.url.endswith("/stale"):
@@ -2128,7 +2130,7 @@ class TestStaleLinkRefresh:
                 pass
 
             async def aiter_content(self, chunk_size=None):
-                yield b"\xff\xd8\xff"
+                yield MAGIC_JPEG
 
             async def __aenter__(self):
                 raise CurlConnErr("down")
@@ -2260,7 +2262,7 @@ class TestHostBreaker:
                 pass
 
             async def aiter_content(self, chunk_size=None):
-                yield b"\xff\xd8\xff"
+                yield MAGIC_JPEG
 
             async def __aenter__(self):
                 if "dead" in self.url:

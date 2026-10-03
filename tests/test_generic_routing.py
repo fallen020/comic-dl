@@ -16,6 +16,10 @@ GALLERY_URL = "https://unknown-gallery.example/read/chapter/12"
 SERIES_URL = "https://unknown-series.example/manga/foo"
 IMAGE_URL = "https://unknown-gallery.example/cdn/01.jpg"
 
+#: Structurally complete minimal JPEG for valid-image fixtures (magic header
+#: plus FFD9 end marker, so header+tail verification accepts it).
+VALID_JPEG = b"\xff\xd8\xff\xe0\x00\x10JFIF\x00" + b"\x00" * 8 + b"\xff\xd9"
+
 
 class _FakeAsyncSession:
     def __init__(self, **kwargs):
@@ -141,7 +145,7 @@ class TestProcessUrl:
         async def fake_download(images, dest_dir, *a, **kw):
             dest_dir.mkdir(parents=True, exist_ok=True)
             for img in images:
-                (dest_dir / img.filename).write_bytes(b"\xff\xd8\xff")
+                (dest_dir / img.filename).write_bytes(VALID_JPEG)
             return set()
 
         monkeypatch.setattr("comic_dl.downloader.download_httpx", fake_download)
@@ -166,7 +170,7 @@ class TestProcessUrl:
         async def fake_download(images, dest_dir, *a, **kw):
             dest_dir.mkdir(parents=True, exist_ok=True)
             for img in images:
-                (dest_dir / img.filename).write_bytes(b"\xff\xd8\xff")
+                (dest_dir / img.filename).write_bytes(VALID_JPEG)
             return set()
 
         monkeypatch.setattr("comic_dl.downloader.download_httpx", fake_download)
@@ -261,7 +265,7 @@ class TestProcessUrl:
         async def fake_download(images, dest_dir, *a, **kw):
             dest_dir.mkdir(parents=True, exist_ok=True)
             for img in images:
-                (dest_dir / img.filename).write_bytes(b"\xff\xd8\xff")
+                (dest_dir / img.filename).write_bytes(VALID_JPEG)
             return set()
 
         monkeypatch.setattr("comic_dl.downloader.download_httpx", fake_download)

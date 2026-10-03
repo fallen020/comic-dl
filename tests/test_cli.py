@@ -53,6 +53,10 @@ from comic_dl.models import ImageItem, PostMetadata
 from comic_dl.ui import format_bytes
 from comic_dl.utils import normalize_url
 
+#: Structurally complete minimal JPEG for valid-image fixtures (magic header
+#: plus FFD9 end marker, so header+tail verification accepts it).
+VALID_JPEG = b"\xff\xd8\xff\xe0\x00\x10JFIF\x00" + b"\x00" * 8 + b"\xff\xd9"
+
 
 def _patch_chapter_scraper(monkeypatch, overrides):
     """Route ``domain -> instance`` for chapter scraping during a test.
@@ -1090,7 +1094,7 @@ class TestProcessUrl:
         async def mock_download(images, dest_dir, *args, **kwargs):
             dest_dir.mkdir(parents=True, exist_ok=True)
             for img in images:
-                (dest_dir / img.filename).write_bytes(b"\xff\xd8\xff")
+                (dest_dir / img.filename).write_bytes(VALID_JPEG)
             return set()
 
         monkeypatch.setattr("comic_dl.downloader.download_httpx", mock_download)
@@ -1114,7 +1118,7 @@ class TestProcessUrl:
         async def mock_download(images, dest_dir, *args, **kwargs):
             dest_dir.mkdir(parents=True, exist_ok=True)
             for img in images:
-                (dest_dir / img.filename).write_bytes(b"\xff\xd8\xff")
+                (dest_dir / img.filename).write_bytes(VALID_JPEG)
             return set()
 
         monkeypatch.setattr("comic_dl.downloader.download_httpx", mock_download)
@@ -1136,7 +1140,7 @@ class TestProcessUrl:
         async def mock_download(images, dest_dir, *args, **kwargs):
             dest_dir.mkdir(parents=True, exist_ok=True)
             for img in images:
-                (dest_dir / img.filename).write_bytes(b"\xff\xd8\xff")
+                (dest_dir / img.filename).write_bytes(VALID_JPEG)
             return set()
 
         monkeypatch.setattr("comic_dl.downloader.download_httpx", mock_download)
@@ -1170,7 +1174,7 @@ class TestProcessUrl:
         async def mock_download(images, dest_dir, *args, **kwargs):
             dest_dir.mkdir(parents=True, exist_ok=True)
             for img in images:
-                (dest_dir / img.filename).write_bytes(b"\xff\xd8\xff")
+                (dest_dir / img.filename).write_bytes(VALID_JPEG)
             return set()
 
         monkeypatch.setattr("comic_dl.downloader.download_httpx", mock_download)
@@ -1224,7 +1228,7 @@ class TestProcessUrl:
         async def mock_download(images, dest_dir, *args, **kwargs):
             dest_dir.mkdir(parents=True, exist_ok=True)
             for img in images:
-                (dest_dir / img.filename).write_bytes(b"\xff\xd8\xff")
+                (dest_dir / img.filename).write_bytes(VALID_JPEG)
             return set()
 
         async def no_probe(_images, _referer_url, _quiet, *, known_size=0):
@@ -1269,7 +1273,7 @@ class TestProcessUrl:
         async def mock_download(images, dest_dir, *args, **kwargs):
             dest_dir.mkdir(parents=True, exist_ok=True)
             for img in images:
-                (dest_dir / img.filename).write_bytes(b"\xff\xd8\xff")
+                (dest_dir / img.filename).write_bytes(VALID_JPEG)
             return set()
 
         async def no_probe(_images, _referer_url, _quiet, *, known_size=0):
@@ -1366,7 +1370,7 @@ class TestProcessUrl:
         async def mock_download(images, dest_dir, *args, **kwargs):
             dest_dir.mkdir(parents=True, exist_ok=True)
             for img in images:
-                (dest_dir / img.filename).write_bytes(b"\xff\xd8\xff")
+                (dest_dir / img.filename).write_bytes(VALID_JPEG)
             return set()
 
         monkeypatch.setattr("comic_dl.downloader.download_httpx", mock_download)
@@ -1413,7 +1417,7 @@ class TestProcessUrl:
         async def mock_download(images, dest_dir, *args, **kwargs):
             dest_dir.mkdir(parents=True, exist_ok=True)
             for img in images:
-                (dest_dir / img.filename).write_bytes(b"\xff\xd8\xff")
+                (dest_dir / img.filename).write_bytes(VALID_JPEG)
             return set()
 
         calls = {"n": 0}
@@ -1495,7 +1499,7 @@ class TestProcessUrl:
         async def mock_download(images, dest_dir, *args, **kwargs):
             dest_dir.mkdir(parents=True, exist_ok=True)
             for img in images:
-                (dest_dir / img.filename).write_bytes(b"\xff\xd8\xff")
+                (dest_dir / img.filename).write_bytes(VALID_JPEG)
             return set()
 
         calls = {"n": 0}

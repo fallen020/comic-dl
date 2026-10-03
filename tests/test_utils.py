@@ -260,32 +260,50 @@ class TestVerifyImageBytes:
 
 
 class TestVerifyImageFile:
-    def test_jpeg_file(self):
-        with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as f:
-            f.write(b"\xff\xd8\xff\xe0\x00\x10JFIF\x00")
+    JPEG = b"\xff\xd8\xff\xe0\x00\x10JFIF\x00" + b"\x00" * 8 + b"\xff\xd9"
+    PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 8 + b"\x00\x00\x00\x00IEND\xaeB\x60\x82"
+    WEBP = b"RIFF\x0c\x00\x00\x00WEBP" + b"\x00" * 8
+    BMP = b"BM\x10\x00\x00\x00" + b"\x00" * 10
+    ICO = b"\x00\x00\x01\x00\x01\x00" + b"\x00" * 16
+
+    def _check(self, data: bytes, expected: str | None):
+        with tempfile.NamedTemporaryFile(delete=False) as f:
+            f.write(data)
             p = Path(f.name)
         try:
-            assert verify_image_file(p) == "jpeg"
+            assert verify_image_file(p) == expected
         finally:
             p.unlink(missing_ok=True)
+
+    def test_jpeg_file(self):
+        self._check(self.JPEG, "jpeg")
 
     def test_png_file(self):
-        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as f:
-            f.write(b"\x89PNG\r\n\x1a\n")
-            p = Path(f.name)
-        try:
-            assert verify_image_file(p) == "png"
-        finally:
-            p.unlink(missing_ok=True)
+        self._check(self.PNG, "png")
 
     def test_webp_file(self):
-        with tempfile.NamedTemporaryFile(suffix=".webp", delete=False) as f:
-            f.write(b"RIFF\x00\x00\x00\x00WEBP")
-            p = Path(f.name)
-        try:
-            assert verify_image_file(p) == "webp"
-        finally:
-            p.unlink(missing_ok=True)
+        self._check(self.WEBP, "webp")
+
+    def test_bmp_file(self):
+        self._check(self.BMP, "bmp")
+
+    def test_ico_file(self):
+        self._check(self.ICO, "ico")
+
+    def test_truncated_jpeg_rejected(self):
+        self._check(b"\xff\xd8\xff\xe0\x00\x10JFIF\x00" + b"\x00" * 8, None)
+
+    def test_bare_prefix_rejected(self):
+        self._check(b"\xff\xd8\xff", None)
+
+    def test_webp_size_mismatch_rejected(self):
+        self._check(b"RIFF\x63\x00\x00\x00WEBP" + b"\x00" * 8, None)
+
+    def test_bmp_size_mismatch_rejected(self):
+        self._check(b"BM\x63\x00\x00\x00" + b"\x00" * 10, None)
+
+    def test_html_with_jpeg_prefix_rejected(self):
+        self._check(b"\xff\xd8\xff<html><body>throttled</body></html>", None)
 
     def test_empty_file(self):
         with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as f:
@@ -317,32 +335,24 @@ class TestVerifyImageFile:
         finally:
             p.unlink(missing_ok=True)
 
-    def test_bmp_file(self):
-        with tempfile.NamedTemporaryFile(suffix=".bmp", delete=False) as f:
-            f.write(b"BM\x00\x00")
-            p = Path(f.name)
-        try:
-            assert verify_image_file(p) == "bmp"
-        finally:
-            p.unlink(missing_ok=True)
-
-    def test_ico_file(self):
-        with tempfile.NamedTemporaryFile(suffix=".ico", delete=False) as f:
-            f.write(b"\x00\x00\x01\x00")
-            p = Path(f.name)
-        try:
-            assert verify_image_file(p) == "ico"
-        finally:
-            p.unlink(missing_ok=True)
-
-    def test_only_reads_header(self):
+    def test_only_reads_header_and_tail(self):
         """Bug D regression: should not read entire file into memory."""
-        long_data = b"\xff\xd8\xff" + b"\x00" * 1000000
+        long_data = b"\xff\xd8\xff" + b"\x00" * 1000000 + b"\xff\xd9"
         with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as f:
             f.write(long_data)
             p = Path(f.name)
         try:
             assert verify_image_file(p) == "jpeg"
+        finally:
+            p.unlink(missing_ok=True)
+
+    def test_truncated_large_file_rejected(self):
+        long_data = b"\xff\xd8\xff" + b"\x00" * 1000000
+        with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as f:
+            f.write(long_data)
+            p = Path(f.name)
+        try:
+            assert verify_image_file(p) is None
         finally:
             p.unlink(missing_ok=True)
 

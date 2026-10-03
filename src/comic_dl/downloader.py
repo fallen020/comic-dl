@@ -42,6 +42,7 @@ from .ui import (
     vlog,
 )
 from .utils import (
+    _TAIL_WINDOW,
     MAGIC_MAX,
     MAX_REDIRECTS,
     RequestBlockedError,
@@ -51,6 +52,7 @@ from .utils import (
     validate_request_url_async,
     verify_image_bytes,
     verify_image_file,
+    verify_image_structure,
 )
 
 MAX_DOWNLOAD_RETRIES = 3
@@ -869,9 +871,10 @@ async def _stream_to_disk(
     """Stream ``item.url`` into ``dest``, returning the sniffed image format.
 
     Returns the detected format (e.g. ``"jpg"``) when the leading magic bytes
-    were verified during the stream, or ``None`` for files too short to sniff
-    (those are re-verified by :func:`verify_downloads`). Raising
-    :class:`NotImageResponseError` for a throttled HTML reply is unchanged.
+    and trailing structure were verified during the stream, or ``None`` for
+    files too short to sniff (those are re-verified by
+    :func:`verify_downloads`). Raising :class:`NotImageResponseError` for a
+    throttled HTML reply — or a truncated/polyglot body — is unchanged.
     """
     resp = None
     head_fmt: str | None = None
@@ -893,6 +896,7 @@ async def _stream_to_disk(
         pending = 0
         last_flush = time.monotonic()
         head = bytearray()
+        tail = bytearray()
         with open(dest, "wb") as f:
             async for chunk in resp.aiter_content():
                 written += len(chunk)
@@ -912,6 +916,8 @@ async def _stream_to_disk(
                         head_fmt = verify_image_bytes(bytes(head))
                         if head_fmt is None:
                             raise NotImageResponseError(item.filename)
+                tail.extend(chunk)
+                del tail[:-_TAIL_WINDOW]
                 f.write(chunk)
                 _mark_partial(dest)
                 if bytes_cb is not None:
@@ -923,6 +929,10 @@ async def _stream_to_disk(
                         last_flush = now
         if bytes_cb is not None and pending:
             bytes_cb(pending)
+        if head_fmt is not None and not verify_image_structure(
+            head_fmt, bytes(head), bytes(tail), written
+        ):
+            raise NotImageResponseError(item.filename)
         return head_fmt
     except OSError as exc:
         if exc.errno == errno.ENOSPC:

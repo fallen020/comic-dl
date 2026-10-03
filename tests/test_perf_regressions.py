@@ -128,7 +128,7 @@ class TestVerifyOnce:
     re-read by verify_downloads."""
 
     pytestmark = pytest.mark.perf
-    MAGIC_JPEG = b"\xff\xd8\xff"
+    MAGIC_JPEG = b"\xff\xd8\xff\xe0\x00\x10JFIF\x00" + b"\x00" * 8 + b"\xff\xd9"
 
     def test_known_formats_skip_header_reread(self, monkeypatch):
         def _boom(path):
