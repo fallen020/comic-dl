@@ -342,6 +342,10 @@ def _structured_image_urls(soup: BeautifulSoup, base_url: str) -> list[str]:
         resolved = urljoin(base_url, value)
         if not _is_image_url(resolved) or _is_placeholder(resolved):
             return
+        try:
+            validate_request_url(resolved)
+        except RequestBlockedError:
+            return
         key = resolved.split("#")[0]
         if key in seen:
             return

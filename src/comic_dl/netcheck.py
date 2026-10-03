@@ -61,8 +61,8 @@ async def _tcp_reachable(host: str, port: int) -> bool:
 async def _http_reachable(url: str) -> bool:
     try:
         await validate_request_url_async(url)
-        async with AsyncSession(**http_client_args(host=urlparse(url).netloc)) as client:
-            await client.get(url, timeout=_HTTP_TIMEOUT)
+        async with AsyncSession(**http_client_args(host=urlparse(url).hostname or "")) as client:
+            await client.get(url, timeout=_HTTP_TIMEOUT, allow_redirects=False)
     except Exception:
         return False
     # Any answer at all proves the network carried a request and a reply, even
