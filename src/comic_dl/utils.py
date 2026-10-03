@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import inspect
 import ipaddress
 import os
 import re
@@ -421,6 +422,19 @@ async def resolve_redirect_url_async(base: str, location: str) -> str:
 
 def _with_referer(referer_url: str) -> dict[str, Any]:
     return http_client_args(referer_url=referer_url)
+
+
+async def aclose_response(resp: object) -> None:
+    """Best-effort close of a response with sync or async teardown."""
+    closer = getattr(resp, "aclose", None) or getattr(resp, "close", None)
+    if closer is None:
+        return
+    try:
+        result = closer()
+        if inspect.isawaitable(result):
+            await result
+    except Exception:  # nosec B110
+        pass
 
 
 def referer_headers(referer_url: str) -> dict[str, str]:

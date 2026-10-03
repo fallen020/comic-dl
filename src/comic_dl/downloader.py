@@ -46,6 +46,7 @@ from .utils import (
     MAGIC_MAX,
     MAX_REDIRECTS,
     RequestBlockedError,
+    aclose_response,
     http_client_args,
     referer_headers,
     resolve_redirect_url_async,
@@ -117,18 +118,6 @@ class _StreamResponse(Protocol):
     def aiter_content(self, chunk_size: int | None = None) -> AsyncIterator[bytes]: ...
 
     async def aclose(self) -> None: ...
-
-
-async def _close_response(inner: object) -> None:
-    closer = getattr(inner, "aclose", None) or getattr(inner, "close", None)
-    if closer is None:
-        return
-    try:
-        result = closer()
-        if inspect.isawaitable(result):
-            await result
-    except Exception:  # nosec B110
-        pass
 
 
 # Bounded retry for general block responses (non-CF challenges).
@@ -213,10 +202,10 @@ async def _retry_blocked(
                         f"retry_blocked: live session returned {via_status} "
                         f"for {host}; not solving again"
                     )
-                    await _close_response(via_session)
+                    await aclose_response(via_session)
                     return via_session
             if await handle_challenge(url):
-                await _close_response(resp)
+                await aclose_response(resp)
                 # A successful solve cleared the stale cf_clearance and (via
                 # the webview solver) harvested a fresh one; the post-solve
                 # request must exercise it. It occupies this attempt's own
@@ -231,7 +220,7 @@ async def _retry_blocked(
                 body = raw[:256_000].decode("utf-8", errors="replace")
                 if classify_block(status, headers, body=body, url=url).vendor == "none":
                     return resp
-                await _close_response(resp)
+                await aclose_response(resp)
                 continue  # still blocked after the solve → next slot
             return resp  # solve failed, return the challenge response
 
@@ -249,7 +238,7 @@ async def _retry_blocked(
                 f"{urlsplit(url).hostname} — retry {attempt + 1}/{_HUMANE_MAX_RETRIES} "
                 f"in {delay:.1f}s"
             )
-            await _close_response(resp)
+            await aclose_response(resp)
             await asyncio.sleep(delay)
             continue
 
@@ -324,13 +313,13 @@ async def _open_stream(
                     with contextlib.suppress(Exception):
                         await obj.__aexit__(None, None, None)
                 else:
-                    await _close_response(inner)
+                    await aclose_response(inner)
                 current = await resolve_redirect_url_async(current, location)
                 continue
             return inner
         # Redirect loop past the cap.
         if inner is not None:
-            await _close_response(inner)
+            await aclose_response(inner)
         raise RequestBlockedError(f"too many redirects ({MAX_REDIRECTS}) while following {url!r}")
 
     return await _retry_blocked(_stream_once, url)
@@ -453,7 +442,7 @@ async def download_cover_to(
             data = b"".join(chunks)
             last_modified = (resp.headers or {}).get("last-modified")
         finally:
-            await _close_response(resp)
+            await aclose_response(resp)
 
         if not force and _existing_matches(dest_path, data):
             return False
@@ -843,7 +832,7 @@ async def _try_resume(
         return None
     finally:
         if resp is not None:
-            await _close_response(resp)
+            await aclose_response(resp)
     # Transport-level faults (connection reset, timeout) are deliberately NOT
     # caught: they propagate to the caller's retry loop, which backs off and
     # re-enters this resume with the partial still on disk, so a disconnect
@@ -933,7 +922,7 @@ async def _stream_to_disk(
         raise
     finally:
         if resp is not None:
-            await _close_response(resp)
+            await aclose_response(resp)
 
 
 async def _aiter_list(items: list[ImageItem]) -> AsyncIterator[ImageItem]:
@@ -1534,7 +1523,7 @@ async def _probe_image_size(c: AsyncSession, url: str, timeout: float) -> int:
             return 0
         finally:
             with contextlib.suppress(Exception):
-                await _close_response(resp)
+                await aclose_response(resp)
     return 0
 
 

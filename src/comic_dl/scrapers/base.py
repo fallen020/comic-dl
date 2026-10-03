@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import html
-import inspect
 import json
 import time
 from urllib.parse import urlsplit
@@ -20,6 +19,7 @@ from ..ui import DIAGNOSTIC, http_event
 from ..utils import (
     MAX_REDIRECTS,
     RequestBlockedError,
+    aclose_response,
     resolve_redirect_url_async,
     validate_request_url_async,
 )
@@ -110,18 +110,6 @@ def article_jsonld_nodes(soup: BeautifulSoup) -> list[dict]:
         for n in extract_jsonld(soup)
         if any(jsonld_type_includes(n, t) for t in JSONLD_ARTICLE_TYPES)
     ]
-
-
-async def _close_response(resp: object) -> None:
-    closer = getattr(resp, "aclose", None) or getattr(resp, "close", None)
-    if closer is None:
-        return
-    try:
-        result = closer()
-        if inspect.isawaitable(result):
-            await result
-    except Exception:  # nosec B110
-        pass
 
 
 def _attr_text(value: object) -> str:
@@ -313,12 +301,12 @@ class BaseScraper:
                 )
                 location = (getattr(resp, "headers", None) or {}).get("location")
                 if status in _REDIRECT_STATUSES and location:
-                    await _close_response(resp)
+                    await aclose_response(resp)
                     current = await resolve_redirect_url_async(current, location)
                     continue
                 return resp
             if resp is not None:
-                await _close_response(resp)
+                await aclose_response(resp)
             raise RequestBlockedError(
                 f"too many redirects ({MAX_REDIRECTS}) while following {url!r}"
             )
