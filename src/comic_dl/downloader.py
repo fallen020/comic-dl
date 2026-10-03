@@ -922,12 +922,6 @@ async def _stream_to_disk(
             await aclose_response(resp)
 
 
-async def _aiter_list(items: list[ImageItem]) -> AsyncIterator[ImageItem]:
-    """Identity async iterator over a list (non-streaming mode)."""
-    for item in items:
-        yield item
-
-
 async def download_httpx(
     images: list[ImageItem],
     dest_dir: Path,
@@ -957,6 +951,10 @@ async def download_httpx(
     """
     sem = asyncio.Semaphore(concurrency)
 
+    async def _items() -> AsyncIterator[ImageItem]:
+        for item in images:
+            yield item
+
     if client is None:
         _session_kwargs: dict[str, Any] = http_client_args()
         if images:
@@ -968,7 +966,7 @@ async def download_httpx(
         _session_kwargs["max_clients"] = concurrency + 2
         async with AsyncSession(**_session_kwargs) as _client:
             failed, _ = await _run_downloads(
-                _aiter_list(images),
+                _items(),
                 dest_dir,
                 sem,
                 progress_cb,
@@ -987,7 +985,7 @@ async def download_httpx(
             return failed
     else:
         failed, _ = await _run_downloads(
-            _aiter_list(images),
+            _items(),
             dest_dir,
             sem,
             progress_cb,
