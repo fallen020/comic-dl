@@ -190,15 +190,10 @@ def _python_on_path() -> list[str]:
     out: list[str] = []
     bindir = os.path.dirname(sys.executable)
     for name in ("python3", "python"):
-        for found in _iter_which(name):
-            if found and found != sys.executable and os.path.dirname(found) != bindir:
-                out.append(found)
+        found = shutil.which(name)
+        if found and found != sys.executable and os.path.dirname(found) != bindir:
+            out.append(found)
     return out
-
-
-def _iter_which(name: str) -> list[str]:
-    found = shutil.which(name)
-    return [found] if found else []
 
 
 async def _stderr_drainer(proc: asyncio.subprocess.Process) -> None:
