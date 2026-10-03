@@ -437,6 +437,11 @@ async def aclose_response(resp: object) -> None:
         pass
 
 
+def host_of(url: str) -> str:
+    """Lowercased hostname of ``url`` ("" when unparsable)."""
+    return urlsplit(url).hostname or ""
+
+
 def referer_headers(referer_url: str) -> dict[str, str]:
     """Per-request ``Referer``/``Origin`` headers derived from ``referer_url``.
 

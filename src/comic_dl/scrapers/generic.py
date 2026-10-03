@@ -24,6 +24,7 @@ from curl_cffi.requests import AsyncSession
 from ..models import ImageItem, PostMetadata, SeriesMetadata
 from ..utils import (
     RequestBlockedError,
+    host_of,
     image_source_name,
     normalize_url,
     normalize_url_key,
@@ -125,10 +126,6 @@ _BACKGROUND_RE = re.compile(
 )
 
 _TITLE_SEPS = (" - ", " | ", " \u2013 ", " \u2014 ", " :: ", "\u00b7")
-
-
-def _host_of(url: str) -> str:
-    return urlparse(url).hostname or ""
 
 
 def _path_segment(url: str) -> str:
@@ -459,13 +456,13 @@ def _page_title(soup: BeautifulSoup, idx: dict[str, list[str]], url: str) -> str
     ld = _json_ld_name(soup)
     if ld:
         return ld
-    return _path_segment(url) or _host_of(url)
+    return _path_segment(url) or host_of(url)
 
 
 def _series_title_for(url: str, title: str) -> str:
     """Series title from a page title: first segment before a title separator."""
     if not title:
-        return _path_segment(url) or _host_of(url)
+        return _path_segment(url) or host_of(url)
     for sep in _TITLE_SEPS:
         if sep in title:
             head = title.split(sep, 1)[0].strip()
@@ -591,7 +588,7 @@ class GenericScraper(BaseScraper):
             series_title=series_title,
             chapter_title=title,
             images=_keyed_images(images),
-            service=_host_of(url),
+            service=host_of(url),
             total_pages=len(images),
             description=_description(idx),
             cover_url=_cover_url(idx, url),
@@ -653,12 +650,12 @@ def _single_image_meta(url: str) -> PostMetadata:
     item = ImageItem.from_url(url, 1)
     if item is None:
         item = ImageItem(url=url, page_number=1, filename="page_0001.jpg")
-    title = _path_segment(url) or item.filename.rsplit(".", 1)[0] or _host_of(url)
+    title = _path_segment(url) or item.filename.rsplit(".", 1)[0] or host_of(url)
     return PostMetadata(
-        series_title=_host_of(url),
+        series_title=host_of(url),
         chapter_title=title,
         images=_keyed_images([item]),
-        service=_host_of(url),
+        service=host_of(url),
         total_pages=1,
     )
 

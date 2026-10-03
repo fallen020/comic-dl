@@ -47,6 +47,7 @@ from .utils import (
     MAX_REDIRECTS,
     RequestBlockedError,
     aclose_response,
+    host_of,
     http_client_args,
     referer_headers,
     resolve_redirect_url_async,
@@ -587,10 +588,6 @@ def _backoff_delay(
         # concurrent retries.
         delay *= random.uniform(1 - BACKOFF_JITTER, 1 + BACKOFF_JITTER)  # nosec B311
     return delay
-
-
-def _host_of(url: str) -> str:
-    return (urlsplit(url).hostname or "").lower()
 
 
 # host -> {"fails": int, "parked_until": monotonic}
@@ -1168,7 +1165,7 @@ async def _run_downloads(
 
         # Current attempt's peer; rebinds when a stale link is refreshed to
         # a different node. Pre-bound so failure handlers never see it unset.
-        host: str = _host_of(item.url)
+        host: str = host_of(item.url)
 
         for attempt in range(max_attempts):
             if activity_cb is not None:
@@ -1189,7 +1186,7 @@ async def _run_downloads(
                     if activity_cb is not None:
                         activity_cb(f"Waiting for server{glyphs().ellipsis}")
                     await asyncio.sleep(min(cooldown_until - now, SHARED_COOLDOWN_CAP))
-                host = _host_of(item.url)
+                host = host_of(item.url)
                 if host_parked(host, loop.time()):
                     # Parked node: fail fast WITHOUT taking a semaphore slot
                     # or opening a socket; rerun picks the page back up.
