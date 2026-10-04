@@ -24,7 +24,7 @@ new wheel and update its version below.
 | [markdown-it-py](https://github.com/executablebooks/markdown-it-py) | 4.2.0 | [MIT](markdown-it-py/LICENSE), [LICENSE.markdown-it](markdown-it-py/LICENSE.markdown-it) |
 | [mdurl](https://github.com/executablebooks/mdurl) | 0.1.2 | [MIT](mdurl/LICENSE) |
 | [packaging](https://github.com/pypa/packaging) | 26.2 | [Apache-2.0](packaging/LICENSE.APACHE) or [BSD-3-Clause](packaging/LICENSE.BSD), [notice](packaging/LICENSE) |
-| [platformdirs](https://github.com/tox-dev/platformdirs) | 4.12.0 | [MIT](platformdirs/LICENSE) |
+| [platformdirs](https://github.com/tox-dev/platformdirs) | 4.12.3 | [MIT](platformdirs/LICENSE) |
 | [proxy-tools](https://github.com/jtushman/proxy_tools) | 0.1.0 | [MIT](proxy-tools/LICENSE) |
 | [pycparser](https://github.com/eliben/pycparser) | 3.0 | [BSD-3-Clause](pycparser/LICENSE) |
 | [pygments](https://github.com/pygments/pygments) | 2.20.0 | [BSD-3-Clause](pygments/LICENSE), [AUTHORS](pygments/AUTHORS) |
@@ -80,8 +80,8 @@ texts are vendored here. Versions are informational.
 | [pytest-xdist](https://github.com/pytest-dev/pytest-xdist) | 3.8.0 | MIT |
 | [pytest-asyncio](https://github.com/pytest-dev/pytest-asyncio) | 1.4.0 | Apache-2.0 |
 | [pytest-cov](https://github.com/pytest-dev/pytest-cov) | 7.1.0 | MIT |
-| [ruff](https://docs.astral.sh/ruff/) | 0.16.8 | MIT |
-| [mypy](https://www.mypy-lang.org) | 2.3.1 | MIT |
+| [ruff](https://docs.astral.sh/ruff/) | 0.16.10 | MIT |
+| [mypy](https://www.mypy-lang.org) | 2.4.0 | MIT |
 | [bandit](https://bandit.readthedocs.io/) | 1.9.4 | Apache-2.0 |
 | [pyinstaller](https://pyinstaller.org) | 6.22.3 | GPL-2.0-or-later with bootloader exception |
 | [types-defusedxml](https://pypi.org/project/types-defusedxml/) | 0.7.0.20260504 | Apache-2.0 |
