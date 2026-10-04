@@ -138,10 +138,10 @@ def parse_size_string(raw: Any) -> int:
     error promotion (CLI) and fallback (config default).
     """
     if isinstance(raw, bool) or not isinstance(raw, (int, str)):
-        raise ValueError(f"invalid size: {raw!r}")
+        raise ValueError(f"Invalid size: {raw!r}.")
     if isinstance(raw, int):
         if raw < 0:
-            raise ValueError(f"invalid size: {raw!r} (must be non-negative)")
+            raise ValueError(f"Invalid size: {raw!r} (must be non-negative).")
         return raw
     raw = raw.strip()
     try:
@@ -150,11 +150,11 @@ def parse_size_string(raw: Any) -> int:
         pass
     else:
         if value < 0:
-            raise ValueError(f"invalid size: {raw!r} (must be non-negative)")
+            raise ValueError(f"Invalid size: {raw!r} (must be non-negative).")
         return value
     m = _SIZE_RE.match(raw)
     if not m:
-        raise ValueError(f"invalid size: {raw!r}")
+        raise ValueError(f"Invalid size: {raw!r}.")
     num = float(m.group(1))
     unit = (m.group(2) or "B").upper()
     return int(num * _SIZE_UNITS[unit])
@@ -385,10 +385,10 @@ def _parse_outbound_url(url: str) -> tuple[str, str]:
     parsed = urlparse(url)
     scheme = (parsed.scheme or "").lower()
     if scheme not in ALLOWED_SCHEMES:
-        raise RequestBlockedError(f"blocked non-http(s) URL scheme: {scheme or '<none>'!r}")
+        raise RequestBlockedError(f"Blocked non-http(s) URL scheme: {scheme or '<none>'!r}.")
     host = parsed.hostname
     if not host:
-        raise RequestBlockedError("URL has no host")
+        raise RequestBlockedError("URL has no host.")
     if host.startswith("[") and host.endswith("]"):
         host = host[1:-1]
     return scheme, host

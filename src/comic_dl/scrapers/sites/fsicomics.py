@@ -319,7 +319,7 @@ def _extract_publisher(soup: BeautifulSoup, idx: dict[str, list[str]] | None = N
 
     FSI sets ``article:section`` to the studio (e.g. "Super Melons"), which is
     the meaningful publisher for readers; the JSON-LD ``publisher`` is usually
-    just the site name ("FSI Comics").
+    the site name ("FSI Comics").
     """
     if idx:
         for v in idx.get("prop:article:section", []):

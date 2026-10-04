@@ -7,8 +7,8 @@ minted it. An :class:`ImageItem` therefore carries its provenance in
 ``source_url`` and a refresher — registered per source host here — turns
 that page back into a fresh image URL.
 
-Only e-hentai implements a refresher today. The registry is deliberately
-shaped so a future scraper only adds a decorated function; the downloader
+Only e-hentai implements a refresher today. The registry is shaped
+so a future scraper only adds a decorated function; the downloader
 stays ignorant of site specifics.
 """
 
@@ -64,7 +64,7 @@ async def refresh_image_url(client: AsyncSession, item: ImageItem) -> ImageItem 
         refreshed = await refresher(client, item)
     except Exception:
         # A refresh failure must never abort the download loop; the caller
-        # simply retries whatever link it has.
+        # retries whatever link it has.
         return None
     if refreshed is None or refreshed.url == item.url:
         return None

@@ -3253,7 +3253,7 @@ def _write_legal_notice_marker() -> None:
     """Atomically write the acknowledgement marker; never raise on OSError.
 
     An unwritable config dir is not a reason to fail a download run — the
-    notice simply re-prints on every run until the marker can be saved.
+    notice re-prints on every run until the marker can be saved.
     """
     tmp = ""
     try:

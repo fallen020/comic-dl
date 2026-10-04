@@ -1,6 +1,6 @@
 """Thin platform seam shared by the CLI and the packaging pipeline.
 
-Keep this module deliberately small: most per-OS behavior already lives in
+Keep this module small: most per-OS behavior already lives in
 ``platformdirs`` (via :mod:`comic_dl.config`) and the stdlib. This file
 centralizes the handful of conventions that previously had to be spelled out
 ``os.name``/``platform.machine()``-style at each call site, so packaging

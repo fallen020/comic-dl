@@ -15,7 +15,7 @@ Scope and safety:
   before this module is consulted); this module still refuses non-http(s)
   URLs and folds header-name case and stray whitespace so equivalent configs
   share one entry.
-- The bounds are enforced here, not just at the call site: lookup, store, and
+- The bounds are enforced here: lookup, store, and
   refresh short-circuit when the cache is disabled or the request is not a
   GET, so policy cannot drift when a new caller is added.
 - The cache is bypassed entirely when ``--no-cache`` or ``--no-cookie`` is
@@ -241,7 +241,7 @@ def _cache_key(url: str, profile: str, extra_headers: dict[str, str]) -> str:
 def _entry_path(url: str, profile: str, extra_headers: dict[str, str]) -> Path:
     parsed = urlparse(url)
     if parsed.scheme.lower() not in ("http", "https") or not parsed.hostname:
-        raise RequestBlockedError(f"cache entry URL must be http(s), got: {url!r}")
+        raise RequestBlockedError(f"Cache entry URL must be http(s), got: {url!r}.")
     return _cache_root() / f"{_cache_key(url, profile, extra_headers)}.dat"
 
 

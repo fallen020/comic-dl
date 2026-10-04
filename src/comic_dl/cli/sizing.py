@@ -27,7 +27,7 @@ def _parse_size(raw: str) -> int:
         return parse_size_string(raw)
     except ValueError:
         raise argparse.ArgumentTypeError(
-            f"invalid size: {raw!r} (e.g. 100MB, 2GB, 512KB, 104857600)"
+            f"Invalid size: {raw!r} (e.g. 100MB, 2GB, 512KB, 104857600)."
         ) from None
 
 

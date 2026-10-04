@@ -108,7 +108,7 @@ def _http_trace_enabled() -> bool:
     """True when ``COMIC_DL_TRACE_HTTP`` asks for header-level HTTP traces.
 
     Any value other than an empty string, ``0``, ``false``, ``no`` or ``off``
-    turns it on, so ``COMIC_DL_TRACE_HTTP=1`` works as simply as
+    turns it on, so ``COMIC_DL_TRACE_HTTP=1`` works as
     ``COMIC_DL_TRACE_HTTP=headers``.
     """
     value = os.environ.get("COMIC_DL_TRACE_HTTP", "").strip().lower()
@@ -1626,7 +1626,7 @@ def _running_row_renderable(
     glyph = SPINNER_GLYPHS[frame % len(SPINNER_GLYPHS)]
     header = Text.assemble((f"  {glyph} ", f"bold {BRAND}"))
     # No key fallback: row keys are internal ids ("main") and must never
-    # surface as user-facing text. An unlabeled row just renders the stage.
+    # surface as user-facing text. An unlabeled row renders the stage.
     label = state.label
     if label:
         header.append(_truncate_label(label), style="bold white")
@@ -2482,7 +2482,7 @@ class Activity:
 
     Rows are keyed strings (usually ``"main"`` for the top-level phase plus
     one row per active chapter) and are stacked in insertion order. The Live is
-    opened once and never restarted between phases — phase text just swaps via
+    opened once and never restarted between phases — phase text swaps via
     ``set_status``, so there is no flicker and no gap. Durable results (per
     chapter "Saved" lines, the run summary) are printed to stdout
     (``console``) as normal scrollback output, safely — the Live renders on

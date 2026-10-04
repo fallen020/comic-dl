@@ -290,7 +290,7 @@ def _serialize(root: ET.Element) -> str:
     """Serialize ``root`` with a declaration and human-readable indentation.
 
     ComicInfo.xml is read by humans (and by readers that parse by tag name),
-    so a compact one-line tree is needlessly unreadable. ``ET.indent`` is
+    so the tree is indented for readability. ``ET.indent`` is
     stdlib (3.9+) and re-indents in place, then we prepend the declaration.
     """
     ET.indent(root, space="  ")

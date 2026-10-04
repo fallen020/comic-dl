@@ -37,7 +37,7 @@ _CHAPTER_PATH_RE = re.compile(
     re.IGNORECASE,
 )
 
-# Anonymous API limits are 5 requests/second per IP; stay just under and let
+# Anonymous API limits are 5 requests/second per IP; stay under and let
 # the per-host token bucket pace the scrape path.
 _FEED_LIMIT = 500
 _FEED_PAGE_CAP = 20

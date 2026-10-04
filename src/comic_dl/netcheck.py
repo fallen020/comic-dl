@@ -103,7 +103,7 @@ async def check_connectivity(*, force: bool = False) -> bool:
 
     A false ``True`` is harmless — callers fall through to the error they
     would have shown anyway — while a false ``False`` aborts a run that might
-    have worked, so the verdict is deliberately biased toward "online".
+    have worked, so the verdict is biased toward "online".
     """
     global _cached
     if not force and _cached is not None:

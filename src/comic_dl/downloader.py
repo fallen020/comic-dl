@@ -75,7 +75,7 @@ PASS2_TIMEOUT = 120.0
 # is parked: further images on it fail fast without touching the network and
 # land in the normal failed set, so the rerun machinery retries them later.
 # Application-level responses (a 200 HTML stub instead of image bytes) are
-# deliberately excluded — those are the stale-link case the refresher owns.
+# excluded — those are the stale-link case the refresher owns.
 HOST_PARK_THRESHOLD = 3
 HOST_PARK_SECONDS = 120.0
 # Image retry schedule: exponential 2, 4, 8 seconds,
@@ -830,7 +830,7 @@ async def _try_resume(
     finally:
         if resp is not None:
             await aclose_response(resp)
-    # Transport-level faults (connection reset, timeout) are deliberately NOT
+    # Transport-level faults (connection reset, timeout) are NOT
     # caught: they propagate to the caller's retry loop, which backs off and
     # re-enters this resume with the partial still on disk, so a disconnect
     # mid-resume continues from the current byte offset instead of destroying

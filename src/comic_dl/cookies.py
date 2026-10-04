@@ -95,7 +95,7 @@ class CookieJar:
     Follows the RFC 6265 subset needed by scrapers: matching by domain
     suffix, honoring ``expires`` (``NULL`` = session cookie, kept for this
     process only) and ``Secure`` (never returned over plain HTTP).
-    ``path`` and ``HttpOnly`` are stored but deliberately NOT enforced on
+    ``path`` and ``HttpOnly`` are stored but NOT enforced on
     read — every matching host cookie is returned for any request path, and
     a single-label host (``localhost``) also matches subdomains of it. This
     covers the scraping cases that matter and is a known, accepted deviation
@@ -355,7 +355,7 @@ class CookieJar:
                             )
                         # Sweep other expired rows while the write transaction is
                         # already open (best-effort hygiene; the read path filters
-                        # them anyway, this just keeps the store honest and small).
+                        # them anyway, this keeps the store honest and small).
                         conn.execute(
                             "DELETE FROM cookies WHERE expires IS NOT NULL AND expires <= ?",
                             (now,),
@@ -414,7 +414,7 @@ class CookieJar:
             self._reset_conn()
 
     def clear(self, host: str | None = None) -> None:
-        """Drop all cookies, or just one host's."""
+        """Drop all cookies, or one host's."""
         try:
             with self._lock:
                 conn = self._connect()

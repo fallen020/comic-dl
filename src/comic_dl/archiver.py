@@ -51,7 +51,7 @@ def parse_compression(value: str) -> tuple[int, int]:
         level = v[len("deflate:") :]
         if level.isdigit() and 0 <= int(level) <= 9:
             return ZIP_DEFLATED, int(level)
-        raise ValueError(f"Invalid deflate level {level!r}: expected 0-9")
+        raise ValueError(f"Invalid deflate level {level!r}: expected 0-9.")
     raise ValueError(f"Invalid compression {value!r}: expected stored or deflate[:level]")
 
 
@@ -269,7 +269,7 @@ def create_archive(
         volume_number: Volume number for ComicInfo.xml.
         compression: ``stored`` (default, no compression) or ``deflate[:level]``
             — see :func:`parse_compression`. Applies to zip archives only;
-            tar archives are never compressed. The default is deliberately
+            tar archives are never compressed. The default stays
             unchanged so users must opt into the size-vs-time trade-off.
         on_packed: Optional callback invoked after each page is written, with
             ``(packed_so_far, total_pages)``. Runs on the packing thread; keep
