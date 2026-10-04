@@ -13,6 +13,7 @@ from urllib.parse import urlparse
 
 from curl_cffi.requests import AsyncSession
 
+from ...errors import SITE_NOT_RECOGNIZED
 from ...models import (
     ChapterInfo,
     ImageItem,
@@ -126,7 +127,7 @@ class ToonVerseScraper(BaseScraper):
         slug = _series_slug_from_url(url)
         number = _chapter_number_from_url(url)
         if not slug or not number:
-            raise no_images_error()
+            raise no_images_error(code=SITE_NOT_RECOGNIZED)
         data = await self._api_data(f"{_API}/reading/chapter/{slug}/{number}", client)
         chapter = data.get("chapter", {}) if isinstance(data, dict) else {}
         pages = chapter.get("pages", []) if isinstance(chapter, dict) else []

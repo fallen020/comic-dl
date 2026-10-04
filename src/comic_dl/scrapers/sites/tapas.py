@@ -16,6 +16,7 @@ from urllib.parse import urljoin
 from bs4 import BeautifulSoup
 from curl_cffi.requests import AsyncSession
 
+from ...errors import SITE_AUTH_REQUIRED, SITE_NOT_RECOGNIZED
 from ...models import (
     ChapterInfo,
     ImageItem,
@@ -195,7 +196,7 @@ class TapasScraper(BaseScraper):
             raise listing_page_error("Tapas", f"{BASE}/series/{{slug}}/")
         episode_id = _episode_id_from_url(url)
         if not episode_id:
-            raise no_images_error()
+            raise no_images_error(code=SITE_NOT_RECOGNIZED)
         soup = await self.fetch_html(url, client)
         idx = meta_index(soup)
 
@@ -203,6 +204,7 @@ class TapasScraper(BaseScraper):
         if not images:
             raise no_images_error(
                 hint="Free episodes only — this episode may require login or Ink.",
+                code=SITE_AUTH_REQUIRED,
             )
 
         header = soup.select_one("div.viewer__header > p.title")

@@ -9,6 +9,7 @@ from urllib.parse import urljoin
 from bs4 import BeautifulSoup
 from curl_cffi.requests import AsyncSession
 
+from ...errors import SITE_NOT_RECOGNIZED
 from ...models import (
     ChapterInfo,
     ImageItem,
@@ -149,7 +150,7 @@ class IMHentaiScraper(BaseScraper):
             raise listing_page_error("IMHentai", f"{BASE}/gallery/{{id}}/")
         gallery_id = _gallery_id_from_url(url)
         if not gallery_id:
-            raise no_images_error()
+            raise no_images_error(code=SITE_NOT_RECOGNIZED)
         soup = await self.fetch_html(f"{BASE}/gallery/{gallery_id}/", client)
         idx = meta_index(soup)
 

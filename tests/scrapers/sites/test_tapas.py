@@ -200,12 +200,15 @@ class TestTapasScraper:
 
     @pytest.mark.asyncio
     async def test_scrape_locked_episode_raises(self):
+        from comic_dl.errors import SITE_AUTH_REQUIRED
+
         scraper = TapasScraper()
-        with pytest.raises(ValueError, match="No images found"):
+        with pytest.raises(ValueError, match="No images found") as exc_info:
             await scraper.scrape(
                 EPISODE_URL,
                 _MockSession(lambda url: _MockResponse("<html><body>locked</body></html>")),
             )
+        assert exc_info.value.site_error_code == SITE_AUTH_REQUIRED
 
     @pytest.mark.asyncio
     async def test_scrape_series_skips_locked(self):
