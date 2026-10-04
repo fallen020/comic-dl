@@ -209,6 +209,39 @@ class TestTapasScraper:
                 _MockSession(lambda url: _MockResponse("<html><body>locked</body></html>")),
             )
         assert exc_info.value.site_error_code == SITE_AUTH_REQUIRED
+        assert exc_info.value.hint == (
+            "Free episodes only — this episode may require login or Ink."
+        )
+
+    @pytest.mark.asyncio
+    async def test_scrape_challenge_maps_to_blocked(self):
+        from comic_dl.errors import SITE_BLOCKED
+
+        challenged = _MockResponse(b"Attention Required", status=403)
+        challenged.headers = {"server": "cloudflare"}
+        scraper = TapasScraper()
+        with pytest.raises(ValueError, match="challenged") as exc_info:
+            await scraper.scrape(EPISODE_URL, _MockSession(lambda url: challenged))
+        assert exc_info.value.site_error_code == SITE_BLOCKED
+        assert exc_info.value.hint == (
+            "Run with --solver auto to pass the challenge, or set "
+            "a stored `cf_clearance` via `comic-dl cookie set`."
+        )
+
+    @pytest.mark.asyncio
+    async def test_scrape_missing_page_maps_to_no_series(self):
+        from comic_dl.errors import SITE_NO_SERIES
+
+        scraper = TapasScraper()
+        with pytest.raises(ValueError, match="not found") as exc_info:
+            await scraper.scrape(
+                EPISODE_URL,
+                _MockSession(lambda url: _MockResponse(b"Not found", status=404)),
+            )
+        assert exc_info.value.site_error_code == SITE_NO_SERIES
+        assert exc_info.value.hint == (
+            "The series may have been removed, or this chapter link is dead."
+        )
 
     @pytest.mark.asyncio
     async def test_scrape_series_skips_locked(self):

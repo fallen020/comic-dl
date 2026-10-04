@@ -24,7 +24,7 @@
       "minimum_core_version": "0.0.2",
       "status": "supported",
       "test_url": "https://flamecomics.xyz/series/1/3efdb83fccbc577a",
-      "version": "1.0.2"
+      "version": "1.0.3"
     },
     "fsicomics": {
       "minimum_core_version": "0.0.2",
@@ -130,7 +130,7 @@
       "minimum_core_version": "0.0.2",
       "status": "supported",
       "test_url": "https://tapas.io/episode/879913",
-      "version": "1.0.1"
+      "version": "1.0.2"
     },
     "thunderscans": {
       "minimum_core_version": "0.0.2",

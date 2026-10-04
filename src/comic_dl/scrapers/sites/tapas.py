@@ -15,8 +15,16 @@ from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup
 from curl_cffi.requests import AsyncSession
+from curl_cffi.requests.exceptions import HTTPError as CurlHTTPError
 
-from ...errors import SITE_AUTH_REQUIRED, SITE_NOT_RECOGNIZED
+from ...antibot import looks_like_challenge
+from ...errors import (
+    SITE_AUTH_REQUIRED,
+    SITE_BLOCKED,
+    SITE_NO_SERIES,
+    SITE_NOT_RECOGNIZED,
+    ScrapeError,
+)
 from ...models import (
     ChapterInfo,
     ImageItem,
@@ -147,7 +155,7 @@ class TapasScraper(BaseScraper):
     domain = DOMAIN
     name = "tapas"
     site_id = "tapas"
-    version = "1.0.1"
+    version = "1.0.2"
     test_url = "https://tapas.io/episode/879913"
     test_url_kind = "chapter"
     minimum_core_version = "0.0.2"
@@ -191,13 +199,40 @@ class TapasScraper(BaseScraper):
             page += 1
         return episodes
 
+    @staticmethod
+    async def _fetch(url: str, client: AsyncSession) -> tuple[BeautifulSoup, str]:
+        """Fetch a page, turning 404s and WAF challenges into friendly errors."""
+        try:
+            return await BaseScraper.fetch_html_raw(url, client)
+        except CurlHTTPError as exc:
+            resp = getattr(exc, "response", None)
+            status = getattr(resp, "status_code", None)
+            if status == 404:
+                raise ScrapeError(
+                    "Page not found on Tapas.",
+                    hint="The series may have been removed, or this chapter link is dead.",
+                    site_error_code=SITE_NO_SERIES,
+                ) from None
+            if resp is not None and looks_like_challenge(
+                status or 0,
+                getattr(resp, "headers", None),
+                getattr(resp, "text", "") or "",
+            ):
+                raise ScrapeError(
+                    "Cloudflare challenged the tapas.io request.",
+                    hint="Run with --solver auto to pass the challenge, or set "
+                    "a stored `cf_clearance` via `comic-dl cookie set`.",
+                    site_error_code=SITE_BLOCKED,
+                ) from None
+            raise
+
     async def _scrape_chapter(self, url: str, client: AsyncSession) -> ScrapedChapter:
         if not is_episode_url(url):
             raise listing_page_error("Tapas", f"{BASE}/series/{{slug}}/")
         episode_id = _episode_id_from_url(url)
         if not episode_id:
             raise no_images_error(code=SITE_NOT_RECOGNIZED)
-        soup = await self.fetch_html(url, client)
+        soup, _ = await self._fetch(url, client)
         idx = meta_index(soup)
 
         images = _extract_reader_images(soup, url)
@@ -253,7 +288,7 @@ class TapasScraper(BaseScraper):
         slug = url.rstrip("/").rsplit("/", 1)[-1]
         if not slug:
             raise listing_page_error("Tapas", f"{BASE}/series/{{slug}}/")
-        soup, raw = await self.fetch_html_raw(url, client)
+        soup, raw = await self._fetch(url, client)
         idx = meta_index(soup)
 
         series_id = _series_id_from_series_html(raw)
