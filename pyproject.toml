@@ -33,7 +33,7 @@ dependencies = [
     "defusedxml>=0.7.1",
     "pywebview>=6.2.1",
     "publicsuffix2>=2.20191221",
-    "cryptography>=50.0.1",
+    "cryptography>=50.0.2",
     "keyring>=25.7.0",
 ]
 
