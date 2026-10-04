@@ -10,6 +10,7 @@ fields come from a cached best-effort fetch of the series page.
 from __future__ import annotations
 
 import html
+import json
 import re
 from urllib.parse import urljoin
 
@@ -61,6 +62,12 @@ _EMBEDDED_CHAPTER_RE = re.compile(
 )
 _EMBEDDED_LOCK_RE = re.compile(
     r'"slug":\[0,"(chapter-[\d.]+)"\].{0,2000}?"isLocked":\[0,(true|false)\]'
+)
+
+# TanStack router stream records the site serves today, e.g.
+# ``$R[108]={id:21274,slug:"chapter-627",number:627,title:"Gapryong Kim"}``.
+_STREAM_CHAPTER_RE = re.compile(
+    r'slug:"(chapter-[\d.]+)",number:([\d.]+),title:"((?:[^"\\]|\\.)*)"'
 )
 
 _STAT_LABELS = ("div", "span", "dt", "dd", "h1", "h5", "h6")
@@ -236,17 +243,40 @@ def _extract_images(soup: BeautifulSoup) -> list[ImageItem]:
     return images
 
 
+def _decode_stream_title(raw: str) -> str:
+    """Unescape a TanStack stream string (``\"`` / ``\\uXXXX`` spellings)."""
+    try:
+        return json.loads(f'"{raw}"')
+    except json.JSONDecodeError:
+        return raw
+
+
 def _embedded_chapters(raw_html: str, series_slug: str) -> list[dict]:
     """Chapter entries from the series page's embedded page state.
 
     Only the newest chapters render as links; the payload carries every
-    chapter. Locked (paywalled) chapters are skipped.
+    chapter. Understands the legacy Flight payload (locked chapters skipped
+    via its ``isLocked`` flag) and the TanStack router stream the site
+    serves today; whichever yields entries wins.
     """
     text = html.unescape(raw_html)
+    entries = [
+        (slug, number, subtitle) for number, slug, subtitle in _EMBEDDED_CHAPTER_RE.findall(text)
+    ]
     locked = {slug for slug, flag in _EMBEDDED_LOCK_RE.findall(text) if flag == "true"}
+    if not entries:
+        # The stream carries no usable paywall signal: every record reads
+        # ``isLocked:!1`` (even the demonstrably free chapter 1) with
+        # ``price:0`` and ``unlockAt:null``, so nothing is filtered. A truly
+        # locked chapter fails cleanly downstream with no reader images.
+        entries = [
+            (slug, number, _decode_stream_title(subtitle))
+            for slug, number, subtitle in _STREAM_CHAPTER_RE.findall(raw_html)
+        ]
+        locked = set()
     chapters: list[dict] = []
     seen: set[str] = set()
-    for number, slug, subtitle in _EMBEDDED_CHAPTER_RE.findall(text):
+    for slug, number, subtitle in entries:
         if slug in seen or slug in locked:
             continue
         seen.add(slug)
@@ -297,7 +327,7 @@ class HiveToonsScraper(BaseScraper):
     domain = DOMAIN
     name = "hivetoons"
     site_id = "hivetoons"
-    version = "1.0.2"
+    version = "1.0.3"
     test_url = "https://hivetoons.org/series/lookism/chapter-1/"
     test_url_kind = "chapter"
     minimum_core_version = "0.0.2"

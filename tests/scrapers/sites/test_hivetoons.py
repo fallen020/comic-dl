@@ -260,6 +260,26 @@ class TestHiveToonsScraper:
         assert series.chapters[-1]["url"] == "https://hivetoons.org/series/eleceed/chapter-418"
 
     @pytest.mark.asyncio
+    async def test_scrape_series_stream_payload(self):
+        import re
+
+        # Drop every Flight record so only the TanStack stream record remains.
+        stream_page = re.sub(r'<script>\{"id".*?</script>', "", SERIES_PAGE)
+        stream_page += (
+            '<script>$R[108]={id:21274,slug:"chapter-416",'
+            'number:416,title:"Divine Judgement",isLocked:!1}</script>'
+        )
+        session = _MockSession(lambda url: _MockResponse(stream_page))
+        scraper = HiveToonsScraper()
+        series = await scraper.scrape_series(SERIES_URL, session)
+
+        # embedded stream wins over the two rendered links
+        assert len(series.chapters) == 1
+        assert series.chapters[0]["episode_no"] == "416"
+        assert series.chapters[0]["title"] == "Chapter 416 - Divine Judgement"
+        assert series.chapters[0]["url"] == "https://hivetoons.org/series/eleceed/chapter-416"
+
+    @pytest.mark.asyncio
     async def test_scrape_series_falls_back_to_links(self):
         import re
 
