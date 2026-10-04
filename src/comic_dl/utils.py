@@ -435,7 +435,8 @@ async def aclose_response(resp: object) -> None:
         result = closer()
         if inspect.isawaitable(result):
             await result
-    except Exception:  # nosec B110
+    # Teardown must never break the caller.
+    except Exception:  # nosec
         pass
 
 
@@ -699,7 +700,7 @@ def cbz_source_url(path: Path) -> str:
         return ""
     try:
         root = DET.fromstring(data)
-    except Exception:
+    except (ValueError, SyntaxError):
         return ""
     return (root.findtext("Web") or "").strip()
 

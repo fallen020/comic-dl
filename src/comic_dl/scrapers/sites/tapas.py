@@ -226,7 +226,8 @@ class TapasScraper(BaseScraper):
                 cover_url = _extract_cover(series_soup, meta_index(series_soup))
                 creator = _extract_creator(series_soup)
                 authors = [creator] if creator else []
-            except Exception:
+            # Enrichment is best-effort.
+            except Exception:  # nosec
                 description = ""
 
         return ScrapedChapter(

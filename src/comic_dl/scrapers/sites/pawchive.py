@@ -119,7 +119,7 @@ async def _try_full_resolution(client: AsyncSession, url: str) -> str:
         if resp.status_code == 200 and "image" in (resp.headers.get("content-type", "")):
             return full_url
     # Fallback probe URL; swallowed failures are fine.
-    except Exception:  # nosec B110
+    except Exception:  # nosec
         pass
     return url
 

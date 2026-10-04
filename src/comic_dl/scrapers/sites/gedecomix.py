@@ -11,6 +11,7 @@ from curl_cffi.requests import AsyncSession
 
 from ...models import (
     ChapterInfo,
+    ImageItem,
     PostMetadata,
     ScrapedChapter,
     SeriesMetadata,
@@ -100,7 +101,7 @@ def _extract_status(soup: BeautifulSoup) -> str | None:
     return values[0] if values else None
 
 
-def _extract_images(soup: BeautifulSoup) -> list:
+def _extract_images(soup: BeautifulSoup) -> list[ImageItem]:
     return reader_images(
         soup,
         (_READ_CONTAINER_SEL,),

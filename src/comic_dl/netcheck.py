@@ -63,7 +63,8 @@ async def _http_reachable(url: str) -> bool:
         await validate_request_url_async(url)
         async with AsyncSession(**http_client_args(host=urlparse(url).hostname or "")) as client:
             await client.get(url, timeout=_HTTP_TIMEOUT, allow_redirects=False)
-    except Exception:
+    # A probe must never fail the run; curl errors are not all OSError.
+    except Exception:  # nosec
         return False
     # Any answer at all proves the network carried a request and a reply, even
     # a 4xx or a captive-portal page. Judging the *content* is the scraper's

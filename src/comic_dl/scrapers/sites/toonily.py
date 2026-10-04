@@ -7,6 +7,7 @@ from urllib.parse import urlparse
 
 from bs4 import BeautifulSoup
 
+from ...models import ImageItem
 from ..base import meta_get, meta_index
 from ..madara import (
     MadaraSeriesSiteScraper,
@@ -118,7 +119,7 @@ def _extract_rating(soup: BeautifulSoup) -> float | None:
         return None
 
 
-def _extract_images(soup: BeautifulSoup) -> list:
+def _extract_images(soup: BeautifulSoup) -> list[ImageItem]:
     return reader_images(soup, _READ_CONTAINERS, _on_image_cdn)
 
 

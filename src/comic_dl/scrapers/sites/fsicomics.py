@@ -475,7 +475,8 @@ class FsicomixScraper(BaseScraper):
                     pr = await BaseScraper._timeout_get(u, client)
                     pr.raise_for_status()
                     return u, BeautifulSoup(pr.text, "lxml")
-                except Exception:
+                # One dead page must not fail the fan-out.
+                except Exception:  # nosec
                     return u, None
 
         page_num = 2

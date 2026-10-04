@@ -1540,7 +1540,8 @@ async def _probe_estimate_display(
             probe_download_size(images, referer_url),
             timeout=_PROBE_TIMEOUT,
         )
-    except Exception:
+    except Exception as exc:
+        vlog(VERBOSE, f"size probe failed: {type(exc).__name__}")
         return
     if estimate > 0:
         vlog(VERBOSE, f"Estimated download size: ~{format_bytes(estimate)}")
@@ -2833,7 +2834,7 @@ async def _close_webview_session() -> None:
 
         await webview.close_session()
     # Teardown must never mask a result.
-    except Exception:  # nosec B110
+    except Exception:  # nosec
         pass
 
 

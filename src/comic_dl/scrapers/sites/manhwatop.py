@@ -7,6 +7,7 @@ from urllib.parse import urlparse
 
 from bs4 import BeautifulSoup
 
+from ...models import ImageItem
 from ..base import meta_get, meta_index
 from ..madara import (
     MadaraSeriesSiteScraper,
@@ -100,7 +101,7 @@ def _extract_status(soup: BeautifulSoup) -> str | None:
     return rows_first_prefixed(extract_meta_rows(soup), "status")
 
 
-def _extract_images(soup: BeautifulSoup) -> list:
+def _extract_images(soup: BeautifulSoup) -> list[ImageItem]:
     return reader_images(soup, _READ_CONTAINERS, _on_image_host)
 
 

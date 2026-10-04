@@ -14,6 +14,7 @@ import random
 import shutil
 import threading
 import time
+from collections import Counter
 from collections.abc import AsyncIterator, Awaitable, Callable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -1451,7 +1452,8 @@ async def probe_download_size(
                     asyncio.gather(*(_probe_one(i) for i in sample)),
                     timeout=timeout,
                 )
-    except Exception:
+    except Exception as exc:
+        vlog(DIAGNOSTIC, f"size probe failed: {type(exc).__name__}")
         return 0
 
     if len(sizes) < 3:
@@ -1878,8 +1880,6 @@ class DownloadPipeline:
             if self._failure_labels and VERBOSITY >= DIAGNOSTIC:
                 # One attributable tally — "HTTP 530 x34" — instead of a wall
                 # of per-page lines at this level.
-                from collections import Counter
-
                 tally = Counter(self._failure_labels.values())
                 vlog(
                     DIAGNOSTIC,
