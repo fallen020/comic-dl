@@ -34,19 +34,19 @@ Same chips, different spellings.
 
 ## Which file do I need?
 
-Pick your OS. The commands below use `0.0.4`; only the version number changes
+Pick your OS. The commands below use `0.0.5`; only the version number changes
 between releases.
 
 | OS | x86-64 | ARM64 |
 | :-- | :----- | :---- |
-| Windows | `comic-dl-0.0.4-windows-amd64.zip` | Not built; the amd64 one runs emulated |
-| Debian / Ubuntu | `comic-dl_0.0.4_amd64.deb` | `comic-dl_0.0.4_arm64.deb` |
-| Fedora | `comic-dl-0.0.4-1.fc44.x86_64.rpm` | `comic-dl-0.0.4-1.fc44.aarch64.rpm` |
-| Arch Linux | `fallen020-comic-dl-0.0.4-1-x86_64.pkg.tar.zst` | Not built |
+| Windows | `comic-dl-0.0.5-windows-amd64.zip` | Not built; the amd64 one runs emulated |
+| Debian / Ubuntu | `comic-dl_0.0.5_amd64.deb` | `comic-dl_0.0.5_arm64.deb` |
+| Fedora | `comic-dl-0.0.5-1.fc44.x86_64.rpm` | `comic-dl-0.0.5-1.fc44.aarch64.rpm` |
+| Arch Linux | `fallen020-comic-dl-0.0.5-1-x86_64.pkg.tar.zst` | Not built |
 | macOS | Build from source | Build from source |
 | Android | Not supported | Not supported |
 
-A bare `comic-dl-0.0.4-windows-amd64.exe` is attached too, if you would rather
+A bare `comic-dl-0.0.5-windows-amd64.exe` is attached too, if you would rather
 not unzip anything.
 
 Notes that cost people time:
@@ -88,7 +88,7 @@ Microsoft separately.
 ### Debian / Ubuntu
 
 ```bash
-sudo apt install ./comic-dl_0.0.4_amd64.deb
+sudo apt install ./comic-dl_0.0.5_amd64.deb
 ```
 
 On ARM64, install the `_arm64.deb` file instead.
@@ -96,7 +96,7 @@ On ARM64, install the `_arm64.deb` file instead.
 ### Fedora
 
 ```bash
-sudo dnf install ./comic-dl-0.0.4-1.fc44.x86_64.rpm
+sudo dnf install ./comic-dl-0.0.5-1.fc44.x86_64.rpm
 ```
 
 Substitute `.aarch64` for `.x86_64` on ARM64. If dependency resolution fails,
@@ -105,7 +105,7 @@ build from source.
 ### Arch Linux
 
 ```bash
-sudo pacman -U fallen020-comic-dl-0.0.4-1-x86_64.pkg.tar.zst
+sudo pacman -U fallen020-comic-dl-0.0.5-1-x86_64.pkg.tar.zst
 ```
 
 No ARM64 Arch package is provided; on ARM64, build from source.
@@ -121,7 +121,7 @@ the new name:
 
 ```bash
 sudo pacman -Rns comic-dl   # remove the old package name
-sudo pacman -U fallen020-comic-dl-0.0.4-1-x86_64.pkg.tar.zst
+sudo pacman -U fallen020-comic-dl-0.0.5-1-x86_64.pkg.tar.zst
 ```
 
 Your config, cookies, and library database are untouched.
@@ -190,7 +190,7 @@ Every release attaches a `SHA256SUMS` file. After downloading the package,
 fetch it from the same release and check the download against it:
 
 ```bash
-curl -LO https://github.com/fallen020/comic-dl/releases/download/v0.0.4/SHA256SUMS
+curl -LO https://github.com/fallen020/comic-dl/releases/download/v0.0.5/SHA256SUMS
 sha256sum -c SHA256SUMS --ignore-missing
 ```
 
