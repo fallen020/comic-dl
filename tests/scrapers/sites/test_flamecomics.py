@@ -479,17 +479,62 @@ class TestFlameScraper:
 
     @pytest.mark.asyncio
     async def test_404_chapter_friendly_error(self):
+        from comic_dl.errors import SITE_NO_SERIES
+
         session = _MockSession(lambda url: _MockResponse(b"", status=404))
         scraper = FlameScraper()
-        with pytest.raises(ValueError, match="page not found on Flame Comics"):
+        with pytest.raises(ValueError, match="page not found on Flame Comics") as exc_info:
             await scraper.scrape("https://flamecomics.xyz/series/1/a1b2/", session)
+        assert exc_info.value.site_error_code == SITE_NO_SERIES
+        assert "removed" in exc_info.value.hint
 
     @pytest.mark.asyncio
     async def test_404_series_friendly_error(self):
+        from comic_dl.errors import SITE_NO_SERIES
+
         session = _MockSession(lambda url: _MockResponse(b"", status=404))
         scraper = FlameScraper()
-        with pytest.raises(ValueError, match="page not found on Flame Comics"):
+        with pytest.raises(ValueError, match="page not found on Flame Comics") as exc_info:
             await scraper.scrape_series("https://flamecomics.xyz/series/1/", session)
+        assert exc_info.value.site_error_code == SITE_NO_SERIES
+        assert "removed" in exc_info.value.hint
+
+    @pytest.mark.asyncio
+    async def test_scrape_challenge_maps_to_blocked(self):
+        from comic_dl.errors import SITE_BLOCKED
+
+        challenged = _MockResponse(b"Attention Required", status=403)
+        challenged.headers = {"server": "cloudflare"}
+        session = _MockSession(lambda url: challenged)
+        scraper = FlameScraper()
+        with pytest.raises(ValueError, match="challenged") as exc_info:
+            await scraper.scrape("https://flamecomics.xyz/series/1/a1b2/", session)
+        assert exc_info.value.site_error_code == SITE_BLOCKED
+        assert "--solver auto" in exc_info.value.hint
+
+    @pytest.mark.asyncio
+    async def test_scrape_locked_chapter_maps_to_auth_required(self):
+        from comic_dl.errors import SITE_AUTH_REQUIRED
+
+        next_data = {
+            "props": {
+                "pageProps": {
+                    "chapter": {
+                        "chapter": "3",
+                        "chapter_title": "Ep 3",
+                        "token": "aaa111",
+                        "is_locked": True,
+                    },
+                    "series": {"title": "My Series"},
+                }
+            }
+        }
+        html = self._chapter_html(next_data)
+        session = _MockSession(lambda url: _MockResponse(html))
+        scraper = FlameScraper()
+        with pytest.raises(ValueError, match="locked") as exc_info:
+            await scraper.scrape("https://flamecomics.xyz/series/42/aaa111/", session)
+        assert exc_info.value.site_error_code == SITE_AUTH_REQUIRED
 
     @pytest.mark.asyncio
     async def test_series_order_is_progressive(self):

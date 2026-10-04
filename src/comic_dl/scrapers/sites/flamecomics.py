@@ -9,7 +9,14 @@ from bs4 import BeautifulSoup
 from curl_cffi.requests import AsyncSession
 from curl_cffi.requests.exceptions import HTTPError as CurlHTTPError
 
-from ...errors import SITE_LAYOUT_CHANGED, SITE_NO_SERIES, ScrapeError
+from ...antibot import looks_like_challenge
+from ...errors import (
+    SITE_AUTH_REQUIRED,
+    SITE_BLOCKED,
+    SITE_LAYOUT_CHANGED,
+    SITE_NO_SERIES,
+    ScrapeError,
+)
 from ...models import (
     ChapterInfo,
     ImageItem,
@@ -44,6 +51,8 @@ CHAPTER_PATTERN = re.compile(r"^https?://(?:www\.)?flamecomics\.xyz/series/(\d+)
 _NEXT_DATA_SEL = 'script#__NEXT_DATA__[type="application/json"]'
 _ASSETS_PREFIX = "/assets/read/"
 
+_LOCKED_FLAGS = ("is_locked", "locked", "is_premium", "premium")
+
 
 def is_series_url(url: str) -> bool:
     """True when ``url`` points at a series page for this source."""
@@ -55,6 +64,11 @@ def is_chapter_url(url: str) -> bool:
     return bool(CHAPTER_PATTERN.match(url))
 
 
+def _is_locked_chapter(chapter_data: dict) -> bool:
+    """True when the chapter payload carries an explicit lock/paywall flag."""
+    return any(chapter_data.get(flag) for flag in _LOCKED_FLAGS)
+
+
 @register_scraper(domain=DOMAIN, capabilities={"chapter", "series"})
 class FlameScraper(BaseScraper):
     """FlameComics chapter and series scraper (Next.js JSON-LD site)."""
@@ -62,7 +76,7 @@ class FlameScraper(BaseScraper):
     domain = DOMAIN
     name = "flamecomics"
     site_id = "flamecomics"
-    version = "1.0.2"
+    version = "1.0.3"
     test_url = "https://flamecomics.xyz/series/1/3efdb83fccbc577a"
     test_url_kind = "chapter"
     minimum_core_version = "0.0.2"
@@ -72,16 +86,29 @@ class FlameScraper(BaseScraper):
 
     @staticmethod
     async def _fetch(url: str, client: AsyncSession) -> BeautifulSoup:
-        """Fetch a page, turning a 404 into a friendly removal error."""
+        """Fetch a page, turning 404/challenge responses into friendly errors."""
         try:
-            return await BaseScraper.fetch_html(url, client)
+            soup, _ = await BaseScraper.fetch_html_raw(url, client)
+            return soup
         except CurlHTTPError as exc:
-            status = getattr(getattr(exc, "response", None), "status_code", None)
+            resp = getattr(exc, "response", None)
+            status = getattr(resp, "status_code", None)
             if status == 404:
                 raise ScrapeError(
                     "page not found on Flame Comics.",
                     hint="the series may have been removed, or this chapter link is dead.",
                     site_error_code=SITE_NO_SERIES,
+                ) from None
+            if resp is not None and looks_like_challenge(
+                status or 0,
+                getattr(resp, "headers", None),
+                getattr(resp, "text", "") or "",
+            ):
+                raise ScrapeError(
+                    "Cloudflare challenged the flamecomics.xyz request.",
+                    hint="Run with --solver auto to pass the challenge, or set "
+                    "a stored `cf_clearance` via `comic-dl cookie set`.",
+                    site_error_code=SITE_BLOCKED,
                 ) from None
             raise
 
@@ -308,6 +335,14 @@ class FlameScraper(BaseScraper):
                     m = CHAPTER_PATTERN.match(url)
                     token = m.group(2) if m else ""
                 chapter_title = token
+
+        if _is_locked_chapter(chapter_data):
+            raise ScrapeError(
+                "This chapter is locked on Flame Comics and requires a "
+                "paid account, which this tool does not support.",
+                hint=f"Pick an unlocked chapter or drop the URL: {url}.",
+                site_error_code=SITE_AUTH_REQUIRED,
+            )
 
         images = self._images_from_page(soup)
         if not images:
