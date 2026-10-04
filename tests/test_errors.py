@@ -11,6 +11,8 @@ from comic_dl.errors import (
     EXIT_INTERRUPTED,
     EXIT_OK,
     EXIT_USAGE,
+    SITE_BLOCKED,
+    SITE_HINTS,
     ComicError,
     ExitCode,
     ScrapeError,
@@ -261,6 +263,27 @@ class TestReportError:
         assert "Failed: https://x" in err
         assert "Try again." in err
 
+    def test_exc_hint_used_when_caller_passes_none(self, capsys):
+        exc = ScrapeError("Blocked here.", hint="Solve the challenge first.")
+        assert report_error(exc) == EXIT_ERROR
+        assert "Solve the challenge first." in _plain(capsys.readouterr().err)
+
+    def test_code_hint_map_used_without_raise_hint(self, capsys):
+        exc = ScrapeError("Blocked here.", site_error_code=SITE_BLOCKED)
+        assert report_error(exc) == EXIT_ERROR
+        assert SITE_HINTS[SITE_BLOCKED] in _plain(capsys.readouterr().err).replace("\n", "")
+
+    def test_explicit_hint_wins_over_code_map(self, capsys):
+        exc = ScrapeError("Blocked here.", site_error_code=SITE_BLOCKED)
+        report_error(exc, hint="Custom.")
+        err = _plain(capsys.readouterr().err).replace("\n", "")
+        assert "Custom." in err
+        assert SITE_HINTS[SITE_BLOCKED] not in err
+
+    def test_codeless_error_prints_no_hint(self, capsys):
+        report_error(ValueError("boom"))
+        assert "hint:" not in _plain(capsys.readouterr().err)
+
 
 class TestScrapeError:
     def test_is_a_valueerror_for_cli_catch_sites(self):
@@ -277,6 +300,12 @@ class TestScrapeError:
 
     def test_hint_defaults_empty(self):
         assert ScrapeError("bad page").hint == ""
+
+    def test_no_images_defaults_to_no_pages_code(self):
+        from comic_dl.errors import SITE_NO_PAGES
+        from comic_dl.scrapers.base import no_images_error
+
+        assert no_images_error().site_error_code == SITE_NO_PAGES
 
 
 class TestStreamSeparation:

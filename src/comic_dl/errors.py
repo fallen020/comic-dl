@@ -126,6 +126,26 @@ SITE_GONE = "SITE_GONE"
 SITE_DEPENDENCY_MISSING = "SITE_DEPENDENCY_MISSING"
 SITE_UNSUPPORTED = "SITE_UNSUPPORTED"
 
+#: Fix hint per site error code, shown when a :class:`ScrapeError` carries
+#: a code but no hand-written hint (see :func:`comic_dl.ui.report_error`).
+#: An explicit or raise-level hint always wins over this map.
+SITE_HINTS = {
+    SITE_NOT_RECOGNIZED: "Check the URL matches this site's gallery format.",
+    SITE_REQUEST_FAILED: "The site rejected the request. Run again later.",
+    SITE_TIMEOUT: "The site is slow or unreachable. Run again later.",
+    SITE_RATE_LIMITED: "Rate limited. Wait a minute and run again.",
+    SITE_BLOCKED: "Blocked by the site's protection. Try --solver auto or a cf_clearance cookie.",
+    SITE_AUTH_REQUIRED: "This needs an account or purchase the tool does not support.",
+    SITE_LAYOUT_CHANGED: "The site layout may have changed. Report it with -vvv output.",
+    SITE_NO_SERIES: "The series may have been removed.",
+    SITE_NO_CHAPTERS: "The series may be empty, or its page layout changed.",
+    SITE_NO_PAGES: "The page may require login, be region-locked, or have been removed.",
+    SITE_INVALID_RESPONSE: "The site returned an unexpected response. Run again later.",
+    SITE_GONE: "This content is gone from the site.",
+    SITE_DEPENDENCY_MISSING: "Install the missing optional dependency.",
+    SITE_UNSUPPORTED: "This content type is not supported.",
+}
+
 
 class DownloadTimeout(DownloadError):
     """An image download exceeded the hard timeout.

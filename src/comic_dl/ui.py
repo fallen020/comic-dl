@@ -39,7 +39,14 @@ from rich.text import Text
 from rich.theme import Theme
 
 from ._version import __version__
-from .errors import EXIT_INTERRUPTED, EXIT_OK, ComicError, DownloadTimeout, ScrapeTimeout
+from .errors import (
+    EXIT_INTERRUPTED,
+    EXIT_OK,
+    SITE_HINTS,
+    ComicError,
+    DownloadTimeout,
+    ScrapeTimeout,
+)
 from .utils import normalize_url_key
 
 FINAL_FRAME_DELAY = 0.15
@@ -1230,15 +1237,19 @@ def report_error(exc: BaseException, *, context: str = "", hint: str = "") -> in
 
     A traceback is printed only at ``TRACE`` verbosity (``-vvv``; see
     :func:`set_verbosity`). User-actionable details are always preserved in
-    the message.
+    the message. An explicit ``hint`` wins; otherwise the exception's own
+    hint, then the ``SITE_HINTS`` entry for its code, if any.
     """
     message, code = _classify(exc)
+    site_code = getattr(exc, "site_error_code", None)
+    mapped = SITE_HINTS.get(site_code, "") if isinstance(site_code, str) else ""
+    resolved = hint or getattr(exc, "hint", "") or mapped
     if context:
-        print_error_detail(context, message, hint=hint)
+        print_error_detail(context, message, hint=resolved)
     else:
         print_error(message)
-        if hint:
-            err_console.print(f"    [{MUTED}]hint:[/] {esc(hint)}")
+        if resolved:
+            err_console.print(f"    [{MUTED}]hint:[/] {esc(resolved)}")
     if VERBOSITY >= TRACE:
         print_traceback(exc)
     return code

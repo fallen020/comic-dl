@@ -13,7 +13,13 @@ from bs4 import BeautifulSoup
 from curl_cffi.requests import AsyncSession
 
 from ..cf import retry_challenge_once
-from ..errors import SITE_NO_CHAPTERS, SITE_NOT_RECOGNIZED, ScrapeError, ScrapeTimeout
+from ..errors import (
+    SITE_NO_CHAPTERS,
+    SITE_NO_PAGES,
+    SITE_NOT_RECOGNIZED,
+    ScrapeError,
+    ScrapeTimeout,
+)
 from ..http import absorb_response_cookies, jar_cookies_kwargs
 from ..rate import await_ratelimit
 from ..ui import DIAGNOSTIC, http_event
@@ -35,7 +41,11 @@ _REDIRECT_STATUSES = frozenset({301, 302, 303, 307, 308})
 def no_images_error(hint: str = "", code: str | None = None) -> ScrapeError:
     """The standard "page loaded but yielded no images" failure."""
     default = "The page may require login, be region-locked, or have been removed."
-    return ScrapeError("No images found on this page.", hint=hint or default, site_error_code=code)
+    return ScrapeError(
+        "No images found on this page.",
+        hint=hint or default,
+        site_error_code=code or SITE_NO_PAGES,
+    )
 
 
 def no_chapters_error(hint: str = "", code: str | None = None) -> ScrapeError:
