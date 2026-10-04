@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 from dataclasses import replace
+from urllib.parse import urlsplit
 
 import pytest
 
@@ -1251,7 +1252,7 @@ class TestFailureModesEndToEnd:
         api_response = MockResponse(b"", json_data=dict(self._API_ONE_PAGE))
 
         def handler(url):
-            if "api.e-hentai.org" in url:
+            if urlsplit(url).hostname == "api.e-hentai.org":
                 return api_response
             return gallery_response
 
@@ -1284,7 +1285,7 @@ class TestFailureModesEndToEnd:
         from tests.helpers import MockResponse, MockSession
 
         def handler(url):
-            assert "api.e-hentai.org" in url
+            assert urlsplit(url).hostname == "api.e-hentai.org"
             return MockResponse(b"", json_data={"error": "Key missing, or incorrect key provided."})
 
         session = MockSession(handler)

@@ -38,4 +38,4 @@ class TestAcquireKeysByHost:
         limiter = RateLimiter(rates={"example.com": 1000.0})
         await limiter.acquire("example.com")
         assert "example.com" in limiter._next_available
-        assert "https://example.com/page" not in limiter._next_available
+        assert limiter._next_available.get("https://example.com/page") is None

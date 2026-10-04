@@ -505,6 +505,7 @@ async def run_site_check_command(*, target: str | None, live: bool, json_mode: b
             }
         )
 
+    extra = ""
     if not json_mode:
         statuses = [row[3] for row in rows]
         extra = _tally_line(statuses)
