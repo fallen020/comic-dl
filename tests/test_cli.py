@@ -3800,6 +3800,14 @@ class TestResumeCommand:
         result = resume_command()
         assert "https://example.com/" in result
 
+    def test_drops_launcher_path(self):
+        result = resume_command(["/opt/venv/bin/comic-dl", "-o", "/tmp/out"])
+        assert result == "comic-dl -o /tmp/out"
+        result = resume_command(
+            ["/usr/lib/comic-dl/site-packages/comic_dl/__main__.py", "-o", "/tmp/out"]
+        )
+        assert result == "comic-dl -o /tmp/out"
+
 
 class TestLibraryDashAliases:
     pytestmark = pytest.mark.asyncio

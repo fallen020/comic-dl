@@ -2779,44 +2779,42 @@ _SECRET_PATTERNS = re.compile(
 )
 
 
-def resume_command(argv: list[str] | None = None, *, url: str = "", output: str = "") -> str:
+def resume_command(argv: list[str] | None = None) -> str:
     """Reconstruct the command the user ran, for the resume hint.
 
-    Secrets (cookie values, tokens, etc.) are redacted.  Falls back to a
-    generic ``comic-dl -u <url> -o <dir>`` when ``argv`` is unavailable.
+    Secrets (cookie values, tokens, etc.) are redacted. ``argv[0]`` is
+    replaced with the canonical ``comic-dl`` name: a venv console script and
+    the distro launchers (``python3 -m comic_dl``) both put an unrunnable
+    absolute path there.
     """
-    if argv is None:
-        argv = sys.argv
+    tokens = (sys.argv if argv is None else argv)[1:]
     parts: list[str] = []
     skip_next = False
-    for i, token in enumerate(argv):
+    for i, token in enumerate(tokens):
         if skip_next:
             skip_next = False
             continue
         low = token.lower()
         # Skip --debug-file and its value (not useful in a resume hint).
         if low == "--debug-file":
-            if i + 1 < len(argv):
+            if i + 1 < len(tokens):
                 skip_next = True
             continue
         # Skip global-only flags not meaningful for resume.
         if low in ("--no-color", "--no-banner", "--quiet", "-q", "--show-legal-notice"):
             continue
         if low.startswith("--color"):
-            if "=" not in token and i + 1 < len(argv):
+            if "=" not in token and i + 1 < len(tokens):
                 skip_next = True
             continue
         # Redact values after flags that look secret-bearing.
-        if _SECRET_PATTERNS.search(low) and i + 1 < len(argv):
+        if _SECRET_PATTERNS.search(low) and i + 1 < len(tokens):
             parts.append(token)
             parts.append("<redacted>")
             skip_next = True
             continue
         parts.append(token)
-    if not parts:
-        parts = ["comic-dl"]
-    cmd = " ".join(parts)
-    return cmd
+    return " ".join(["comic-dl", *parts])
 
 
 def _cleanup_temp_dir() -> None:
@@ -5081,6 +5079,11 @@ async def main() -> int:
 
         global _RESUME_CMD
         _RESUME_CMD = resume_command()
+        no_url_source = getattr(args, "url", None) is None and getattr(args, "file", None) is None
+        if no_url_source and len(urls) == 1:
+            # URL came from the interactive prompt, so argv carries no URL
+            # source — append it or the hint is unrunnable as printed.
+            _RESUME_CMD += f" -u {urls[0]}"
 
         worker = asyncio.create_task(_run_urls(urls, args))
         global _WORK_TASK
