@@ -376,9 +376,12 @@ async def _host_unsafe_async(host: str) -> bool:
     return unsafe
 
 
-def validate_request_url(url: str) -> str:
-    """Validate an outbound URL. Returns it unchanged, or raises
-    :class:`RequestBlockedError` when it must not be fetched."""
+def _parse_outbound_url(url: str) -> tuple[str, str]:
+    """Split an outbound URL into ``(scheme, host)``, rejecting bad shapes.
+
+    Scheme/host-shape failures raise :class:`RequestBlockedError` with the
+    same messages both validators emit, so the twins cannot drift apart.
+    """
     parsed = urlparse(url)
     scheme = (parsed.scheme or "").lower()
     if scheme not in ALLOWED_SCHEMES:
@@ -388,6 +391,13 @@ def validate_request_url(url: str) -> str:
         raise RequestBlockedError("URL has no host")
     if host.startswith("[") and host.endswith("]"):
         host = host[1:-1]
+    return scheme, host
+
+
+def validate_request_url(url: str) -> str:
+    """Validate an outbound URL. Returns it unchanged, or raises
+    :class:`RequestBlockedError` when it must not be fetched."""
+    _scheme, host = _parse_outbound_url(url)
     if _host_unsafe(host):
         raise RequestBlockedError(f"blocked request to local/private address: {host!r}")
     return url
@@ -395,15 +405,7 @@ def validate_request_url(url: str) -> str:
 
 async def validate_request_url_async(url: str) -> str:
     """Async twin of :func:`validate_request_url` that never blocks the loop."""
-    parsed = urlparse(url)
-    scheme = (parsed.scheme or "").lower()
-    if scheme not in ALLOWED_SCHEMES:
-        raise RequestBlockedError(f"blocked non-http(s) URL scheme: {scheme or '<none>'!r}")
-    host = parsed.hostname
-    if not host:
-        raise RequestBlockedError("URL has no host")
-    if host.startswith("[") and host.endswith("]"):
-        host = host[1:-1]
+    _scheme, host = _parse_outbound_url(url)
     if await _host_unsafe_async(host):
         raise RequestBlockedError(f"blocked request to local/private address: {host!r}")
     return url
