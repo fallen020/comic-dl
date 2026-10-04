@@ -1222,3 +1222,75 @@ class TestRefreshDispatch:
 
         item = ImageItem(url="https://n/x", page_number=1)
         assert await refresh_image_url(None, item) is None  # type: ignore[arg-type]
+
+
+class TestFailureModesEndToEnd:
+    """Offline fixtures for blocked/moved failures via scrape()."""
+
+    pytestmark = pytest.mark.asyncio
+
+    _API_ONE_PAGE = {
+        "gmetadata": [
+            {
+                "title": "Some Gallery",
+                "filecount": "1",
+                "tags": [],
+                "thumb": "",
+                "category": "Manga",
+            }
+        ]
+    }
+
+    @staticmethod
+    async def _no_sleep(_delay):
+        return None
+
+    def _session(self, gallery_response):
+        from tests.helpers import MockResponse, MockSession
+
+        api_response = MockResponse(b"", json_data=dict(self._API_ONE_PAGE))
+
+        def handler(url):
+            if "api.e-hentai.org" in url:
+                return api_response
+            return gallery_response
+
+        return MockSession(handler)
+
+    async def test_throttle_body_exhaustion(self, monkeypatch):
+        from comic_dl.errors import SITE_REQUEST_FAILED, ScrapeError
+        from tests.helpers import MockResponse
+
+        monkeypatch.setattr("comic_dl.scrapers.base.asyncio.sleep", self._no_sleep)
+        session = self._session(MockResponse("404: Throttled - you are going too fast"))
+        with pytest.raises(ScrapeError, match="failed after retries") as exc_info:
+            await EHentaiScraper().scrape("https://e-hentai.org/g/99991/aaa111/", session)
+        assert exc_info.value.site_error_code == SITE_REQUEST_FAILED
+        assert exc_info.value.hint == "The gallery may be throttled or offline; run again later."
+
+    async def test_509_gallery_page_exhaustion(self, monkeypatch):
+        from comic_dl.errors import SITE_REQUEST_FAILED, ScrapeError
+        from tests.helpers import MockResponse
+
+        monkeypatch.setattr("comic_dl.scrapers.base.asyncio.sleep", self._no_sleep)
+        session = self._session(MockResponse(b"Bandwidth limit exceeded", status=509))
+        with pytest.raises(ScrapeError, match="failed after retries") as exc_info:
+            await EHentaiScraper().scrape("https://e-hentai.org/g/99992/bbb222/", session)
+        assert exc_info.value.site_error_code == SITE_REQUEST_FAILED
+        assert exc_info.value.hint == "The gallery may be throttled or offline; run again later."
+
+    async def test_removed_gallery_key_missing(self):
+        from comic_dl.errors import SITE_NOT_RECOGNIZED, ScrapeError
+        from tests.helpers import MockResponse, MockSession
+
+        def handler(url):
+            assert "api.e-hentai.org" in url
+            return MockResponse(b"", json_data={"error": "Key missing, or incorrect key provided."})
+
+        session = MockSession(handler)
+        with pytest.raises(ScrapeError, match="missing or inaccessible") as exc_info:
+            await EHentaiScraper().scrape("https://e-hentai.org/g/99993/ccc333/", session)
+        assert exc_info.value.site_error_code == SITE_NOT_RECOGNIZED
+        assert exc_info.value.hint == (
+            "The gallery may have been removed, expunged, or the ID/token in the URL is wrong."
+        )

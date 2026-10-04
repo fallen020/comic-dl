@@ -250,7 +250,7 @@ async def _api_gdata(gid: int, token: str, client: AsyncSession) -> dict:
         trace(f"e-hentai API error detail: {error}")
         raise ScrapeError(
             "The e-hentai API rejected this gallery request.",
-            hint="the gallery may be throttled or restricted; run again later.",
+            hint="The gallery may be throttled or restricted; run again later.",
             site_error_code=SITE_REQUEST_FAILED,
         )
     return data["gmetadata"][0]
@@ -358,7 +358,7 @@ async def _fetch_gallery_page_with_retry(page_url: str, client: AsyncSession) ->
             raise
         raise ScrapeError(
             "E-hentai gallery page failed after retries.",
-            hint="the gallery may be throttled or offline; run again later.",
+            hint="The gallery may be throttled or offline; run again later.",
             site_error_code=SITE_REQUEST_FAILED,
         ) from exc
 
@@ -484,7 +484,7 @@ class EHentaiScraper(BaseScraper):
     domain = "e-hentai.org"
     name = "e-hentai"
     site_id = "e-hentai"
-    version = "1.0.2"
+    version = "1.0.3"
     test_url = "https://e-hentai.org/g/4217284/6dddc119b6/"
     test_url_kind = "chapter"
     minimum_core_version = "0.0.2"
