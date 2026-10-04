@@ -795,6 +795,29 @@ def _normalize_format(value: str) -> str:
     return v
 
 
+def _announce_generic(domain: str | None) -> None:
+    """Note that no site scraper claimed the URL, so the fallback runs."""
+    if domain:
+        print_dim(f"Using generic extraction for {domain} {glyphs().ellipsis}")
+
+
+def _retry_label(n: int) -> str:
+    """Live status text for retry ``n`` of a 3-attempt fetch."""
+    return f"waiting for server{glyphs().ellipsis} retry {n + 1}/3"
+
+
+def _flag_floor(args: argparse.Namespace, flag: str, maximum: int | None = None) -> bool:
+    """True when ``--flag`` is at least 1 (capped at ``maximum``); else error."""
+    value = getattr(args, flag.replace("-", "_"))
+    if value < 1:
+        print_error(f"--{flag} must be at least 1.")
+        return False
+    if maximum is not None and value > maximum:
+        print_warning(f"--{flag} capped to {maximum}.")
+        setattr(args, flag.replace("-", "_"), maximum)
+    return True
+
+
 def _apply_config(args: argparse.Namespace) -> None:
     """Resolve CLI defaults against the config file.
 
@@ -1197,26 +1220,12 @@ def parse_urls() -> tuple[list[str], argparse.Namespace]:
         print_error("--no-clobber conflicts with --force.")
         sys.exit(EXIT_USAGE)
 
-    if args.concurrency < 1:
-        print_error("--concurrency must be at least 1.")
+    if not _flag_floor(args, "concurrency", MAX_CONCURRENCY):
         sys.exit(EXIT_USAGE)
-    if args.concurrency > MAX_CONCURRENCY:
-        print_warning(f"--concurrency capped to {MAX_CONCURRENCY}.")
-        args.concurrency = MAX_CONCURRENCY
-
-    if args.parallel < 1:
-        print_error("--parallel must be at least 1.")
+    if not _flag_floor(args, "parallel", MAX_PARALLEL):
         sys.exit(EXIT_USAGE)
-    if args.parallel > MAX_PARALLEL:
-        print_warning(f"--parallel capped to {MAX_PARALLEL}.")
-        args.parallel = MAX_PARALLEL
-
-    if args.chapter_parallel < 1:
-        print_error("--chapter-parallel must be at least 1.")
+    if not _flag_floor(args, "chapter-parallel", MAX_CHAPTER_PARALLEL):
         sys.exit(EXIT_USAGE)
-    if args.chapter_parallel > MAX_CHAPTER_PARALLEL:
-        print_warning(f"--chapter-parallel capped to {MAX_CHAPTER_PARALLEL}.")
-        args.chapter_parallel = MAX_CHAPTER_PARALLEL
 
     urls: list[str] | None = []
     url_origins: dict[str, str] | None = None
@@ -1745,8 +1754,7 @@ async def process_url(
     if not scraper and generic_enabled():
         generic = get_generic_scraper()
         if generic is not None:
-            if domain:
-                print_dim(f"Using generic extraction for {domain} {glyphs().ellipsis}")
+            _announce_generic(domain)
             async with AsyncSession(**_with_referer(url)) as client:
                 try:
                     kind = await generic.detect(url, client)
@@ -1811,9 +1819,7 @@ async def process_url(
                 try:
                     main.stage("Fetching chapter...")
                     if attempt:
-                        main.set_activity(
-                            f"waiting for server{glyphs().ellipsis} retry {attempt + 1}/3"
-                        )
+                        main.set_activity(_retry_label(attempt))
                     if stream_mode:
                         meta = await scraper.scrape_meta(url, client)
                     else:
@@ -2173,10 +2179,7 @@ async def _process_series(
                     try:
                         main.stage("Fetching series metadata...")
                         if series_attempt:
-                            main.set_activity(
-                                f"waiting for server{glyphs().ellipsis} "
-                                f"retry {series_attempt + 1}/3"
-                            )
+                            main.set_activity(_retry_label(series_attempt))
                         series_info = await scraper.scrape_series(url, client)
                         break
                     except CurlHTTPError as e:
@@ -2448,9 +2451,7 @@ async def _process_series(
                         for attempt in range(3):
                             sink.stage(f"Fetching chapter {ch['episode_no']} metadata...")
                             if attempt:
-                                sink.set_activity(
-                                    f"waiting for server{glyphs().ellipsis} retry {attempt + 1}/3"
-                                )
+                                sink.set_activity(_retry_label(attempt))
                             try:
                                 meta = await scraper.scrape(ch_url, client)
                                 break
@@ -2973,8 +2974,7 @@ async def _preview_url(url: str, index: dict[str, Path], force: bool) -> dict:
         if scraper is None and generic_enabled():
             generic = get_generic_scraper()
             if generic is not None:
-                if domain:
-                    print_dim(f"Using generic extraction for {domain} {glyphs().ellipsis}")
+                _announce_generic(domain)
                 async with AsyncSession(**_with_referer(url)) as client:
                     try:
                         kind = await generic.detect(url, client)
@@ -3869,15 +3869,10 @@ async def _run_update(argv: list[str]) -> int:
     except SystemExit as exc:
         return exc.code if isinstance(exc.code, int) else 0
 
-    if args.concurrency < 1:
-        print_error("--concurrency must be at least 1.")
+    if not _flag_floor(args, "concurrency"):
         return EXIT_USAGE
-    if args.parallel < 1:
-        print_error("--parallel must be at least 1.")
+    if not _flag_floor(args, "parallel", MAX_PARALLEL):
         return EXIT_USAGE
-    if args.parallel > MAX_PARALLEL:
-        print_warning(f"--parallel capped to {MAX_PARALLEL}.")
-        args.parallel = MAX_PARALLEL
     if getattr(args, "compress", None) is None:
         archive_cfg = load_config().get("archive")
         args.compress = (
@@ -3986,8 +3981,7 @@ async def _run_update(argv: list[str]) -> int:
                 if scraper is None and generic_enabled():
                     generic = get_generic_scraper()
                     if generic is not None:
-                        if domain:
-                            print_dim(f"Using generic extraction for {domain} {glyphs().ellipsis}")
+                        _announce_generic(domain)
                         async with AsyncSession(**_with_referer(source)) as client:
                             try:
                                 kind = await generic.detect(source, client)
