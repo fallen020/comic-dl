@@ -45,7 +45,7 @@ from ...utils import (
     image_source_name,
     sanitize_filename,
 )
-from ..base import BaseScraper, _attr_text, no_images_error
+from ..base import BaseScraper, _attr_text, no_images_error, retry_transient
 from ..refresh import register_image_refresher
 from ..registry import register_scraper
 
@@ -342,21 +342,25 @@ async def _fetch_gallery_page_with_retry(page_url: str, client: AsyncSession) ->
     The first attempt may serve a cached copy; a cached throttle body is
     useless, so retries bypass the cache for a fresh response.
     """
-    last_exc: BaseException | None = None
-    for attempt in range(_GALLERY_PAGE_RETRIES):
-        try:
-            return await _fetch_gallery_page(page_url, client, use_cache=attempt == 0)
-        except Exception as exc:
-            if not _is_transient_page_error(exc):
-                raise
-            last_exc = exc
-            if attempt < _GALLERY_PAGE_RETRIES - 1:
-                await asyncio.sleep((attempt + 1) * _GALLERY_PAGE_BACKOFF)
-    raise ScrapeError(
-        "E-hentai gallery page failed after retries.",
-        hint="the gallery may be throttled or offline; run again later.",
-        site_error_code=SITE_REQUEST_FAILED,
-    ) from last_exc
+
+    async def _op(attempt: int) -> list[str]:
+        return await _fetch_gallery_page(page_url, client, use_cache=attempt == 0)
+
+    try:
+        return await retry_transient(
+            _op,
+            tries=_GALLERY_PAGE_RETRIES,
+            delay=lambda attempt, _exc: (attempt + 1) * _GALLERY_PAGE_BACKOFF,
+            is_transient=_is_transient_page_error,
+        )
+    except Exception as exc:
+        if not _is_transient_page_error(exc):
+            raise
+        raise ScrapeError(
+            "E-hentai gallery page failed after retries.",
+            hint="the gallery may be throttled or offline; run again later.",
+            site_error_code=SITE_REQUEST_FAILED,
+        ) from exc
 
 
 async def _gallery_page_urls(base_url: str, filecount: int, client: AsyncSession) -> list[str]:
@@ -378,6 +382,13 @@ async def _gallery_page_urls(base_url: str, filecount: int, client: AsyncSession
     return urls
 
 
+def _image_page_delay(attempt: int, exc: BaseException) -> float:
+    """Backoff after a failed image-page fetch: throttle pages wait longer."""
+    if isinstance(exc, _ThrottledPageError):
+        return 2 * (attempt + 1)
+    return attempt + 1
+
+
 async def _image_page_url(
     page_url: str,
     client: AsyncSession,
@@ -385,32 +396,35 @@ async def _image_page_url(
     use_cache: bool = True,
 ) -> tuple[str, str] | None:
     async with sem:
-        for attempt in range(_IMAGE_PAGE_RETRIES):
-            try:
-                resp = await BaseScraper._timeout_get(
-                    page_url, client, rate=_IMAGE_PAGE_RATE, use_cache=use_cache
-                )
-                resp.raise_for_status()
-                soup = BeautifulSoup(_decode_text(resp), "lxml")
-                img = soup.select_one("img#img")
-                if img and img.get("src"):
-                    src = _attr_text(img.get("src")).replace("&amp;", "&")
-                    _, ext = src.rsplit(".", 1)
-                    ext = ext.split("?")[0].lower()
-                    if ext not in ("jpg", "jpeg", "png", "webp", "gif", "bmp"):
-                        ext = "webp"
-                    return (src, ext)
-                # A 200 HTML response that lacks the image element is e-hentai's
-                # throttle page, not a broken page — treat it as transient and
-                # retry with backoff instead of silently dropping the page.
-                if attempt < 2:
-                    await asyncio.sleep(2 * (attempt + 1))
-                continue
-            except Exception:
-                if attempt < 2:
-                    await asyncio.sleep(attempt + 1)
-                continue
-        return None
+
+        async def _op(_attempt: int) -> tuple[str, str]:
+            resp = await BaseScraper._timeout_get(
+                page_url, client, rate=_IMAGE_PAGE_RATE, use_cache=use_cache
+            )
+            resp.raise_for_status()
+            soup = BeautifulSoup(_decode_text(resp), "lxml")
+            img = soup.select_one("img#img")
+            if img and img.get("src"):
+                src = _attr_text(img.get("src")).replace("&amp;", "&")
+                _, ext = src.rsplit(".", 1)
+                ext = ext.split("?")[0].lower()
+                if ext not in ("jpg", "jpeg", "png", "webp", "gif", "bmp"):
+                    ext = "webp"
+                return (src, ext)
+            # A 200 HTML response that lacks the image element is e-hentai's
+            # throttle page, not a broken page — treat it as transient and
+            # retry with backoff instead of silently dropping the page.
+            raise _ThrottledPageError("e-hentai served a throttle page")
+
+        try:
+            return await retry_transient(
+                _op,
+                tries=_IMAGE_PAGE_RETRIES,
+                delay=_image_page_delay,
+                is_transient=lambda _exc: True,
+            )
+        except Exception:
+            return None
 
 
 @register_image_refresher("e-hentai.org", "exhentai.org")

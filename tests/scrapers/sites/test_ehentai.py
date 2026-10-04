@@ -222,7 +222,7 @@ class TestImagePageUrl:
         async def _no_sleep(delay):
             return None
 
-        monkeypatch.setattr("comic_dl.scrapers.sites.ehentai.asyncio.sleep", _no_sleep)
+        monkeypatch.setattr("comic_dl.scrapers.base.asyncio.sleep", _no_sleep)
 
         class MockResponse:
             status_code = 200
@@ -252,7 +252,7 @@ class TestImagePageUrl:
         async def _no_sleep(delay):
             return None
 
-        monkeypatch.setattr("comic_dl.scrapers.sites.ehentai.asyncio.sleep", _no_sleep)
+        monkeypatch.setattr("comic_dl.scrapers.base.asyncio.sleep", _no_sleep)
 
         class MockClient:
             async def get(self, url, **kwargs):
@@ -735,7 +735,7 @@ class TestFetchGalleryPageWithRetry:
         async def _no_sleep(delay):
             return None
 
-        monkeypatch.setattr("comic_dl.scrapers.sites.ehentai.asyncio.sleep", _no_sleep)
+        monkeypatch.setattr("comic_dl.scrapers.base.asyncio.sleep", _no_sleep)
 
         attempts = [0]
         with pytest.raises(ScrapeError):
@@ -759,6 +759,47 @@ class TestFetchGalleryPageWithRetry:
         with pytest.raises(ValueError):
             await _fetch_gallery_page_with_retry("https://e-hentai.org/g/123/abc/", MockClient())
         assert attempts[0] == 1
+
+
+class TestRetryTransient:
+    async def test_non_transient_propagates_without_sleep(self, monkeypatch):
+        from comic_dl.scrapers.base import retry_transient
+
+        sleeps = []
+
+        async def _record_sleep(delay):
+            sleeps.append(delay)
+
+        monkeypatch.setattr("comic_dl.scrapers.base.asyncio.sleep", _record_sleep)
+        calls = [0]
+
+        async def _op(attempt):
+            calls[0] += 1
+            raise ValueError("fatal")
+
+        with pytest.raises(ValueError):
+            await retry_transient(
+                _op, tries=3, delay=lambda a, e: 1.0, is_transient=lambda e: False
+            )
+        assert calls == [1]
+        assert sleeps == []
+
+    async def test_exhaustion_reraises_last_error(self, monkeypatch):
+        from comic_dl.scrapers.base import retry_transient
+
+        async def _no_sleep(delay):
+            return None
+
+        monkeypatch.setattr("comic_dl.scrapers.base.asyncio.sleep", _no_sleep)
+        calls = [0]
+
+        async def _op(attempt):
+            calls[0] += 1
+            raise ConnectionError(f"down {attempt}")
+
+        with pytest.raises(ConnectionError, match="down 2"):
+            await retry_transient(_op, tries=3, delay=lambda a, e: 0.0, is_transient=lambda e: True)
+        assert calls == [3]
 
 
 class _MockHtmlResponse:
@@ -974,7 +1015,7 @@ class TestIterImageItems:
         async def _no_sleep(delay):
             return None
 
-        monkeypatch.setattr("comic_dl.scrapers.sites.ehentai.asyncio.sleep", _no_sleep)
+        monkeypatch.setattr("comic_dl.scrapers.base.asyncio.sleep", _no_sleep)
 
         class FailingClient(_StreamMockClient):
             async def get(self, url, **kwargs):

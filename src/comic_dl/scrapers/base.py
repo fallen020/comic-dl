@@ -7,6 +7,7 @@ import html
 import json
 import time
 from collections.abc import Awaitable, Callable
+from typing import TypeVar
 from urllib.parse import urlsplit
 
 from bs4 import BeautifulSoup
@@ -65,6 +66,38 @@ def listing_page_error(site_name: str, example_url: str) -> ScrapeError:
         hint=f"{site_name} requires a comic page URL like {example_url}",
         site_error_code=SITE_NOT_RECOGNIZED,
     )
+
+
+_T = TypeVar("_T")
+
+
+async def retry_transient(
+    op: Callable[[int], Awaitable[_T]],
+    *,
+    tries: int,
+    delay: Callable[[int, BaseException], float],
+    is_transient: Callable[[BaseException], bool],
+) -> _T:
+    """Run ``op(attempt)`` up to ``tries`` times, backing off between attempts.
+
+    Only errors where ``is_transient`` holds are retried, after
+    ``delay(attempt, exc)`` seconds; anything else propagates immediately.
+    When every attempt fails transiently, the last error is re-raised for
+    the caller to wrap (or swallow, for best-effort paths).
+    """
+    last_exc: BaseException | None = None
+    for attempt in range(max(1, tries)):
+        try:
+            return await op(attempt)
+        except Exception as exc:
+            if not is_transient(exc):
+                raise
+            last_exc = exc
+            if attempt < tries - 1:
+                await asyncio.sleep(delay(attempt, exc))
+    if last_exc is None:  # tries < 1, so op never ran
+        raise ValueError("retry_transient needs tries >= 1")
+    raise last_exc
 
 
 _JSONLD_SEL = 'script[type="application/ld+json"]'
