@@ -414,13 +414,45 @@ class TestAsurascansScraper:
 
     @pytest.mark.asyncio
     async def test_scrape_raises_on_premium_chapter(self):
+        from comic_dl.errors import SITE_AUTH_REQUIRED
+
         session = _MockSession(lambda url: _MockResponse(self.PREMIUM_PAGE))
         scraper = AsurascansScraper()
-        with pytest.raises(ValueError, match="premium/locked"):
+        with pytest.raises(ValueError, match="premium/locked") as exc_info:
             await scraper.scrape(
                 "https://asurascans.com/comics/the-former-supreme-00dcbf97/chapter/10",
                 session,
             )
+        assert exc_info.value.site_error_code == SITE_AUTH_REQUIRED
+
+    @pytest.mark.asyncio
+    async def test_scrape_challenge_maps_to_blocked(self):
+        from comic_dl.errors import SITE_BLOCKED
+
+        challenged = _MockResponse(b"Attention Required", status=403)
+        challenged.headers = {"server": "cloudflare"}
+        session = _MockSession(lambda url: challenged)
+        scraper = AsurascansScraper()
+        with pytest.raises(ValueError, match="challenged") as exc_info:
+            await scraper.scrape(
+                "https://asurascans.com/comics/nano-machine-3ec3b16f/chapter/1",
+                session,
+            )
+        assert exc_info.value.site_error_code == SITE_BLOCKED
+        assert "--solver auto" in exc_info.value.hint
+
+    @pytest.mark.asyncio
+    async def test_scrape_missing_page_maps_to_no_series(self):
+        from comic_dl.errors import SITE_NO_SERIES
+
+        session = _MockSession(lambda url: _MockResponse(b"Not found", status=404))
+        scraper = AsurascansScraper()
+        with pytest.raises(ValueError, match="not found") as exc_info:
+            await scraper.scrape(
+                "https://asurascans.com/comics/nano-machine-3ec3b16f/chapter/1",
+                session,
+            )
+        assert exc_info.value.site_error_code == SITE_NO_SERIES
 
     @pytest.mark.asyncio
     async def test_scrape_raises_on_no_images(self):

@@ -9,7 +9,8 @@ from bs4 import BeautifulSoup
 from curl_cffi.requests import AsyncSession
 from curl_cffi.requests.exceptions import HTTPError as CurlHTTPError
 
-from ...errors import SITE_AUTH_REQUIRED, SITE_NO_SERIES, ScrapeError
+from ...antibot import looks_like_challenge
+from ...errors import SITE_AUTH_REQUIRED, SITE_BLOCKED, SITE_NO_SERIES, ScrapeError
 from ...models import (
     ChapterInfo,
     ImageItem,
@@ -290,7 +291,7 @@ class AsurascansScraper(BaseScraper):
     domain = DOMAIN
     name = "asurascans"
     site_id = "asurascans"
-    version = "1.0.2"
+    version = "1.0.3"
     test_url = "https://asurascans.com/comics/nano-machine-3ec3b16f/chapter/1"
     test_url_kind = "chapter"
     minimum_core_version = "0.0.2"
@@ -308,12 +309,24 @@ class AsurascansScraper(BaseScraper):
         try:
             return await BaseScraper.fetch_html_raw(url, client)
         except CurlHTTPError as exc:
-            status = getattr(getattr(exc, "response", None), "status_code", None)
+            resp = getattr(exc, "response", None)
+            status = getattr(resp, "status_code", None)
             if status == 404:
                 raise ScrapeError(
                     "page not found on Asura Scans.",
                     hint="the series may have been removed, or this chapter link is dead.",
                     site_error_code=SITE_NO_SERIES,
+                ) from None
+            if resp is not None and looks_like_challenge(
+                status or 0,
+                getattr(resp, "headers", None),
+                getattr(resp, "text", "") or "",
+            ):
+                raise ScrapeError(
+                    "Cloudflare challenged the asurascans.com request.",
+                    hint="Run with --solver auto to pass the challenge, or set "
+                    "a stored `cf_clearance` via `comic-dl cookie set`.",
+                    site_error_code=SITE_BLOCKED,
                 ) from None
             raise
 
