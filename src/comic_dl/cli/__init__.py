@@ -244,6 +244,13 @@ _TMP_ROOT: Path | None = None
 MAX_CONCURRENCY = 32
 MAX_PARALLEL = 16
 MAX_CHAPTER_PARALLEL = 8
+#: Parallelism cap for dry-run URL probing.
+_DRY_RUN_PROBE_CONCURRENCY = 8
+#: Seconds a size-estimate probe may take before the run proceeds without it.
+_PROBE_TIMEOUT = 5.0
+#: Live-status label width; longer tails are truncated with an ellipsis.
+_SHORT_LABEL_MAX = 48
+_SHORT_LABEL_TRUNC = 45
 MAX_CLIENTS = 512
 MAX_URL_LENGTH = 2048
 MAX_URLS_PER_RUN = 2000
@@ -1531,7 +1538,7 @@ async def _probe_estimate_display(
     try:
         estimate = await asyncio.wait_for(
             probe_download_size(images, referer_url),
-            timeout=5.0,
+            timeout=_PROBE_TIMEOUT,
         )
     except Exception:
         return
@@ -3018,7 +3025,7 @@ async def _preview_url(url: str, index: dict[str, Path], force: bool) -> dict:
             else:
                 try:
                     entry["size"] = await asyncio.wait_for(
-                        probe_download_size(meta.images, url), timeout=5.0
+                        probe_download_size(meta.images, url), timeout=_PROBE_TIMEOUT
                     )
                 except Exception:
                     entry["size"] = 0
@@ -3191,7 +3198,7 @@ async def _run_dry_run(urls: list[str], args: argparse.Namespace, index: dict[st
     if args.json and console.is_terminal and not args.quiet:
         print_dim("Resolving URLs for dry-run...")
 
-    sem = asyncio.Semaphore(min(8, len(urls) or 1))
+    sem = asyncio.Semaphore(min(_DRY_RUN_PROBE_CONCURRENCY, len(urls) or 1))
 
     async def _probe_one(u: str) -> dict:
         async with sem:
@@ -3241,7 +3248,9 @@ def _short_url_label(url: str) -> str:
     """Tail of a URL's path (or host), truncated, for compact live status."""
     path = urlparse(url).path.rstrip("/")
     label = path.rsplit("/", 1)[-1] or urlparse(url).hostname or url
-    return label if len(label) <= 48 else label[:45] + glyphs().ellipsis
+    if len(label) <= _SHORT_LABEL_MAX:
+        return label
+    return label[:_SHORT_LABEL_TRUNC] + glyphs().ellipsis
 
 
 def _legal_notice_marker() -> Path:

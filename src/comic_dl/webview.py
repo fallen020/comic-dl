@@ -56,6 +56,8 @@ from .webview_constants import (
 _HELPER_MODULE = "comic_dl.webview_solver"
 
 _GI_IMPORT = "import gi; gi.require_version('WebKit2', '4.1')"
+_GI_PROBE_TIMEOUT = 15
+_STDERR_TRACE_CHARS = 200
 
 
 def _has_display() -> bool:
@@ -169,7 +171,7 @@ def _interpreter_has_gi(python: str) -> bool:
     probe = subprocess.run(  # nosec B603
         [python, "-c", _GI_IMPORT],
         capture_output=True,
-        timeout=15,
+        timeout=_GI_PROBE_TIMEOUT,
     )
     return probe.returncode == 0
 
@@ -264,7 +266,7 @@ async def _run_helper(url: str, timeout: float) -> dict[str, Any]:
         trace("webview: solver timed out")
         return {}
     if _stderr:
-        trace(f"webview: solver stderr: {_stderr.decode(errors='ignore')[:200]}")
+        trace(f"webview: solver stderr: {_stderr.decode(errors='ignore')[:_STDERR_TRACE_CHARS]}")
     if proc.returncode not in (0, 1):
         trace(f"webview: solver exited with code {proc.returncode}")
         return {}

@@ -29,6 +29,9 @@ ARCHIVE_SUFFIXES = frozenset({".cbz", ".zip", ".cbt"})
 #: Glob patterns covering every archive a download/reconciliation pass may meet.
 ARCHIVE_PATTERNS = ("*.cbz", "*.zip", "*.cbt")
 
+#: Streaming chunk size for hashing and archive verification reads.
+_CHUNK_BYTES = 65536
+
 
 def parse_compression(value: str) -> tuple[int, int]:
     """Map a ``--compress`` / ``[archive] compression`` value to zip arguments.
@@ -126,7 +129,7 @@ def _packed_members(
                     fhash_hex: str | None = None
                 else:
                     fhash = sha256(header)
-                    for chunk in iter(lambda: f.read(65536), b""):
+                    for chunk in iter(lambda: f.read(_CHUNK_BYTES), b""):
                         fhash.update(chunk)
                     fhash_hex = fhash.hexdigest()
         except OSError:
@@ -215,7 +218,7 @@ def _verify_tar(tmp_path: Path) -> None:
                 f = tf.extractfile(member)
                 if f is None:
                     continue
-                while f.read(65536):
+                while f.read(_CHUNK_BYTES):
                     pass
     except Exception as exc:
         raise ValueError(f"Archive verification failed: {exc}") from exc

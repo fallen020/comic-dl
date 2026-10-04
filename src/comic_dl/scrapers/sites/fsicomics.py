@@ -44,6 +44,7 @@ _CHAPTER_PATH_RE = re.compile(
 )
 
 _WORDPRESS_RESIZE_RE = re.compile(r"-\d+x\d+(?=\.\w+$)")
+_MAX_SERIES_PAGES = 50
 
 _CHAPTER_NUMBER_RE = re.compile(r"(?:chapter|ch)[.\s]*#?\s*(\d+)", re.IGNORECASE)
 
@@ -479,7 +480,7 @@ class FsicomixScraper(BaseScraper):
 
         page_num = 2
         has_next = soup.select_one("a.next.page-numbers") is not None
-        while has_next and page_num <= 50:
+        while has_next and page_num <= _MAX_SERIES_PAGES:
             page_url = f"{url.rstrip('/')}/page/{page_num}/"
             u, ps = await fetch_page(page_url)
             pages_to_fetch.append((u, ps))

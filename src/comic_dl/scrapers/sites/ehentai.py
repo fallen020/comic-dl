@@ -312,6 +312,8 @@ _IMAGE_PAGE_RATE = 2.0
 # before giving up. 509 is e-hentai's H@H bandwidth-limit throttle code.
 _GALLERY_PAGE_RETRIES = 3
 _GALLERY_PAGE_RETRYABLE_HTTP = frozenset({429, 500, 502, 503, 504, 509})
+_GALLERY_PAGE_BACKOFF = 0.8
+_IMAGE_PAGE_RETRIES = 3
 
 
 def _is_transient_page_error(exc: BaseException) -> bool:
@@ -349,7 +351,7 @@ async def _fetch_gallery_page_with_retry(page_url: str, client: AsyncSession) ->
                 raise
             last_exc = exc
             if attempt < _GALLERY_PAGE_RETRIES - 1:
-                await asyncio.sleep((attempt + 1) * 0.8)
+                await asyncio.sleep((attempt + 1) * _GALLERY_PAGE_BACKOFF)
     raise ScrapeError(
         "E-hentai gallery page failed after retries.",
         hint="the gallery may be throttled or offline; run again later.",
@@ -383,7 +385,7 @@ async def _image_page_url(
     use_cache: bool = True,
 ) -> tuple[str, str] | None:
     async with sem:
-        for attempt in range(3):
+        for attempt in range(_IMAGE_PAGE_RETRIES):
             try:
                 resp = await BaseScraper._timeout_get(
                     page_url, client, rate=_IMAGE_PAGE_RATE, use_cache=use_cache

@@ -14,6 +14,8 @@ from ..utils import parse_size_string
 # free), so keep it modest; when an estimate exists, the estimate + margin
 # drives the check instead.
 MIN_FREE_DISK_BYTES = 64 * 1024 * 1024
+#: Extra headroom fraction added to the byte estimate before the disk check.
+SAFETY_MARGIN_RATIO = 0.1
 
 # Per-page byte guess for the --max-size pre-gate when neither the site nor
 # a probe yields a size. Comic pages average well under this, and the
@@ -50,7 +52,7 @@ def _estimate_download_bytes(known_size: int = 0) -> int:
 
 def _check_disk_space(path: Path, estimate: int) -> bool:
     if estimate > 0:
-        safety_margin = int(estimate * 0.1)
+        safety_margin = int(estimate * SAFETY_MARGIN_RATIO)
         required = max(estimate + safety_margin, MIN_FREE_DISK_BYTES)
     else:
         required = MIN_FREE_DISK_BYTES

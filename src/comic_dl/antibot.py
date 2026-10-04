@@ -36,6 +36,8 @@ class BlockVerdict:
 
 
 # Cloudflare markers
+#: Body bytes read for fingerprint classification (headers + stub shells).
+_CLASSIFY_BODY_LIMIT = 256_000
 _CF_SERVER = frozenset({"cloudflare", "cloudflare-nginx"})
 _CF_HEADERS = frozenset(
     {
@@ -323,7 +325,7 @@ def classify_block(
         BlockVerdict with vendor, kind, reason, challenge subtype, honeypot flag
     """
     h = _normalize_headers(headers)
-    body_lower = body[:256_000].lower()
+    body_lower = body[:_CLASSIFY_BODY_LIMIT].lower()
     cookies = _get_cookies_for_host(url)
 
     trace(f"antibot: classifying {status} for {urlsplit(url).hostname or 'unknown'}")
@@ -501,5 +503,5 @@ def looks_like_challenge(
         return True
     if h.get("cf-mitigated") == "challenge":
         return True
-    body_lower = body[:256_000].lower()
+    body_lower = body[:_CLASSIFY_BODY_LIMIT].lower()
     return any(m in body_lower for m in _CF_BODY_MARKERS)
