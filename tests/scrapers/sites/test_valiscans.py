@@ -177,12 +177,15 @@ class TestValirScraper:
 
     @pytest.mark.asyncio
     async def test_scrape_locked_chapter_raises(self):
+        from comic_dl.errors import SITE_AUTH_REQUIRED
+
         scraper = ValirScansScraper()
-        with pytest.raises(ValueError, match="No images found"):
+        with pytest.raises(ValueError, match="No images found") as exc_info:
             await scraper.scrape(
                 f"https://valirscans.org/series/comic/{SLUG}/chapter/2",
                 _MockSession(_handler),
             )
+        assert exc_info.value.site_error_code == SITE_AUTH_REQUIRED
 
     @pytest.mark.asyncio
     async def test_scrape_series_skips_locked(self):

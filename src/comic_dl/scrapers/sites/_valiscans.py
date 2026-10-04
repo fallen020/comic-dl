@@ -22,7 +22,7 @@ from urllib.parse import urljoin, urlparse
 from bs4 import BeautifulSoup
 from curl_cffi.requests import AsyncSession
 
-from ...errors import SITE_UNSUPPORTED, ScrapeError
+from ...errors import SITE_AUTH_REQUIRED, SITE_NOT_RECOGNIZED, SITE_UNSUPPORTED, ScrapeError
 from ...models import (
     ChapterInfo,
     ImageItem,
@@ -297,7 +297,7 @@ class ValiScansScraper(BaseScraper):
         slug = _series_slug_from_url(url)
         number = _chapter_number_from_url(url)
         if not slug or not number:
-            raise no_images_error()
+            raise no_images_error(code=SITE_NOT_RECOGNIZED)
         meta, entries = await self._series_roster(slug, client)
         match = next(
             (e for e in entries if str(e.get("number")) == number),
@@ -306,6 +306,7 @@ class ValiScansScraper(BaseScraper):
         if match is None:
             raise no_images_error(
                 hint="This chapter may require coins — only free chapters are supported.",
+                code=SITE_AUTH_REQUIRED,
             )
         images = await self._chapter_images(str(match["id"]), client)
         if not images:
