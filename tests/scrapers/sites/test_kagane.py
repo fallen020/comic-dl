@@ -5,7 +5,7 @@ import json
 import pytest
 
 import comic_dl.scrapers.sites.kagane as kagane_module
-from comic_dl.errors import ScrapeError
+from comic_dl.errors import SITE_BLOCKED, SITE_NO_SERIES, ScrapeError
 from comic_dl.scrapers.sites.kagane import (
     DOMAIN,
     KaganeScraper,
@@ -674,11 +674,14 @@ class TestCfChallengeClassification:
         _FAKE_SESSION = None  # force plain-HTTP path
         scraper = KaganeScraper()
         scraper._chapter_tokens = _tokens_fail  # type: ignore[method-assign]
-        with pytest.raises(ScrapeError, match="Cloudflare challenged"):
+        with pytest.raises(ScrapeError, match="Cloudflare challenged") as excinfo:
             await scraper.scrape(
                 f"https://kagane.to/series/{SERIES_ID}/reader/{BOOK_1}",
                 _MockSession(lambda url: _MockResponse(json_data={})),
             )
+        assert excinfo.value.site_error_code == SITE_BLOCKED
+        hint = excinfo.value.hint or ""
+        assert "solver" in hint or "clearance" in hint
 
     @pytest.mark.asyncio
     async def test_api_fetch_turns_unsolved_challenge_into_scrape_error(self):
@@ -702,6 +705,7 @@ class TestCfChallengeClassification:
                 f"https://kagane.to/api/v2/series/{SERIES_ID}",
                 _MockSession(lambda url: challenge),
             )
+        assert excinfo.value.site_error_code == SITE_BLOCKED
         assert "solver" in (excinfo.value.hint or "")
 
     @pytest.mark.asyncio
@@ -717,3 +721,34 @@ class TestCfChallengeClassification:
             _MockSession(lambda url: forbidden),
         )
         assert resp.status_code == 403
+
+
+class TestKaganeRemovedContent:
+    """404s from the API surface as a removal error, not a bare HTTPError."""
+
+    @pytest.mark.asyncio
+    async def test_404_book_maps_to_no_series(self):
+        def handler(url):
+            if "/api/integrity" in url:
+                return _MockResponse(json_data=INTEGRITY_RESPONSE)
+            return _MockResponse(b"not found", status=404)
+
+        scraper = KaganeScraper()
+        with pytest.raises(ScrapeError, match=r"Page not found on kagane\.to") as excinfo:
+            await scraper.scrape(
+                f"https://kagane.to/series/{SERIES_ID}/reader/{BOOK_1}",
+                _MockSession(handler),
+            )
+        assert excinfo.value.site_error_code == SITE_NO_SERIES
+        assert "removed" in (excinfo.value.hint or "")
+
+    @pytest.mark.asyncio
+    async def test_404_series_maps_to_no_series(self):
+        scraper = KaganeScraper()
+        with pytest.raises(ScrapeError, match=r"Page not found on kagane\.to") as excinfo:
+            await scraper.scrape_series(
+                f"https://kagane.to/series/{SERIES_ID}",
+                _MockSession(lambda url: _MockResponse(b"not found", status=404)),
+            )
+        assert excinfo.value.site_error_code == SITE_NO_SERIES
+        assert "removed" in (excinfo.value.hint or "")

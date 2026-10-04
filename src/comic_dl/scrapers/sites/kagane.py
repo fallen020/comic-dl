@@ -15,6 +15,7 @@ from ...cf import note_replay_dead, replay_dead
 from ...errors import (
     SITE_BLOCKED,
     SITE_LAYOUT_CHANGED,
+    SITE_NO_SERIES,
     SITE_NOT_RECOGNIZED,
     SITE_REQUEST_FAILED,
     ScrapeError,
@@ -223,6 +224,17 @@ class _SessionResponse:
         return json.loads(self.text)
 
 
+def _raise_for_status(response: Any) -> None:
+    """Raise for a bad API response, mapping 404 to a removal error."""
+    if getattr(response, "status_code", 200) == 404:
+        raise ScrapeError(
+            "Page not found on kagane.to.",
+            hint="The series may have been removed, or this chapter link is dead.",
+            site_error_code=SITE_NO_SERIES,
+        )
+    response.raise_for_status()
+
+
 def _has_clearance(url: str) -> bool:
     """True when the jar holds a ``cf_clearance`` for ``url``'s host."""
     return "cf_clearance" in jar_cookies_for(url)
@@ -257,7 +269,7 @@ class KaganeScraper(BaseScraper):
     domain = DOMAIN
     name = "kagane"
     site_id = "kagane"
-    version = "1.0.2"
+    version = "1.0.3"
     test_url = "https://kagane.to/series/019c2b1c-cc9b-745f-afed-09c230759162/reader/019c2bda-f619-716e-b0f5-043564eecffe"
     test_url_kind = "chapter"
     minimum_core_version = "0.0.2"
@@ -366,7 +378,7 @@ class KaganeScraper(BaseScraper):
         """
         url = f"{_API}/series/{series_id}"
         response = await self._api_fetch("GET", url, client)
-        response.raise_for_status()
+        _raise_for_status(response)
         data = response.json()
         if not isinstance(data, dict):
             raise ScrapeError(
@@ -389,7 +401,7 @@ class KaganeScraper(BaseScraper):
             f"{BASE}/api/integrity",
             client,
         )
-        integrity.raise_for_status()
+        _raise_for_status(integrity)
         token_data = integrity.json()
         if not isinstance(token_data, dict) or not token_data.get("token"):
             raise ScrapeError(
@@ -405,7 +417,7 @@ class KaganeScraper(BaseScraper):
             headers={"X-Integrity-Token": str(token_data["token"])},
             body="{}",
         )
-        books.raise_for_status()
+        _raise_for_status(books)
         data = books.json()
         if not isinstance(data, dict):
             raise ScrapeError(
