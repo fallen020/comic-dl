@@ -440,7 +440,7 @@ class Library:
             self._db.commit()
             return cur.rowcount > 0
         except sqlite3.Error as exc:
-            raise LibraryError(f"Failed to remove series {series_id}: {exc}") from exc
+            raise LibraryError(f"Failed to remove series {series_id}.") from exc
 
     # ── writes ──────────────────────────────────────────────────
 
@@ -490,7 +490,7 @@ class Library:
             self._db.execute("INSERT OR IGNORE INTO roots(root) VALUES (?)", (output_root,))
             self._db.commit()
         except sqlite3.Error as exc:
-            raise LibraryError(f"Failed to record series {series_id}: {exc}") from exc
+            raise LibraryError(f"Failed to record series {series_id}.") from exc
 
     @_serialized
     def upsert_chapter(
@@ -537,7 +537,7 @@ class Library:
             )
             self._db.commit()
         except sqlite3.Error as exc:
-            raise LibraryError(f"Failed to record chapter {url}: {exc}") from exc
+            raise LibraryError(f"Failed to record chapter {url}.") from exc
 
     @_serialized
     def set_last_checked(self, series_id: str, ts: str | None = None) -> None:
