@@ -25,7 +25,6 @@ from pathlib import Path
 from typing import Any
 
 from curl_cffi.requests import AsyncSession
-from rich.table import Table
 
 from . import __version__ as _version
 from .config import cache_dir
@@ -49,7 +48,7 @@ from .self_update import (
     fetch_latest_release,
     run_update_command,
 )
-from .ui import JSON_SCHEMA_VERSION, console, print_dim, print_error, print_success
+from .ui import JSON_SCHEMA_VERSION, console, print_dim, print_error, print_success, print_table
 from .utils import http_client_args
 
 MANIFEST_ASSET = "site-support.json"
@@ -368,27 +367,6 @@ def site_update_hint(domain: str) -> str:
 # Command entry points (return process exit codes)
 
 
-def _render_table(
-    title: str, rows: list[list[str]], columns: tuple[str, ...], extra: str = ""
-) -> None:
-    table = Table(
-        box=None,
-        show_header=True,
-        header_style="bold",
-        pad_edge=False,
-        padding=(0, 2),
-    )
-    for col in columns:
-        table.add_column(col)
-    for row in rows:
-        table.add_row(*row)
-    console.print()
-    console.print(f"  [bold]{title}[/]")
-    console.print(table)
-    if extra:
-        print_dim(extra)
-
-
 def _tally_line(statuses: list[str]) -> str:
     """One-line rollup of table statuses ('' when there is nothing to act on).
 
@@ -470,7 +448,10 @@ async def run_site_list_command(*, json_mode: bool) -> int:
     else:
         hint = "Status shows 'unable to check' until a site check is run."
         extra = f"{extra}\n{hint}" if extra else hint
-    _render_table(f"Installed site support ({len(sites)})", rows, _LIST_COLUMNS, extra)
+    console.print()
+    print_table(f"Installed site support ({len(sites)})", list(_LIST_COLUMNS), rows)
+    if extra:
+        print_dim(extra)
     return EXIT_OK
 
 
@@ -531,7 +512,10 @@ async def run_site_check_command(*, target: str | None, live: bool, json_mode: b
             names = ", ".join(sorted(unknown_sites))
             missing = f"No manifest entry for: {names}."
             extra = f"{extra}\n{missing}" if extra else missing
-        _render_table(f"Site support check ({len(sites)})", rows, _CHECK_COLUMNS, extra)
+        console.print()
+    print_table(f"Site support check ({len(sites)})", list(_CHECK_COLUMNS), rows)
+    if extra:
+        print_dim(extra)
 
     if json_mode:
         console.print(
