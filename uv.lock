@@ -296,7 +296,7 @@ wheels = [
 
 [[package]]
 name = "comic-dl"
-version = "0.0.4"
+version = "0.0.5"
 source = { editable = "." }
 dependencies = [
     { name = "beautifulsoup4" },

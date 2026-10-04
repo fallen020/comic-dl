@@ -36,6 +36,11 @@ def _plain(text: str) -> str:
     return _ANSI_RE.sub("", text)
 
 
+def _squashed(text: str) -> str:
+    """Plain text with all wrapping collapsed (Rich folds long lines per width)."""
+    return " ".join(_plain(text).split())
+
+
 @pytest.fixture(autouse=True)
 def _reset_verbosity():
     yield
@@ -271,12 +276,12 @@ class TestReportError:
     def test_code_hint_map_used_without_raise_hint(self, capsys):
         exc = ScrapeError("Blocked here.", site_error_code=SITE_BLOCKED)
         assert report_error(exc) == EXIT_ERROR
-        assert SITE_HINTS[SITE_BLOCKED] in _plain(capsys.readouterr().err).replace("\n", "")
+        assert SITE_HINTS[SITE_BLOCKED] in _squashed(capsys.readouterr().err)
 
     def test_explicit_hint_wins_over_code_map(self, capsys):
         exc = ScrapeError("Blocked here.", site_error_code=SITE_BLOCKED)
         report_error(exc, hint="Custom.")
-        err = _plain(capsys.readouterr().err).replace("\n", "")
+        err = _squashed(capsys.readouterr().err)
         assert "Custom." in err
         assert SITE_HINTS[SITE_BLOCKED] not in err
 

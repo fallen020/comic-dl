@@ -5,6 +5,51 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org).
 
+## [v0.0.5] - 2026-10-04
+
+### Added
+
+- Stable `site_error_code` values now surface a fix hint: a central
+  per-code hint map fills in whenever a failure carries a code but no
+  hand-written hint, so blocked, locked, or moved chapters always print
+  the cause plus what to do.
+- Interrupt resume hint echoes the real command run (canonical program
+  name, prompt-entered URL included).
+- Downloaded images are structurally verified; truncated and polyglot
+  pages are rejected instead of archived.
+- Help screen rebuilt from the parser; `self site` live-checks test URLs
+  for 27 adapters with kind-aware checks.
+- Single shared retry path (`retry_transient`) for scraper-side fetches.
+- Hivetoons series roster parses the site's TanStack stream payload.
+- Website: `llms.txt` generation, Explain-with-AI dropdown, namespaced
+  tab sets, responsive shell, one-row-per-site tables with live filter.
+
+### Changed
+
+- Site adapter bumps: asurascans 1.0.3, tapas 1.0.2, flamecomics 1.0.3,
+  ehentai 1.0.3, kagane 1.0.3, hivetoons 1.0.3.
+- Dependencies: attest-build-provenance v4.2.2, hatchling >= 1.32.4,
+  mypy 2.4.0, ruff 0.16.10, platformdirs 4.12.3, astro 7.3.5,
+  @lucide/astro ^1.49.0.
+- Arch package renamed to avoid an AUR collision; CI artifact retention
+  capped; config starter slimmed.
+
+### Fixed
+
+- WAF/challenge misclassification: Asura, Tapas, and FlameComics
+  Cloudflare challenges now report `SITE_BLOCKED` with a solver hint
+  instead of a network error; Kagane API 404s report removal instead of
+  request failure; Stonescape maps non-404/403 HTTP errors; E-Hentai
+  raises on retry exhaustion and API errors.
+- `site_error_code` coverage across the remaining adapters (malformed
+  URLs, locked chapters, ValiScans platform).
+- Interrupt hint no longer leaks the launcher path; library errors no
+  longer leak SQLite driver text.
+- Gedecomix test URL repointed to a live chapter; FSIComics series
+  scraping restored on the Foxiz theme; `self site` columns corrected.
+- SSRF, content-length, referer, and cookie-permission hardenings; rate
+  limiter keyed by hostname; host park lifted on success.
+
 ## [v0.0.4] - 2026-09-27
 
 ### Added
