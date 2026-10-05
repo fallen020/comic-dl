@@ -2296,10 +2296,57 @@ class TestStaleLinkRefresh:
         for item in items:
             yield item
 
+    async def _run_doomed_page(self, monkeypatch, tmp_path, item):
+        """Run one page that always fails transport; return consulted refresh urls."""
+        from curl_cffi.requests.exceptions import ConnectionError as CurlConnErr
+
+        from comic_dl.downloader import _run_downloads
+
+        class AlwaysFail:
+            status_code = 200
+            headers = {}
+
+            def raise_for_status(self):
+                pass
+
+            async def aiter_content(self, chunk_size=None):
+                yield MAGIC_JPEG
+
+            async def __aenter__(self):
+                raise CurlConnErr("down")
+
+            async def __aexit__(self, *args):
+                pass
+
+        class MockClient:
+            def stream(self, method, url, **kwargs):
+                return AlwaysFail()
+
+        calls = []
+
+        async def spy_refresh(client, it):
+            calls.append(it.url)
+            return None
+
+        monkeypatch.setattr("comic_dl.downloader._refresh_stale_link", spy_refresh)
+        monkeypatch.setattr("comic_dl.downloader.SHARED_COOLDOWN_CAP", 0.01)
+        monkeypatch.setattr(
+            "comic_dl.downloader._backoff_delay",
+            lambda attempt, **kwargs: 0.001,
+        )
+
+        failed, _ = await _run_downloads(
+            self._aiter([item]),
+            tmp_path,
+            asyncio.Semaphore(2),
+            None,
+            MockClient(),  # type: ignore[arg-type]
+        )
+        assert failed == {"a.jpg"}
+        return calls
+
     async def test_retry_uses_refreshed_url(self, monkeypatch, tmp_path):
         from dataclasses import replace as dc_replace
-
-        from curl_cffi.requests.exceptions import ConnectionError as CurlConnErr
 
         from comic_dl.downloader import _run_downloads
 
@@ -2316,11 +2363,14 @@ class TestStaleLinkRefresh:
                 pass
 
             async def aiter_content(self, chunk_size=None):
-                yield MAGIC_JPEG
+                if self.url.endswith("/stale"):
+                    # Expired keystamp: HTML where image bytes belong, the
+                    # link fault the refresher exists for.
+                    yield b"<html><body>keystamp expired</body></html>"
+                else:
+                    yield MAGIC_JPEG
 
             async def __aenter__(self):
-                if self.url.endswith("/stale"):
-                    raise CurlConnErr("keystamp expired")
                 return self
 
             async def __aexit__(self, *args):
@@ -2366,53 +2416,22 @@ class TestStaleLinkRefresh:
         assert resolved[0].url == "https://node.hath.network/h/stale"
 
     async def test_no_refresh_without_source_url(self, monkeypatch, tmp_path):
-        from curl_cffi.requests.exceptions import ConnectionError as CurlConnErr
-
-        from comic_dl.downloader import _run_downloads
-
-        class AlwaysFail:
-            status_code = 200
-            headers = {}
-
-            def raise_for_status(self):
-                pass
-
-            async def aiter_content(self, chunk_size=None):
-                yield MAGIC_JPEG
-
-            async def __aenter__(self):
-                raise CurlConnErr("down")
-
-            async def __aexit__(self, *args):
-                pass
-
-        class MockClient:
-            def stream(self, method, url, **kwargs):
-                return AlwaysFail()
-
-        calls = []
-
-        async def spy_refresh(client, it):
-            calls.append(it.url)
-            return None
-
-        monkeypatch.setattr("comic_dl.downloader._refresh_stale_link", spy_refresh)
-        monkeypatch.setattr("comic_dl.downloader.SHARED_COOLDOWN_CAP", 0.01)
-        monkeypatch.setattr(
-            "comic_dl.downloader._backoff_delay",
-            lambda attempt, **kwargs: 0.001,
-        )
-
         item = ImageItem(url="http://x.com/a.jpg", page_number=1, filename="a.jpg")
-        failed, _ = await _run_downloads(
-            self._aiter([item]),
-            tmp_path,
-            asyncio.Semaphore(2),
-            None,
-            MockClient(),  # type: ignore[arg-type]
-        )
-        assert failed == {"a.jpg"}
+        calls = await self._run_doomed_page(monkeypatch, tmp_path, item)
         # No provenance -> refresher never consulted.
+        assert calls == []
+
+    async def test_no_refresh_on_transport_failure(self, monkeypatch, tmp_path):
+        """Timeouts/resets are node faults, not stale links: the source page
+        (up to REFRESH_TIMEOUT away) must not be re-fetched before retrying."""
+        item = ImageItem(
+            url="http://x.com/a.jpg",
+            page_number=1,
+            filename="a.jpg",
+            source_url="https://e-hentai.org/s/tok/1-1",
+        )
+        calls = await self._run_doomed_page(monkeypatch, tmp_path, item)
+        # Provenance present, but a transport fault is never a stale link.
         assert calls == []
 
 

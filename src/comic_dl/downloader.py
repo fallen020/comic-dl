@@ -1427,8 +1427,17 @@ async def _run_downloads(
                     delay = _backoff_delay(attempt, jitter=True)
                 # A time-limited link (keystamp) that just failed may be
                 # expired: re-mint it from its source page so the retry
-                # targets a live URL instead of the same dead one.
-                if item.source_url:
+                # targets a live URL instead of the same dead one. Only link
+                # faults merit the source fetch (up to REFRESH_TIMEOUT): a
+                # timeout or 5xx is the node failing, not the URL, and
+                # re-minting cannot fix it — it would only delay the retry.
+                from curl_cffi.requests.exceptions import HTTPError
+
+                _status = getattr(getattr(exc, "response", None), "status_code", None)
+                if item.source_url and (
+                    isinstance(exc, NotImageResponseError)
+                    or (isinstance(exc, HTTPError) and _status == 403)
+                ):
                     refreshed = await _refresh_stale_link(client, item)
                     if refreshed is not None:
                         item = refreshed

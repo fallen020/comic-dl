@@ -1980,7 +1980,9 @@ async def process_url(
             # with small pages isn't rejected on a guess. When unknown,
             # guess from a realistic per-page size instead of the worst-case
             # pages*cap product (200p x 100MB = 20GB rejected modest runs);
-            # the runtime total-size cap still enforces --max-size exactly.
+            # the runtime total-size gate still applies --max-size as downloads
+            # start (in-flight pages may complete past it, so it bounds rather
+            # than guarantees the total).
             if estimate > 0:
                 estimated_max = estimate
                 basis = "site-reported size"
