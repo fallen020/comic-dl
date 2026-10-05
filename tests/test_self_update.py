@@ -7,6 +7,7 @@ mocked, matching the repo-wide offline test convention.
 
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
 
 import pytest
@@ -52,6 +53,10 @@ def _rel(tag: str, *assets: str) -> ReleaseInfo:
         version=tag,
         assets={name: f"https://example.invalid/{name}" for name in assets},
     )
+
+
+async def _checksums_for(mapping: dict[str, str]) -> dict[str, str]:
+    return mapping
 
 
 def _text(capsys) -> str:
@@ -395,6 +400,12 @@ class TestPackageManagerUpdate:
         )
         monkeypatch.setattr("comic_dl.self_update.platform.machine", lambda: "amd64")
         monkeypatch.setattr("comic_dl.self_update.download_artifact", fake_download)
+        monkeypatch.setattr(
+            "comic_dl.self_update._fetch_checksums",
+            lambda release: _checksums_for(
+                {f"comic-dl_{_FUTURE}_amd64.deb": hashlib.sha256(b"pkg").hexdigest()}
+            ),
+        )
         monkeypatch.setattr("comic_dl.self_update._request_confirmation", lambda *a, **k: None)
         monkeypatch.setattr("comic_dl.self_update._is_root", lambda: False)
         monkeypatch.setattr(
@@ -421,6 +432,12 @@ class TestPackageManagerUpdate:
         )
         monkeypatch.setattr("comic_dl.self_update.platform.machine", lambda: "amd64")
         monkeypatch.setattr("comic_dl.self_update.download_artifact", fake_download)
+        monkeypatch.setattr(
+            "comic_dl.self_update._fetch_checksums",
+            lambda release: _checksums_for(
+                {f"comic-dl_{_FUTURE}_amd64.deb": hashlib.sha256(b"pkg").hexdigest()}
+            ),
+        )
         monkeypatch.setattr("comic_dl.self_update._request_confirmation", lambda *a, **k: None)
         monkeypatch.setattr("comic_dl.self_update._is_root", lambda: False)
         monkeypatch.setattr("comic_dl.self_update.shutil.which", lambda name: None)
@@ -441,6 +458,12 @@ class TestPackageManagerUpdate:
         )
         monkeypatch.setattr("comic_dl.self_update.platform.machine", lambda: "amd64")
         monkeypatch.setattr("comic_dl.self_update.download_artifact", fake_download)
+        monkeypatch.setattr(
+            "comic_dl.self_update._fetch_checksums",
+            lambda release: _checksums_for(
+                {f"comic-dl_{_FUTURE}_amd64.deb": hashlib.sha256(b"pkg").hexdigest()}
+            ),
+        )
         monkeypatch.setattr("comic_dl.self_update._request_confirmation", lambda *a, **k: None)
         monkeypatch.setattr("comic_dl.self_update._is_root", lambda: False)
         monkeypatch.setattr(
@@ -453,6 +476,93 @@ class TestPackageManagerUpdate:
         )
         rc = await run_update_command(check=False, yes=True)
         assert rc == EXIT_ERROR
+
+
+class TestChecksumVerification:
+    async def test_mismatch_refuses_before_install(self, monkeypatch, capsys):
+        async def newer():
+            return _rel(_FUTURE_TAG, f"comic-dl_{_FUTURE}_amd64.deb")
+
+        async def fake_download(url, dest):
+            dest.write_bytes(b"pkg")
+
+        calls: list[list[str]] = []
+
+        def fake_subprocess(argv, **_kw):
+            calls.append(list(argv))
+            return type("P", (), {"returncode": 0})()
+
+        monkeypatch.setattr("comic_dl.self_update.fetch_latest_release", newer)
+        monkeypatch.setattr(
+            "comic_dl.self_update.detect_installation",
+            lambda: InstallationInfo(InstallKind.APT, _MOCK_EXE),
+        )
+        monkeypatch.setattr("comic_dl.self_update.platform.machine", lambda: "amd64")
+        monkeypatch.setattr("comic_dl.self_update.download_artifact", fake_download)
+        monkeypatch.setattr(
+            "comic_dl.self_update._fetch_checksums",
+            lambda release: _checksums_for({f"comic-dl_{_FUTURE}_amd64.deb": "0" * 64}),
+        )
+        monkeypatch.setattr("comic_dl.self_update._request_confirmation", lambda *a, **k: None)
+        monkeypatch.setattr("comic_dl.self_update.subprocess.run", fake_subprocess)
+        rc = await run_update_command(check=False, yes=True)
+        assert rc == EXIT_ERROR
+        assert calls == []
+        assert "mismatch" in _text(capsys)
+
+    async def test_missing_checksums_refuses_before_install(self, monkeypatch, capsys):
+        async def newer():
+            return _rel(_FUTURE_TAG, f"comic-dl_{_FUTURE}_amd64.deb")
+
+        async def fake_download(url, dest):
+            dest.write_bytes(b"pkg")
+
+        calls: list[list[str]] = []
+
+        def fake_subprocess(argv, **_kw):
+            calls.append(list(argv))
+            return type("P", (), {"returncode": 0})()
+
+        monkeypatch.setattr("comic_dl.self_update.fetch_latest_release", newer)
+        monkeypatch.setattr(
+            "comic_dl.self_update.detect_installation",
+            lambda: InstallationInfo(InstallKind.APT, _MOCK_EXE),
+        )
+        monkeypatch.setattr("comic_dl.self_update.platform.machine", lambda: "amd64")
+        monkeypatch.setattr("comic_dl.self_update.download_artifact", fake_download)
+        monkeypatch.setattr(
+            "comic_dl.self_update._fetch_checksums", lambda release: _checksums_for({})
+        )
+        monkeypatch.setattr("comic_dl.self_update._request_confirmation", lambda *a, **k: None)
+        monkeypatch.setattr("comic_dl.self_update.subprocess.run", fake_subprocess)
+        rc = await run_update_command(check=False, yes=True)
+        assert rc == EXIT_ERROR
+        assert calls == []
+        assert "No checksum published" in _text(capsys)
+
+    def test_parse_checksums_skips_malformed(self):
+        from comic_dl.self_update import _parse_checksums
+
+        parsed = _parse_checksums(
+            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  empty.deb\n"
+            "5d41402abc4b2a76b9719d911017c5925d41402abc4b2a76b9719d911017c592 *star.deb\n"
+            "short line\n"
+            "notahex  file1.deb\n"
+        )
+        assert parsed == {
+            "empty.deb": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+            "star.deb": "5d41402abc4b2a76b9719d911017c5925d41402abc4b2a76b9719d911017c592",
+        }
+
+    def test_verify_artifact_round_trip(self, tmp_path):
+        from comic_dl.self_update import _verify_artifact
+
+        target = tmp_path / "pkg.deb"
+        target.write_bytes(b"pkg")
+        good = hashlib.sha256(b"pkg").hexdigest()
+        assert _verify_artifact({"pkg.deb": good}, "pkg.deb", target) is True
+        assert _verify_artifact({"pkg.deb": "0" * 64}, "pkg.deb", target) is False
+        assert _verify_artifact({}, "pkg.deb", target) is False
 
     async def test_no_asset_for_arch(self, monkeypatch, capsys):
         async def newer():

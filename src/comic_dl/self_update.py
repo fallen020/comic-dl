@@ -16,6 +16,8 @@ path — it only affects this command.
 from __future__ import annotations
 
 import enum
+import hashlib
+import hmac
 import json
 import os
 import platform
@@ -308,6 +310,54 @@ async def download_artifact(url: str, dest: Path) -> None:
             await resp.aclose()
 
 
+_MAX_CHECKSUMS_BYTES = 1 << 20
+
+
+def _parse_checksums(text: str) -> dict[str, str]:
+    """Filename → sha256 from SHA256SUMS text; malformed lines skipped."""
+    out: dict[str, str] = {}
+    for line in text.splitlines():
+        parts = line.split()
+        if len(parts) != 2:
+            continue
+        digest, name = parts
+        name = name.lstrip("*")
+        if len(digest) == 64 and all(c in "0123456789abcdefABCDEF" for c in digest):
+            out[name] = digest.lower()
+    return out
+
+
+async def _fetch_checksums(release: ReleaseInfo) -> dict[str, str]:
+    """The release's SHA256SUMS as filename → sha256, or ``{}`` on any failure.
+
+    A missing/unreadable checksum file fails closed: the caller refuses to
+    install rather than installing an unverified artifact as root.
+    """
+    url = release.assets.get("SHA256SUMS")
+    if not url:
+        return {}
+    try:
+        async with AsyncSession(**http_client_args()) as client:
+            resp = await BaseScraper._timeout_get(url, client, use_cache=False)
+        if resp.status_code >= 400 or len(resp.text) > _MAX_CHECKSUMS_BYTES:
+            return {}
+        return _parse_checksums(resp.text)
+    except Exception:
+        return {}
+
+
+def _verify_artifact(checksums: dict[str, str], name: str, path: Path) -> bool:
+    """True when ``path`` matches the published sha256 for ``name``."""
+    expected = checksums.get(name)
+    if expected is None:
+        return False
+    digest = hashlib.sha256()
+    with path.open("rb") as fh:
+        for chunk in iter(lambda: fh.read(1 << 20), b""):
+            digest.update(chunk)
+    return hmac.compare_digest(digest.hexdigest(), expected)
+
+
 async def run_update_command(*, check: bool, yes: bool) -> int:
     """``comic-dl self update``: check, then update through the owner.
 
@@ -427,6 +477,18 @@ async def _install_package(info: InstallationInfo, release: ReleaseInfo, latest:
     except Exception:
         print_error(f"Failed to download {name}.")
         print_dim(f"Latest releases: {GITHUB_RELEASES_PAGE}")
+        _cleanup(tmp_root)
+        return EXIT_ERROR
+
+    checksums = await _fetch_checksums(release)
+    if name not in checksums:
+        print_error(f"No checksum published for {name} — refusing to install.")
+        print_dim(f"Install manually from: {GITHUB_RELEASES_PAGE}")
+        _cleanup(tmp_root)
+        return EXIT_ERROR
+    if not _verify_artifact(checksums, name, artifact):
+        print_error(f"Checksum mismatch for {name} — refusing to install.")
+        print_dim(f"Install manually from: {GITHUB_RELEASES_PAGE}")
         _cleanup(tmp_root)
         return EXIT_ERROR
 

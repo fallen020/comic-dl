@@ -50,6 +50,8 @@ unavailable, the check reports that and leaves everything unchanged — a failed
 update check never affects normal downloads.
 
 Downloads are made over HTTPS through the same SSRF-validated, rate-limited
-fetch path as scraping, and package installs run through the owning package
-manager (which verifies package signatures). Only visible package defaults
+fetch path as scraping. Before invoking the package manager, the downloaded
+artifact is checked against the release's published SHA256SUMS — a missing
+or mismatched checksum refuses the install. Package installs then run
+through the owning package manager (which verifies package signatures). Only visible package defaults
 are used; comic-dl never adds flags like `--user` or `--break-system-packages`.
