@@ -3465,7 +3465,7 @@ def print_help(parser: argparse.ArgumentParser | None = None) -> None:
         "[--json] [--plugin] [QUERY]",
         _summary(actions, "--list-sources") + " (interactive picker on a TTY)",
     )
-    table.row("completion", "bash|zsh|fish", "Print a shell completion script")
+    table.row("completion", "bash|zsh|fish|powershell", "Print a shell completion script")
     table.row("--version", "", "Show version")
     table.row("-h, --help, -?", "", "Show this help message")
     table.print()

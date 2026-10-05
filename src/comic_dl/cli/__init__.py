@@ -4771,7 +4771,7 @@ def _run_completion(argv: list[str]) -> int:
         "shell",
         nargs="?",
         choices=["bash", "zsh", "fish", "powershell"],
-        help="shell to generate completion for (bash/zsh/fish/powershell)",
+        help="shell to generate completion for",
     )
     try:
         args = parser.parse_args(argv)
