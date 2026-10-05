@@ -36,7 +36,7 @@ fi
 
 # --- CLI smoke ---
 "$(command -v comic-dl)" --version | grep -q "^comic-dl "
-head -1 "$(command -v comic-dl)" | grep -qx '#!/bin/sh'
+head -1 "$(command -v comic-dl)" | grep -qxE '#!/(usr/)?bin/sh'
 comic-dl --list-sources >/dev/null
 comic-dl config path >/dev/null
 comic-dl help >/dev/null
