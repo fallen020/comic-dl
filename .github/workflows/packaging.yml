@@ -51,6 +51,9 @@ jobs:
   linux-packages:
     needs: version-drift
     runs-on: ${{ matrix.runs-on }}
+    permissions:
+      contents: read
+      actions: write  # distro package cache save/restore
     # Cap multi-distro runtime so a wedged container build can't hang.
     timeout-minutes: 30
     strategy:
@@ -65,6 +68,8 @@ jobs:
             build: bash /src/packaging/deb/build.sh docker-build
             outdir: /tmp/debian-amd64-out
             artifact: deb-amd64
+            cachedir: apt
+            cachetarget: /var/cache/apt/archives
             validate: deb/validate.sh
             glob: "*.deb"
           - distro: debian
@@ -74,6 +79,8 @@ jobs:
             build: bash /src/packaging/deb/build.sh docker-build
             outdir: /tmp/debian-arm64-out
             artifact: deb-arm64
+            cachedir: apt
+            cachetarget: /var/cache/apt/archives
             validate: deb/validate.sh
             glob: "*.deb"
           - distro: fedora
@@ -83,6 +90,8 @@ jobs:
             build: bash /src/packaging/rpm/build.sh
             outdir: /tmp/fedora-x86_64-out
             artifact: rpm-x86_64
+            cachedir: dnf
+            cachetarget: /var/cache/dnf
             validate: rpm/validate.sh
             glob: "*.rpm"
           - distro: fedora
@@ -92,6 +101,8 @@ jobs:
             build: bash /src/packaging/rpm/build.sh
             outdir: /tmp/fedora-aarch64-out
             artifact: rpm-aarch64
+            cachedir: dnf
+            cachetarget: /var/cache/dnf
             validate: rpm/validate.sh
             glob: "*.rpm"
           - distro: arch
@@ -101,6 +112,8 @@ jobs:
             build: bash /src/packaging/arch/build.sh
             outdir: /tmp/arch-x86_64-out
             artifact: arch-x86_64
+            cachedir: pacman
+            cachetarget: /var/cache/pacman/pkg
             validate: arch/validate.sh
             glob: "*.pkg.tar.zst"
           # No arch/arm64 entry: archlinux:latest ships no arm64 manifest, so
@@ -118,12 +131,25 @@ jobs:
             exit 1
           fi
           echo "PKG_VER=$pkg_ver" >> "$GITHUB_ENV"
+      - name: Set package cache week
+        run: echo "CACHE_WEEK=$(date -u +%Y-W%V)" >> "$GITHUB_ENV"
+      # Distro package downloads, shared across runs. Keyed per artifact
+      # (caches are arch-specific) with a weekly rotation; a stale cache
+      # only costs re-downloads, never a wrong install.
+      - name: Restore distro package cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: .pkg-cache/${{ matrix.cachedir }}
+          key: pkg-${{ matrix.artifact }}-${{ env.CACHE_WEEK }}
+          restore-keys: |
+            pkg-${{ matrix.artifact }}-
       - name: Build package in container
         run: |
           mkdir -p "${{ matrix.outdir }}"
           docker run --rm --platform ${{ matrix.platform }} \
             -v "${{ github.workspace }}:/src:ro" \
             -v "${{ matrix.outdir }}:/out" \
+            -v "${{ github.workspace }}/.pkg-cache/${{ matrix.cachedir }}:${{ matrix.cachetarget }}" \
             -e VERSION="${{ env.PKG_VER }}" \
             ${{ matrix.image }} \
             bash -c "${{ matrix.build }}"
@@ -132,9 +158,16 @@ jobs:
           docker run --rm --platform ${{ matrix.platform }} \
             -v "${{ github.workspace }}:/src:ro" \
             -v "${{ matrix.outdir }}:/pkg:ro" \
+            -v "${{ github.workspace }}/.pkg-cache/${{ matrix.cachedir }}:${{ matrix.cachetarget }}" \
             -e EXPECTED_VERSION="${{ env.PKG_VER }}" \
             ${{ matrix.image }} \
             bash /src/packaging/${{ matrix.validate }} "/pkg/${{ matrix.glob }}"
+      # Containers run as root, so hand the cache back to the runner user
+      # before the save step. Runs on failure too so failed runs still
+      # populate the cache.
+      - name: Fix package cache ownership
+        if: always()
+        run: sudo chown -R "$(id -u):$(id -g)" .pkg-cache 2>/dev/null || true
       # Keep artifacts on failure so a broken PR can be inspected without
       # re-running the full matrix.
       - name: Upload artifacts on failure

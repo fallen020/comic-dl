@@ -93,6 +93,7 @@ jobs:
       contents: read  # actions/checkout (job-level perms default unlisted scopes to none)
       id-token: write  # attest-build-provenance needs an OIDC token for Sigstore signing
       attestations: write  # SLSA build-provenance attestations (Sigstore)
+      actions: write  # distro package cache save/restore
     strategy:
       fail-fast: false
       matrix:
@@ -104,6 +105,8 @@ jobs:
             platform: linux/amd64
             build: bash /src/packaging/deb/build.sh docker-build
             artifact: deb-amd64
+            cachedir: apt
+            cachetarget: /var/cache/apt/archives
             outdir: /tmp/debian-amd64-out
             validate: deb/validate.sh
             glob: "*.deb"
@@ -113,6 +116,8 @@ jobs:
             platform: linux/arm64
             build: bash /src/packaging/deb/build.sh docker-build
             artifact: deb-arm64
+            cachedir: apt
+            cachetarget: /var/cache/apt/archives
             outdir: /tmp/debian-arm64-out
             validate: deb/validate.sh
             glob: "*.deb"
@@ -122,6 +127,8 @@ jobs:
             platform: linux/amd64
             build: bash /src/packaging/rpm/build.sh
             artifact: rpm-x86_64
+            cachedir: dnf
+            cachetarget: /var/cache/dnf
             outdir: /tmp/fedora-x86_64-out
             validate: rpm/validate.sh
             glob: "*.rpm"
@@ -131,6 +138,8 @@ jobs:
             platform: linux/arm64
             build: bash /src/packaging/rpm/build.sh
             artifact: rpm-aarch64
+            cachedir: dnf
+            cachetarget: /var/cache/dnf
             outdir: /tmp/fedora-aarch64-out
             validate: rpm/validate.sh
             glob: "*.rpm"
@@ -140,6 +149,8 @@ jobs:
             platform: linux/amd64
             build: bash /src/packaging/arch/build.sh
             artifact: arch-x86_64
+            cachedir: pacman
+            cachetarget: /var/cache/pacman/pkg
             outdir: /tmp/arch-x86_64-out
             validate: arch/validate.sh
             glob: "*.pkg.tar.zst"
@@ -147,12 +158,25 @@ jobs:
           # the image cannot be pulled on arm runners either.
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set package cache week
+        run: echo "CACHE_WEEK=$(date -u +%Y-W%V)" >> "$GITHUB_ENV"
+      # Distro package downloads, shared across runs. Keyed per artifact
+      # (caches are arch-specific) with a weekly rotation; a stale cache
+      # only costs re-downloads, never a wrong install.
+      - name: Restore distro package cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: .pkg-cache/${{ matrix.cachedir }}
+          key: pkg-${{ matrix.artifact }}-${{ env.CACHE_WEEK }}
+          restore-keys: |
+            pkg-${{ matrix.artifact }}-
       - name: Build package in container
         run: |
           mkdir -p "${{ matrix.outdir }}"
           docker run --rm --platform ${{ matrix.platform }} \
             -v "${{ github.workspace }}:/src:ro" \
             -v "${{ matrix.outdir }}:/out" \
+            -v "${{ github.workspace }}/.pkg-cache/${{ matrix.cachedir }}:${{ matrix.cachetarget }}" \
             -e VERSION="${{ env.VER }}" \
             ${{ matrix.image }} \
             bash -c "${{ matrix.build }}"
@@ -167,9 +191,16 @@ jobs:
           docker run --rm --platform ${{ matrix.platform }} \
             -v "${{ github.workspace }}:/src:ro" \
             -v "${{ matrix.outdir }}:/pkg:ro" \
+            -v "${{ github.workspace }}/.pkg-cache/${{ matrix.cachedir }}:${{ matrix.cachetarget }}" \
             -e EXPECTED_VERSION="${{ env.VER }}" \
             ${{ matrix.image }} \
             bash /src/packaging/${{ matrix.validate }} "/pkg/${{ matrix.glob }}"
+      # Containers run as root, so hand the cache back to the runner user
+      # before the save step. Runs on failure too so failed runs still
+      # populate the cache.
+      - name: Fix package cache ownership
+        if: always()
+        run: sudo chown -R "$(id -u):$(id -g)" .pkg-cache 2>/dev/null || true
       # Attest after validation: only packages that installed and
       # smoke-tested cleanly carry build provenance into the release.
       - name: Attest build provenance (Sigstore, keyless)

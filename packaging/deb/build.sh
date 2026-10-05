@@ -137,6 +137,8 @@ docker_build_inside() {
   # Self-provisions like the rpm/arch scripts so raw distro images work.
   # build-essential is assumed present on buildds (never listed in
   # Build-Depends per policy) but absent from bare containers.
+  # Keep downloaded .debs so a mounted host package cache accumulates.
+  echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/99keep-debs
   apt-get update -qq
   apt-get install -y -qq --no-install-recommends \
     build-essential debhelper python3 python3-pip unzip

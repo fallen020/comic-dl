@@ -40,7 +40,8 @@ PYWEBVIEW_VERSION="${PYWEBVIEW_VERSION:-$(_lock_version pywebview)}"
 PROXY_TOOLS_VERSION="${PROXY_TOOLS_VERSION:-$(_lock_version proxy-tools)}"
 
 echo "Installing build dependencies..."
-dnf install -y --quiet rpm-build python3 python3-pip unzip
+# keepcache so a mounted host package cache accumulates across runs.
+dnf install -y --quiet --setopt=keepcache=1 rpm-build python3 python3-pip unzip
 
 rm -rf "$WORK_DIR"
 mkdir -p "$WORK_DIR/rpmbuild/SOURCES" "$WORK_DIR/rpmbuild/SPECS"

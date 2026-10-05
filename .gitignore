@@ -21,6 +21,7 @@ coverage.xml
 # Build artifacts
 build/
 dist/
+.pkg-cache/
 
 # Virtual environments
 .venv/

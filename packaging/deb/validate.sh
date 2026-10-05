@@ -16,6 +16,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 PKG_GLOB="${1:?usage: validate.sh <pkg-glob>}"
 
+# Keep downloaded .debs so a mounted host package cache accumulates.
+echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/99keep-debs
 apt-get update -qq
 apt-get install -y --no-install-recommends $PKG_GLOB
 

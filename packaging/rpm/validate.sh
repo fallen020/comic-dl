@@ -16,7 +16,8 @@ SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 PKG_GLOB="${1:?usage: validate.sh <pkg-glob>}"
 
 # A local file install resolves runtime requires like system python3 modules.
-dnf install -y --quiet $PKG_GLOB
+# keepcache so a mounted host package cache accumulates across runs.
+dnf install -y --quiet --setopt=keepcache=1 $PKG_GLOB
 
 bash "$SCRIPT_DIR/smoke-test.sh" "$EXPECTED_VERSION"
 
