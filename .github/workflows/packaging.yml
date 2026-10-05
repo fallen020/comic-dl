@@ -50,50 +50,61 @@ jobs:
   # installs in a clean container so PR artifacts are proven to work.
   linux-packages:
     needs: version-drift
-    runs-on: ubuntu-latest
-    # Cap QEMU/multi-distro runtime so a wedged arm64 emulation can't hang.
+    runs-on: ${{ matrix.runs-on }}
+    # Cap multi-distro runtime so a wedged container build can't hang.
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
         include:
+          # arm64 rows run on native arm runners; nothing here is emulated.
           - distro: debian
+            runs-on: ubuntu-latest
             image: debian:13
             platform: linux/amd64
             build: bash /src/packaging/deb/build.sh docker-build
             outdir: /tmp/debian-amd64-out
+            artifact: deb-amd64
             validate: deb/validate.sh
             glob: "*.deb"
           - distro: debian
+            runs-on: ubuntu-24.04-arm
             image: debian:13
             platform: linux/arm64
             build: bash /src/packaging/deb/build.sh docker-build
             outdir: /tmp/debian-arm64-out
+            artifact: deb-arm64
             validate: deb/validate.sh
             glob: "*.deb"
           - distro: fedora
+            runs-on: ubuntu-latest
             image: fedora:42
             platform: linux/amd64
             build: bash /src/packaging/rpm/build.sh
             outdir: /tmp/fedora-x86_64-out
+            artifact: rpm-x86_64
             validate: rpm/validate.sh
             glob: "*.rpm"
           - distro: fedora
+            runs-on: ubuntu-24.04-arm
             image: fedora:42
             platform: linux/arm64
             build: bash /src/packaging/rpm/build.sh
             outdir: /tmp/fedora-aarch64-out
+            artifact: rpm-aarch64
             validate: rpm/validate.sh
             glob: "*.rpm"
           - distro: arch
+            runs-on: ubuntu-latest
             image: archlinux:latest
             platform: linux/amd64
             build: bash /src/packaging/arch/build.sh
             outdir: /tmp/arch-x86_64-out
+            artifact: arch-x86_64
             validate: arch/validate.sh
             glob: "*.pkg.tar.zst"
           # No arch/arm64 entry: archlinux:latest ships no arm64 manifest, so
-          # the image cannot even be pulled under QEMU (unlike debian/fedora).
+          # the image cannot be pulled on arm runners either.
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
@@ -107,11 +118,6 @@ jobs:
             exit 1
           fi
           echo "PKG_VER=$pkg_ver" >> "$GITHUB_ENV"
-      - name: Set up QEMU for arm64 containers
-        if: matrix.platform == 'linux/arm64'
-        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
-        with:
-          platforms: arm64
       - name: Build package in container
         run: |
           mkdir -p "${{ matrix.outdir }}"
@@ -130,12 +136,12 @@ jobs:
             ${{ matrix.image }} \
             bash /src/packaging/${{ matrix.validate }} "/pkg/${{ matrix.glob }}"
       # Keep artifacts on failure so a broken PR can be inspected without
-      # re-running the full (QEMU-costly) matrix.
+      # re-running the full matrix.
       - name: Upload artifacts on failure
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: ${{ matrix.distro }}-${{ matrix.platform }}
+          name: ${{ matrix.artifact }}
           path: ${{ matrix.outdir }}/*
           # Debug-only payload for a broken PR; two weeks to investigate.
           retention-days: 14

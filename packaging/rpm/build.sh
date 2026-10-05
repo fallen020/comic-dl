@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Build an arch-specific RPM for comic-dl inside a Fedora container.
-# Run under the arch you target: amd64 container -> x86_64 RPM, arm64 (QEMU)
-# container -> aarch64 RPM.
+# Run under the arch you target: amd64 container -> x86_64 RPM, arm64
+# container (native or emulated) -> aarch64 RPM.
 #
 #   packaging/rpm/build.sh      # full build -> $OUT_DIR/*.rpm
 #

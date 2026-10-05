@@ -85,11 +85,10 @@ jobs:
 
   # Linux distro packages. The vendored curl_cffi wheel bundles native
   # libcurl-impersonate shared objects, so each package is architecture-
-  # specific: build every distro under BOTH arch containers (arm64 runs under
-  # QEMU emulation via docker/setup-qemu-action). One .deb/.rpm/.pkg.tar.zst
-  # per distro per arch.
+  # specific: build every distro in a native container per arch (arm64 rows
+  # run on arm runners). One .deb/.rpm/.pkg.tar.zst per distro per arch.
   linux-packages:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runs-on }}
     permissions:
       contents: read  # actions/checkout (job-level perms default unlisted scopes to none)
       id-token: write  # attest-build-provenance needs an OIDC token for Sigstore signing
@@ -98,7 +97,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # arm64 rows run on native arm runners; nothing here is emulated.
           - distro: debian
+            runs-on: ubuntu-latest
             image: debian:stable
             platform: linux/amd64
             build: bash /src/packaging/deb/build.sh docker-build
@@ -107,6 +108,7 @@ jobs:
             validate: deb/validate.sh
             glob: "*.deb"
           - distro: debian
+            runs-on: ubuntu-24.04-arm
             image: debian:stable
             platform: linux/arm64
             build: bash /src/packaging/deb/build.sh docker-build
@@ -115,6 +117,7 @@ jobs:
             validate: deb/validate.sh
             glob: "*.deb"
           - distro: fedora
+            runs-on: ubuntu-latest
             image: fedora:latest
             platform: linux/amd64
             build: bash /src/packaging/rpm/build.sh
@@ -123,6 +126,7 @@ jobs:
             validate: rpm/validate.sh
             glob: "*.rpm"
           - distro: fedora
+            runs-on: ubuntu-24.04-arm
             image: fedora:latest
             platform: linux/arm64
             build: bash /src/packaging/rpm/build.sh
@@ -131,6 +135,7 @@ jobs:
             validate: rpm/validate.sh
             glob: "*.rpm"
           - distro: arch
+            runs-on: ubuntu-latest
             image: archlinux:latest
             platform: linux/amd64
             build: bash /src/packaging/arch/build.sh
@@ -139,13 +144,9 @@ jobs:
             validate: arch/validate.sh
             glob: "*.pkg.tar.zst"
           # No arch/arm64 entry: archlinux:latest ships no arm64 manifest, so
-          # the image cannot even be pulled under QEMU (unlike debian/fedora).
+          # the image cannot be pulled on arm runners either.
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Set up QEMU for arm64 containers
-        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
-        with:
-          platforms: arm64
       - name: Build package in container
         run: |
           mkdir -p "${{ matrix.outdir }}"
