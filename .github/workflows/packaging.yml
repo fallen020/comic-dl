@@ -2,7 +2,8 @@ name: Packaging
 
 # Validates the release packaging pipeline on PRs (before a tag triggers
 # release.yml). Path-filtered: source-only changes don't pay the container bill
-# twice.
+# twice. Caches below cover downloads only; the validate installs into fresh
+# containers stay uncached by policy, or the smoke test proves nothing.
 
 # Distro images are pinned (not `latest`) for reproducible packaging:
 #   debian:13    stable baseline
