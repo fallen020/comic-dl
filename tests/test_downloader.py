@@ -1507,6 +1507,93 @@ class TestAdaptiveCooldown:
             assert len(retries) == 2
             assert min(retries) - min(first_failures) >= 0.15
 
+    async def test_cooldown_is_per_host(self, tmp_path, monkeypatch):
+        """One host's backoff must not pace another host's pages.
+
+        Serial downloads (concurrency=1): the flop host fails once with a
+        1s backoff, so a global cooldown would hold the fine host's page
+        for the full second. Per-host, the fine page lands immediately.
+        """
+        import time as _time
+
+        served: dict[str, list[float]] = {"flop": [], "fine": []}
+
+        class FlakyResponse:
+            status_code = 200
+            headers = {}
+
+            def raise_for_status(self):
+                pass
+
+            async def aiter_content(self, chunk_size=None):
+                served["flop"].append(_time.monotonic())
+                raise CurlTimeout("throttled")
+                yield b""  # pragma: no cover
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *args):
+                return False
+
+        class OkResponse:
+            status_code = 200
+            headers = {"content-length": "3"}
+
+            def __init__(self, tag):
+                self._tag = tag
+
+            def raise_for_status(self):
+                pass
+
+            async def aiter_content(self, chunk_size=None):
+                served[self._tag].append(_time.monotonic())
+                yield MAGIC_JPEG
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *args):
+                return False
+
+        class MockClient:
+            def __init__(self):
+                self._counts: dict[str, int] = {}
+
+            def stream(self, method, url, **kwargs):
+                self._counts[url] = self._counts.get(url, 0) + 1
+                tag = "flop" if "flop.example" in url else "fine"
+                if tag == "flop" and self._counts[url] == 1:
+                    return FlakyResponse()
+                return OkResponse(tag)
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *args):
+                pass
+
+        monkeypatch.setattr(
+            "comic_dl.downloader._backoff_delay",
+            lambda attempt, **kwargs: 1.0,
+        )
+
+        with tempfile.TemporaryDirectory() as td:
+            images = [
+                ImageItem(url="http://flop.example/a", page_number=1, filename="a.jpg"),
+                ImageItem(url="http://fine.example/b", page_number=2, filename="b.jpg"),
+            ]
+            failed = await download_httpx(
+                images,
+                Path(td),
+                concurrency=1,
+                client=MockClient(),
+            )
+            assert failed == set()
+            assert (Path(td) / "a.jpg").exists()
+            assert (Path(td) / "b.jpg").exists()
+            assert served["fine"][0] - served["flop"][0] < 0.8
+
 
 class TestEngineTuning:
     def test_defaults(self):

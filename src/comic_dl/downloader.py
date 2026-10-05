@@ -1188,10 +1188,13 @@ async def _run_downloads(
     max_attempts: int = MAX_DOWNLOAD_RETRIES,
     on_state: Callable[[str, str, str, int], None] | None = None,
 ) -> tuple[set[str], list[ImageItem]]:
-    # Shared adaptive throttle: when any download hits a retryable failure,
-    # all in-flight downloads pause until the backoff window elapses, so the
-    # request rate drops under site throttling instead of hammering harder.
-    cooldown_until: float = 0.0
+    # Per-host adaptive throttle: when a download hits a retryable failure,
+    # in-flight downloads on the *same* host pause until the backoff window
+    # elapses, so the request rate drops under site throttling instead of
+    # hammering harder. Keyed per host so one sick node cannot pace healthy
+    # ones (multi-node chapters); each host's window is still capped by
+    # SHARED_COOLDOWN_CAP at consumption time.
+    cooldown_until: dict[str, float] = {}
     # Cumulative hard cap on total bytes accepted across all downloads (0 = unlimited).
     consumed_bytes = [0]
     completed = 0
@@ -1214,7 +1217,7 @@ async def _run_downloads(
         item: ImageItem,
         stream_formats: dict[str, str] | None = None,
     ) -> None:
-        nonlocal completed, cooldown_until
+        nonlocal completed
 
         def _record_state(status: str, error: str = "", size: int = 0) -> None:
             """Persist one page's terminal state to the caller's manifest.
@@ -1282,11 +1285,11 @@ async def _run_downloads(
             try:
                 loop = asyncio.get_running_loop()
                 now = loop.time()
-                if cooldown_until > now:
+                host = host_of(item.url)
+                if cooldown_until.get(host, 0.0) > now:
                     if activity_cb is not None:
                         activity_cb(f"Waiting for server{glyphs().ellipsis}")
-                    await asyncio.sleep(min(cooldown_until - now, SHARED_COOLDOWN_CAP))
-                host = host_of(item.url)
+                    await asyncio.sleep(min(cooldown_until[host] - now, SHARED_COOLDOWN_CAP))
                 if host_parked(host, loop.time()):
                     # Parked node: fail fast WITHOUT taking a semaphore slot
                     # or opening a socket; rerun picks the page back up.
@@ -1433,8 +1436,8 @@ async def _run_downloads(
                     f"retry {item.filename}: attempt {attempt + 2}/{max_attempts} "
                     f"after {type(exc).__name__}; backoff {delay:.1f}s"
                 )
-                cooldown_until = max(
-                    cooldown_until,
+                cooldown_until[host] = max(
+                    cooldown_until.get(host, 0.0),
                     asyncio.get_running_loop().time() + delay,
                 )
                 await asyncio.sleep(delay)
