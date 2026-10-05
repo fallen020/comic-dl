@@ -222,8 +222,12 @@ class MangadexScraper(BaseScraper):
     async def scrape_series(self, url: str, client: AsyncSession) -> SeriesMetadata:
         return await self._scrape_series(url, client)
 
-    async def _api_get_json(self, url: str, client: AsyncSession) -> dict:
-        response = await BaseScraper._timeout_get(url, client)
+    async def _api_get_json(
+        self, url: str, client: AsyncSession, *, use_cache: bool = True
+    ) -> dict:
+        response = await BaseScraper._timeout_get(
+            url, client, use_cache=use_cache, expect_json=True
+        )
         response.raise_for_status()
         try:
             data = response.json()
@@ -280,9 +284,12 @@ class MangadexScraper(BaseScraper):
                 site_error_code=SITE_NO_SERIES,
             )
 
+        # Never cached: at-home assignments are short-lived, so a cached
+        # baseUrl/hash serves expired image links.
         server = await self._api_get_json(
             f"{_API}/at-home/server/{chapter_id}",
             client,
+            use_cache=False,
         )
         base_url = server.get("baseUrl")
         server_chapter = server.get("chapter", {})

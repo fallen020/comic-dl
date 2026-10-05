@@ -283,6 +283,42 @@ class TestMangadexScraper:
         )
 
     @pytest.mark.asyncio
+    async def test_at_home_bypasses_cache(self, monkeypatch):
+        """At-home assignments are short-lived: always fetched fresh, while
+        stable chapter/manga metadata stays cached and poison-hardened."""
+        from comic_dl.scrapers.base import BaseScraper
+
+        seen: dict[str, dict] = {}
+
+        class JsonResp:
+            def __init__(self, payload):
+                self._payload = payload
+
+            def raise_for_status(self):
+                pass
+
+            def json(self):
+                return self._payload
+
+        async def fake_timeout_get(url, client, **kwargs):
+            seen[url] = kwargs
+            if "at-home" in url:
+                return JsonResp(AT_HOME)
+            if "/manga/" in url and "includes[]=" in url:
+                return JsonResp(MANGA_DETAIL)
+            return JsonResp(CHAPTER_DETAIL)
+
+        monkeypatch.setattr(BaseScraper, "_timeout_get", fake_timeout_get)
+        scraper = MangadexScraper()
+        meta = await scraper.scrape(self.CHAPTER_URL, object())  # type: ignore
+        assert meta.total_pages == 3
+
+        at_home_url = f"https://api.mangadex.org/at-home/server/{CHAPTER_ID}"
+        for url, kwargs in seen.items():
+            assert kwargs["use_cache"] is (url != at_home_url)
+            assert kwargs["expect_json"] is True
+
+    @pytest.mark.asyncio
     async def test_scrape_chapter_falls_back_to_chapter_number_title(self):
         detail = json.loads(json.dumps(CHAPTER_DETAIL))
         detail["data"]["attributes"]["title"] = None
