@@ -232,6 +232,31 @@ class Library:
     # ── reconciliation ──────────────────────────────────────────
 
     @_serialized
+    def _db_have_set(self, series_id: str, series_dir: Path) -> set[str]:
+        """DB-backed have-set: recorded rows whose .cbz still exists on disk.
+
+        Holds the lock only for the query; the filesystem scan in
+        :meth:`build_have_set` runs unlocked (its helpers touch no shared
+        state), so a long zip scan cannot block other library operations.
+        """
+        have: set[str] = set()
+        if self.available:
+            try:
+                rows = self._db.execute(
+                    "SELECT url, cbz FROM chapters WHERE series_id = ?",
+                    (series_id,),
+                ).fetchall()
+                for raw_url, cbz_name in rows:
+                    if cbz_name and (series_dir / cbz_name).exists():
+                        if self._is_partial(series_dir / cbz_name):
+                            continue
+                        norm = normalize_url_key(raw_url)
+                        if norm:
+                            have.add(norm)
+            except sqlite3.Error:
+                pass
+        return have
+
     def build_have_set(
         self,
         series_id: str,
@@ -250,36 +275,25 @@ class Library:
         "have": the marker means pages are missing and a rerun must retry
         the chapter regardless of how well its URL or title matches.
 
-        Every URL is normalized via :func:`normalize_url`. The filesystem
-        scan always runs, so a missing or unreadable DB never loses "have"s.
+        Every URL is normalized via :func:`normalize_url`. The embedded-URL
+        scan (rule 2, a zip open per file) is skipped when the DB rows
+        already cover every chapter URL; the directory listing underpinning
+        rules 1 and 3 always runs, so a missing or unreadable DB never
+        loses "have"s.
         """
-        have: set[str] = set()
-
-        if self.available:
-            try:
-                rows = self._db.execute(
-                    "SELECT url, cbz FROM chapters WHERE series_id = ?",
-                    (series_id,),
-                ).fetchall()
-                for raw_url, cbz_name in rows:
-                    if cbz_name and (series_dir / cbz_name).exists():
-                        if self._is_partial(series_dir / cbz_name):
-                            continue
-                        norm = normalize_url_key(raw_url)
-                        if norm:
-                            have.add(norm)
-            except sqlite3.Error:
-                pass
+        have = self._db_have_set(series_id, series_dir)
 
         cbz_names = {
             name
             for name in self._scan_cbz_names(series_dir)
             if not self._is_partial(series_dir / name)
         }
-        for raw_url in self._scan_embedded_urls(series_dir, cbz_names):
-            norm = normalize_url_key(raw_url)
-            if norm:
-                have.add(norm)
+        needed = {norm for ch in chapters if (norm := normalize_url_key(ch.get("url") or ""))}
+        if not needed <= have:
+            for raw_url in self._scan_embedded_urls(series_dir, cbz_names):
+                norm = normalize_url_key(raw_url)
+                if norm:
+                    have.add(norm)
 
         for ch in chapters:
             title = self._chapter_label(ch)

@@ -199,6 +199,88 @@ class TestBuildHaveSet:
         assert "https://x/1" in lib.build_have_set("s:1", series_dir, chapters)
         lib.close()
 
+    def _counted_scan(self, monkeypatch):
+        """Patch the zip scan to record its invocations; returns the call list."""
+        calls = []
+        real_scan = Library._scan_embedded_urls
+
+        def counting(series_dir, cbz_names):
+            calls.append((series_dir, cbz_names))
+            return real_scan(series_dir, cbz_names)
+
+        monkeypatch.setattr(Library, "_scan_embedded_urls", staticmethod(counting))
+        return calls
+
+    def test_embedded_scan_skipped_when_db_covers_chapters(self, tmp_path, monkeypatch):
+        """A zip open per file is pointless when DB rows already name every
+        chapter URL: the expensive scan must not run."""
+        series_dir = tmp_path / "Series"
+        series_dir.mkdir()
+        lib = self._lib(tmp_path)
+        lib.upsert_series("s:1", title="S", output_root=str(tmp_path))
+        lib.upsert_chapter("s:1", url="https://x/1/", cbz="Chapter 1.cbz", size_bytes=5)
+        _make_cbz(series_dir / "Chapter 1.cbz", web="https://x/1/")
+        chapters = [{"title": "Chapter 1", "episode_no": "1", "url": "https://x/1/"}]
+        calls = self._counted_scan(monkeypatch)
+        try:
+            assert "https://x/1" in lib.build_have_set("s:1", series_dir, chapters)
+        finally:
+            lib.close()
+        assert calls == []
+
+    def test_embedded_scan_runs_when_db_misses_a_chapter(self, tmp_path, monkeypatch):
+        """One uncovered URL still triggers the scan for the whole directory."""
+        series_dir = tmp_path / "Series"
+        series_dir.mkdir()
+        lib = self._lib(tmp_path)
+        _make_cbz(series_dir / "Chapter 9.cbz", web="https://x/9/")
+        chapters = [{"title": "Chapter 9", "episode_no": "9", "url": "https://x/9/"}]
+        calls = self._counted_scan(monkeypatch)
+        try:
+            assert lib.build_have_set("s:1", series_dir, chapters) == {"https://x/9"}
+        finally:
+            lib.close()
+        assert len(calls) == 1
+
+    def test_lock_released_during_filesystem_scan(self, tmp_path, monkeypatch):
+        """The instance lock must not be held while zip files are opened:
+        another library op proceeds while a scan is blocked mid-flight."""
+        import threading
+
+        series_dir = tmp_path / "Series"
+        series_dir.mkdir()
+        lib = self._lib(tmp_path)
+        _make_cbz(series_dir / "Chapter 9.cbz", web="https://x/9/")
+        chapters = [{"title": "Chapter 9", "episode_no": "9", "url": "https://x/9/"}]
+
+        entered = threading.Event()
+        release = threading.Event()
+
+        def gated(series_dir, cbz_names):
+            entered.set()
+            release.wait(timeout=30)
+            return []
+
+        monkeypatch.setattr(Library, "_scan_embedded_urls", staticmethod(gated))
+        worker = threading.Thread(target=lib.build_have_set, args=("s:1", series_dir, chapters))
+        results: dict[str, object] = {}
+        probe = threading.Thread(target=lambda: results.setdefault("roots", lib.known_roots()))
+        try:
+            worker.start()
+            assert entered.wait(timeout=30)
+            # Deadlocks pre-fix: the whole method held the RLock, so the
+            # probe thread could never acquire it until the scan finished.
+            probe.start()
+            probe.join(timeout=10)
+            assert not probe.is_alive()
+            assert results["roots"] == []
+        finally:
+            release.set()
+            worker.join(timeout=30)
+            probe.join(timeout=30)
+            lib.close()
+        assert not worker.is_alive()
+
     def test_db_row_ignored_when_file_missing(self, tmp_path):
         series_dir = tmp_path / "Series"
         series_dir.mkdir()
