@@ -1451,16 +1451,8 @@ def _is_interactive_output() -> bool:
     return console.is_terminal and sys.stdin.isatty()
 
 
-async def _run_list_sources(argv: list[str] | None = None) -> int:
-    """List supported sites — interactive search, plain table, or JSON.
-
-    Routing (matches ``git diff``/``ls --color`` conventions):
-    - ``--json`` → structured JSON for scripting, regardless of TTY;
-    - stdout and stdin both a TTY → interactive live-search view;
-    - otherwise → the plain table (pipes, CI, no-pty SSH).
-    ``--plugin`` narrows to third-party sources and a positional ``query``
-    filters every mode by substring on domain/name/capabilities/origin.
-    """
+def _build_list_sources_parser() -> ComicArgumentParser:
+    """Parser for ``comic-dl --list-sources`` (shared by the runner and completion)."""
     parser = ComicArgumentParser(
         prog="comic-dl --list-sources",
         description="List supported sites and exit.",
@@ -1477,6 +1469,20 @@ async def _run_list_sources(argv: list[str] | None = None) -> int:
         default=None,
         help="filter by substring match on domain or name",
     )
+    return parser
+
+
+async def _run_list_sources(argv: list[str] | None = None) -> int:
+    """List supported sites — interactive search, plain table, or JSON.
+
+    Routing (matches ``git diff``/``ls --color`` conventions):
+    - ``--json`` → structured JSON for scripting, regardless of TTY;
+    - stdout and stdin both a TTY → interactive live-search view;
+    - otherwise → the plain table (pipes, CI, no-pty SSH).
+    ``--plugin`` narrows to third-party sources and a positional ``query``
+    filters every mode by substring on domain/name/capabilities/origin.
+    """
+    parser = _build_list_sources_parser()
     args = parser.parse_args(list(sys.argv[1:] if argv is None else argv))
 
     entries = list_sources()
@@ -3666,6 +3672,44 @@ async def _run_urls(urls: list[str], args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def _build_self_parser() -> ComicArgumentParser:
+    """Parser for ``comic-dl self`` (shared by the runner and completion)."""
+    parser = ComicArgumentParser(
+        prog="comic-dl self",
+        usage="comic-dl self <COMMAND>",
+        description="Check the installation source and update comic-dl through its owner.",
+    )
+    sub = parser.add_subparsers(
+        dest="action",
+        required=True,
+        parser_class=ComicArgumentParser,
+    )
+    sub.add_parser("version", help="print the installed version")
+    sub.add_parser("site", help="inspect and update per-site adapter support")
+    update = sub.add_parser(
+        "update",
+        help="check for updates and install them through the package manager",
+    )
+    update.add_argument(
+        "--check",
+        action="store_true",
+        help="check only; install or change nothing",
+    )
+    update.add_argument(
+        "-y",
+        "--yes",
+        action="store_true",
+        help="skip the confirmation prompt",
+    )
+    update.add_argument(
+        "--channel",
+        default="beta",
+        choices=("beta",),
+        help="release channel (only 'beta' is available today)",
+    )
+    return parser
+
+
 async def _run_self(argv: list[str]) -> int:
     """``comic-dl self`` — installation-aware self-management commands."""
     if not argv:
@@ -3702,39 +3746,7 @@ async def _run_self(argv: list[str]) -> int:
     if first == "site":
         return await _run_self_site(argv[1:])
 
-    parser = ComicArgumentParser(
-        prog="comic-dl self",
-        usage="comic-dl self <COMMAND>",
-        description="Check the installation source and update comic-dl through its owner.",
-    )
-    sub = parser.add_subparsers(
-        dest="action",
-        required=True,
-        parser_class=ComicArgumentParser,
-    )
-    sub.add_parser("version", help="print the installed version")
-    sub.add_parser("site", help="inspect and update per-site adapter support")
-    update = sub.add_parser(
-        "update",
-        help="check for updates and install them through the package manager",
-    )
-    update.add_argument(
-        "--check",
-        action="store_true",
-        help="check only; install or change nothing",
-    )
-    update.add_argument(
-        "-y",
-        "--yes",
-        action="store_true",
-        help="skip the confirmation prompt",
-    )
-    update.add_argument(
-        "--channel",
-        default="beta",
-        choices=("beta",),
-        help="release channel (only 'beta' is available today)",
-    )
+    parser = _build_self_parser()
     try:
         args = parser.parse_args(argv)
     except SystemExit as exc:
@@ -3748,12 +3760,8 @@ async def _run_self(argv: list[str]) -> int:
     return await run_update_command(check=args.check, yes=args.yes)
 
 
-async def _run_self_site(argv: list[str]) -> int:
-    """``comic-dl self site`` — per-site adapter support: list/check/update."""
-    if not argv:
-        print_error("missing command (list, check, or update).")
-        print_dim("Run 'comic-dl self site --help' for usage.")
-        return EXIT_USAGE
+def _build_self_site_parser() -> ComicArgumentParser:
+    """Parser for ``comic-dl self site`` (shared by the runner and completion)."""
     parser = ComicArgumentParser(
         prog="comic-dl self site",
         usage="comic-dl self site <COMMAND>",
@@ -3780,6 +3788,16 @@ async def _run_self_site(argv: list[str]) -> int:
     upd.add_argument("site", nargs="?", help="site id (with --all when omitted)")
     upd.add_argument("--all", action="store_true", help="update every outdated site")
     upd.add_argument("-y", "--yes", action="store_true", help="skip the confirmation prompt")
+    return parser
+
+
+async def _run_self_site(argv: list[str]) -> int:
+    """``comic-dl self site`` — per-site adapter support: list/check/update."""
+    if not argv:
+        print_error("missing command (list, check, or update).")
+        print_dim("Run 'comic-dl self site --help' for usage.")
+        return EXIT_USAGE
+    parser = _build_self_site_parser()
     try:
         args = parser.parse_args(argv)
     except SystemExit as exc:
@@ -3798,18 +3816,8 @@ async def _run_self_site(argv: list[str]) -> int:
     return await run_site_update_command(target=args.site, all_sites=args.all, yes=args.yes)
 
 
-async def _run_update(argv: list[str]) -> int:
-    """Re-scrape tracked series and download only newly-released chapters.
-
-    ``comic-dl update <series|all>`` re-fetches each tracked series page,
-    diffs its current chapter list against the library DB, and downloads just
-    the chapters that are not already recorded. ``--parallel`` updates up to
-    N series at once (default 1 keeps runs sequential); the per-host rate
-    limiter still paces every request, so multiple series cannot violate the
-    politeness budget. Series without a stored source URL or a series scrape
-    endpoint are skipped with a notice. Uses :func:`_process_series`, so
-    ``last_checked`` / ``last_updated`` are refreshed for free.
-    """
+def _build_update_parser() -> ComicArgumentParser:
+    """Parser for ``comic-dl update`` (shared by the runner and completion)."""
     parser = ComicArgumentParser(
         prog="comic-dl update",
         description="Download new chapters for tracked series.",
@@ -3872,6 +3880,22 @@ async def _run_update(argv: list[str]) -> int:
         "target",
         help="Series title, series ID, or series URL — or 'all' for every tracked series",
     )
+    return parser
+
+
+async def _run_update(argv: list[str]) -> int:
+    """Re-scrape tracked series and download only newly-released chapters.
+
+    ``comic-dl update <series|all>`` re-fetches each tracked series page,
+    diffs its current chapter list against the library DB, and downloads just
+    the chapters that are not already recorded. ``--parallel`` updates up to
+    N series at once (default 1 keeps runs sequential); the per-host rate
+    limiter still paces every request, so multiple series cannot violate the
+    politeness budget. Series without a stored source URL or a series scrape
+    endpoint are skipped with a notice. Uses :func:`_process_series`, so
+    ``last_checked`` / ``last_updated`` are refreshed for free.
+    """
+    parser = _build_update_parser()
     try:
         args = parser.parse_args(argv)
     except SystemExit as exc:
@@ -4168,8 +4192,8 @@ def _invalid_cookie_host(host: str) -> str | None:
     return None
 
 
-def _run_cookie(argv: list[str]) -> int:
-    """Manage the persistent cookie jar: ``cookie ls`` / ``cookie set`` / ``cookie clear``."""
+def _build_cookie_parser() -> ComicArgumentParser:
+    """Parser for ``comic-dl cookie`` (shared by the runner and completion)."""
     parser = ComicArgumentParser(
         prog="comic-dl cookie",
         description="Inspect or clear the persistent cookie jar.",
@@ -4208,6 +4232,12 @@ def _run_cookie(argv: list[str]) -> int:
     )
     cl.add_argument("host", nargs="?", default=None)
     cl.add_argument("-y", "--yes", action="store_true", help="skip the confirmation prompt")
+    return parser
+
+
+def _run_cookie(argv: list[str]) -> int:
+    """Manage the persistent cookie jar: ``cookie ls`` / ``cookie set`` / ``cookie clear``."""
+    parser = _build_cookie_parser()
     try:
         args = parser.parse_args(argv)
     except SystemExit as exc:
@@ -4284,8 +4314,8 @@ def _run_cookie(argv: list[str]) -> int:
         return EXIT_OK
 
 
-def _run_cache(argv: list[str]) -> int:
-    """Manage the scrape response cache: ``cache clear`` / ``cache prune`` / ``cache status``."""
+def _build_cache_parser() -> ComicArgumentParser:
+    """Parser for ``comic-dl cache`` (shared by the runner and completion)."""
     parser = ComicArgumentParser(
         prog="comic-dl cache",
         description="Inspect or clear the on-disk scrape response cache.",
@@ -4314,7 +4344,12 @@ def _run_cache(argv: list[str]) -> int:
         help="show the cache location, TTL, budget, and entry counts",
     )
     st.add_argument("--json", action="store_true", help="emit machine-readable JSON on stdout")
+    return parser
 
+
+def _run_cache(argv: list[str]) -> int:
+    """Manage the scrape response cache: ``cache clear`` / ``cache prune`` / ``cache status``."""
+    parser = _build_cache_parser()
     try:
         args = parser.parse_args(argv)
     except SystemExit as exc:
@@ -4506,17 +4541,8 @@ def _unknown_command(command: str) -> int:
     return EXIT_USAGE
 
 
-def _run_config(argv: list[str]) -> int:
-    """Locate, inspect, or manage the config file.
-
-    ``config`` (bare) and ``config show`` print the resolved effective
-    configuration (documented defaults merged with the file). ``path`` prints
-    the file path, ``validate`` type-checks the file and reports the keys
-    that differ from the defaults, ``init`` writes a short starter config,
-    ``edit`` opens the file in ``$VISUAL``/``$EDITOR``.
-    """
-    if argv[:1] == ["help"]:
-        argv = ["--help"]
+def _build_config_parser() -> ComicArgumentParser:
+    """Parser for ``comic-dl config`` (shared by the runner and completion)."""
     parser = ComicArgumentParser(
         prog="comic-dl config",
         description="Locate, inspect, or manage the config.toml file.",
@@ -4547,6 +4573,21 @@ def _run_config(argv: list[str]) -> int:
         "edit",
         help="open the config file in $VISUAL/$EDITOR (creates if missing)",
     )
+    return parser
+
+
+def _run_config(argv: list[str]) -> int:
+    """Locate, inspect, or manage the config file.
+
+    ``config`` (bare) and ``config show`` print the resolved effective
+    configuration (documented defaults merged with the file). ``path`` prints
+    the file path, ``validate`` type-checks the file and reports the keys
+    that differ from the defaults, ``init`` writes a short starter config,
+    ``edit`` opens the file in ``$VISUAL``/``$EDITOR``.
+    """
+    if argv[:1] == ["help"]:
+        argv = ["--help"]
+    parser = _build_config_parser()
     try:
         args = parser.parse_args(argv)
     except SystemExit as exc:
@@ -4719,13 +4760,46 @@ def _edit_config(path: Path) -> int:
     return rc
 
 
-def _completion_global_flags() -> list[str]:
-    """Option strings of the first-stage parser, for completion candidates."""
-    parser = _build_first_stage_parser()
+def _parser_flags(parser: argparse.ArgumentParser) -> list[str]:
+    """Option strings of a parser, for completion candidates."""
     flags: list[str] = []
     for action in parser._actions:
         flags.extend(action.option_strings)
     return sorted(set(flags))
+
+
+def _parser_subcommands(parser: argparse.ArgumentParser) -> list[str]:
+    """Subcommand names of a parser, for completion candidates."""
+    names: list[str] = []
+    for action in parser._actions:
+        if isinstance(action, argparse._SubParsersAction):
+            names.extend(action.choices)
+    return sorted(names)
+
+
+def _subcommand_parser(
+    parser: argparse.ArgumentParser, name: str
+) -> argparse.ArgumentParser | None:
+    """The child parser for subcommand ``name``, or ``None``."""
+    for action in parser._actions:
+        if isinstance(action, argparse._SubParsersAction):
+            choice = action.choices.get(name)
+            if isinstance(choice, argparse.ArgumentParser):
+                return choice
+    return None
+
+
+def _subtree_words(parser: argparse.ArgumentParser) -> str:
+    """Subcommand names plus every descendant flag, for completion candidates."""
+    kids = [_subcommand_parser(parser, name) for name in _parser_subcommands(parser)]
+    words = _parser_subcommands(parser)
+    words += sorted({w for kid in kids if kid for w in _parser_flags(kid)})
+    return " ".join(dict.fromkeys(words))
+
+
+def _completion_global_flags() -> list[str]:
+    """Option strings of the first-stage parser, for completion candidates."""
+    return _parser_flags(_build_first_stage_parser())
 
 
 def _completion_commands() -> list[str]:
@@ -4749,14 +4823,39 @@ def _completion_commands() -> list[str]:
 def _completion_script(shell: str) -> str:
     """Static completion script for ``shell`` (bash/zsh/fish), derived from
     the argparse definitions."""
+    from .library import _build_parser as _build_library_parser
+
     flags = " ".join(_completion_global_flags())
     commands = " ".join(_completion_commands())
-    update_flags = (
-        "-o --output -c --concurrency --chapter-parallel -q --quiet --compress --format --json"
+    update_flags = " ".join(_parser_flags(_build_update_parser()))
+
+    self_parser = _build_self_parser()
+    self_flags = " ".join(_parser_subcommands(self_parser))
+    self_update = _subcommand_parser(self_parser, "update")
+    self_update_flags = " ".join(_parser_flags(self_update)) if self_update else ""
+
+    site_parser = _build_self_site_parser()
+    self_site_flags = " ".join(_parser_subcommands(site_parser))
+    site_kids = [_subcommand_parser(site_parser, name) for name in _parser_subcommands(site_parser)]
+    self_site_sub_flags = " ".join(
+        sorted({w for kid in site_kids if kid for w in _parser_flags(kid)})
     )
-    self_flags = "version update site --check -y --yes --channel"
-    self_site_flags = "list check update --live --json --all -y --yes"
-    lib_flags = "--json --dry-run -o --output"
+
+    cookie_parser = _build_cookie_parser()
+    cookie_flags = _subtree_words(cookie_parser)
+
+    cache_parser = _build_cache_parser()
+    cache_flags = _subtree_words(cache_parser)
+
+    config_parser = _build_config_parser()
+    config_flags = _subtree_words(config_parser)
+
+    sources_flags = " ".join(_parser_flags(_build_list_sources_parser()))
+
+    lib_flag_words: set[str] = set()
+    for cmd in _LIBRARY_COMMANDS:
+        lib_flag_words.update(_parser_flags(_build_library_parser(cmd)))
+    lib_flags = " ".join(sorted(lib_flag_words))
 
     if shell == "bash":
         return f"""# bash completion for comic-dl
@@ -4767,15 +4866,27 @@ _comic_dl_complete() {{
         COMPREPLY=($(compgen -W "{commands} {flags}" -- "${{cur}}"))
         return
     fi
+    if [[ "${{COMP_WORDS[1]}}" == "self" && "${{COMP_CWORD}}" -ge 3 ]]; then
+        case "${{COMP_WORDS[2]}}" in
+            update) COMPREPLY=($(compgen -W "{self_update_flags}" -- "${{cur}}")); return ;;
+            site)
+                if [[ "${{COMP_CWORD}}" -ge 4 ]]; then
+                    COMPREPLY=($(compgen -W "{self_site_sub_flags}" -- "${{cur}}"))
+                else
+                    COMPREPLY=($(compgen -W "{self_site_flags}" -- "${{cur}}"))
+                fi
+                return ;;
+            *) COMPREPLY=($(compgen -W "{self_flags}" -- "${{cur}}")); return ;;
+        esac
+    fi
     case "${{COMP_WORDS[1]}}" in
         update) COMPREPLY=($(compgen -W "{update_flags}" -- "${{cur}}")); return ;;
         self)   COMPREPLY=($(compgen -W "{self_flags}" -- "${{cur}}")); return ;;
-        site)   COMPREPLY=($(compgen -W "{self_site_flags}" -- "${{cur}}")); return ;;
-        cookie) COMPREPLY=($(compgen -W "ls set clear" -- "${{cur}}")); return ;;
-        cache)  COMPREPLY=($(compgen -W "clear prune status" -- "${{cur}}")); return ;;
-        config) COMPREPLY=($(compgen -W "path show init --force" -- "${{cur}}")); return ;;
+        cookie) COMPREPLY=($(compgen -W "{cookie_flags}" -- "${{cur}}")); return ;;
+        cache)  COMPREPLY=($(compgen -W "{cache_flags}" -- "${{cur}}")); return ;;
+        config) COMPREPLY=($(compgen -W "{config_flags}" -- "${{cur}}")); return ;;
         plugin) COMPREPLY=($(compgen -W "list validate scaffold" -- "${{cur}}")); return ;;
-        list-sources) COMPREPLY=($(compgen -W "--json --plugin" -- "${{cur}}")); return ;;
+        list-sources) COMPREPLY=($(compgen -W "{sources_flags}" -- "${{cur}}")); return ;;
         help)   COMPREPLY=($(compgen -W "{commands}" -- "${{cur}}")); return ;;
     esac
     COMPREPLY=($(compgen -W "{lib_flags} {flags}" -- "${{cur}}"))
@@ -4792,35 +4903,52 @@ _comic_dl() {{
         compadd -- {commands} ${{flags[@]}}
         return
     fi
+    if [[ "${{words[2]}}" == "self" && CURRENT -ge 3 ]]; then
+        case "${{words[3]}}" in
+            update) compadd -- {self_update_flags} ;;
+            site)
+                if (( CURRENT >= 5 )); then
+                    compadd -- {self_site_sub_flags}
+                else
+                    compadd -- {self_site_flags}
+                fi ;;
+            *) compadd -- {self_flags} ;;
+        esac
+        return
+    fi
     case "${{words[2]}}" in
         update) compadd -- {update_flags} ;;
         self)   compadd -- {self_flags} ;;
-        site)   compadd -- {self_site_flags} ;;
-        cookie) compadd -- ls set clear --json --expires -y --yes ;;
-        cache)  compadd -- clear prune status ;;
-        config) compadd -- path show init --force ;;
+        cookie) compadd -- {cookie_flags} ;;
+        cache)  compadd -- {cache_flags} ;;
+        config) compadd -- {config_flags} ;;
         plugin) compadd -- list validate scaffold ;;
-        list-sources) compadd -- --json --plugin ;;
+        list-sources) compadd -- {sources_flags} ;;
         help)   compadd -- {commands} ;;
-        *)      compadd -- ${{flags[@]}} ;;
+        *)      compadd -- {lib_flags} ${{flags[@]}} ;;
     esac
 }}
 compdef _comic_dl comic-dl
 """
     if shell == "fish":
+        seen = "__fish_seen_subcommand_from"
         return f"""# fish completion for comic-dl
 # Add to your shell:  comic-dl completion fish | source
 complete -c comic-dl -f
 complete -c comic-dl -n "__fish_use_subcommand" -a "{commands}"
 complete -c comic-dl -n "__fish_use_subcommand" -a "{flags}"
-complete -c comic-dl -n "__fish_seen_subcommand_from update" -a "{update_flags}"
-complete -c comic-dl -n "__fish_seen_subcommand_from self" -a "{self_flags}"
-complete -c comic-dl -n "__fish_seen_subcommand_from site" -a "{self_site_flags}"
-complete -c comic-dl -n "__fish_seen_subcommand_from cookie" -a "ls set clear"
-complete -c comic-dl -n "__fish_seen_subcommand_from cache" -a "clear prune status"
-complete -c comic-dl -n "__fish_seen_subcommand_from config" -a "path show init"
+complete -c comic-dl -n "{seen} update" -a "{update_flags}"
+complete -c comic-dl -n "{seen} self" -a "{self_flags}"
+complete -c comic-dl -n "{seen} self; and {seen} update" -a "{self_update_flags}"
+complete -c comic-dl -n "{seen} self; and {seen} site" -a "{self_site_flags}"
+complete -c comic-dl -n "{seen} self; and {seen} site; and {seen} list" -a "{self_site_sub_flags}"
+complete -c comic-dl -n "{seen} self; and {seen} site; and {seen} check" -a "{self_site_sub_flags}"
+complete -c comic-dl -n "{seen} self; and {seen} site; and {seen} update" -a "{self_site_sub_flags}"
+complete -c comic-dl -n "{seen} cookie" -a "{cookie_flags}"
+complete -c comic-dl -n "__fish_seen_subcommand_from cache" -a "{cache_flags}"
+complete -c comic-dl -n "__fish_seen_subcommand_from config" -a "{config_flags}"
 complete -c comic-dl -n "__fish_seen_subcommand_from plugin" -a "list validate scaffold"
-complete -c comic-dl -n "__fish_seen_subcommand_from list-sources" -a "--json --plugin"
+complete -c comic-dl -n "__fish_seen_subcommand_from list-sources" -a "{sources_flags}"
 complete -c comic-dl -n "__fish_seen_subcommand_from help" -a "{commands}"
 complete -c comic-dl -n "not __fish_use_subcommand" -a "{lib_flags}"
 """
@@ -4847,7 +4975,7 @@ def _run_completion(argv: list[str]) -> int:
         parser.print_help()
         return EXIT_USAGE
     try:
-        console.print(_completion_script(args.shell), end="")
+        console.print(_completion_script(args.shell), end="", soft_wrap=True)
     except ValueError as exc:
         print_error(str(exc))
         return EXIT_USAGE

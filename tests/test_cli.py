@@ -4386,6 +4386,16 @@ class TestCompletionVerb:
         assert "--chapter-parallel" in out
         assert "--config" in out
         assert "update" in out
+        assert "validate" in out
+        assert "--dry-run" in out
+        upd = next(
+            line
+            for line in out.splitlines()
+            if line.strip().startswith("update) COMPREPLY") and "--dry-run" in line
+        )
+        assert " -p " in upd
+        assert "--parallel" in upd
+        assert "-o --output" not in upd
 
     async def test_zsh(self, monkeypatch, capsys):
         from comic_dl.cli import main
@@ -4395,6 +4405,8 @@ class TestCompletionVerb:
         out = capsys.readouterr().out
         assert "#compdef comic-dl" in out
         assert "compdef _comic_dl comic-dl" in out
+        assert "validate" in out
+        assert "words[3]" in out
 
     async def test_fish(self, monkeypatch, capsys):
         from comic_dl.cli import main
@@ -4404,6 +4416,8 @@ class TestCompletionVerb:
         out = capsys.readouterr().out
         assert "complete -c comic-dl -f" in out
         assert "__fish_seen_subcommand_from update" in out
+        assert "validate" in out
+        assert "__fish_seen_subcommand_from self; and __fish_seen_subcommand_from update" in out
 
     async def test_invalid_shell(self, monkeypatch, capsys):
         from comic_dl.cli import main
@@ -4412,6 +4426,43 @@ class TestCompletionVerb:
         assert await main() == 2
         err = capsys.readouterr().err
         assert "invalid choice" in err
+
+    @pytest.mark.parametrize("shell", ["bash", "zsh", "fish"])
+    def test_scripts_cover_every_parser_word(self, shell):
+        """No parser flag/subcommand may exist without being offered."""
+        from comic_dl.cli import (
+            _LIBRARY_COMMANDS,
+            _build_cache_parser,
+            _build_config_parser,
+            _build_cookie_parser,
+            _build_first_stage_parser,
+            _build_list_sources_parser,
+            _build_self_parser,
+            _build_self_site_parser,
+            _build_update_parser,
+            _completion_script,
+            _parser_flags,
+            _parser_subcommands,
+        )
+        from comic_dl.cli.library import _build_parser as _build_library_parser
+
+        out = _completion_script(shell)
+        parsers = [
+            _build_first_stage_parser(),
+            _build_update_parser(),
+            _build_self_parser(),
+            _build_self_site_parser(),
+            _build_cookie_parser(),
+            _build_cache_parser(),
+            _build_config_parser(),
+            _build_list_sources_parser(),
+        ]
+        for parser in parsers:
+            for word in _parser_flags(parser) + _parser_subcommands(parser):
+                assert word in out, f"{word!r} missing from {shell} completions"
+        for cmd in _LIBRARY_COMMANDS:
+            for word in _parser_flags(_build_library_parser(cmd)):
+                assert word in out, f"{word!r} missing from {shell} completions"
 
 
 class TestListSourcesJson:
