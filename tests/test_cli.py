@@ -4427,7 +4427,17 @@ class TestCompletionVerb:
         err = capsys.readouterr().err
         assert "invalid choice" in err
 
-    @pytest.mark.parametrize("shell", ["bash", "zsh", "fish"])
+    async def test_powershell(self, monkeypatch, capsys):
+        from comic_dl.cli import main
+
+        monkeypatch.setattr("sys.argv", ["prog", "completion", "powershell"])
+        assert await main() == 0
+        out = capsys.readouterr().out
+        assert "Register-ArgumentCompleter -Native -CommandName comic-dl" in out
+        assert "'comic-dl;self;site;check'" in out
+        assert "CompletionResult" in out
+
+    @pytest.mark.parametrize("shell", ["bash", "zsh", "fish", "powershell"])
     def test_scripts_cover_every_parser_word(self, shell):
         """No parser flag/subcommand may exist without being offered."""
         from comic_dl.cli import (
@@ -4440,6 +4450,8 @@ class TestCompletionVerb:
             _build_self_parser,
             _build_self_site_parser,
             _build_update_parser,
+        )
+        from comic_dl.cli.completion import (
             _completion_script,
             _parser_flags,
             _parser_subcommands,
