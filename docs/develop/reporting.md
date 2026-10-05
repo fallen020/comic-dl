@@ -9,12 +9,14 @@ a site that blocked the scrape.
 
 | Topic | Where |
 | :---- | :---- |
-| "How do I..." setup/usage questions | [Discussions][discussions-link] |
-| Ideas / feature requests | Discussions first, issue after discussion |
+| "How do I..." setup/usage questions | [Troubleshooting guide](../troubleshooting.md) |
+| Ideas / feature requests | [Feature request template][feature-template-link] |
+| New site requests | [Site request template][site-template-link] |
 | Bugs | [Bug report template][bug-template-link] |
 | Security vulnerabilities | Private [security advisory][security-advisory-link] — never public |
 
-[discussions-link]: https://github.com/fallen020/comic-dl/discussions
+[feature-template-link]: https://github.com/fallen020/comic-dl/issues/new?template=feature_request.yml
+[site-template-link]: https://github.com/fallen020/comic-dl/issues/new?template=site_request.yml
 [bug-template-link]: https://github.com/fallen020/comic-dl/issues/new?template=bug_report.yml
 [security-advisory-link]:
   https://github.com/fallen020/comic-dl/security/advisories/new
@@ -54,7 +56,7 @@ Two pieces of advice that make every report land:
 
 ## When not to file
 
-- A single site is down or slow → check Discussions first; it is usually the
+- A single site is down or slow → check open issues first; it is usually the
   site, not comic-dl (rate-limit behaviour on a source site is explicitly
   [out of scope for security reports](security-testing.md)).
 - A site changed layout → a bug report with the URL and `-vvv` output is
@@ -64,11 +66,12 @@ Two pieces of advice that make every report land:
 
 ## Feature requests
 
-Start a Discussion, not an issue. A feature that survives discussion gets an
-issue with the concrete design; a feature that starts as an issue without
-discussion usually gets closed as a discussion pointer. That is intentional —
-the scraper set is curated, and a new generic "download this site too" without
-a plan is not actionable.
+Open a [feature request](https://github.com/fallen020/comic-dl/issues/new?template=feature_request.yml)
+directly: say what you cannot do today, what you propose, and what you tried
+instead. For a new site, use the [site request](https://github.com/fallen020/comic-dl/issues/new?template=site_request.yml)
+template, which asks for the domain, example pages, and whether an account is
+needed. A request without the details its template asks for is not actionable
+and usually gets closed. That is intentional — the scraper set is curated.
 
 ## Security reports
 

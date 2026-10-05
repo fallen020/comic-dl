@@ -1,29 +1,39 @@
 # Getting help with comic-dl
 
-Thanks for using comic-dl! Here is where to go for help, in order of preference.
+> [!CAUTION]
+> Found a security vulnerability? Report it privately via a
+> [security advisory](https://github.com/fallen020/comic-dl/security/advisories/new)
+> (needs a GitHub account). Never open a public issue for a vulnerability —
+> that puts users at risk before a fix exists.
 
-## 📖 Read the docs first
+## Docs
 
-Most questions are answered in the documentation:
+- [README](https://github.com/fallen020/comic-dl/blob/main/README.md) — install, quick start, common commands
+- [Downloading](https://github.com/fallen020/comic-dl/blob/main/docs/usage/download.md) — download options
+- [Supported sites](https://github.com/fallen020/comic-dl/blob/main/docs/reference/supported-sites.md) — which domains work and their URL patterns
 
-- [README](https://github.com/fallen020/comic-dl) — install, quick start, and common commands
-- [Using comic-dl](https://github.com/fallen020/comic-dl/blob/main/docs/usage/download.md) — downloading content
-- [Supported Sites](https://github.com/fallen020/comic-dl/blob/main/docs/reference/supported-sites.md) — supported domains, URL patterns, and per-site notes
+If the docs don't answer your question, open a [feature request](https://github.com/fallen020/comic-dl/issues/new?template=feature_request.yml)
+describing what's missing — that is how gaps get found.
 
-## 💬 Questions and ideas
+## Bugs
 
-For "how do I…", ideas, and general conversation, use
-[Discussions](https://github.com/fallen020/comic-dl/discussions).
+Search [open issues](https://github.com/fallen020/comic-dl/issues) first —
+duplicates get closed.
 
-## 🐛 Bugs
+If nothing matches, open a [bug report](https://github.com/fallen020/comic-dl/issues/new?template=bug_report.yml).
+The template asks for version (`comic-dl self version`), platform, install
+method, command, URL, and logs. Re-run with `-vvv` for a traceback, and
+prefer `--debug-file PATH` over pasting terminal output.
 
-If comic-dl is not behaving as expected, open a [bug report](https://github.com/fallen020/comic-dl/issues/new?template=bug_report.yml).
+`-vvv` prints request/response headers, so redact before posting: cookies,
+tokens, auth headers, usernames, and local paths. In URLs keep the domain
+and path (needed to reproduce) and strip query tokens and session IDs.
 
-Please run your command with `-vvv` and include the traceback, the exact
-command line, and the URL you used (sanitised of any personal data).
+A domain outside [Supported sites](https://github.com/fallen020/comic-dl/blob/main/docs/reference/supported-sites.md)
+is a feature request, not a bug — open a [site request](https://github.com/fallen020/comic-dl/issues/new?template=site_request.yml)
+instead.
 
-## 🔒 Security vulnerabilities
+## Response time
 
-Report security issues privately via the
-[security advisory](https://github.com/fallen020/comic-dl/security/advisories/new).
-Do not open a public issue for a vulnerability.
+This is a volunteer-run project: issues are answered on a
+best-effort basis with no guaranteed response time.

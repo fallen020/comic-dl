@@ -234,6 +234,5 @@ code signing and notarization first.
 Start from a debug log using the [command above](#capturing-a-debug-log) —
 reports without one cannot be diagnosed.
 
-- **Questions** — [Discussions](https://github.com/fallen020/comic-dl/discussions)
 - **Bugs** — [Issues](https://github.com/fallen020/comic-dl/issues/new?template=bug_report.yml)
 - **Security** — [Security advisory](https://github.com/fallen020/comic-dl/security/advisories/new)

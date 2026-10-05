@@ -1,0 +1,48 @@
+name: Site request
+description: Request support for a new comic/manga site.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a site. The details below decide whether an
+        adapter is feasible — fill in what you can.
+
+  - type: input
+    id: site
+    attributes:
+      label: Site
+      description: Site name and homepage URL.
+      placeholder: "e.g. https://example-comics.com/"
+    validations:
+      required: true
+
+  - type: textarea
+    id: examples
+    attributes:
+      label: Example pages
+      description: One or two gallery/chapter URLs showing the page structure, if you have them (sanitise personal data).
+      placeholder: "https://example-comics.com/gallery/12345-title\nhttps://example-comics.com/gallery/12345-title/3"
+    validations:
+      required: false
+
+  - type: dropdown
+    id: login
+    attributes:
+      label: Account needed?
+      description: Can a logged-out visitor read chapters, or is an account required?
+      options:
+        - No, everything is public
+        - Yes, free account
+        - Yes, paid account or paywall
+        - Don't know
+    validations:
+      required: true
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything unusual?
+      description: Bot checks, region blocks, aggressive rate limits, or other remarks.
+    validations:
+      required: false
