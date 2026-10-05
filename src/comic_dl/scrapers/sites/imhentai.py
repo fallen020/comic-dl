@@ -18,6 +18,7 @@ from ...models import (
     SourceInfo,
     chapter_to_post_metadata,
 )
+from ...ui import trace
 from ..base import (
     BaseScraper,
     _attr_text,
@@ -177,15 +178,26 @@ class IMHentaiScraper(BaseScraper):
             raise no_images_error()
 
         srcs = await asyncio.gather(
-            *(self._fetch_reader_image(u, client, _VIEW_PAGE_SEM) for u in view_urls)
+            *(self._fetch_reader_image(u, client, _VIEW_PAGE_SEM) for u in view_urls),
+            return_exceptions=True,
         )
         images: list[ImageItem] = []
+        skipped = 0
         for n, (page_url, src) in enumerate(zip(view_urls, srcs, strict=True), start=1):
+            if isinstance(src, BaseException):
+                # Never swallow cancellation as a skipped page.
+                if isinstance(src, (asyncio.CancelledError, KeyboardInterrupt, SystemExit)):
+                    raise src
+                skipped += 1
+                continue
             if not src:
+                skipped += 1
                 continue
             item = ImageItem.from_url(urljoin(page_url, src), n)
             if item is not None:
                 images.append(item)
+        if skipped:
+            trace(f"imhentai: skipped {skipped}/{len(view_urls)} view pages (fetch failed)")
         if not images:
             raise no_images_error()
 

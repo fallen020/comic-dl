@@ -266,6 +266,27 @@ class TestImagePageUrl:
         )
         assert result is None
 
+    async def test_404_not_retried(self):
+        """A 404 is permanent: no triple-fetch before giving up the page."""
+        from types import SimpleNamespace
+
+        from curl_cffi.requests.exceptions import HTTPError as CurlHTTPError
+
+        calls = []
+
+        class MockClient:
+            async def get(self, url, **kwargs):
+                calls.append(url)
+                raise CurlHTTPError("404", response=SimpleNamespace(status_code=404))
+
+        result = await _image_page_url(
+            "https://e-hentai.org/s/abc/123",
+            MockClient(),  # type: ignore
+            asyncio.Semaphore(1),
+        )
+        assert result is None
+        assert len(calls) == 1
+
 
 class TestGalleryUrlParsing:
     def test_gallery_parts_valid(self):
@@ -762,6 +783,62 @@ class TestFetchGalleryPageWithRetry:
         assert attempts[0] == 1
 
 
+class TestGalleryPageUrls:
+    pytestmark = pytest.mark.asyncio
+
+    async def test_failed_subset_retried_once(self, monkeypatch):
+        """One throttled gallery page gets a second round; good pages are kept."""
+        from comic_dl.scrapers.sites import ehentai as eh
+        from comic_dl.scrapers.sites.ehentai import _gallery_page_urls
+
+        async def _no_sleep(delay):
+            return None
+
+        monkeypatch.setattr("comic_dl.scrapers.base.asyncio.sleep", _no_sleep)
+
+        calls: dict[str, int] = {}
+
+        async def fake_fetch(page_url, client, use_cache=True):
+            calls[page_url] = calls.get(page_url, 0) + 1
+            if page_url.endswith("?p=1") and calls[page_url] <= 3:
+                # Exhaust round 1's whole budget: only a second round heals it.
+                raise TimeoutError("throttle blip")
+            tail = page_url.split("?p=")[-1] if "?p=" in page_url else "0"
+            return [f"https://e-hentai.org/s/abc/{tail}-1"]
+
+        monkeypatch.setattr(eh, "_fetch_gallery_page", fake_fetch)
+        urls = await _gallery_page_urls("https://e-hentai.org/g/123/abc/", 21, object())  # type: ignore
+        assert urls == [
+            "https://e-hentai.org/s/abc/0-1",
+            "https://e-hentai.org/s/abc/1-1",
+        ]
+        assert calls["https://e-hentai.org/g/123/abc/"] == 1
+        assert calls["https://e-hentai.org/g/123/abc/?p=1"] == 4
+
+    async def test_all_failed_raises_without_second_round(self, monkeypatch):
+        """Systemic failure stays loud: no pointless extra round, then raise."""
+        from comic_dl.errors import ScrapeError
+        from comic_dl.scrapers.sites import ehentai as eh
+        from comic_dl.scrapers.sites.ehentai import _gallery_page_urls
+
+        async def _no_sleep(delay):
+            return None
+
+        monkeypatch.setattr("comic_dl.scrapers.base.asyncio.sleep", _no_sleep)
+
+        calls = [0]
+
+        async def always_fail(page_url, client, use_cache=True):
+            calls[0] += 1
+            raise TimeoutError("down")
+
+        monkeypatch.setattr(eh, "_fetch_gallery_page", always_fail)
+        with pytest.raises(ScrapeError):
+            await _gallery_page_urls("https://e-hentai.org/g/123/abc/", 21, object())  # type: ignore
+        # 2 gallery pages x 3 tries each, no second round.
+        assert calls[0] == 6
+
+
 class TestRetryTransient:
     async def test_non_transient_propagates_without_sleep(self, monkeypatch):
         from comic_dl.scrapers.base import retry_transient
@@ -1031,6 +1108,30 @@ class TestIterImageItems:
             )
         ]
         assert [i.page_number for i in items] == [1, 3, 4]
+
+    async def test_shortfall_traced(self, monkeypatch):
+        """Fewer resolved images than filecount is diagnostics, not a failure."""
+        from comic_dl.scrapers.sites import ehentai as eh
+
+        async def fake_pages(base_url, filecount, client):
+            return ["https://e-hentai.org/s/abc/1-1", "https://e-hentai.org/s/abc/2-1"]
+
+        async def fake_image(page_url, client, sem, use_cache=True):
+            if page_url.endswith("2-1"):
+                return None
+            return ("https://ehgt.org/img1.jpg", "jpg")
+
+        monkeypatch.setattr(eh, "_gallery_page_urls", fake_pages)
+        monkeypatch.setattr(eh, "_image_page_url", fake_image)
+        traces = []
+        monkeypatch.setattr(eh, "trace", traces.append)
+
+        items = [
+            item
+            async for item in _iter_image_items("https://e-hentai.org/g/123/abc/", 4, object())  # type: ignore
+        ]
+        assert [i.page_number for i in items] == [1]
+        assert any("1/4" in t for t in traces)
 
 
 class TestStreamingScrape:

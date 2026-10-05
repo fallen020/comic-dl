@@ -124,6 +124,17 @@ async def _try_full_resolution(client: AsyncSession, url: str) -> str:
     return url
 
 
+# Thumbnail probes are one HEAD each; bound them like any other fan-out so an
+# image-heavy post does not burst dozens of concurrent probes.
+_PROBE_SEM = asyncio.Semaphore(4)
+
+
+async def _probe_full_url(client: AsyncSession, url: str) -> str:
+    """Best-effort full-resolution upgrade for one thumbnail URL."""
+    async with _PROBE_SEM:
+        return await _try_full_resolution(client, url)
+
+
 @register_scraper(domain="pawchive.pw")
 class PawchiveScraper(BaseScraper):
     """Pawchive scraper (Patreon/SubscribeStar/Gumroad/Fantia/DLSite posts)."""
@@ -205,7 +216,7 @@ class PawchiveScraper(BaseScraper):
         thumbnail_urls = [img for img in images if "/thumbnail/" in img.url]
         if thumbnail_urls:
             results = await asyncio.gather(
-                *[_try_full_resolution(client, img.url) for img in thumbnail_urls]
+                *[_probe_full_url(client, img.url) for img in thumbnail_urls]
             )
             for img, new_url in zip(thumbnail_urls, results, strict=False):
                 img.url = new_url

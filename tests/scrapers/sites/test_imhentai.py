@@ -187,6 +187,45 @@ class TestIMHentaiScraper:
                 GALLERY_URL, _MockSession(lambda url: _MockResponse("<html><body></body></html>"))
             )
 
+    @pytest.mark.asyncio
+    async def test_dead_view_page_skipped_with_stable_numbering(self):
+        def handler(url):
+            if url.rstrip("/").endswith("/view/1742742/2"):
+                raise RuntimeError("transient blip")
+            return _handler(url)
+
+        scraper = IMHentaiScraper()
+        meta = await scraper.scrape(GALLERY_URL, _MockSession(handler))
+        assert [img.page_number for img in meta.images] == [1, 3]
+        assert [img.url for img in meta.images] == [
+            "https://m11.imhentai.xxx/033/smbqi3gpav/1.webp",
+            "https://m11.imhentai.xxx/033/smbqi3gpav/3.webp",
+        ]
+
+    @pytest.mark.asyncio
+    async def test_all_view_pages_dead_raises(self):
+        def handler(url):
+            if "/view/" in url:
+                raise RuntimeError("down")
+            return _handler(url)
+
+        scraper = IMHentaiScraper()
+        with pytest.raises(ValueError, match="No images found"):
+            await scraper.scrape(GALLERY_URL, _MockSession(handler))
+
+    @pytest.mark.asyncio
+    async def test_cancellation_not_swallowed_as_skip(self):
+        import asyncio
+
+        def handler(url):
+            if "/view/" in url:
+                raise asyncio.CancelledError()
+            return _handler(url)
+
+        scraper = IMHentaiScraper()
+        with pytest.raises(asyncio.CancelledError):
+            await scraper.scrape(GALLERY_URL, _MockSession(handler))
+
     def test_registered(self):
         from comic_dl.scrapers import list_sources
 

@@ -23,6 +23,16 @@ from tests.helpers import MockResponse as _MockResponse
 from tests.helpers import MockSession as _MockSession
 
 
+class _HtmlResp:
+    """Minimal _timeout_get response stub (HTML text, always 200)."""
+
+    def __init__(self, text):
+        self.text = text
+
+    def raise_for_status(self):
+        pass
+
+
 class TestUrlPatterns:
     def test_valid_chapter_urls(self):
         assert is_chapter_url("https://fsicomics.com/elixer-tlameteotl/")
@@ -566,6 +576,62 @@ class TestFsicomixScraper:
             session,
         )
         assert [c["episode_no"] for c in series.chapters] == ["2", "1"]
+
+    @pytest.mark.asyncio
+    async def test_pagination_probes_past_single_dead_page(self, monkeypatch):
+        """One dead page must not truncate the listing; later pages still land."""
+        from comic_dl.scrapers.sites.fsicomics import _collect_series_pages
+
+        def page(next_on):
+            nxt = '<a class="next page-numbers" href="/page/9/">Next</a>' if next_on else ""
+            return f"<html><body>{nxt}</body></html>"
+
+        fetched = []
+
+        async def fake_timeout_get(u, client):
+            fetched.append(u)
+            if u.endswith("/page/2/"):
+                raise RuntimeError("blip")
+            if u.endswith("/page/3/"):
+                return _HtmlResp(page(True))
+            return _HtmlResp(page(False))
+
+        monkeypatch.setattr("comic_dl.scrapers.base.BaseScraper._timeout_get", fake_timeout_get)
+        base = "https://fsicomics.com/all-porn-comics/x/"
+        pages = await _collect_series_pages(
+            base,
+            BeautifulSoup(page(True), "lxml"),
+            object(),  # type: ignore
+        )
+        assert [u for u, _ in pages] == [
+            base,
+            base + "page/2/",
+            base + "page/3/",
+            base + "page/4/",
+        ]
+        assert [ps is not None for _, ps in pages] == [True, False, True, True]
+        assert fetched == [base + "page/2/", base + "page/3/", base + "page/4/"]
+
+    @pytest.mark.asyncio
+    async def test_pagination_stops_after_consecutive_dead_pages(self, monkeypatch):
+        """A genuinely finished series still terminates after two misses."""
+        from comic_dl.scrapers.sites.fsicomics import _collect_series_pages
+
+        fetched = []
+
+        async def fake_timeout_get(u, client):
+            fetched.append(u)
+            raise RuntimeError("gone")
+
+        monkeypatch.setattr("comic_dl.scrapers.base.BaseScraper._timeout_get", fake_timeout_get)
+        base = "https://fsicomics.com/all-porn-comics/x/"
+        pages = await _collect_series_pages(
+            base,
+            BeautifulSoup('<html><body><a class="next page-numbers">N</a></body></html>', "lxml"),
+            object(),  # type: ignore
+        )
+        assert [u for u, _ in pages] == [base, base + "page/2/", base + "page/3/"]
+        assert fetched == [base + "page/2/", base + "page/3/"]
 
     @pytest.mark.asyncio
     async def test_scrape_series_empty_listing_raises(self):

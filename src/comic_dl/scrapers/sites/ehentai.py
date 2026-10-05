@@ -374,6 +374,17 @@ async def _gallery_page_urls(base_url: str, filecount: int, client: AsyncSession
     results = await asyncio.gather(
         *[_limited_fetch(pu) for pu in page_urls], return_exceptions=True
     )
+    failed = [pu for pu, r in zip(page_urls, results, strict=True) if isinstance(r, BaseException)]
+    if failed and len(failed) < len(page_urls):
+        # One more round for the failed subset: a transient throttle blip
+        # often clears while the good pages resolve. All-or-nothing is
+        # preserved — silently shorting the gallery would renumber every
+        # later page and churn reruns. Total failure raises immediately.
+        retried = await asyncio.gather(
+            *[_limited_fetch(pu) for pu in failed], return_exceptions=True
+        )
+        fixed = dict(zip(failed, retried, strict=True))
+        results = [fixed.get(pu, r) for pu, r in zip(page_urls, results, strict=True)]
     urls: list[str] = []
     for r in results:
         if isinstance(r, BaseException):
@@ -421,7 +432,7 @@ async def _image_page_url(
                 _op,
                 tries=_IMAGE_PAGE_RETRIES,
                 delay=_image_page_delay,
-                is_transient=lambda _exc: True,
+                is_transient=_is_transient_page_error,
             )
         except Exception:
             return None
@@ -463,10 +474,12 @@ async def _iter_image_items(
     sem = sem or _IMAGE_PAGE_SEM
     page_urls = await _gallery_page_urls(base_url, filecount, client)
     tasks = [asyncio.create_task(_image_page_url(pu, client, sem)) for pu in page_urls]
+    resolved = 0
     try:
         for idx, (pu, task) in enumerate(zip(page_urls, tasks, strict=True), start=1):
             result = await task
             if result is not None:
+                resolved += 1
                 img_url, _ext = result
                 yield ImageItem(url=img_url, page_number=idx, source_url=pu)
     finally:
@@ -475,6 +488,10 @@ async def _iter_image_items(
                 task.cancel()
         if tasks:
             await asyncio.gather(*tasks, return_exceptions=True)
+    if resolved < filecount:
+        # Diagnostics only: short of raising (a legitimate mismatch must
+        # never brick a chapter) or renumbering (which would churn reruns).
+        trace(f"e-hentai: resolved only {resolved}/{filecount} image URLs for {base_url}")
 
 
 @register_scraper(domain="e-hentai.org")

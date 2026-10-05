@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import json
 import re
 from html import unescape
@@ -20,6 +19,7 @@ from ...models import (
     SourceInfo,
     chapter_to_post_metadata,
 )
+from ...ui import trace
 from ...utils import sanitize_filename
 from ..base import (
     BaseScraper,
@@ -356,6 +356,47 @@ def _extract_publisher(soup: BeautifulSoup, idx: dict[str, list[str]] | None = N
     return ""
 
 
+async def _collect_series_pages(
+    url: str, soup: BeautifulSoup, client: AsyncSession
+) -> list[tuple[str, BeautifulSoup | None]]:
+    """Walk series pagination, tolerating isolated dead pages.
+
+    Page URLs form a predictable ``/page/N/`` chain, but only a live page
+    reveals whether a next one exists — hence the serial walk. A single dead
+    page (transient blip) is probed past instead of truncating the listing;
+    only consecutive misses end it, so a genuinely finished series still
+    stops after two wasted fetches.
+    """
+    pages: list[tuple[str, BeautifulSoup | None]] = [(url, soup)]
+
+    async def fetch_page(u: str) -> tuple[str, BeautifulSoup | None]:
+        try:
+            pr = await BaseScraper._timeout_get(u, client)
+            pr.raise_for_status()
+            return u, BeautifulSoup(pr.text, "lxml")
+        # One dead page must not fail the fan-out.
+        except Exception:  # nosec
+            return u, None
+
+    dead_streak = 0
+    page_num = 2
+    has_next = soup.select_one("a.next.page-numbers") is not None
+    while has_next and page_num <= _MAX_SERIES_PAGES:
+        page_url = f"{url.rstrip('/')}/page/{page_num}/"
+        u, ps = await fetch_page(page_url)
+        pages.append((u, ps))
+        if ps is None:
+            dead_streak += 1
+            if dead_streak >= 2:
+                break
+            trace(f"fsicomics: series page {page_num} unreadable, probing on")
+        else:
+            dead_streak = 0
+            has_next = ps.select_one("a.next.page-numbers") is not None
+        page_num += 1
+    return pages
+
+
 @register_scraper(domain=DOMAIN, capabilities={"chapter", "series"})
 class FsicomixScraper(BaseScraper):
     """FSIComics chapter and series scraper."""
@@ -466,29 +507,7 @@ class FsicomixScraper(BaseScraper):
         chapters: list[dict] = []
         seen_urls: set[str] = set()
 
-        pages_to_fetch: list[tuple[str, BeautifulSoup | None]] = [(url, soup)]
-        sem = asyncio.Semaphore(3)
-
-        async def fetch_page(u: str) -> tuple[str, BeautifulSoup | None]:
-            async with sem:
-                try:
-                    pr = await BaseScraper._timeout_get(u, client)
-                    pr.raise_for_status()
-                    return u, BeautifulSoup(pr.text, "lxml")
-                # One dead page must not fail the fan-out.
-                except Exception:  # nosec
-                    return u, None
-
-        page_num = 2
-        has_next = soup.select_one("a.next.page-numbers") is not None
-        while has_next and page_num <= _MAX_SERIES_PAGES:
-            page_url = f"{url.rstrip('/')}/page/{page_num}/"
-            u, ps = await fetch_page(page_url)
-            pages_to_fetch.append((u, ps))
-            if ps is None:
-                break
-            has_next = ps.select_one("a.next.page-numbers") is not None
-            page_num += 1
+        pages_to_fetch = await _collect_series_pages(url, soup, client)
 
         for _page_url, ps in pages_to_fetch:
             if ps is None:
