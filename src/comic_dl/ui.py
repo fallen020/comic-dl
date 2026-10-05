@@ -47,7 +47,7 @@ from .errors import (
     DownloadTimeout,
     ScrapeTimeout,
 )
-from .utils import normalize_url_key
+from .utils import RequestBlockedError, normalize_url_key
 
 FINAL_FRAME_DELAY = 0.15
 
@@ -1205,6 +1205,10 @@ def _classify_all(exc: BaseException) -> tuple[str, str, int]:
         return "timeout", f"Download timed out after {exc.timeout:.0f}s ({exc.filename})", 1
     if isinstance(exc, ComicError):
         return getattr(exc, "kind", "error"), exc.message, exc.exit_code
+    if isinstance(exc, RequestBlockedError):
+        # Safety refusals and anti-bot blocks name their own cause; never
+        # report them as unexpected internal errors when they escape handling.
+        return "blocked", str(exc) or "Request refused.", 1
     module = type(exc).__module__ or ""
     if module.startswith("curl_cffi") or isinstance(exc, ConnectionError):
         return "network", "Network error. Check your internet connection.", 1

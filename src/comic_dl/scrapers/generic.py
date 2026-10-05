@@ -85,6 +85,10 @@ _ASSET_EXTS = DIRECT_IMAGE_EXTS | frozenset(
 # than links.
 SERIES_MIN_LINKS = 3
 
+# Cap on memoized page soups: full parsed DOMs, so the detect->scrape
+# adjacency the cache exists for needs only a handful of slots.
+_PAGE_CACHE_MAX = 32
+
 # URL fragments that mark an image candidate as decorative/placeholder rather
 # than a gallery page. A naive ``src``-only read otherwise harvests hundreds of
 # identical 1 KB transparent squares.
@@ -517,6 +521,11 @@ class GenericScraper(BaseScraper):
             return cached
         soup, _ = await self.fetch_html_raw(url, client)
         self._page_cache[key] = soup
+        # Soups are full parsed DOMs: bound the memo so a long run of
+        # distinct URLs cannot grow it without limit. Eviction only costs a
+        # re-fetch; the detect->scrape pair it exists for stays adjacent.
+        if len(self._page_cache) > _PAGE_CACHE_MAX:
+            self._page_cache.pop(next(iter(self._page_cache)))
         return soup
 
     async def _resolve_page(
