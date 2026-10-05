@@ -42,7 +42,7 @@ from comic_dl.downloader import (
 )
 from comic_dl.manifest import MANIFEST_NAME, ChapterManifest, PageState
 from comic_dl.models import ImageItem
-from comic_dl.utils import image_source_name, verify_image_file
+from comic_dl.utils import RequestBlockedError, image_source_name, verify_image_file
 from comic_dl.webview import SessionTransportError
 
 MAGIC_JPEG = b"\xff\xd8\xff\xe0\x00\x10JFIF\x00" + b"\x00" * 8 + b"\xff\xd9"
@@ -390,6 +390,124 @@ class TestRetryBlocked:
         resp = await _retry_blocked(fetch, "https://example.com/x")
         assert getattr(resp, "status_code", None) == 200
         assert sleeps == [RETRY_AFTER_CAP]
+
+
+class TestRetryBlockedStreamPeek:
+    """Stream responses start with ``content == b""`` — classification must
+    peek ``aiter_content`` instead of reading ``content`` blind."""
+
+    pytestmark = pytest.mark.asyncio
+
+    class _StreamResp:
+        """curl_cffi-style streaming fake: empty ``content``, single-shot body."""
+
+        def __init__(self, status, headers, chunks):
+            self.status_code = status
+            self.headers = headers
+            self.content = b""
+            self._chunks = list(chunks)
+            self.iters = 0
+
+        async def aiter_content(self, chunk_size=None):
+            self.iters += 1
+            chunks, self._chunks = self._chunks, []
+            for chunk in chunks:
+                yield chunk
+
+        async def aclose(self):
+            pass
+
+    async def test_media_stream_never_peeks(self):
+        """A 200 image returns the same stream untouched (no buffering)."""
+        body = b"\xff\xd8\xff" + b"jpeg-bytes"
+        resp = self._StreamResp(200, {"content-type": "image/jpeg"}, [body])
+
+        async def fetch():
+            return resp
+
+        out = await _retry_blocked(fetch, "https://example.com/i.jpg")
+        assert out is resp
+        assert resp.iters == 0
+
+    async def test_clean_html_stream_replays_peeked_bytes(self):
+        """A clean non-media 200 streams its full body (peek replayed, one fetch)."""
+        first = self._StreamResp(200, {"content-type": "text/html"}, [b"<html>", b"ok</html>"])
+        calls = []
+
+        async def fetch():
+            calls.append(len(calls))
+            return first
+
+        out = await _retry_blocked(fetch, "https://example.com/i")
+        assert len(calls) == 1
+        assert getattr(out, "status_code", None) == 200
+        seen = b"".join([c async for c in out.aiter_content()])
+        assert seen == b"<html>ok</html>"
+
+    async def test_cf_error_code_extracted_from_stream(self, monkeypatch):
+        """A streamed 403 carrying ``Error 1015`` must not take the solve path."""
+        sleeps = []
+
+        async def _sleep(seconds):
+            sleeps.append(seconds)
+
+        monkeypatch.setattr("comic_dl.downloader.asyncio.sleep", _sleep)
+        solves = []
+
+        async def _handle(url):
+            solves.append(url)
+            return False
+
+        monkeypatch.setattr("comic_dl.cf.handle_challenge", _handle)
+        page = b"<title>Attention Required! | Error 1015</title>cf-chl-bypass"
+
+        calls = []
+
+        async def fetch():
+            calls.append(len(calls))
+            return self._StreamResp(
+                403, {"server": "cloudflare", "content-type": "text/html"}, [page]
+            )
+
+        with pytest.raises(RequestBlockedError, match=r"cloudflare"):
+            await _retry_blocked(fetch, "https://example.com/x")
+        assert solves == []
+        assert len(calls) == 3
+        assert len(sleeps) == 3
+
+    async def test_captcha_body_only_detected_in_stream(self, monkeypatch):
+        """Body-only markers (reCAPTCHA, no special headers) name the vendor."""
+        sleeps = []
+
+        async def _sleep(seconds):
+            sleeps.append(seconds)
+
+        monkeypatch.setattr("comic_dl.downloader.asyncio.sleep", _sleep)
+        page = b"<div class='g-recaptcha' data-sitekey='x'></div><script src='recaptcha/api.js'></script>"
+
+        async def fetch():
+            return self._StreamResp(403, {"content-type": "text/html"}, [page])
+
+        with pytest.raises(RequestBlockedError, match=r"recaptcha"):
+            await _retry_blocked(fetch, "https://example.com/x")
+
+    async def test_honeypot_html_stream_detected(self, monkeypatch):
+        """A 200 filler page must route to the solve path, not pass as an image."""
+        solves = []
+
+        async def _handle(url):
+            solves.append(url)
+            return False
+
+        monkeypatch.setattr("comic_dl.cf.handle_challenge", _handle)
+        filler = b"<html><body>" + b"f" * 210_000 + b"</body></html>"
+
+        async def fetch():
+            return self._StreamResp(200, {"content-type": "text/html"}, [filler])
+
+        resp = await _retry_blocked(fetch, "https://example.com/x")
+        assert getattr(resp, "status_code", None) == 200
+        assert solves == ["https://example.com/x"]
 
 
 class TestOpenStreamCookieScoping:

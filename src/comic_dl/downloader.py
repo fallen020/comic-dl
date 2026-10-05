@@ -128,6 +128,86 @@ class _StreamResponse(Protocol):
 # challenge solving is handled separately by the CF solver.
 _HUMANE_MAX_RETRIES = 3
 
+# Bound for one classification peek on a streaming body: every marker the
+# classifier reads (CF error/challenge, WAF/CAPTCHA markers) sits in the
+# head, while the honeypot size heuristic needs up to 200KB (see antibot.py).
+_CLASSIFY_PEEK_LIMIT = 256_000
+_CLASSIFY_PEEK_TIMEOUT = 10.0
+
+
+def _needs_body_peek(status: int, norm_headers: Mapping[str, str]) -> bool:
+    """True when a streamed body could change the block verdict.
+
+    Mirrors :func:`classify_block`'s body-dependent branches: 200 HTML
+    (honeypot/CAPTCHA/WAF-body markers), 403/429/5xx error pages, and any
+    ``cf-mitigated`` challenge. A 200 *without* a content-type is assumed
+    image bytes — servers that omit it on images are common, servers that
+    omit it on HTML blocks are not — and an HTML throttle served under 200
+    is already caught downstream by the magic-sniff
+    (:class:`NotImageResponseError`), so peeking would only re-derive it.
+    Other statuses (304, 206, 404, ...) classify identically on ``""``, so
+    they skip the peek and keep the stream intact.
+    """
+    if norm_headers.get("cf-mitigated") == "challenge":
+        return True
+    if status == 200:
+        return "content-type" in norm_headers
+    return status in (403, 429) or status >= 500
+
+
+async def _peek_stream_body(resp: _StreamResponse) -> bytes:
+    """First ``_CLASSIFY_PEEK_LIMIT`` bytes of a streaming body, without raising.
+
+    A stalled/truncated stream yields whatever arrived — still better than
+    classifying on ``""``. Peeked bytes are consumed from the stream, so the
+    caller must either discard the response (blocked) or replay the head
+    via :class:`_PeekedStream` (clean).
+    """
+    buf = bytearray()
+
+    async def _drain() -> None:
+        async for chunk in resp.aiter_content():
+            if chunk:
+                buf.extend(chunk[: _CLASSIFY_PEEK_LIMIT - len(buf)])
+            if len(buf) >= _CLASSIFY_PEEK_LIMIT:
+                break
+
+    try:
+        await asyncio.wait_for(_drain(), timeout=_CLASSIFY_PEEK_TIMEOUT)
+    except Exception as exc:
+        trace(f"classify peek cut short: {type(exc).__name__}")
+    return bytes(buf)
+
+
+class _PeekedStream:
+    """A stream with its peeked head bytes replayed first.
+
+    Classification peeks the first bytes of a non-media/error stream,
+    consuming them from the underlying queue. The wrapper yields exactly
+    those bytes before the remainder, so callers always see the full body
+    with no second fetch.
+    """
+
+    def __init__(self, inner: _StreamResponse, head: bytes) -> None:
+        self._inner = inner
+        self._head = head
+        # Plain attributes (not properties): the protocol declares these as
+        # mutable members, which a read-only property does not satisfy.
+        self.status_code = inner.status_code
+        self.headers = inner.headers
+
+    def raise_for_status(self) -> None:
+        self._inner.raise_for_status()
+
+    async def aiter_content(self, chunk_size: int | None = None) -> AsyncIterator[bytes]:
+        if self._head:
+            yield self._head
+        async for chunk in self._inner.aiter_content():
+            yield chunk
+
+    async def aclose(self) -> None:
+        await aclose_response(self._inner)
+
 
 async def _retry_blocked(
     fetch: Callable[[], Awaitable[_StreamResponse]],
@@ -140,7 +220,7 @@ async def _retry_blocked(
     applies a short bounded retry with exponential backoff. Always respects
     rate limiting via :func:`await_ratelimit`.
     """
-    from .antibot import BlockVerdict, classify_block
+    from .antibot import BlockVerdict, _is_media_payload, classify_block
     from .cf import handle_challenge
     from .webview import (
         SessionTransportError as WvSessionTransportError,
@@ -152,19 +232,43 @@ async def _retry_blocked(
         live_session_for as _webview_live_session,
     )
 
-    verdict: BlockVerdict | None = None
-    for attempt in range(_HUMANE_MAX_RETRIES):
-        resp = await fetch()
+    async def _classify(resp: _StreamResponse) -> tuple[_StreamResponse, BlockVerdict]:
+        """Classify ``resp``, replaying the peek into clean streams.
+
+        A curl_cffi stream starts with ``content == b""`` — the body only
+        exists behind ``aiter_content`` — so reading ``content`` classifies
+        streams blind. Media (2xx + binary content-type) early-exits on
+        headers alone and never buffers. Other classifiable statuses (200
+        HTML, 403/429/5xx, cf-mitigated) peek the first bytes; a peeked
+        stream is consumed, so a clean verdict wraps it in
+        :class:`_PeekedStream` to hand the caller the full body. Blocked
+        verdicts keep the (doomed) peeked response for the retry branches
+        below to close.
+        """
         status = getattr(resp, "status_code", 200)
         headers = getattr(resp, "headers", None) or {}
-        # Read body for classification (limited to 256KB for performance)
-        body = ""
+        norm = {str(k).lower(): str(v).lower() for k, v in headers.items()}
+        if 200 <= status < 300 and _is_media_payload(norm):
+            return resp, classify_block(status, headers, body="", url=url)
         content = getattr(resp, "content", None)
         if content:
             raw = content if isinstance(content, bytes) else b""
-            body = raw[:256_000].decode("utf-8", errors="replace")
+            body = raw[:_CLASSIFY_PEEK_LIMIT].decode("utf-8", errors="replace")
+            return resp, classify_block(status, headers, body=body, url=url)
+        if not _needs_body_peek(status, norm) or not hasattr(resp, "aiter_content"):
+            return resp, classify_block(status, headers, body="", url=url)
+        head = await _peek_stream_body(resp)
+        verdict = classify_block(
+            status, headers, body=head.decode("utf-8", errors="replace"), url=url
+        )
+        if verdict.vendor == "none":
+            return _PeekedStream(resp, head), verdict
+        return resp, verdict
 
-        verdict = classify_block(status, headers, body=body, url=url)
+    verdict: BlockVerdict | None = None
+    for attempt in range(_HUMANE_MAX_RETRIES):
+        resp = await fetch()
+        resp, verdict = await _classify(resp)
 
         # No block → return immediately
         if verdict.vendor == "none":
@@ -215,12 +319,8 @@ async def _retry_blocked(
                 # previously it was discarded as the loop fell through to
                 # RequestBlockedError.
                 resp = await fetch()
-                status = getattr(resp, "status_code", 200)
-                headers = getattr(resp, "headers", None) or {}
-                content = getattr(resp, "content", None)
-                raw = content if isinstance(content, bytes) else b""
-                body = raw[:256_000].decode("utf-8", errors="replace")
-                if classify_block(status, headers, body=body, url=url).vendor == "none":
+                resp, _post = await _classify(resp)
+                if _post.vendor == "none":
                     return resp
                 await aclose_response(resp)
                 continue  # still blocked after the solve → next slot
@@ -229,7 +329,7 @@ async def _retry_blocked(
         # General block (non-CF) → bounded retry with backoff
         if verdict.vendor != "none":
             delay = _backoff_delay(attempt, base=1.0, max_delay=4.0, jitter=True)
-            retry_after = _retry_after_wait_seconds(headers)
+            retry_after = _retry_after_wait_seconds(getattr(resp, "headers", None) or {})
             if retry_after is not None:
                 # The host named a wait; honor it (capped) so a rate/5xx
                 # block gets the room it asked for instead of a blind
