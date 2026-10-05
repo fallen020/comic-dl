@@ -28,8 +28,8 @@ from ...models import (
 )
 from ..base import (
     BaseScraper,
+    SeriesDataCache,
     _attr_text,
-    best_effort_series_data,
     listing_page_error,
     meta_get,
     meta_index,
@@ -227,7 +227,7 @@ class GenzToonsScraper(BaseScraper):
 
     def __init__(self) -> None:
         super().__init__()
-        self._series_cache: dict[str, dict] = {}
+        self._series_cache = SeriesDataCache()
 
     def matches_url(self, url: str) -> bool:
         return is_chapter_url(url) or is_series_url(url)
@@ -249,9 +249,6 @@ class GenzToonsScraper(BaseScraper):
         on the series page. Best-effort — a failed fetch degrades to empty
         enrichment.
         """
-        cached = self._series_cache.get(series_slug)
-        if cached is not None:
-            return cached
 
         async def _load() -> dict:
             response = await BaseScraper._timeout_get(f"{BASE}/series/{series_slug}/", client)
@@ -272,7 +269,7 @@ class GenzToonsScraper(BaseScraper):
                 "status": stats.get("Status"),
             }
 
-        return await best_effort_series_data(self._series_cache, series_slug, _load)
+        return await self._series_cache.get(series_slug, _load)
 
     async def _scrape_chapter(
         self,

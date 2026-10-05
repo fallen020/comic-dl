@@ -203,28 +203,41 @@ def meta_get(idx: dict[str, list[str]], *names: str) -> str:
     return ""
 
 
-async def best_effort_series_data(
-    cache: dict[str, dict],
-    key: str,
-    loader: Callable[[], Awaitable[dict]],
-) -> dict:
-    """Cached best-effort series enrichment fetch shared by site scrapers.
+class SeriesDataCache:
+    """Per-scraper enrichment cache with single-flight loading.
 
-    Returns the cached entry when present; otherwise awaits ``loader()`` and
-    stores the result. Any loader failure degrades to an empty dict, which
-    is also stored so a dead series page is fetched once per key, not once
-    per chapter.
+    ``get`` returns the cached entry when present; otherwise exactly one
+    caller runs ``loader()`` while concurrent same-key callers await its
+    result, so N chapters racing one slug fetch the series page once
+    instead of N times. Loader failures degrade to (and cache) an empty
+    dict, so a dead series page is fetched once per key, not once per
+    chapter. Locks are per key and intentionally never removed: keys are
+    bounded by series seen per run, and removal would race late arrivals
+    against in-flight waiters.
     """
-    cached = cache.get(key)
-    if cached is not None:
-        return cached
-    try:
-        data = await loader()
-    # Enrichment is best-effort.
-    except Exception:  # nosec
-        data = {}
-    cache[key] = data
-    return data
+
+    def __init__(self) -> None:
+        self._data: dict[str, dict] = {}
+        self._locks: dict[str, asyncio.Lock] = {}
+
+    def __contains__(self, key: object) -> bool:
+        return key in self._data
+
+    async def get(self, key: str, loader: Callable[[], Awaitable[dict]]) -> dict:
+        hit = self._data.get(key)
+        if hit is not None:
+            return hit
+        async with self._locks.setdefault(key, asyncio.Lock()):
+            hit = self._data.get(key)
+            if hit is not None:
+                return hit
+            try:
+                data = await loader()
+            # Enrichment is best-effort.
+            except Exception:  # nosec
+                data = {}
+            self._data[key] = data
+            return data
 
 
 class BaseScraper:

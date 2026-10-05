@@ -26,10 +26,10 @@ from ...models import (
     SourceInfo,
     chapter_to_post_metadata,
 )
-from ...ui import DIAGNOSTIC, TAG_SCRAPE, vlog
 from ...utils import canonical_chapter_number
 from ..base import (
     BaseScraper,
+    SeriesDataCache,
     _attr_text,
     extract_jsonld,
     jsonld_type_includes,
@@ -114,7 +114,7 @@ class FlameScraper(BaseScraper):
 
     def __init__(self) -> None:
         super().__init__()
-        self._series_cache: dict[str, dict] = {}
+        self._series_cache = SeriesDataCache()
 
     async def scrape(self, url: str, client: AsyncSession) -> PostMetadata:
         chapter = await self._scrape_chapter(url, client)
@@ -125,26 +125,17 @@ class FlameScraper(BaseScraper):
 
     async def _series_page_data(self, series_id: str, client: AsyncSession) -> dict:
         """Fetch the series page once per series_id (cached on the instance)."""
-        cached = self._series_cache.get(series_id)
-        if cached is not None:
-            return cached
-        data: dict = {}
-        try:
+
+        async def _load() -> dict:
             response = await BaseScraper._timeout_get(f"{BASE}/series/{series_id}/", client)
             response.raise_for_status()
             soup = BeautifulSoup(response.text, "lxml")
             nd = self._find_next_data(soup)
             if nd:
-                data = nd.get("props", {}).get("pageProps", {}).get("series", {})
-        # Enrichment is best-effort.
-        except Exception as exc:
-            vlog(
-                DIAGNOSTIC,
-                f"series enrichment unavailable for {series_id}: {type(exc).__name__}",
-                tag=TAG_SCRAPE,
-            )
-        self._series_cache[series_id] = data
-        return data
+                return nd.get("props", {}).get("pageProps", {}).get("series", {})
+            return {}
+
+        return await self._series_cache.get(series_id, _load)
 
     async def _scrape_chapter(
         self,

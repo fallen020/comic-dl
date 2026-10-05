@@ -26,9 +26,9 @@ from ..models import (
     SourceInfo,
     chapter_to_post_metadata,
 )
-from ..ui import DIAGNOSTIC, TAG_SCRAPE, vlog
 from .base import (
     BaseScraper,
+    SeriesDataCache,
     _attr_text,
     meta_get,
     meta_index,
@@ -228,7 +228,7 @@ class MadaraScraper(BaseScraper):
 
     def __init__(self) -> None:
         super().__init__()
-        self._series_cache: dict[str, dict] = {}
+        self._series_cache = SeriesDataCache()
 
     def _series_slug(self, url: str) -> str:
         parts = [p for p in url.rstrip("/").split("/") if p]
@@ -250,27 +250,16 @@ class MadaraScraper(BaseScraper):
         slug: str,
         client: AsyncSession,
     ) -> dict:
-        cached = self._series_cache.get(slug)
-        if cached is not None:
-            return cached
-        data: dict = {}
-        try:
+        async def _load() -> dict:
             response = await BaseScraper._timeout_get(
                 self._series_page_url(slug),
                 client,
             )
             response.raise_for_status()
             soup = BeautifulSoup(response.text, "lxml")
-            data = self._parse_series_page(soup) or {}
-        # Enrichment is best-effort.
-        except Exception as exc:
-            vlog(
-                DIAGNOSTIC,
-                f"series enrichment unavailable for {slug}: {type(exc).__name__}",
-                tag=TAG_SCRAPE,
-            )
-        self._series_cache[slug] = data
-        return data
+            return self._parse_series_page(soup) or {}
+
+        return await self._series_cache.get(slug, _load)
 
 
 _SERIES_SUMMARY_SEL = ".summary__content"
