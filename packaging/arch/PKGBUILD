@@ -40,12 +40,18 @@ package() {
   install -dm755 "$pkgdir/usr/lib/comic-dl/site-packages" "$pkgdir/usr/bin"
   install -Dm644 "$srcdir/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
 
-  python -m pip wheel --no-deps --no-cache-dir --wheel-dir "$srcdir/.wheel" .
-  python -m pip wheel --no-deps --no-cache-dir --wheel-dir "$srcdir/.wheel" \
-    "curl-cffi==${CURL_CFFI_VERSION:-$(awk '
-      /^name = "curl-cffi"$/ { f=1 }
-      f && /^version =/ { gsub(/"/, "", $3); print $3; exit }
-    ' "$srcdir/uv.lock")}"
+  # Prebuilt wheels (CI WHEEL_DIR) skip the network builds.
+  if [[ -n "${WHEEL_DIR:-}" ]]; then
+    mkdir -p "$srcdir/.wheel"
+    cp "$WHEEL_DIR"/*.whl "$srcdir/.wheel/"
+  else
+    python -m pip wheel --no-deps --no-cache-dir --wheel-dir "$srcdir/.wheel" .
+    python -m pip wheel --no-deps --no-cache-dir --wheel-dir "$srcdir/.wheel" \
+      "curl-cffi==${CURL_CFFI_VERSION:-$(awk '
+        /^name = "curl-cffi"$/ { f=1 }
+        f && /^version =/ { gsub(/"/, "", $3); print $3; exit }
+      ' "$srcdir/uv.lock")}"
+  fi
 
   (cd "$srcdir/.wheel" && for w in comic_dl-*.whl curl_cffi-*.whl; do
     unzip -qo "$w" -d "$pkgdir/usr/lib/comic-dl/site-packages"

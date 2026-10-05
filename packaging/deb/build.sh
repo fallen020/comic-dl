@@ -43,10 +43,15 @@ stage() {
   rm -rf "$site" "$bindir"
   mkdir -p "$site" "$bindir"
 
-  python3 -m pip wheel --no-deps --wheel-dir "$wheeldir" .
-  python3 -m pip wheel --no-deps --wheel-dir "$wheeldir" "curl-cffi==$CURL_CFFI_VERSION"
+  # Prebuilt wheels (CI WHEEL_DIR) skip the network builds. The unzip below
+  # selects only the wheels each distro needs, so one shared dir serves all.
+  local srcdir="${WHEEL_DIR:-$wheeldir}"
+  if [[ -z "${WHEEL_DIR:-}" ]]; then
+    python3 -m pip wheel --no-deps --wheel-dir "$wheeldir" .
+    python3 -m pip wheel --no-deps --wheel-dir "$wheeldir" "curl-cffi==$CURL_CFFI_VERSION"
+  fi
 
-  (cd "$wheeldir" && unzip -qo comic_dl-*.whl -d "$site" && unzip -qo curl_cffi-*.whl -d "$site")
+  (cd "$srcdir" && unzip -qo comic_dl-*.whl -d "$site" && unzip -qo curl_cffi-*.whl -d "$site")
   find "$site" -name '*.so' -exec strip --strip-unneeded {} + 2>/dev/null || true
 
   cat > "$bindir/comic-dl" <<'EOF'

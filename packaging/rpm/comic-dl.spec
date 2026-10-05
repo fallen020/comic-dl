@@ -50,11 +50,18 @@ packages neither.
 %setup -q -n src
 
 %build
+# Prebuilt wheels (CI WHEEL_DIR) skip the network builds. The install loop
+# below selects only the wheels each distro needs, so one shared dir serves all.
+if [ -n "${WHEEL_DIR:-}" ]; then
+mkdir -p .wheel
+cp "$WHEEL_DIR"/*.whl .wheel/
+else
 python3 -m pip wheel --no-deps --no-cache-dir --wheel-dir .wheel .
 python3 -m pip wheel --no-deps --no-cache-dir --wheel-dir .wheel "curl-cffi==%{curl_cffi_version}"
 # proxy-tools is sdist-only upstream, so pip builds the wheel here.
 python3 -m pip wheel --no-deps --no-cache-dir --wheel-dir .wheel "pywebview==%{pywebview_version}"
 python3 -m pip wheel --no-deps --no-cache-dir --wheel-dir .wheel "proxy-tools==%{proxy_tools_version}"
+fi
 
 %install
 mkdir -p %{buildroot}/usr/lib/comic-dl/site-packages %{buildroot}/usr/bin

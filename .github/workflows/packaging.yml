@@ -46,10 +46,50 @@ jobs:
       - name: Version drift guard
         run: uv run scripts/write-version.py --check
 
+  # Vendored wheels, built once per arch and shared by every distro job.
+  # pip resolves arch-specific binaries (curl-cffi abi3) for the runner
+  # arch, so this runs natively on both arches.
+  wheels:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runs-on: ubuntu-latest
+            wheelarch: amd64
+          - runs-on: ubuntu-24.04-arm
+            wheelarch: arm64
+    runs-on: ${{ matrix.runs-on }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Build vendored wheels
+        run: |
+          lock_version() {
+            awk -v pkg="$1" '
+              $0 == "name = \"" pkg "\"" { f=1 }
+              f && /^version =/ { gsub(/"/, "", $3); print $3; exit }
+            ' uv.lock
+          }
+          mkdir -p .wheels-out
+          python3 -m pip wheel --no-deps --no-cache-dir --wheel-dir .wheels-out .
+          python3 -m pip wheel --no-deps --no-cache-dir --wheel-dir .wheels-out "curl-cffi==$(lock_version curl-cffi)"
+          python3 -m pip wheel --no-deps --no-cache-dir --wheel-dir .wheels-out "pywebview==$(lock_version pywebview)"
+          python3 -m pip wheel --no-deps --no-cache-dir --wheel-dir .wheels-out "proxy-tools==$(lock_version proxy-tools)"
+      - name: Upload wheels
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: wheels-${{ matrix.wheelarch }}
+          path: .wheels-out/*
+          if-no-files-found: error
+          # Consumed by linux-packages in this run only.
+          retention-days: 1
+
   # Same distro x arch matrix as release.yml, minus publishing: builds fresh and
   # installs in a clean container so PR artifacts are proven to work.
   linux-packages:
-    needs: version-drift
+    needs: [version-drift, wheels]
     runs-on: ${{ matrix.runs-on }}
     permissions:
       contents: read
@@ -68,6 +108,7 @@ jobs:
             build: bash /src/packaging/deb/build.sh docker-build
             outdir: /tmp/debian-amd64-out
             artifact: deb-amd64
+            wheelarch: amd64
             cachedir: apt
             cachetarget: /var/cache/apt/archives
             validate: deb/validate.sh
@@ -79,6 +120,7 @@ jobs:
             build: bash /src/packaging/deb/build.sh docker-build
             outdir: /tmp/debian-arm64-out
             artifact: deb-arm64
+            wheelarch: arm64
             cachedir: apt
             cachetarget: /var/cache/apt/archives
             validate: deb/validate.sh
@@ -90,6 +132,7 @@ jobs:
             build: bash /src/packaging/rpm/build.sh
             outdir: /tmp/fedora-x86_64-out
             artifact: rpm-x86_64
+            wheelarch: amd64
             cachedir: dnf
             cachetarget: /var/cache/dnf
             validate: rpm/validate.sh
@@ -101,6 +144,7 @@ jobs:
             build: bash /src/packaging/rpm/build.sh
             outdir: /tmp/fedora-aarch64-out
             artifact: rpm-aarch64
+            wheelarch: arm64
             cachedir: dnf
             cachetarget: /var/cache/dnf
             validate: rpm/validate.sh
@@ -112,6 +156,7 @@ jobs:
             build: bash /src/packaging/arch/build.sh
             outdir: /tmp/arch-x86_64-out
             artifact: arch-x86_64
+            wheelarch: amd64
             cachedir: pacman
             cachetarget: /var/cache/pacman/pkg
             validate: arch/validate.sh
@@ -143,6 +188,11 @@ jobs:
           key: pkg-${{ matrix.artifact }}-${{ env.CACHE_WEEK }}
           restore-keys: |
             pkg-${{ matrix.artifact }}-
+      - name: Download vendored wheels
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: wheels-${{ matrix.wheelarch }}
+          path: .wheels/${{ matrix.wheelarch }}
       - name: Build package in container
         run: |
           mkdir -p "${{ matrix.outdir }}"
@@ -150,7 +200,9 @@ jobs:
             -v "${{ github.workspace }}:/src:ro" \
             -v "${{ matrix.outdir }}:/out" \
             -v "${{ github.workspace }}/.pkg-cache/${{ matrix.cachedir }}:${{ matrix.cachetarget }}" \
+            -v "${{ github.workspace }}/.wheels:/wheels:ro" \
             -e VERSION="${{ env.PKG_VER }}" \
+            -e WHEEL_DIR=/wheels/${{ matrix.wheelarch }} \
             ${{ matrix.image }} \
             bash -c "${{ matrix.build }}"
       - name: Validate package in clean container
@@ -164,10 +216,13 @@ jobs:
             bash /src/packaging/${{ matrix.validate }} "/pkg/${{ matrix.glob }}"
       # Containers run as root, so hand the cache back to the runner user
       # before the save step. Runs on failure too so failed runs still
-      # populate the cache.
-      - name: Fix package cache ownership
+      # populate the cache. Wheels only need to stay world-readable for
+      # the builder user inside the arch container.
+      - name: Fix cache and wheel ownership
         if: always()
-        run: sudo chown -R "$(id -u):$(id -g)" .pkg-cache 2>/dev/null || true
+        run: |
+          sudo chown -R "$(id -u):$(id -g)" .pkg-cache .wheels 2>/dev/null || true
+          chmod -R a+rX .wheels 2>/dev/null || true
       # Keep artifacts on failure so a broken PR can be inspected without
       # re-running the full matrix.
       - name: Upload artifacts on failure

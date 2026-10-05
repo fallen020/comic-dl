@@ -57,7 +57,7 @@ chown -R builder:builder "$BUILD_DIR" "$OUT_DIR"
 
 echo "Building Arch package v$VERSION..."
 su builder -c \
-    "cd '$BUILD_DIR' && CURL_CFFI_VERSION='$CURL_CFFI_VERSION' PACKAGER='Comic Downloader contributors <maintainers@users.noreply.github.com>' makepkg -f"
+    "cd '$BUILD_DIR' && CURL_CFFI_VERSION='$CURL_CFFI_VERSION' PACKAGER='Comic Downloader contributors <maintainers@users.noreply.github.com>' ${WHEEL_DIR:+WHEEL_DIR='$WHEEL_DIR'} makepkg -f"
 
 mkdir -p "$OUT_DIR"
 # Guard against -debug splits even if makepkg.conf re-enables them: the
