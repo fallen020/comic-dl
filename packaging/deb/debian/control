@@ -1,6 +1,5 @@
 Source: comic-dl
 Section: utils
-Priority: optional
 Maintainer: Comic Downloader contributors <maintainers@users.noreply.github.com>
 Build-Depends: debhelper-compat (= 12), python3, python3-pip
 Standards-Version: 4.7.0

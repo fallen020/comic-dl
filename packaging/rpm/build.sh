@@ -23,6 +23,9 @@ REPO_DIR="${REPO_DIR:-/src}"
 OUT_DIR="${OUT_DIR:-/out}"
 WORK_DIR="${WORK_DIR:-/build}"
 
+# Shared staging excludes (single source of truth for all distro builds).
+source "$REPO_DIR/packaging/copy-excludes.sh"
+
 # Default the vendored wheels to the versions uv.lock resolves, so packaged
 # binaries never drift from the declared dependency set. pywebview and
 # proxy-tools ride along because Fedora packages neither.
@@ -43,14 +46,13 @@ rm -rf "$WORK_DIR"
 mkdir -p "$WORK_DIR/rpmbuild/SOURCES" "$WORK_DIR/rpmbuild/SPECS"
 
 # Stage a writable copy of the repo and stamp the tag version into pyproject.
-mkdir -p "$WORK_DIR/tarsrc"
-cp -a "$REPO_DIR/." "$WORK_DIR/tarsrc/src"
+mkdir -p "$WORK_DIR/tarsrc/src"
+tar -C "$REPO_DIR" "${COPY_EXCLUDES[@]}" -cf - . | tar -C "$WORK_DIR/tarsrc/src" -xf -
 sed -i "s/^version = .*/version = \"$VERSION\"/" "$WORK_DIR/tarsrc/src/pyproject.toml"
 
 # rpmbuild needs a Source tarball with a single top-level directory.
+# Staging already excluded everything above, so this tar needs no --exclude flags.
 tar -C "$WORK_DIR/tarsrc" \
-    --exclude=.git --exclude=.venv --exclude='__pycache__' --exclude='*.pyc' \
-    --exclude=dist --exclude=build \
     -czf "$WORK_DIR/rpmbuild/SOURCES/comic-dl-$VERSION.tar.gz" src
 
 # Stamp version + wheel pins into a copy of the spec (repo is read-only).

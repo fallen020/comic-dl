@@ -59,6 +59,7 @@ python3 -m pip wheel --no-deps --no-cache-dir --wheel-dir .wheel "proxy-tools==%
 %install
 mkdir -p %{buildroot}/usr/lib/comic-dl/site-packages %{buildroot}/usr/bin
 (cd .wheel && for w in comic_dl-*.whl curl_cffi-*.whl pywebview-*.whl proxy_tools-*.whl; do unzip -qo "$w" -d %{buildroot}/usr/lib/comic-dl/site-packages; done)
+find %{buildroot}/usr/lib/comic-dl/site-packages -name '*.so' -exec strip --strip-unneeded {} + 2>/dev/null || true
 cat > %{buildroot}/usr/bin/comic-dl <<'EOF'
 #!/bin/sh
 PYTHONPATH=/usr/lib/comic-dl/site-packages${PYTHONPATH:+:$PYTHONPATH} \

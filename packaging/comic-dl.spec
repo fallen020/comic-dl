@@ -58,9 +58,6 @@ a = Analysis(
         "comic_dl.cli.library",
         "comic_dl.scrapers.registry",
         "comic_dl.scrapers.sites",
-        # Every site module is imported dynamically by the auto-discovering
-        # sites package, so collect them wholesale instead of maintaining a
-        # per-site list that silently goes stale (the hivetoons-shaped bug).
         "comic_dl.scrapers.generic",
         "comic_dl.scrapers.madara",
         "comic_dl.scrapers.refresh",

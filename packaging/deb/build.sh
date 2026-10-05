@@ -29,19 +29,8 @@ OUT_DIR="${OUT_DIR:-/tmp/comic-dl}"
 VERSION="${VERSION:-$(awk -F'"' '/^version = / { print $2; exit }' "$REPO_DIR/pyproject.toml")}"
 VERSION="${VERSION#v}"
 
-COPY_EXCLUDES=(
-  --exclude=.git
-  --exclude=.venv
-  --exclude=__pycache__
-  --exclude='*.pyc'
-  --exclude='*.egg-info'
-  --exclude=dist
-  --exclude=build
-  --exclude=site
-  --exclude=debian/tmp
-  --exclude=debian/stage
-  --exclude=packaging/deb/debian
-)
+# Shared staging excludes (single source of truth for all distro builds).
+source "$REPO_DIR/packaging/copy-excludes.sh"
 
 stage() {
   # Populate debian/tmp with the runtime layout. Run from the package build dir.
@@ -58,6 +47,7 @@ stage() {
   python3 -m pip wheel --no-deps --wheel-dir "$wheeldir" "curl-cffi==$CURL_CFFI_VERSION"
 
   (cd "$wheeldir" && unzip -qo comic_dl-*.whl -d "$site" && unzip -qo curl_cffi-*.whl -d "$site")
+  find "$site" -name '*.so' -exec strip --strip-unneeded {} + 2>/dev/null || true
 
   cat > "$bindir/comic-dl" <<'EOF'
 #!/bin/sh
@@ -132,6 +122,7 @@ docker_build() {
   docker run --rm \
     -v "$REPO_DIR:/src:ro" \
     -v "$OUT_DIR:/out" \
+    -e VERSION="$VERSION" \
     -e CURL_CFFI_VERSION="$CURL_CFFI_VERSION" \
     comic-dl-deb \
     bash /src/packaging/deb/build.sh docker-build

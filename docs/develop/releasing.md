@@ -11,10 +11,6 @@ It is the last page of the [Contribution Workflow](workflow.md): work flows
 > the artifacts. The one-time repository-side steps (repo creation, verified
 > identity) are in
 > [First release — repository setup](#first-release--repository-setup) below.
->
-> If this is the first release of a brand-new repository, start with that
-> section first; everything after it assumes the repository, remote, and GPG
-> key are already in place.
 
 ## First release — repository setup
 
@@ -168,11 +164,6 @@ The repository was local-only until the beta release gate was green:
 
 This gate is cleared for `0.0.1`. Re-check this
 list before every later release.
-
-## Documentation artifacts
-
-Documentation is plain Markdown under `docs/` — it is the source of truth.
-Release notes link to `docs/` pages directly.
 
 ## Release notes
 

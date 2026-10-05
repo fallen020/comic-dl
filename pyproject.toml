@@ -50,7 +50,7 @@ build-backend = "hatchling.build"
 packages = ["src/comic_dl"]
 
 [tool.hatch.build.targets.sdist]
-exclude = ["packaging/deb"]
+exclude = ["packaging/deb", ".github", ".zed", "website", "website/**", "docs/assets/demo.gif"]
 
 [tool.hatch.build.hooks.custom]
 path = "packaging/hatch/version_hook.py"

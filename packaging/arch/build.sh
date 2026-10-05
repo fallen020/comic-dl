@@ -21,6 +21,9 @@ REPO_DIR="${REPO_DIR:-/src}"
 OUT_DIR="${OUT_DIR:-/out}"
 BUILD_DIR="${BUILD_DIR:-/build}"
 
+# Shared staging excludes (single source of truth for all distro builds).
+source "$REPO_DIR/packaging/copy-excludes.sh"
+
 # Default the vendored curl-cffi wheel to the version uv.lock resolves, so the
 # packaged binary never drifts from the declared dependency set.
 CURL_CFFI_VERSION="${CURL_CFFI_VERSION:-$(awk '
@@ -40,10 +43,10 @@ pacman -S --noconfirm --needed \
   webkit2gtk-4.1 >/dev/null
 
 rm -rf "$BUILD_DIR"
-mkdir -p "$BUILD_DIR"
+mkdir -p "$BUILD_DIR/src"
 
 # makepkg's $srcdir defaults to <builddir>/src; pre-populate it with the repo.
-cp -a "$REPO_DIR/." "$BUILD_DIR/src"
+tar -C "$REPO_DIR" "${COPY_EXCLUDES[@]}" -cf - . | tar -C "$BUILD_DIR/src" -xf -
 sed -i "s/^version = .*/version = \"$VERSION\"/" "$BUILD_DIR/src/pyproject.toml"
 
 sed "s/^pkgver=.*/pkgver=$VERSION/" "$REPO_DIR/packaging/arch/PKGBUILD" \
@@ -54,7 +57,7 @@ chown -R builder:builder "$BUILD_DIR" "$OUT_DIR"
 
 echo "Building Arch package v$VERSION..."
 su builder -c \
-    "cd '$BUILD_DIR' && CURL_CFFI_VERSION='$CURL_CFFI_VERSION' makepkg -f"
+    "cd '$BUILD_DIR' && CURL_CFFI_VERSION='$CURL_CFFI_VERSION' PACKAGER='Comic Downloader contributors <maintainers@users.noreply.github.com>' makepkg -f"
 
 mkdir -p "$OUT_DIR"
 # Guard against -debug splits even if makepkg.conf re-enables them: the
