@@ -122,6 +122,8 @@ jobs:
           name: wheels-${{ matrix.wheelarch }}
           path: .wheels-out/*
           if-no-files-found: error
+          # .wheels-out is a hidden dir; v4 skips hidden paths unless asked.
+          include-hidden-files: true
           # Consumed by linux-packages in this run only.
           retention-days: 1
 
