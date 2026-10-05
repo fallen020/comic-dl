@@ -39,3 +39,25 @@ class TestAcquireKeysByHost:
         await limiter.acquire("example.com")
         assert "example.com" in limiter._next_available
         assert limiter._next_available.get("https://example.com/page") is None
+
+
+class TestAcquireConcurrency:
+    async def test_concurrent_acquires_keep_slot_spacing(self, monkeypatch, tmp_path):
+        """Racers must queue onto successive slots, not share one."""
+        import asyncio
+        import time
+        from itertools import pairwise
+
+        _isolated(monkeypatch, tmp_path)
+        limit = 10.0
+        limiter = RateLimiter(rates={"example.com": limit})
+        stamps: list[float] = []
+
+        async def worker() -> None:
+            await limiter.acquire("example.com")
+            stamps.append(time.monotonic())
+
+        await asyncio.gather(*(worker() for _ in range(8)))
+        stamps.sort()
+        gaps = [b - a for a, b in pairwise(stamps)]
+        assert min(gaps) >= (1.0 / limit) * 0.9

@@ -84,11 +84,15 @@ class RateLimiter:
         now = time.monotonic()
         # Reuse the last reserved slot unless it has passed, so concurrent
         # callers share one pacing clock instead of each starting a fresh one.
+        # Reserve synchronously, before the sleep below: no await sits
+        # between the read and the write, so the event loop cannot interleave
+        # two tasks onto the same slot (previously both read one slot, slept
+        # together, and burst at concurrency x limit).
         slot = max(self._next_available.get(host, now), now)
+        self._next_available[host] = slot + 1.0 / limit
         wait = slot - now
         if wait > 0:
             await asyncio.sleep(min(wait, _MAX_STALL))
-        self._next_available[host] = slot + 1.0 / limit
 
 
 _limiter: RateLimiter | None = None
