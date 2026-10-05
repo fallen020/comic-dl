@@ -297,17 +297,38 @@ def _harvest(cookies: list[dict[str, Any]]) -> bool:
     return found
 
 
+# In-flight solves by host: concurrent challengers share one helper spawn
+# instead of each popping a browser window (see :func:`solve_challenge`).
+_solve_tasks: dict[str, asyncio.Task[bool]] = {}
+
+
 async def solve_challenge(url: str) -> bool:
     """Solve the Cloudflare challenge for ``url`` in a visible system webview.
 
     Returns True when a fresh ``cf_clearance`` was harvested into the jar.
     Never raises: any failure returns False so the caller falls back to the
     impersonation path.
+
+    Concurrent callers for one host share a single solve: without this, N
+    tasks hitting a challenge together would each pop a browser window and
+    burn a full solve. A cancelled waiter stops waiting without killing the
+    shared solve.
     """
     host = (urlsplit(url).hostname or "").lower()
     if not available():
         vlog(1, "webview solver unavailable — using impersonation only", tag=TAG_WARNING)
         return False
+    task = _solve_tasks.get(host)
+    if task is None:
+        task = asyncio.create_task(_solve_challenge_once(url))
+        _solve_tasks[host] = task
+        task.add_done_callback(lambda _t: _solve_tasks.pop(host, None))
+    return await asyncio.shield(task)
+
+
+async def _solve_challenge_once(url: str) -> bool:
+    """One actual helper spawn + harvest for ``url`` (see :func:`solve_challenge`)."""
+    host = (urlsplit(url).hostname or "").lower()
     print_dim(
         f"Opening a browser window to pass the {host} challenge — it closes by itself once cleared."
     )

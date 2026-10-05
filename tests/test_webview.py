@@ -167,6 +167,53 @@ class _BlockingProc:
         return 0
 
 
+class TestSolveSingleFlight:
+    """Concurrent same-host challenges share one helper spawn, not N windows."""
+
+    pytestmark = pytest.mark.asyncio
+
+    @staticmethod
+    def _patch_solve(monkeypatch, spawns):
+        import comic_dl.webview as webview_mod
+
+        async def fake_run_helper(url, timeout):
+            spawns.append(url)
+            await asyncio.sleep(0.05)
+            return {"cookies": []}
+
+        monkeypatch.setattr(webview_mod, "_run_helper", fake_run_helper)
+        monkeypatch.setattr(webview_mod, "available", lambda: True)
+        monkeypatch.setattr(webview_mod, "print_dim", lambda *a, **k: None)
+        monkeypatch.setattr(webview_mod, "_harvest", lambda cookies: True)
+        return webview_mod
+
+    async def test_concurrent_same_host_solves_once(self, monkeypatch):
+        spawns: list[str] = []
+        webview_mod = self._patch_solve(monkeypatch, spawns)
+        results = await asyncio.gather(
+            *[webview_mod.solve_challenge("https://x.example/p1") for _ in range(5)]
+        )
+        assert results == [True] * 5
+        assert spawns == ["https://x.example/p1"]
+
+    async def test_sequential_solves_spawn_again(self, monkeypatch):
+        spawns: list[str] = []
+        webview_mod = self._patch_solve(monkeypatch, spawns)
+        assert await webview_mod.solve_challenge("https://x.example/p1") is True
+        assert await webview_mod.solve_challenge("https://x.example/p1") is True
+        assert len(spawns) == 2
+
+    async def test_different_hosts_solve_independently(self, monkeypatch):
+        spawns: list[str] = []
+        webview_mod = self._patch_solve(monkeypatch, spawns)
+        results = await asyncio.gather(
+            webview_mod.solve_challenge("https://a.example/p1"),
+            webview_mod.solve_challenge("https://b.example/p1"),
+        )
+        assert results == [True, True]
+        assert sorted(spawns) == ["https://a.example/p1", "https://b.example/p1"]
+
+
 class TestWebViewSessionErrors:
     pytestmark = pytest.mark.asyncio
 
