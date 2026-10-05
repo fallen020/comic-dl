@@ -1061,13 +1061,10 @@ async def download_httpx(
             yield item
 
     if client is None:
-        _session_kwargs: dict[str, Any] = http_client_args()
+        first_host: str | None = None
         if images:
-            from urllib.parse import urlsplit
-
             first_host = urlsplit(images[0].url).hostname
-            if first_host:
-                _session_kwargs = http_client_args(host=first_host)
+        _session_kwargs: dict[str, Any] = http_client_args(host=first_host)
         _session_kwargs["max_clients"] = concurrency + 2
         async with AsyncSession(**_session_kwargs) as _client:
             failed, _ = await _run_downloads(
