@@ -378,8 +378,12 @@ async def _open_stream(
     async def _stream_once() -> _StreamResponse:
         nonlocal current
         inner = cast(_StreamResponse, None)
+        # The initial URL is validated once here; every redirect hop is
+        # validated once by resolve_redirect_url_async below. Validating the
+        # same hop string a second time at the top of the loop would only
+        # re-derive the cached verdict.
+        await validate_request_url_async(current)
         for _ in range(MAX_REDIRECTS + 1):
-            await validate_request_url_async(current)
             await await_ratelimit(urlsplit(current).hostname or current)
             _started = time.monotonic()
             obj = client.stream(

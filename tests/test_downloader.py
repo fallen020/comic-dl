@@ -557,6 +557,49 @@ class TestOpenStreamCookieScoping:
         assert seen["https://b.example/img"] is None
 
 
+class TestOpenStreamHopValidation:
+    pytestmark = pytest.mark.asyncio
+
+    class _FakeResp:
+        def __init__(self, status, headers):
+            self.status_code = status
+            self.headers = headers
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return False
+
+    async def test_each_hop_validated_once(self, monkeypatch):
+        """The redirect hop is validated by resolve_redirect_url_async; the
+        loop must not validate the same URL a second time."""
+        from comic_dl import downloader as dlmod
+        from comic_dl.downloader import _open_stream
+
+        validations = []
+        real_validate = dlmod.validate_request_url_async
+
+        async def counting(url):
+            validations.append(url)
+            return await real_validate(url)
+
+        # The initial check runs through downloader's import; the hop check
+        # runs through utils.resolve_redirect_url_async — count both.
+        monkeypatch.setattr(dlmod, "validate_request_url_async", counting)
+        monkeypatch.setattr("comic_dl.utils.validate_request_url_async", counting)
+
+        class FakeClient:
+            def stream(self, method, url, **kwargs):
+                if url == "https://a.example/img":
+                    return TestOpenStreamHopValidation._FakeResp(302, {"location": "/final"})
+                return TestOpenStreamHopValidation._FakeResp(200, {})
+
+        resp = await _open_stream(FakeClient(), "https://a.example/img")  # type: ignore
+        assert resp.status_code == 200
+        assert validations == ["https://a.example/img", "https://a.example/final"]
+
+
 class TestStreamToDiskEnospc:
     pytestmark = pytest.mark.asyncio
 
