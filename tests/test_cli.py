@@ -4407,6 +4407,7 @@ class TestCompletionVerb:
         assert "compdef _comic_dl comic-dl" in out
         assert "validate" in out
         assert "words[3]" in out
+        assert "compadd -d" in out
 
     async def test_fish(self, monkeypatch, capsys):
         from comic_dl.cli import main
@@ -4418,6 +4419,7 @@ class TestCompletionVerb:
         assert "__fish_seen_subcommand_from update" in out
         assert "validate" in out
         assert "__fish_seen_subcommand_from self; and __fish_seen_subcommand_from update" in out
+        assert "\t" in out
 
     async def test_invalid_shell(self, monkeypatch, capsys):
         from comic_dl.cli import main

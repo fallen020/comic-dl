@@ -84,7 +84,7 @@ instructions. See [Self-Management](../usage/self-update.md) and
 | Command | Description |
 | :------ | :---------- |
 | `comic-dl --list-sources [--json] [--plugin] [QUERY]` | List/search supported sites |
-| `comic-dl completion bash\|zsh\|fish` | Print shell completion script |
+| `comic-dl completion bash\|zsh\|fish\|powershell` | Print shell completion script |
 | `comic-dl --version` | Print the version |
 | `comic-dl help [COMMAND]` | Show help |
 

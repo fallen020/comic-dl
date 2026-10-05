@@ -199,8 +199,8 @@ the release files you did not download.
 
 ## Shell completions
 
-Completions exist for bash, zsh, and fish. Binary installs put `comic-dl` on
-`PATH`; from a source checkout, prefix with `uv run`:
+Completions exist for bash, zsh, fish, and PowerShell. Binary installs put
+`comic-dl` on `PATH`; from a source checkout, prefix with `uv run`:
 
 | Shell | Binary install | Source checkout |
 | :----- | :------------- | :-------------- |
@@ -208,8 +208,17 @@ Completions exist for bash, zsh, and fish. Binary installs put `comic-dl` on
 | zsh | `eval "$(comic-dl completion zsh)"` | `eval "$(uv run comic-dl completion zsh)"` |
 | fish | `comic-dl completion fish \| source` | `uv run comic-dl completion fish \| source` |
 
-To load completions on every new shell, write the command to your shell's
-startup file — `~/.bashrc`, `~/.zshrc`, or `~/.config/fish/config.fish`.
+PowerShell (binary install):
+
+`comic-dl completion powershell | Out-String | Invoke-Expression`
+
+PowerShell (source checkout):
+
+`uv run comic-dl completion powershell | Out-String | Invoke-Expression`
+
+To load completions on every new shell, add the command to your shell
+startup file: `~/.bashrc`, `~/.zshrc`, `~/.config/fish/config.fish`,
+or `$PROFILE` for PowerShell.
 
 ## Update
 

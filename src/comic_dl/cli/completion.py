@@ -47,6 +47,37 @@ def _parser_flag_help(parser: argparse.ArgumentParser) -> dict[str, str]:
     return helps
 
 
+def _merge_help(*lists: list[tuple[str, str]]) -> list[tuple[str, str]]:
+    """Merge (word, help) lists, first help winning on duplicates."""
+    seen: dict[str, str] = {}
+    for pairs in lists:
+        for word, tip in pairs:
+            seen.setdefault(word, tip)
+    return sorted(seen.items())
+
+
+def _subtree_pairs(parser: argparse.ArgumentParser) -> list[tuple[str, str]]:
+    """Subcommand names plus every descendant flag, paired with help text."""
+    pairs = [(c, "") for c in _parser_subcommands(parser)]
+    kids = [_subcommand_parser(parser, name) for name in _parser_subcommands(parser)]
+    return pairs + _merge_help(*[_words_with_help(k) for k in kids if k])
+
+
+def _zsh_compadd(pairs: list[tuple[str, str]]) -> str:
+    """A ``compadd -d`` block: words with a parallel description array."""
+    words = " ".join(word for word, _ in pairs)
+    quoted = " ".join("'" + tip.replace("'", "'\\''") + "'" for _, tip in pairs)
+    return f"local -a _d; _d=({quoted}); compadd -d _d -- {words}"
+
+
+def _fish_word_lines(condition: str, pairs: list[tuple[str, str]]) -> str:
+    """One ``complete`` line per word, each carrying its description."""
+    return "\n".join(
+        f'complete -c comic-dl -n "{condition}" -a "{w}\t{t}"'.replace("'", "'\\''")
+        for w, t in pairs
+    )
+
+
 def _subtree_words(parser: argparse.ArgumentParser) -> str:
     """Subcommand names plus every descendant flag, for completion candidates."""
     kids = [_subcommand_parser(parser, name) for name in _parser_subcommands(parser)]
@@ -90,6 +121,7 @@ def _completion_script(shell: str) -> str:
         _build_cache_parser,
         _build_config_parser,
         _build_cookie_parser,
+        _build_first_stage_parser,
         _build_list_sources_parser,
         _build_self_parser,
         _build_self_site_parser,
@@ -129,6 +161,22 @@ def _completion_script(shell: str) -> str:
         lib_flag_words.update(_parser_flags(_build_library_parser(cmd)))
     lib_flags = " ".join(sorted(lib_flag_words))
 
+    # (word, help) pairs for shells with a description channel.
+    first_parser = _build_first_stage_parser()
+    top_pairs = [(c, "") for c in _completion_commands()] + _words_with_help(first_parser)
+    update_pairs = _words_with_help(_build_update_parser())
+    self_update_pairs = _words_with_help(self_update) if self_update else []
+    site_sub_pairs = _merge_help(*[_words_with_help(k) for k in site_kids if k])
+    cookie_pairs = _subtree_pairs(cookie_parser)
+    cache_pairs = _subtree_pairs(cache_parser)
+    config_pairs = _subtree_pairs(config_parser)
+    sources_pairs = _words_with_help(_build_list_sources_parser())
+    lib_help: dict[str, str] = {}
+    for cmd in _LIBRARY_COMMANDS:
+        for word, tip in _words_with_help(_build_library_parser(cmd)):
+            lib_help.setdefault(word, tip)
+    lib_pairs = sorted(lib_help.items())
+
     if shell == "bash":
         return f"""# bash completion for comic-dl
 # Add to your shell:  source <(comic-dl completion bash)
@@ -166,21 +214,20 @@ _comic_dl_complete() {{
 complete -o default -F _comic_dl_complete comic-dl
 """
     if shell == "zsh":
+        fallback_pairs = lib_pairs + _words_with_help(first_parser)
         return f"""#compdef comic-dl
 # Add to your shell:  eval "$(comic-dl completion zsh)"
 _comic_dl() {{
-    local -a flags
-    flags=({flags})
     if (( CURRENT == 2 )); then
-        compadd -- {commands} ${{flags[@]}}
+        {_zsh_compadd(top_pairs)}
         return
     fi
     if [[ "${{words[2]}}" == "self" && CURRENT -ge 3 ]]; then
         case "${{words[3]}}" in
-            update) compadd -- {self_update_flags} ;;
+            update) {_zsh_compadd(self_update_pairs)} ;;
             site)
                 if (( CURRENT >= 5 )); then
-                    compadd -- {self_site_sub_flags}
+                    {_zsh_compadd(site_sub_pairs)}
                 else
                     compadd -- {self_site_flags}
                 fi ;;
@@ -189,41 +236,46 @@ _comic_dl() {{
         return
     fi
     case "${{words[2]}}" in
-        update) compadd -- {update_flags} ;;
+        update) {_zsh_compadd(update_pairs)} ;;
         self)   compadd -- {self_flags} ;;
-        cookie) compadd -- {cookie_flags} ;;
-        cache)  compadd -- {cache_flags} ;;
-        config) compadd -- {config_flags} ;;
+        cookie) {_zsh_compadd(cookie_pairs)} ;;
+        cache)  {_zsh_compadd(cache_pairs)} ;;
+        config) {_zsh_compadd(config_pairs)} ;;
         plugin) compadd -- list validate scaffold ;;
-        list-sources) compadd -- {sources_flags} ;;
+        list-sources) {_zsh_compadd(sources_pairs)} ;;
         help)   compadd -- {commands} ;;
-        *)      compadd -- {lib_flags} ${{flags[@]}} ;;
+        *)      {_zsh_compadd(fallback_pairs)} ;;
     esac
 }}
 compdef _comic_dl comic-dl
 """
     if shell == "fish":
         seen = "__fish_seen_subcommand_from"
-        return f"""# fish completion for comic-dl
-# Add to your shell:  comic-dl completion fish | source
-complete -c comic-dl -f
-complete -c comic-dl -n "__fish_use_subcommand" -a "{commands}"
-complete -c comic-dl -n "__fish_use_subcommand" -a "{flags}"
-complete -c comic-dl -n "{seen} update" -a "{update_flags}"
-complete -c comic-dl -n "{seen} self" -a "{self_flags}"
-complete -c comic-dl -n "{seen} self; and {seen} update" -a "{self_update_flags}"
-complete -c comic-dl -n "{seen} self; and {seen} site" -a "{self_site_flags}"
-complete -c comic-dl -n "{seen} self; and {seen} site; and {seen} list" -a "{self_site_sub_flags}"
-complete -c comic-dl -n "{seen} self; and {seen} site; and {seen} check" -a "{self_site_sub_flags}"
-complete -c comic-dl -n "{seen} self; and {seen} site; and {seen} update" -a "{self_site_sub_flags}"
-complete -c comic-dl -n "{seen} cookie" -a "{cookie_flags}"
-complete -c comic-dl -n "__fish_seen_subcommand_from cache" -a "{cache_flags}"
-complete -c comic-dl -n "__fish_seen_subcommand_from config" -a "{config_flags}"
-complete -c comic-dl -n "__fish_seen_subcommand_from plugin" -a "list validate scaffold"
-complete -c comic-dl -n "__fish_seen_subcommand_from list-sources" -a "{sources_flags}"
-complete -c comic-dl -n "__fish_seen_subcommand_from help" -a "{commands}"
-complete -c comic-dl -n "not __fish_use_subcommand" -a "{lib_flags}"
-"""
+        lines = [
+            "complete -c comic-dl -f",
+            _fish_word_lines("__fish_use_subcommand", top_pairs),
+            _fish_word_lines(f"{seen} update", update_pairs),
+            f'complete -c comic-dl -n "{seen} self" -a "{self_flags}"',
+            _fish_word_lines(f"{seen} self; and {seen} update", self_update_pairs),
+            f'complete -c comic-dl -n "{seen} self; and {seen} site" -a "{self_site_flags}"',
+        ]
+        for sub in self_site_flags.split():
+            lines.append(
+                _fish_word_lines(f"{seen} self; and {seen} site; and {seen} {sub}", site_sub_pairs)
+            )
+        lines += [
+            _fish_word_lines(f"{seen} cookie", cookie_pairs),
+            _fish_word_lines(f"{seen} cache", cache_pairs),
+            _fish_word_lines(f"{seen} config", config_pairs),
+            f'complete -c comic-dl -n "{seen} plugin" -a "list validate scaffold"',
+            _fish_word_lines(f"{seen} list-sources", sources_pairs),
+            f'complete -c comic-dl -n "{seen} help" -a "{commands}"',
+            _fish_word_lines("not __fish_use_subcommand", lib_pairs),
+        ]
+        return (
+            "# fish completion for comic-dl\n"
+            "# Add to your shell:  comic-dl completion fish | source\n" + "\n".join(lines) + "\n"
+        )
     if shell == "powershell":
         return _powershell_script()
     raise ValueError(f"unsupported shell: {shell!r} (expected bash, zsh, fish, or powershell)")

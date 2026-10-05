@@ -41,7 +41,7 @@ const brandFor: Record<string, 'windows' | 'debian' | 'fedora' | 'archlinux' | '
         data-tab-button={t.value}
         class="tabs-tab"
         tabindex={i === 0 ? 0 : -1}
-      >{brandFor[t.value] ? <BrandIcon name={brandFor[t.value]!} size={14} /> : t.value === 'source' ? <Terminal size={14} aria-hidden="true" /> : null}{t.label}</button>
+      >{brandFor[t.value] ? <BrandIcon name={brandFor[t.value]!} size={14} /> : t.value === 'source' || t.value === 'powershell' ? <Terminal size={14} aria-hidden="true" /> : null}{t.label}</button>
     ))}
   </div>
   <div data-tab-panels>

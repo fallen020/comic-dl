@@ -265,9 +265,9 @@ $ sha256sum -c SHA256SUMS --ignore-missing
 
 ## Shell completions
 
-Completions exist for bash, zsh, and fish. Binary installs put `comic-dl` on `PATH`; from a source checkout, prefix with `uv run`:
+Completions exist for bash, zsh, fish, and PowerShell. Binary installs put `comic-dl` on `PATH`; from a source checkout, prefix with `uv run`:
 
-<Tabs idPrefix="sh" label="Shell" tabs={[{ label: 'bash', value: 'bash' }, { label: 'zsh', value: 'zsh' }, { label: 'fish', value: 'fish' }]}>
+<Tabs idPrefix="sh" label="Shell" tabs={[{ label: 'bash', value: 'bash' }, { label: 'zsh', value: 'zsh' }, { label: 'fish', value: 'fish' }, { label: 'PowerShell', value: 'powershell' }]}>
 
 <div data-panel="bash" role="tabpanel" id="panel-sh-bash" aria-labelledby="sh-bash">
 
@@ -311,9 +311,23 @@ $ uv run comic-dl completion fish | source
 
 </div>
 
+<div data-panel="powershell" role="tabpanel" id="panel-sh-powershell" aria-labelledby="sh-powershell">
+
+```powershell
+# binary install
+> comic-dl completion powershell | Out-String | Invoke-Expression
+```
+
+```powershell
+# source checkout
+> uv run comic-dl completion powershell | Out-String | Invoke-Expression
+```
+
+</div>
+
 </Tabs>
 
-To load completions on every new shell, write the command to your shell's startup file — `~/.bashrc`, `~/.zshrc`, or `~/.config/fish/config.fish`.
+To load completions on every new shell, add the command to your shell startup file: `~/.bashrc`, `~/.zshrc`, `~/.config/fish/config.fish`, or `$PROFILE` for PowerShell.
 
 ## Update
 

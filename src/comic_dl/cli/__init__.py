@@ -4781,7 +4781,9 @@ def _run_completion(argv: list[str]) -> int:
         parser.print_help()
         return EXIT_USAGE
     try:
-        console.print(_completion_script(args.shell), end="", soft_wrap=True)
+        # Machine-consumed output: write bytes exactly (Rich would expand
+        # the tabs fish uses between candidates and descriptions).
+        sys.stdout.write(_completion_script(args.shell))
     except ValueError as exc:
         print_error(str(exc))
         return EXIT_USAGE
