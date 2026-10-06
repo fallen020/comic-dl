@@ -86,6 +86,19 @@ def _derive_series_title(url: str, chapter_title: str) -> str:
     return f"{series} - {artist}"
 
 
+def _title_parts(page_title: str, idx: dict[str, list[str]]) -> list[str]:
+    """Split a ``" - "``-joined page title, dropping the trailing site name."""
+    parts = [p.strip() for p in page_title.split(" - ") if p.strip()]
+    if not parts:
+        return parts
+    site_name = meta_get(idx, "og:site_name")
+    if site_name and parts[-1] == site_name:
+        return parts[:-1]
+    if parts[-1].lower().startswith(DOMAIN.replace(".com", "").lower()):
+        return parts[:-1]
+    return parts
+
+
 def is_series_url(url: str) -> bool:
     """True when ``url`` points at a series page for this source."""
     return bool(_SERIES_PATH_RE.match(url))
@@ -164,15 +177,7 @@ def _extract_meta(soup: BeautifulSoup, idx: dict[str, list[str]] | None = None) 
     if not page_title:
         page_title = meta_get(idx, "og:title")
 
-    site_name = meta_get(idx, "og:site_name")
-
-    parts = [p.strip() for p in page_title.split(" - ") if p.strip()]
-    if site_name and parts and parts[-1] == site_name:
-        parts = parts[:-1]
-    else:
-        domain_lower = DOMAIN.replace(".com", "").lower()
-        if parts and parts[-1].lower().startswith(domain_lower):
-            parts = parts[:-1]
+    parts = _title_parts(page_title, idx)
 
     if len(parts) >= 2:
         chapter_title = parts[0]
@@ -239,9 +244,7 @@ def _extract_cover(soup: BeautifulSoup, idx: dict[str, list[str]] | None = None)
 
 def _extract_chapter_number(title: str) -> str | None:
     m = _CHAPTER_NUMBER_RE.search(title)
-    if m:
-        return m.group(1)
-    return None
+    return m.group(1) if m else None
 
 
 # Chapter links are the taxonomy grid's ``h4`` title anchors. The theme's
@@ -274,13 +277,9 @@ def _extract_post_id(soup: BeautifulSoup, raw_html: str | None = None) -> str:
         m = _POSTID_CLASS_RE.search(" ".join(body.get("class") or []))
         if m:
             return m.group(1)
-    if raw_html is not None:
-        m = _POST_ID_ATTR_RE.search(raw_html)
-        return m.group(1) if m else ""
-    m = _POST_ID_ATTR_RE.search(str(soup))
-    if m:
-        return m.group(1)
-    return ""
+    html = raw_html if raw_html is not None else str(soup)
+    m = _POST_ID_ATTR_RE.search(html)
+    return m.group(1) if m else ""
 
 
 def _extract_artists(soup: BeautifulSoup, idx: dict[str, list[str]] | None = None) -> list[str]:
@@ -293,14 +292,7 @@ def _extract_artists(soup: BeautifulSoup, idx: dict[str, list[str]] | None = Non
     if not page_title:
         return []
 
-    parts = [p.strip() for p in page_title.split(" - ") if p.strip()]
-    site_name = meta_get(idx, "og:site_name")
-    if site_name and parts and parts[-1] == site_name:
-        parts = parts[:-1]
-    else:
-        domain_lower = DOMAIN.replace(".com", "").lower()
-        if parts and parts[-1].lower().startswith(domain_lower):
-            parts = parts[:-1]
+    parts = _title_parts(page_title, idx)
     if len(parts) >= 2:
         return [parts[1]]
     return []
@@ -404,7 +396,7 @@ class FsicomixScraper(BaseScraper):
     domain = DOMAIN
     name = "fsicomics"
     site_id = "fsicomics"
-    version = "1.0.3"
+    version = "1.0.4"
     test_url = "https://fsicomics.com/taming-the-beast-chapter-5-kizaru3d/"
     test_url_kind = "chapter"
     minimum_core_version = "0.0.2"
@@ -444,15 +436,14 @@ class FsicomixScraper(BaseScraper):
         genres = _extract_genres(soup, idx)
         publisher = _extract_publisher(soup, idx)
 
+        title_tag = soup.select_one("title")
+        full_title = unescape(title_tag.get_text(strip=True)) if title_tag else ""
         if not chapter_title:
-            title_tag = soup.select_one("title")
-            chapter_title = unescape(title_tag.get_text(strip=True)) if title_tag else ""
+            chapter_title = full_title
 
-        chapter_number = _extract_chapter_number(chapter_title)
-        if not chapter_number:
-            page_title = soup.select_one("title")
-            if page_title:
-                chapter_number = _extract_chapter_number(unescape(page_title.get_text(strip=True)))
+        chapter_number = _extract_chapter_number(chapter_title) or _extract_chapter_number(
+            full_title
+        )
         if chapter_number and not chapter_title.startswith("Chapter"):
             chapter_title = f"Chapter {chapter_number}"
 
@@ -496,7 +487,7 @@ class FsicomixScraper(BaseScraper):
 
         title_tag = soup.select_one("title")
         page_title = title_tag.get_text(strip=True) if title_tag else ""
-        parts = [p.strip() for p in page_title.split(" - ") if p.strip()]
+        parts = _title_parts(page_title, idx)
         series_title = parts[0] if parts else ""
 
         description = _extract_description(soup, idx)
