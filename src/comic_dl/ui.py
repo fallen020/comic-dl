@@ -242,14 +242,14 @@ def stage_line(text: str) -> None:
 
 
 def trace(message: str) -> None:
-    """Emit a tagless workflow-internal line at ``-vvv`` (TRACE).
+    """Emit a workflow-internal line at ``-vvv`` (TRACE), tagged ``[trace]``.
 
     Where ``-vv`` shows *what* happened at the network level, these lines
     show how the pipeline *works* — routing, index decisions, retries,
     resume, archiving. Values are always safe to display (URLs passed
     through :func:`redact_url`, no cookie/token content).
     """
-    vlog(TRACE, message)
+    vlog(TRACE, message, tag="trace")
 
 
 _REDACT_HEADERS = frozenset(
@@ -3518,7 +3518,7 @@ def print_help(parser: argparse.ArgumentParser | None = None) -> None:
     table.row("1 -v", "", "more context (source, paths, options, stats, stages)")
     table.row("2 -vv", "", "diagnostics (page/cover requests + timing, retries)")
     table.row("3 -vvv", "", "full trace (response headers per request, tracebacks)")
-    table.row("env", "", "COMIC_DL_TRACE_HTTP=1 always shows response headers")
+    table.row("env", "", "COMIC_DL_TRACE_HTTP=1 shows page headers at -vv (images need -vvv)")
     table.print()
     console.print()
 

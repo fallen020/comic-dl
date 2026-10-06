@@ -160,7 +160,7 @@ which is read as bytes.
 | `--debug-file` | | | Divert the `-vvv` trace to a file instead of the screen |
 | `--show-legal-notice` | | | Re-show the first-run legal notice, then continue |
 
-`COMIC_DL_TRACE_HTTP=1` shows response headers even below `-vvv`.
+`COMIC_DL_TRACE_HTTP=1` shows page-request headers at `-vv` (images still need `-vvv`).
 
 ### Config
 
