@@ -130,6 +130,18 @@ class TestPrintRetry:
         assert "[retry] Retrying (2/3) after HTTP 429" in err
         assert "Retrying (2/3)..." not in err
 
+    def test_one_liner_when_debug_file_diverts_detail(self, capsys, tmp_path):
+        path = tmp_path / "dbg.log"
+        set_verbosity(TRACE)
+        set_debug_file(str(path))
+        try:
+            print_retry(2, 3, reason="HTTP 429")
+        finally:
+            set_debug_file(None)
+        err = capsys.readouterr().err
+        assert "Retrying (2/3)..." in err
+        assert "[retry] Retrying (2/3) after HTTP 429" in path.read_text()
+
 
 class TestHttpEvent:
     @pytest.fixture(autouse=True)

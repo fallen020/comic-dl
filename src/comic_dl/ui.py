@@ -1195,10 +1195,12 @@ def print_dim(message: str, *, console_obj: Console | None = None) -> None:
 def print_retry(attempt: int, total: int, *, reason: str = "") -> None:
     """Print a retry notice with attempt counters and an optional reason.
 
-    Below ``-vv`` only a dim one-liner shows, so a backoff run never looks
-    hung; the attempt/reason detail stays a ``-vv`` diagnostic.
+    A dim one-liner shows whenever the ``-vv`` detail cannot reach the
+    screen (below ``-vv``, or when ``--debug-file`` diverts it), so a
+    backoff run never looks hung. The attempt/reason detail stays a
+    ``-vv`` diagnostic.
     """
-    if VERBOSITY < DIAGNOSTIC:
+    if VERBOSITY < DIAGNOSTIC or _DEBUG_FILE is not None:
         print_dim(f"Retrying ({attempt}/{total})...")
     msg = f"Retrying ({attempt}/{total})"
     if reason:
