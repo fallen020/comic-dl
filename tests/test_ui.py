@@ -42,6 +42,7 @@ from comic_dl.ui import (
     print_failure_recap,
     print_header,
     print_meta,
+    print_retry,
     print_skipped,
     print_success,
     print_summary,
@@ -98,6 +99,28 @@ class TestVerbosity:
         captured = capsys.readouterr()
         assert "trace line" in captured.err
         assert "trace line" not in captured.out
+
+
+class TestPrintRetry:
+    @pytest.fixture(autouse=True)
+    def _reset(self):
+        set_verbosity(0)
+        yield
+        set_verbosity(0)
+
+    def test_dim_line_below_vv(self, capsys):
+        set_verbosity(NORMAL)
+        print_retry(2, 3, reason="HTTP 429")
+        err = capsys.readouterr().err
+        assert "Retrying (2/3)..." in err
+        assert "HTTP 429" not in err
+
+    def test_detail_only_at_vv(self, capsys):
+        set_verbosity(DIAGNOSTIC)
+        print_retry(2, 3, reason="HTTP 429")
+        err = capsys.readouterr().err
+        assert "[retry] Retrying (2/3) after HTTP 429" in err
+        assert "Retrying (2/3)..." not in err
 
 
 class TestHttpEvent:
