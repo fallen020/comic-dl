@@ -205,7 +205,6 @@ from ..ui import (
     suggest,
     teardown_active,
     trace,
-    verbosity,
     vlog,
 )
 from ..utils import (
@@ -1194,8 +1193,7 @@ def parse_urls() -> tuple[list[str], argparse.Namespace]:
     _apply_config(args)
     args.urls_from_file = bool(args.file)
 
-    if verbosity() > NORMAL:
-        print_dim(f"Config file: {config_path()}")
+    vlog(VERBOSE, f"Config file: {config_path()}", tag=TAG_CONTEXT)
 
     if (
         not args.quiet
