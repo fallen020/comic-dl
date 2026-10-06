@@ -215,6 +215,60 @@ class TestProcessUrl:
         assert scrapers == [fake]
 
     @pytest.mark.asyncio
+    async def test_source_attribution_printed_once(self, monkeypatch, tmp_path, capsys):
+        """-v carries exactly one attribution line per URL: ``Source:`` for a
+        claimed domain, the generic-extraction notice for the fallback."""
+        from comic_dl import ui
+
+        monkeypatch.setattr(ui, "VERBOSITY", ui.VERBOSE)
+
+        class KnownScraper:
+            async def scrape(self, url, client):
+                return PostMetadata(
+                    series_title="Known",
+                    chapter_title="Ch",
+                    images=[ImageItem(url=IMAGE_URL, page_number=1, filename="01.jpg")],
+                    total_pages=1,
+                )
+
+        _patch_chapter_scraper(monkeypatch, {"e-hentai.org": KnownScraper()})
+
+        async def fake_download(images, dest_dir, *a, **kw):
+            dest_dir.mkdir(parents=True, exist_ok=True)
+            for img in images:
+                (dest_dir / img.filename).write_bytes(VALID_JPEG)
+            return set()
+
+        monkeypatch.setattr("comic_dl.downloader.download_httpx", fake_download)
+
+        await cli.process_url(
+            url="https://e-hentai.org/g/1/abc/",
+            output_dir=Path(tmp_path),
+            concurrency=1,
+            force=False,
+            quiet=True,
+        )
+        site = capsys.readouterr()
+        site_text = site.out + site.err
+        assert site_text.count("Source: e-hentai.org") == 1
+        assert "Using generic extraction" not in site_text
+
+        _patch_generic(monkeypatch, _FakeGeneric(None))
+        _patch_chapter_scraper(monkeypatch, {})
+        status, _ = await cli.process_url(
+            url=GALLERY_URL,
+            output_dir=Path(tmp_path),
+            concurrency=1,
+            force=False,
+            quiet=True,
+        )
+        generic = capsys.readouterr()
+        generic_text = generic.out + generic.err
+        assert status == "failed"
+        assert "Source:" not in generic_text
+        assert generic_text.count("Using generic extraction") == 1
+
+    @pytest.mark.asyncio
     async def test_plugin_series_url_routes_via_matches_series_url(self, monkeypatch, tmp_path):
         """A plugin domain without a static checker still reaches series mode."""
 

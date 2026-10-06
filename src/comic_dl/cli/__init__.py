@@ -1725,7 +1725,6 @@ async def process_url(
         return "failed", ""
 
     domain = _extract_domain(url)
-    vlog(VERBOSE, f"Source: {domain}", tag=TAG_CONTEXT)
     trace(f"dispatch: host → {domain or '<none>'}")
 
     series_scraper = get_series_scraper(domain)
@@ -1735,6 +1734,7 @@ async def process_url(
     series_check = _series_url_checker(domain, series_scraper)
     if series_check is not None and series_check(url):
         trace(f"dispatch: {domain} → series mode ({type(series_scraper).__name__})")
+        vlog(VERBOSE, f"Source: {domain}", tag=TAG_CONTEXT)
         ok = await _process_series(
             scraper=series_scraper,
             url=url,
@@ -1767,6 +1767,8 @@ async def process_url(
             url = guard.normalize(url)
 
     scraper = get_chapter_scraper(domain)
+    if scraper is not None:
+        vlog(VERBOSE, f"Source: {domain}", tag=TAG_CONTEXT)
     if not scraper and generic_enabled():
         generic = get_generic_scraper()
         if generic is not None:
@@ -2258,7 +2260,6 @@ async def _process_series(
                 )
                 total_chapters = len(chapters)
                 domain = _extract_domain(url)
-                vlog(VERBOSE, f"Source: {domain}", tag=TAG_CONTEXT)
                 vlog(DIAGNOSTIC, f"found {total_chapters} chapters", tag=TAG_SCRAPE)
 
                 title_no = getattr(series_info, "title_no", "") or ""
@@ -4016,6 +4017,8 @@ async def _run_update(argv: list[str]) -> int:
                 source = normalize_url(source)
                 domain = _extract_domain(source)
                 scraper = get_series_scraper(domain)
+                if scraper is not None:
+                    vlog(VERBOSE, f"Source: {domain}", tag=TAG_CONTEXT)
                 if scraper is None and generic_enabled():
                     generic = get_generic_scraper()
                     if generic is not None:
