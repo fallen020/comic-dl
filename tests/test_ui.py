@@ -93,6 +93,14 @@ class TestVerbosity:
         err = capsys.readouterr().err
         assert "[http] GET 200 https://x" in err
 
+    def test_context_tag_renders(self, capsys):
+        from comic_dl.ui import DIAGNOSTIC_TAGS, TAG_CONTEXT
+
+        assert TAG_CONTEXT in DIAGNOSTIC_TAGS
+        set_verbosity(VERBOSE)
+        vlog(VERBOSE, "Source: example.com", tag=TAG_CONTEXT)
+        assert "[context] Source: example.com" in capsys.readouterr().err
+
     def test_vlog_goes_to_stderr(self, capsys):
         set_verbosity(TRACE)
         vlog(TRACE, "trace line")

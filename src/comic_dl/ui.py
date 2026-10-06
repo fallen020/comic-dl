@@ -87,6 +87,7 @@ TAG_RETRY = "retry"
 TAG_SCRAPE = "scrape"
 TAG_TIMING = "timing"
 TAG_DOWNLOAD = "download"
+TAG_CONTEXT = "context"
 TAG_WARNING = "warning"
 TAG_ERROR = "error"
 TAG_TRACE = "trace"
@@ -97,6 +98,7 @@ DIAGNOSTIC_TAGS = (
     TAG_SCRAPE,
     TAG_TIMING,
     TAG_DOWNLOAD,
+    TAG_CONTEXT,
     TAG_WARNING,
     TAG_ERROR,
     TAG_TRACE,
@@ -108,6 +110,7 @@ _TAG_STYLES = {
     TAG_SCRAPE: "magenta",
     TAG_TIMING: "blue",
     TAG_DOWNLOAD: "green",
+    TAG_CONTEXT: "bright_cyan",
     TAG_WARNING: "yellow",
     TAG_ERROR: "red",
     TAG_TRACE: "bright_magenta",

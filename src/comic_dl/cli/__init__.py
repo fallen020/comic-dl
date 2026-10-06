@@ -150,6 +150,7 @@ from ..ui import (
     JSON_SCHEMA_VERSION,
     MUTED,
     NORMAL,
+    TAG_CONTEXT,
     TAG_DOWNLOAD,
     TAG_SCRAPE,
     TAG_TIMING,
@@ -1724,7 +1725,7 @@ async def process_url(
         return "failed", ""
 
     domain = _extract_domain(url)
-    vlog(VERBOSE, f"Source: {domain}")
+    vlog(VERBOSE, f"Source: {domain}", tag=TAG_CONTEXT)
     trace(f"dispatch: host → {domain or '<none>'}")
 
     series_scraper = get_series_scraper(domain)
@@ -1932,7 +1933,7 @@ async def process_url(
 
         series_dir = ensure_unique_dir(output_dir, meta.series_title)
         _ensure_nomedia(output_dir)
-        vlog(VERBOSE, f"Output: {series_dir}")
+        vlog(VERBOSE, f"Output: {series_dir}", tag=TAG_CONTEXT)
         if meta.cover_url:
             await download_cover_to(
                 meta.cover_url,
@@ -2257,7 +2258,7 @@ async def _process_series(
                 )
                 total_chapters = len(chapters)
                 domain = _extract_domain(url)
-                vlog(VERBOSE, f"Source: {domain}")
+                vlog(VERBOSE, f"Source: {domain}", tag=TAG_CONTEXT)
                 vlog(DIAGNOSTIC, f"found {total_chapters} chapters", tag=TAG_SCRAPE)
 
                 title_no = getattr(series_info, "title_no", "") or ""
@@ -2384,7 +2385,7 @@ async def _process_series(
 
                 series_dir = ensure_unique_dir(output_dir, series_title)
                 _ensure_nomedia(output_dir)
-                vlog(VERBOSE, f"Output: {series_dir}")
+                vlog(VERBOSE, f"Output: {series_dir}", tag=TAG_CONTEXT)
                 if cover_url:
                     await download_cover_to(
                         cover_url,
@@ -3360,6 +3361,7 @@ async def _run_urls(urls: list[str], args: argparse.Namespace) -> int:
         f"Options: concurrency={args.concurrency}, max-size={format_option_size(args.max_size)}, "
         f"max-image-size={format_option_size(args.max_image_size)}, "
         f"chapters={args.chapters or 'all'}",
+        tag=TAG_CONTEXT,
     )
 
     index: dict[str, Path] = {}
@@ -3368,6 +3370,7 @@ async def _run_urls(urls: list[str], args: argparse.Namespace) -> int:
         vlog(
             VERBOSE,
             f"index: {len(index)} already-downloaded item(s) in {args.output}",
+            tag=TAG_CONTEXT,
         )
 
     if not await check_connectivity():

@@ -150,7 +150,7 @@ Control diagnostic output with `-v` flags:
 | 2 | `-vv` | Page/cover requests with timing, retries, size estimates |
 | 3 | `-vvv` | Every image request, response headers, workflow trace, tracebacks |
 
-Diagnostic lines go to stderr with tagged prefixes (`[http]`, `[retry]`, `[scrape]`, `[timing]`, `[download]`, `[trace]`).
+Diagnostic lines go to stderr with tagged prefixes (`[http]`, `[retry]`, `[scrape]`, `[timing]`, `[download]`, `[trace]`, `[context]`).
 
 Set `COMIC_DL_TRACE_HTTP=1` to surface page-request response headers at `-vv` without needing `-vvv` (image headers still need `-vvv`).
 
