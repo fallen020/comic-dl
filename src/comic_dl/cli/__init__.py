@@ -4943,6 +4943,8 @@ async def main() -> int:
     """CLI entry point: parse argv, dispatch to the right command, return exit code."""
     flags = _scan_global_flags(sys.argv[1:])
     set_verbosity(flags.verbosity)
+    if flags.verbosity > TRACE:
+        print_dim("Verbosity clamped to -vvv.")
     set_json_mode(flags.json)
     set_debug_file(flags.debug_file)
     set_config_path(flags.config_path)
@@ -4986,6 +4988,27 @@ async def main() -> int:
             command = raw_command
             if command.startswith("--"):
                 command = command[2:]
+            if (
+                flags.verbosity > NORMAL
+                and command != "update"
+                and command
+                in (
+                    "self",
+                    "help",
+                    "config",
+                    "plugin",
+                    "completion",
+                    "list-sources",
+                    "cookie",
+                    "cache",
+                    "info",
+                    "latest",
+                    "list",
+                    "remove",
+                    "restore",
+                )
+            ):
+                print_dim("Verbosity only affects download runs.")
             if command == "update":
                 return await _run_update(argv[1:])
             if command == "self":
