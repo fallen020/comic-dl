@@ -185,10 +185,11 @@ def set_debug_file(path: str | None) -> None:
     except OSError as exc:
         print_error(f"Could not open debug file: {path} ({exc})")
         return
-    _DEBUG_FILE = handle
     set_verbosity(TRACE)
-    atexit.register(_close_debug_file)
+    # Notice before the route installs: vlog would divert it into the file.
     trace(f"debug log → {path}")
+    _DEBUG_FILE = handle
+    atexit.register(_close_debug_file)
 
 
 def flush_debug_file() -> None:

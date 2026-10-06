@@ -2500,6 +2500,14 @@ class TestDebugFile:
         if os.name != "nt":
             assert S_IMODE(os.stat(path).st_mode) & 0o077 == 0
 
+    def test_notice_reaches_screen_not_file(self, capsys, tmp_path):
+        path = str(tmp_path / "trace.log")
+        set_debug_file(path)
+        set_debug_file(None)
+        err = capsys.readouterr().err
+        assert f"debug log → {path}" in err.replace("\n", "")
+        assert "debug log" not in (tmp_path / "trace.log").read_text()
+
 
 class TestSinkDurability:
     """_RowSink result lines must coordinate with the Live region: the
