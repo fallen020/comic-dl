@@ -30,6 +30,7 @@ from comic_dl.ui import (
     _decode_key,
     _format_remaining,
     _http_trace_enabled,
+    _preview_number,
     _redact_text,
     checkbox_prompt,
     http_event,
@@ -1326,6 +1327,39 @@ class TestPrintChapterPreview:
         print_chapter_preview([], 0, "")
         captured = capsys.readouterr()
         assert captured.out == "" and captured.err == ""
+
+    def test_dup_number_blanked(self):
+        assert _preview_number(0, "1 . Astrid - Chapter 1") == ""
+        assert _preview_number(1, "2 - Chapter 2") == ""
+        assert _preview_number(2, "3: Chapter 3") == ""
+
+    def test_mismatched_number_kept(self):
+        assert _preview_number(0, "2 . Astrid - Chapter 2") == "1"
+        assert _preview_number(0, "2024 year in review") == "1"
+        assert _preview_number(0, "1st anniversary special") == "1"
+        assert _preview_number(0, "Chapter One") == "1"
+        assert _preview_number(0, "") == "1"
+
+    def test_all_new_header_has_no_total_parens(self, capsys):
+        chapters = [
+            {"title": "1 . Ch 1", "episode_no": "1", "url": "https://x/1"},
+            {"title": "2 . Ch 2", "episode_no": "2", "url": "https://x/2"},
+        ]
+        print_chapter_preview(chapters, 2, "S", have_urls=set())
+        captured = capsys.readouterr()
+        assert "2 new" in captured.err
+        assert "(2 chapters)" not in captured.err
+
+    def test_mixed_header_keeps_total(self, capsys):
+        chapters = [
+            {"title": "Ch 1", "episode_no": "1", "url": "https://x/1"},
+            {"title": "Ch 2", "episode_no": "2", "url": "https://x/2"},
+        ]
+        print_chapter_preview(chapters, 2, "S", have_urls={"https://x/1"})
+        captured = capsys.readouterr()
+        assert "(2 chapters)" in captured.err
+        assert "1 downloaded" in captured.err
+        assert "1 new" in captured.err
 
 
 class TestPrintFailureRecap:

@@ -1271,7 +1271,7 @@ def parse_urls() -> tuple[list[str], argparse.Namespace]:
             print_dim("Give a URL with -u/--url, or a URL list file with -f/--file.")
             sys.exit(EXIT_USAGE)
         try:
-            raw = Prompt.ask("[bold]Enter a gallery URL or URL list file[/]")
+            raw = Prompt.ask("[bold]Enter a comic URL or URL list file[/]")
         except EOFError:
             err_console.print()
             sys.exit(EXIT_INTERRUPTED)
@@ -3620,7 +3620,7 @@ async def _run_urls(urls: list[str], args: argparse.Namespace) -> int:
             # block, so a clean single-URL download must too (the pipeline's
             # "Saved:" line is suppressed in this flow).
             done = ordered_results.get(0) or {}
-            if done.get("status") == "success":
+            if done.get("status") == "success" and not os.path.isdir(done.get("output_path") or ""):
                 out = done.get("output_path") or ""
                 name = Path(out).name if out else "archive"
                 where = f" {glyphs().dash} {args.output}" if args.output else ""

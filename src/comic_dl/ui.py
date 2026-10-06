@@ -2895,6 +2895,16 @@ class Activity:
         printer(message)
 
 
+_PREVIEW_DUP_NUMBER_RE = re.compile("^(\\d+)\\s*[.\\-\u2013:]")
+
+
+def _preview_number(index: int, raw_label: object) -> str:
+    """Row number for the preview table, blank when the title leads with it."""
+    num = str(index + 1)
+    m = _PREVIEW_DUP_NUMBER_RE.match(str(raw_label))
+    return "" if (m and m.group(1) == num) else num
+
+
 def print_chapter_preview(
     chapters: list[dict],
     total: int,
@@ -2922,9 +2932,9 @@ def print_chapter_preview(
     _console = err_console if JSON_MODE else _active_console()
     _console.print()
     chapters_word = "chapter" if total == 1 else "chapters"
-    header = (
-        f"  [bold]Series:[/] [white]{esc(series_title)}[/]  [{MUTED}]({total} {chapters_word})[/]"
-    )
+    header = f"  [bold]Series:[/] [white]{esc(series_title)}[/]"
+    if not marks_enabled or have_count:
+        header += f"  [{MUTED}]({total} {chapters_word})[/]"
     if marks_enabled:
         if have_count:
             header += f"  [bold {SUCCESS}]{have_count} downloaded[/] [{MUTED}]{glyphs().bullet}[/]"
@@ -2936,30 +2946,32 @@ def print_chapter_preview(
         _console.print()
         return
 
-    table = Table(show_header=False, box=None, padding=(0, 2))
+    table = Table(show_header=False, box=None, padding=(0, 2), pad_edge=False)
     if marks_enabled:
-        table.add_column("", style=MUTED, width=4)
-    table.add_column("#", style=MUTED, width=4)
-    table.add_column("Title", style="white")
+        table.add_column("", style=MUTED, width=5)
+    table.add_column("", style=MUTED, width=4)
+    table.add_column("", style="white")
 
     shown = list(range(n)) if n <= 6 else [0, 1, 2, n - 3, n - 2, n - 1]
     prev = -1
     for i in shown:
         if prev >= 0 and i > prev + 1:
             row = (
-                [glyphs().ellipsis, glyphs().ellipsis, glyphs().ellipsis]
+                ["  " + glyphs().ellipsis, glyphs().ellipsis, glyphs().ellipsis]
                 if marks_enabled
-                else [glyphs().ellipsis, glyphs().ellipsis]
+                else ["  " + glyphs().ellipsis, glyphs().ellipsis]
             )
             table.add_row(*row, style=MUTED)
         ep = chapters[i]
-        label = esc(ep.get("title") or ep.get("episode_no", ""))
+        raw_label = ep.get("title") or ep.get("episode_no", "")
+        label = esc(raw_label)
+        number = _preview_number(i, raw_label)
         if marks_enabled:
             mark = glyphs().ok if normalize_url_key(ep.get("url") or "") in have_urls else "new"
             mark_style = SUCCESS if mark == glyphs().ok else INFO
-            table.add_row(f"[{mark_style}]{mark}[/]", str(i + 1), label)
+            table.add_row(f"  [{mark_style}]{mark}[/]", number, label)
         else:
-            table.add_row(str(i + 1), label)
+            table.add_row(f"  {number}", label)
         prev = i
     _console.print(table)
     _console.print()
