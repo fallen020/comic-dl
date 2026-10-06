@@ -54,28 +54,28 @@
    every pair the UI uses is enforced by scripts/check-contrast.mjs. */
 :root {
   --surface: light-dark(#fefdfc, #0f0d0c);
-  --surface-1: light-dark(#f9f7f6, #171414);
-  --surface-2: light-dark(#f2efed, #1e1b1a);
-  --surface-3: light-dark(#e8e5e3, #262322);
-  --line: light-dark(#d9d5d2, #312d2c);
-  --line-strong: light-dark(#95918f, #676260);
+  --surface-1: light-dark(#f6f1ec, #171414);
+  --surface-2: light-dark(#ece4de, #1e1b1a);
+  --surface-3: light-dark(#e2d9d2, #262322);
+  --line: light-dark(#cbc2bb, #312d2c);
+  --line-strong: light-dark(#847c79, #676260);
   --fg: light-dark(#27211f, #f1f0ef);
-  --fg-secondary: light-dark(#595452, #b9b5b3);
-  --fg-muted: light-dark(#696361, #948f8e);
+  --fg-secondary: light-dark(#4e4845, #b9b5b3);
+  --fg-muted: light-dark(#655e59, #948f8e);
   --accent: light-dark(#cb2d26, #f25a47);
   --accent-hover: light-dark(#b91415, #fd7562);
   --accent-active: light-dark(#ab0e11, #da4433);
   --accent-text: light-dark(#b71a18, #fc937f);
-  --accent-subtle: light-dark(#ffe6e2, #321a16);
-  --accent-muted: light-dark(#f6cfca, #46201a);
+  --accent-subtle: light-dark(#ffd8ce, #321a16);
+  --accent-muted: light-dark(#f0c6bc, #46201a);
   --on-accent: light-dark(#fefdfc, #0f0d0c);
   --focus: light-dark(#b71a18, #fd7562);
   --note: light-dark(#1467c2, #7dbbfb);
-  --note-bg: light-dark(#e8e8ef, #0f2840);
-  --warn: light-dark(#895b16, #e4b750);
-  --warn-bg: light-dark(#ece7e5, #372709);
-  --tip: light-dark(#067132, #60c781);
-  --tip-bg: light-dark(#e8e8e5, #142d1b);
+  --note-bg: light-dark(#e2e9f5, #0f2840);
+  --warn: light-dark(#75520f, #e4b750);
+  --warn-bg: light-dark(#eee0c0, #372709);
+  --tip: light-dark(#05682e, #60c781);
+  --tip-bg: light-dark(#d3ead8, #142d1b);
   /* Light mode is paper, not white: a warmer neutral reads calmer under long
      reading, so its shadow ink is a dilute brown at low alpha rather than the
      near-opaque black that reads as a smudge on paper. */
@@ -256,9 +256,20 @@ html[data-theme="dark"] .theme-toggle__icon--moon {
 .nav-link:focus-visible {
   color: var(--fg);
 }
-.nav-link:hover::after,
 .nav-link:focus-visible::after {
   transform: scaleX(1);
+}
+@media (hover: hover) and (pointer: fine) {
+  .card-link:hover { transform: translateY(-2px); }
+  .nav-link:hover::after { transform: scaleX(1); }
+  .codeblock:hover .codeblock-header { filter: brightness(1.05); }
+}
+@media (prefers-reduced-transparency: reduce) {
+  header { background-color: var(--surface); backdrop-filter: none; }
+  [data-sidebar-drawer]::backdrop,
+  dialog[data-search-modal]::backdrop { background-color: rgb(0 0 0 / 85%); }
+  .codeblock pre.astro-code::after,
+  .codeblock pre.shiki::after { display: none; }
 }
 
 /* ---- Shared primitives ---- */
@@ -280,7 +291,6 @@ html[data-theme="dark"] .theme-toggle__icon--moon {
 .card-link:hover {
   border-color: var(--accent-border);
   background-color: var(--surface-2);
-  transform: translateY(-2px);
 }
 .card-link:active { transform: translateY(0); }
 .card-kicker {
@@ -397,7 +407,6 @@ code:not(pre code) {
   background-color: var(--surface-3);
   transition: filter 200ms ease, background-color 200ms ease;
 }
-.codeblock:hover .codeblock-header { filter: brightness(1.05); }
 .codeblock pre.astro-code,
 .codeblock pre.shiki {
   border: 0;
@@ -529,6 +538,7 @@ code:not(pre code) {
    border and the fill are one flat colour instead of a hue mixed into a
    neutral (which reads as mud, worst of all on amber). */
 .callout {
+  border: 1px solid color-mix(in srgb, var(--note) 30%, var(--note-bg));
   border-left: 3px solid var(--note);
   background-color: var(--note-bg);
   border-radius: 0.375rem;
@@ -550,10 +560,10 @@ code:not(pre code) {
 .callout :where(pre) { margin: 0.5rem 0; }
 .callout-note .callout-icon,
 .callout-note .callout-title { color: var(--note); }
-.callout-warn { border-left-color: var(--warn); background-color: var(--warn-bg); }
+.callout-warn { border-color: color-mix(in srgb, var(--warn) 30%, var(--warn-bg)); border-left-color: var(--warn); background-color: var(--warn-bg); }
 .callout-warn .callout-icon,
 .callout-warn .callout-title { color: var(--warn); }
-.callout-tip { border-left-color: var(--tip); background-color: var(--tip-bg); }
+.callout-tip { border-color: color-mix(in srgb, var(--tip) 30%, var(--tip-bg)); border-left-color: var(--tip); background-color: var(--tip-bg); }
 .callout-tip .callout-icon,
 .callout-tip .callout-title { color: var(--tip); }
 /* A code block inside a callout has to match that callout's fill, or the
