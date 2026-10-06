@@ -89,6 +89,7 @@ TAG_TIMING = "timing"
 TAG_DOWNLOAD = "download"
 TAG_WARNING = "warning"
 TAG_ERROR = "error"
+TAG_TRACE = "trace"
 
 DIAGNOSTIC_TAGS = (
     TAG_HTTP,
@@ -98,6 +99,7 @@ DIAGNOSTIC_TAGS = (
     TAG_DOWNLOAD,
     TAG_WARNING,
     TAG_ERROR,
+    TAG_TRACE,
 )
 
 _TAG_STYLES = {
@@ -108,6 +110,7 @@ _TAG_STYLES = {
     TAG_DOWNLOAD: "green",
     TAG_WARNING: "yellow",
     TAG_ERROR: "red",
+    TAG_TRACE: "bright_magenta",
 }
 
 
@@ -249,7 +252,7 @@ def trace(message: str) -> None:
     resume, archiving. Values are always safe to display (URLs passed
     through :func:`redact_url`, no cookie/token content).
     """
-    vlog(TRACE, message, tag="trace")
+    vlog(TRACE, message, tag=TAG_TRACE)
 
 
 _REDACT_HEADERS = frozenset(
