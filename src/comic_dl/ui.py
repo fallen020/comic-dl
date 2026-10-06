@@ -2275,7 +2275,8 @@ class Pipeline:
     """
 
     def __init__(self, quiet: bool = False):
-        self._quiet = quiet
+        # -vvv: the diagnostic stream owns stderr, no spinner to fight it.
+        self._quiet = quiet or VERBOSITY >= TRACE
         self._live: Live | None = None
         # A sensible default so the very first frame is never blank: the Live
         # starts rendering immediately on enter, before the first stage() call.
@@ -2535,7 +2536,8 @@ class Activity:
     """
 
     def __init__(self, quiet: bool = False):
-        self._quiet = quiet
+        # -vvv: the diagnostic stream owns stderr, no spinner to fight it.
+        self._quiet = quiet or VERBOSITY >= TRACE
         self._live: Live | None = None
         self._frame = 0
         self._done = False

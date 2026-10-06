@@ -1981,6 +1981,17 @@ class TestLiveTeardown:
         assert p._done is True
 
     @pytest.mark.asyncio
+    async def test_trace_skips_live_but_keeps_stage_lines(self, capsys, monkeypatch):
+        monkeypatch.setattr(ui_module, "VERBOSITY", ui_module.TRACE)
+        act = Activity()
+        async with act:
+            assert ui_module._ACTIVE_LIVE is None
+            act.row("main").stage("Parsing chapters")
+        assert act._live is None
+        assert act._spin_task is None
+        assert "[scrape] Parsing chapters" in capsys.readouterr().err
+
+    @pytest.mark.asyncio
     async def test_succeed_and_fail_unregister(self):
         p = Pipeline(quiet=False)
         async with p:
