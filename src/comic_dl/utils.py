@@ -28,7 +28,7 @@ _CGNAT_NET = ipaddress.ip_network("100.64.0.0/10")
 
 INVALID_FS_CHARS = re.compile(r'[<>:"/\\|?*]')
 CONTROL_CHARS = re.compile(r"[\x00-\x1f\x7f-\x9f]")
-MULTI_DASH = re.compile(r" - |--+")
+MULTI_DASH = re.compile(r"--+")
 MULTI_SPACE = re.compile(r"\s+")
 DOS_RESERVED = {
     "con",

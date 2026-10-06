@@ -885,5 +885,5 @@ class TestFsicomixScraper:
             session,
         )
 
-        assert chapter.info.series_title == "Family Debt-TRAPLust"
+        assert chapter.info.series_title == "Family Debt - TRAPLust"
         assert chapter.info.chapter_title == "Chapter 1"
