@@ -3516,7 +3516,7 @@ def print_help(parser: argparse.ArgumentParser | None = None) -> None:
     table = _HelpTable()
     table.row("0 normal", "", "progress, status, warnings, errors, summary")
     table.row("1 -v", "", "more context (source, paths, options, stats, stages)")
-    table.row("2 -vv", "", "diagnostics (HTTP requests + timing, retries)")
+    table.row("2 -vv", "", "diagnostics (page/cover requests + timing, retries)")
     table.row("3 -vvv", "", "full trace (response headers per request, tracebacks)")
     table.row("env", "", "COMIC_DL_TRACE_HTTP=1 always shows response headers")
     table.print()
