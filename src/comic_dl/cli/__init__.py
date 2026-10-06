@@ -4844,6 +4844,28 @@ def _is_verbosity_token(token: str) -> bool:
     return False
 
 
+# Commands that ignore verbosity and quiet: only the download pipeline
+# (bare URLs and ``update``) emits diagnostics or progress. ``update`` runs
+# downloads, so it is deliberately absent here.
+_NON_DOWNLOAD_COMMANDS = frozenset(
+    {
+        "self",
+        "help",
+        "config",
+        "plugin",
+        "completion",
+        "list-sources",
+        "cookie",
+        "cache",
+        "info",
+        "latest",
+        "list",
+        "remove",
+        "restore",
+    }
+)
+
+
 @dataclass(frozen=True)
 class _GlobalFlags:
     """Global CLI flags resolved in one pass over the raw argv.
@@ -4988,27 +5010,12 @@ async def main() -> int:
             command = raw_command
             if command.startswith("--"):
                 command = command[2:]
-            if (
-                flags.verbosity > NORMAL
-                and command != "update"
-                and command
-                in (
-                    "self",
-                    "help",
-                    "config",
-                    "plugin",
-                    "completion",
-                    "list-sources",
-                    "cookie",
-                    "cache",
-                    "info",
-                    "latest",
-                    "list",
-                    "remove",
-                    "restore",
-                )
-            ):
+            if flags.verbosity > NORMAL and command in _NON_DOWNLOAD_COMMANDS:
                 print_dim("Verbosity only affects download runs.")
+            if (
+                "-q" in sys.argv[1:] or "--quiet" in sys.argv[1:]
+            ) and command in _NON_DOWNLOAD_COMMANDS:
+                print_dim("Quiet only affects download runs.")
             if command == "update":
                 return await _run_update(argv[1:])
             if command == "self":
