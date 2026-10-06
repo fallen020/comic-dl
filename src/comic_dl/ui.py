@@ -395,6 +395,10 @@ def _print_header_block(headers: list[str], indent: int = 3) -> None:
         body.append("\n" + pad + "  ")
         body.append(line, style="dim")
     if len(body.plain) > len(pad):
+        if _DEBUG_FILE is not None:
+            _DEBUG_FILE.write(body.plain + "\n")
+            _DEBUG_FILE.flush()
+            return
         console_obj.print(body, no_wrap=True, overflow="ignore", crop=False)
 
 

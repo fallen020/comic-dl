@@ -145,6 +145,20 @@ class TestHttpEvent:
         err = capsys.readouterr().err
         assert "content-type: image/webp" in err
 
+    def test_header_block_follows_debug_file(self, capsys, tmp_path, monkeypatch):
+        monkeypatch.setenv("COMIC_DL_TRACE_HTTP", "1")
+        set_verbosity(DIAGNOSTIC)
+        path = tmp_path / "dbg.log"
+        set_debug_file(str(path))
+        try:
+            http_event("GET", "https://x/1", status=200, headers={"content-type": "image/webp"})
+        finally:
+            set_debug_file(None)
+        assert "headers:" not in capsys.readouterr().err
+        logged = path.read_text()
+        assert "[http] GET 200 https://x/1" in logged
+        assert "content-type: image/webp" in logged
+
     def test_noise_headers_filtered_in_trace(self, capsys, monkeypatch):
         monkeypatch.setenv("COMIC_DL_TRACE_HTTP", "1")
         set_verbosity(TRACE)
