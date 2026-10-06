@@ -14,6 +14,7 @@ else
 fi
 uv run mypy
 uv run bandit -q -r src/comic_dl/
+uv run vulture src/comic_dl
 if command -v shellcheck >/dev/null 2>&1; then
   shellcheck scripts/*.sh
 fi
