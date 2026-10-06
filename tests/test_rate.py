@@ -43,13 +43,20 @@ class TestAcquireKeysByHost:
 
 class TestAcquireConcurrency:
     async def test_concurrent_acquires_keep_slot_spacing(self, monkeypatch, tmp_path):
-        """Racers must queue onto successive slots, not share one."""
+        """Racers must queue onto successive slots, not share one.
+
+        Gaps are measured on completion stamps with wide slack: a
+        late-waking predecessor shrinks the observed gap, so the threshold
+        must absorb scheduler jitter (Windows CI timer granularity alone
+        is ~15ms).
+        """
         import asyncio
         import time
         from itertools import pairwise
 
         _isolated(monkeypatch, tmp_path)
-        limit = 10.0
+        limit = 2.0
+        interval = 1.0 / limit
         limiter = RateLimiter(rates={"example.com": limit})
         stamps: list[float] = []
 
@@ -60,4 +67,5 @@ class TestAcquireConcurrency:
         await asyncio.gather(*(worker() for _ in range(8)))
         stamps.sort()
         gaps = [b - a for a, b in pairwise(stamps)]
-        assert min(gaps) >= (1.0 / limit) * 0.9
+        assert min(gaps) >= interval * 0.8
+        assert stamps[-1] - stamps[0] >= interval * 7 * 0.8
