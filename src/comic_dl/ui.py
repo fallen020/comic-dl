@@ -428,11 +428,12 @@ def http_event(
     stable user-facing identifier (e.g. ``page_0001.webp``) so the line can be
     cross-referenced against retry/verify logs regardless of URL shape.
 
-    Response ``headers``, when shown, follow on an indented block beneath the
-    line — reachable at ``TRACE`` verbosity, or earlier when
-    ``COMIC_DL_TRACE_HTTP`` is set — so full observability never costs one
-    stdout line per header. Sensitive headers are masked and the displayed
-    URL has credentials query-params redacted.
+    Response ``headers``, when shown, surface at ``TRACE`` verbosity, or
+    earlier when ``COMIC_DL_TRACE_HTTP`` is set. Page/cover events print
+    them as an indented block beneath the line; per-image events
+    (``level=TRACE``) fold them onto the request line so a full ``-vvv``
+    image run stays one line per file. Sensitive headers are masked and
+    the displayed URL has credentials query-params redacted.
     """
     display_url = redact_url(str(url))
     line = (
@@ -444,10 +445,14 @@ def http_event(
         line += f"  [{note}]"
     if duration is not None:
         line += f"  ({duration * 1000:.0f} ms)"
-    if headers and (_http_trace_enabled() or VERBOSITY >= TRACE):
-        trace_level = level if _http_trace_enabled() else TRACE
-        vlog(trace_level, line, tag=TAG_HTTP)
+    trace_on = _http_trace_enabled()
+    if headers and (trace_on or VERBOSITY >= TRACE):
+        trace_level = level if trace_on else TRACE
         kept = _filter_headers(headers)
+        if kept and not trace_on and level >= TRACE:
+            line = f"{line}  {'  '.join(kept)}"
+            kept = []
+        vlog(trace_level, line, tag=TAG_HTTP)
         if kept:
             _print_header_block(kept)
     else:

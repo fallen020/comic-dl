@@ -168,6 +168,22 @@ class TestHttpEvent:
         http_event("GET", "https://x/2", status=200, headers={"content-type": "image/webp"})
         err = capsys.readouterr().err
         assert "content-type: image/webp" in err
+        assert "headers:" in err
+
+    def test_image_headers_fold_onto_request_line(self, capsys, monkeypatch):
+        monkeypatch.delenv("COMIC_DL_TRACE_HTTP", raising=False)
+        set_verbosity(TRACE)
+        http_event(
+            "GET",
+            "https://x/2",
+            status=200,
+            headers={"content-type": "image/webp"},
+            level=TRACE,
+        )
+        err = capsys.readouterr().err
+        assert "[http] GET 200 https://x/2" in err
+        assert "content-type: image/webp" in err
+        assert "headers:" not in err
 
     def test_env_enables_headers_without_trace(self, capsys, monkeypatch):
         monkeypatch.setenv("COMIC_DL_TRACE_HTTP", "1")
