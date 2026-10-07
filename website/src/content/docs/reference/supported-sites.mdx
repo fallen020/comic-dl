@@ -1,11 +1,11 @@
 ---
 title: Supported Sites
-description: The 29 built-in scrapers supported by comic-dl, their URL patterns, and per-site notes.
+description: The 30 built-in scrapers supported by comic-dl, their URL patterns, and per-site notes.
 order: 520
 section: Reference
 ---
 
-The 29 built-in scrapers shipped with comic-dl. The live registry — including any third-party plugins — is shown by `comic-dl --list-sources`.
+The 30 built-in scrapers shipped with comic-dl. The live registry — including any third-party plugins — is shown by `comic-dl --list-sources`.
 
 ## Sites
 
@@ -34,6 +34,7 @@ The 29 built-in scrapers shipped with comic-dl. The live registry — including 
 | **Nyx Scans** | `nyxscans.com` | `/series/{slug}/`, `/series/{slug}/chapter-{n}` | <Badge status="supported" /> | <Badge status="supported" /> |
 | **Pawchive** | `pawchive.pw` | `/{service}/user/{id}/post/{id}/` | <Badge status="supported" /> | — |
 | **QiScans** | `qimanga.com` | `/series/{slug}`, `/series/{slug}/chapter-{n}` | <Badge status="supported" /> | <Badge status="supported" /> |
+| **RichPopup** | `richpopup.com` | `/{id}-{slug}.html` | <Badge status="supported" /> | — |
 | **StoneScape** | `stonescape.xyz` | `/series/{slug}`, `/series/{slug}/ch-{n}` | <Badge status="supported" /> | <Badge status="supported" /> |
 | **Tapas** | `tapas.io` | `/series/{slug}`, `/episode/{id}` | <Badge status="supported" /> | <Badge status="supported" /> |
 | **Toonily** | `toonily.com` | `/serie/{slug}/`, `/serie/{slug}/chapter-{n}/` | <Badge status="supported" /> | <Badge status="supported" /> |
@@ -47,14 +48,14 @@ The 29 built-in scrapers shipped with comic-dl. The live registry — including 
 
 ## Per-site features
 
-| Feature | Asura Scans | DivaScans | E-Hentai | Thunderscans | FlameComics | FSIComics | GEDE Comix | GenzToons | HD Porn Comics | HiveToons | IMHentai | Kagane | Kingofshojo | Kodoku | LGBTics | MangaDex | ManhuaTo | ManhwaTop | Nyx Scans | Pawchive | QiScans | StoneScape | Tapas | Toonily | ToonVerse | ValirScans | Vortex Scans | WEBTOON | WeebCentral |
-| :------ | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- |
-| Individual posts/chapters | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| Series chapter listing | Yes | Yes | — | Yes | Yes | Yes | Yes | Yes | — | Yes | — | Yes | — | Yes | Yes | Yes | Yes | Yes | Yes | — | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| Image dedup (SHA-256) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| Download resume | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| Concurrent downloads | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| Chapter title from tags | — | — | <Badge status="supported" /> | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | <Badge status="supported" /> | — |
+| Feature | Asura Scans | DivaScans | E-Hentai | Thunderscans | FlameComics | FSIComics | GEDE Comix | GenzToons | HD Porn Comics | HiveToons | IMHentai | Kagane | Kingofshojo | Kodoku | LGBTics | MangaDex | ManhuaTo | ManhwaTop | Nyx Scans | Pawchive | QiScans | RichPopup | StoneScape | Tapas | Toonily | ToonVerse | ValirScans | Vortex Scans | WEBTOON | WeebCentral |
+| :------ | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- |
+| Individual posts/chapters | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Series chapter listing | Yes | Yes | — | Yes | Yes | Yes | Yes | Yes | — | Yes | — | Yes | — | Yes | Yes | Yes | Yes | Yes | Yes | — | Yes | — | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Image dedup (SHA-256) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Download resume | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Concurrent downloads | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Chapter title from tags | — | — | <Badge status="supported" /> | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | <Badge status="supported" /> | — |
 
 ## Site notes
 
@@ -78,6 +79,7 @@ The 29 built-in scrapers shipped with comic-dl. The live registry — including 
 - **QiScans** — An Angular SSR manga site. Series pages server-render the newest 30 chapters (`Showing 30 of N`); series scrapes cover that published subset, and older chapters remain reachable by direct URL. Reader images come from the `media.qimanhwa.com` host.
 - **StoneScape** — A Vue SPA with no server-side HTML; all data comes from a plain JSON API (`/api/series/by-slug/{slug}`, `/…/chapters`, `/api/chapters/{id}/pages`). Public pages are served under `/pub/` on the same origin. Chapters marked locked (coins/subscription) or images served in the `protected` delivery mode raise an error.
 - **Thunderscans** — A WordPress "mangareader"-theme site. Series pages statically render the full chapter list in `#chapterlist`. Chapter pages' `#readerarea` is JS-filled; page images are read from the page's `ts_reader.run({...})` JSON blob. Locked chapters have no blob and raise an error.
+- **RichPopup** — A DataLife Engine gallery site. Every post is a standalone gallery (`/{id}-{slug}.html`) with all page images inline as `/comic/{hash}/{n}.webp`; there are no series pages, so chapter-only support.
 
 ## Adding more sites
 
