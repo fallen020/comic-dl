@@ -195,6 +195,7 @@ from ..ui import (
     print_traceback,
     print_url,
     print_warning,
+    redact_url,
     render_sources_table,
     report_error,
     run_with_status,
@@ -3134,10 +3135,14 @@ def _report_dry_run(
         counts[entry["action"]] += 1
 
     for i, entry in enumerate(entries, start=1):
-        idx = f"[{i:02d}/{total}] " if total > 1 else ""
+        if total > 1:
+            width = len(str(total))
+            idx = f"[{i:{width}d}/{total}] "
+        else:
+            idx = ""
         # Rich markup consumes ``[``-delimited spans; escape the dynamic parts
         # so URLs/titles/compression labels survive verbatim.
-        head = f"  {idx}would {entry['action']:<9} {esc(entry['url'])}"
+        head = f"  {idx}would {entry['action']:<9} {esc(redact_url(entry['url']))}"
         if entry.get("error"):
             out.print(f"{head}  ({esc(entry['error'])})")
         elif entry["action"] == "skip":

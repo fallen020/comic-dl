@@ -2389,7 +2389,7 @@ class TestDryRun:
         # \n to \r\n, so strip both line endings.
         err = capsys.readouterr().err.replace("\n", "").replace("\r", "")
         assert "Chapter 1.zip" in err and "[deflate]" in err
-        assert "[01/2]" in err and "[02/2]" in err
+        assert "[1/2]" in err and "[2/2]" in err
         assert "Concurrency: 5 URLs in parallel" in err
         assert "20 pages" in err and "~10 MB" in err
         assert "Estimated total: ~10 MB" in err
