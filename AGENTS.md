@@ -42,7 +42,7 @@ src/comic_dl/
     madara.py              # Madara-theme framework scraper
     registry.py            # Plugin loader
     refresh.py             # Chapter re-fetch logic
-    sites/                 # Per-site parsers (29 built-in, auto-discovered)
+    sites/                 # Per-site parsers (30 built-in, auto-discovered)
   archiver.py              # CBZ/ZIP/CBT packing
   downloader.py            # Async download engine
   comicinfo.py             # ComicInfo.xml generation
@@ -152,3 +152,22 @@ both `docs/reference/` and `website/src/content/docs/reference/`. Run
 | Releasing | `docs/develop/releasing.md` |
 | Error style | `docs/develop/error-style-guide.md` |
 | Security testing | `docs/develop/security-testing.md` |
+
+## Skill routing
+
+When the user's request matches an available skill, invoke it via the Skill tool. When in doubt, invoke the skill.
+
+Key routing rules:
+- Product ideas/brainstorming → invoke /office-hours
+- Strategy/scope → invoke /plan-ceo-review
+- Architecture/plan review → invoke /plan-eng-review
+- Design system/plan review → invoke /design-consultation or /plan-design-review
+- Full review pipeline → invoke /autoplan
+- Bugs/errors → invoke /investigate
+- QA/testing site behavior → invoke /qa or /qa-only
+- Code review/diff check → invoke /review
+- Visual polish → invoke /design-review
+- Ship/deploy/PR → invoke /ship or /land-and-deploy
+- Save progress → invoke /context-save
+- Resume context → invoke /context-restore
+- Author a backlog-ready spec/issue → invoke /spec

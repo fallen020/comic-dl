@@ -63,6 +63,7 @@ SITE_META = {
     "pawchive.pw": ("Pawchive", "/{service}/user/{id}/post/{id}/", ""),
     "tapas.io": ("Tapas", "/episode/{id}", "/series/{slug}"),
     "qimanga.com": ("QiScans", "/series/{slug}/chapter-{n}", "/series/{slug}"),
+    "richpopup.com": ("RichPopup", "/{id}-{slug}.html", ""),
     "stonescape.xyz": ("StoneScape", "/series/{slug}/ch-{n}", "/series/{slug}"),
     "en-thunderscans.com": ("Thunderscans", "/{slug}-chapter-{n}/", "/comics/{slug}/"),
     "toonily.com": ("Toonily", "/serie/{slug}/chapter-{n}/", "/serie/{slug}/"),

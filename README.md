@@ -48,7 +48,7 @@ or region locks: it downloads only what the site serves you.
 | Instead of | comic-dl does |
 | --- | --- |
 | Clicking 30 "next" pages and zipping a folder | One URL, verified and numbered page images |
-| An ad-hoc per-site script that breaks on redesigns | 29 built-in scrapers plus a plugin system |
+| An ad-hoc per-site script that breaks on redesigns | 30 built-in scrapers plus a plugin system |
 | A folder of loose images with no metadata | Reader-ready CBZ/ZIP/CBT with `ComicInfo.xml` |
 
 Above that, it resumes missing pages, dedupes images by SHA-256, and records
@@ -150,7 +150,7 @@ Kstatic and E-Hentai; configure any host with `[http].rate`.
 
 ## Supported sites
 
-29 built-in scrapers include MangaDex, WEBTOON, E-Hentai, Tapas, WeebCentral,
+30 built-in scrapers include MangaDex, WEBTOON, E-Hentai, Tapas, WeebCentral,
 Asura Scans, and Madara-based sites. The
 [supported-sites table](docs/reference/supported-sites.md) lists every accepted
 URL shape; `comic-dl --list-sources` also shows installed plugins.

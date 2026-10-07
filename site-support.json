@@ -120,6 +120,12 @@
       "test_url": "https://qimanga.com/series/4190634673-eleceed/chapter-419",
       "version": "1.0.2"
     },
+    "richpopup": {
+      "minimum_core_version": "0.0.2",
+      "status": "supported",
+      "test_url": "https://richpopup.com/29038-immoral-desires-12.html",
+      "version": "1.0.0"
+    },
     "stonescape": {
       "minimum_core_version": "0.0.2",
       "status": "supported",
