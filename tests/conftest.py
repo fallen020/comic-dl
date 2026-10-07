@@ -79,9 +79,12 @@ def _reset_cli_globals(tmp_path):
     # codes spliced inside asserted phrases. Tests asserting color override
     # explicitly via apply_color_mode.
     ui_module.set_no_color(True)
+    ui_module.set_verbosity(0)
     config._RUNTIME_DOWNLOAD.clear()
     cookies._warned_plaintext = False
     yield
+    ui_module.set_verbosity(0)
+    ui_module.set_debug_file(None)
     config.set_config_path(None)
     config.set_no_config(False)
     config.set_config_dir(None)
