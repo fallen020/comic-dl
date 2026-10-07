@@ -6,10 +6,12 @@ from collections.abc import Awaitable, Callable
 from typing import Any
 from urllib.parse import urlsplit
 
-from .antibot import BlockVerdict, looks_like_challenge
+from .antibot import looks_like_challenge
 from .config import _RUNTIME_HTTP, http_setting
 from .ui import TAG_WARNING, trace, vlog
 from .utils import aclose_response
+
+_SOLVER_MODES = frozenset({"auto", "impersonation", "webview", "off"})
 
 
 def solver_mode(host: str | None = None) -> str:
@@ -22,20 +24,13 @@ def solver_mode(host: str | None = None) -> str:
     differs from the per-host key (``mode``), so a single ``http_setting``
     call cannot express the precedence.
     """
-    cli = _RUNTIME_HTTP.get("solver")
-    if isinstance(cli, str) and cli in {"auto", "impersonation", "webview", "off"}:
-        return cli
-    mode = http_setting("mode", host=host)
-    if isinstance(mode, str) and mode in {"auto", "impersonation", "webview", "off"}:
-        return mode
-    global_mode = http_setting("solver", default="off")
-    if isinstance(global_mode, str) and global_mode in {
-        "auto",
-        "impersonation",
-        "webview",
-        "off",
-    }:
-        return global_mode
+    for candidate in (
+        _RUNTIME_HTTP.get("solver"),
+        http_setting("mode", host=host),
+        http_setting("solver", default="off"),
+    ):
+        if isinstance(candidate, str) and candidate in _SOLVER_MODES:
+            return candidate
     return "off"
 
 
@@ -63,7 +58,7 @@ def note_replay_dead(host: str) -> None:
         _replay_dead.add(host.lower())
 
 
-async def handle_challenge(url: str, verdict: BlockVerdict | None = None) -> bool:
+async def handle_challenge(url: str) -> bool:
     """Solve or clear the challenge for ``url``'s host using an escalation ladder.
 
     Resolution order (escalation):
@@ -87,12 +82,7 @@ async def handle_challenge(url: str, verdict: BlockVerdict | None = None) -> boo
     # clearance. Deleting it here would throw away a working webview session.
 
     mode = solver_mode(host)
-    trace(
-        f"cf: handling challenge for {host} "
-        f"(vendor={verdict.vendor if verdict else 'unknown'}, "
-        f"kind={verdict.kind if verdict else 'unknown'}, "
-        f"mode={mode})"
-    )
+    trace(f"cf: handling challenge for {host} (mode={mode})")
 
     if mode == "off":
         trace(f"cf: solver disabled, not retrying {host}")
@@ -130,7 +120,7 @@ async def handle_challenge(url: str, verdict: BlockVerdict | None = None) -> boo
                 f"webview solver failed for {host} — falling back to impersonation",
                 tag=TAG_WARNING,
             )
-    except (ImportError, ModuleNotFoundError):
+    except ImportError:
         trace(f"cf: webview solver unavailable for {host}")
     except Exception as exc:
         trace(f"cf: webview solver error for {host}: {type(exc).__name__}")

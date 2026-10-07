@@ -203,6 +203,19 @@ def _extract_cookies(cookies: list[Any], host: str) -> list[dict[str, Any]]:
     return out
 
 
+def _err(req: dict[str, Any], error: str) -> dict[str, Any]:
+    return {"id": req.get("id"), "status": 0, "headers": {}, "body_b64": "", "error": error}
+
+
+def _window_cookies(window: Any, host: str) -> list[dict[str, Any]]:
+    """Current cookies as plain dicts; ``[]`` while the page is not ready yet."""
+    try:
+        raw = window.get_cookies()
+    except Exception:
+        raw = []
+    return _extract_cookies(raw, host)
+
+
 def _result(ok: bool, cookies: list[dict[str, Any]]) -> None:
     print(json.dumps({"ok": ok, "cookies": cookies}))
     sys.stdout.flush()
@@ -230,21 +243,12 @@ def _handle_request(window: Any, req: dict[str, Any], page_origin: str) -> dict[
         # Validate that the request targets the same origin as the page.
         req_origin = _origin_of(url)
         if req_origin.lower() != page_origin.lower():
-            return {
-                "id": req.get("id"),
-                "status": 0,
-                "headers": {},
-                "body_b64": "",
-                "error": f"cross-origin request blocked: {req_origin} != {page_origin}",
-            }
-
-        # Filter unsafe headers.
-        filtered_headers = {k: v for k, v in headers.items() if k.lower() not in _BLOCKED_HEADERS}
+            return _err(req, f"cross-origin request blocked: {req_origin} != {page_origin}")
 
         js = _xhr_js(
             method,
             url,
-            filtered_headers,
+            headers,
             body,
             binary=req.get("stream") is True,
         )
@@ -260,13 +264,7 @@ def _handle_request(window: Any, req: dict[str, Any], page_origin: str) -> dict[
             resp["error"] = payload["error"]
         return resp
     except Exception as exc:
-        return {
-            "id": req.get("id"),
-            "status": 0,
-            "headers": {},
-            "body_b64": "",
-            "error": f"{type(exc).__name__}: {exc}",
-        }
+        return _err(req, f"{type(exc).__name__}: {exc}")
 
 
 def _emit_stream(resp: dict[str, Any], buf: Any) -> None:
@@ -356,11 +354,7 @@ def _wait_clearance(window: Any, host: str, timeout: float) -> bool:
     """
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
-        try:
-            raw = window.get_cookies()
-        except Exception:  # page may not be ready yet
-            raw = []
-        cookies = _extract_cookies(raw, host)
+        cookies = _window_cookies(window, host)
         has_clearance = any(c["name"] == CLEARANCE_NAME for c in cookies)
         still_challenged = any(c["name"] == "cf_chl_rc_ni" for c in cookies)
         if has_clearance and not still_challenged:
@@ -423,22 +417,12 @@ def main() -> int:
     host = (s.hostname or "").lower()
     page_origin = _origin_of(args.url)
 
-    # create_window always returns a Window instance; None would mean a
-    # fatal GUI-backend error that surfaces as an exception.
-    window = webview.create_window("comic-dl — solve Cloudflare challenge", args.url)
-    if window is None:  # pragma: no cover - pywebview always returns a Window
-        _result(False, [])
-        print("webview_solver: pywebview returned no window", file=sys.stderr)
-        return 1
+    window: Any = webview.create_window("comic-dl — solve Cloudflare challenge", args.url)
     state: dict[str, Any] = {"cookies": []}
 
     def _poll() -> None:
         if _wait_clearance(window, host, args.timeout):
-            try:
-                raw = window.get_cookies()
-            except Exception:
-                raw = []
-            state["cookies"] = _extract_cookies(raw, host)
+            state["cookies"] = _window_cookies(window, host)
         with contextlib.suppress(Exception):
             window.destroy()
 
@@ -450,30 +434,19 @@ def main() -> int:
             with contextlib.suppress(Exception):
                 window.destroy()
             return
-        try:
-            raw = window.get_cookies()
-        except Exception:
-            raw = []
-        state["cookies"] = _extract_cookies(raw, host)
+        state["cookies"] = _window_cookies(window, host)
         print(json.dumps({"ready": True, "cookies": state["cookies"]}))
         sys.stdout.flush()
         _serve_loop(window, page_origin)
         with contextlib.suppress(Exception):
             window.destroy()
 
+    runner = _serve if args.serve else _poll
     try:
-        if args.serve:
-            # private_mode=False: the session needs cookie persistence across
-            # requests so the cf_clearance stays valid for the session lifetime.
-            webview.start(
-                _serve,
-                user_agent=args.user_agent,
-                gui=args.solver,
-                private_mode=False,
-            )
-            return 0
+        # private_mode=False: the session needs cookie persistence across
+        # requests so the cf_clearance stays valid for the session lifetime.
         webview.start(
-            _poll,
+            runner,
             user_agent=args.user_agent,
             gui=args.solver,
             private_mode=False,
@@ -485,6 +458,8 @@ def main() -> int:
         else:
             _result(False, [])
         return 1
+    if args.serve:
+        return 0
 
     cookies = state.get("cookies", [])
     ok = any(c["name"] == CLEARANCE_NAME for c in cookies)

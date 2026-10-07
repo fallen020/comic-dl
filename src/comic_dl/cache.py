@@ -148,8 +148,6 @@ def cache_max_bytes() -> int:
     stays bounded.
     """
     value = http_setting("cache-max-bytes", _DEFAULT_MAX_BYTES)
-    if isinstance(value, bool):
-        return _DEFAULT_MAX_BYTES
     if isinstance(value, int) and value <= 0:
         return _DEFAULT_MAX_BYTES
     try:
@@ -225,6 +223,17 @@ def _cache_root() -> Path:
     return cache_dir() / "http"
 
 
+def _cache_files() -> list[Path]:
+    """Every file in the cache dir; ``[]`` when the dir is absent or unreadable."""
+    root = _cache_root()
+    if not root.is_dir():
+        return []
+    try:
+        return [p for p in root.iterdir() if p.is_file()]
+    except OSError:
+        return []
+
+
 def _cache_key(url: str, profile: str, extra_headers: dict[str, str]) -> str:
     h = hashlib.sha256()
     h.update(url.encode("utf-8"))
@@ -276,13 +285,7 @@ def _maybe_sweep() -> None:
     if now - _last_sweep < _SWEEP_INTERVAL_SECONDS:
         return
     _last_sweep = now
-    root = _cache_root()
-    if not root.is_dir():
-        return
-    try:
-        paths = [p for p in root.iterdir() if p.is_file()]
-    except OSError:
-        return
+    paths = _cache_files()
     dat_cutoff = now - _MAX_ENTRY_AGE_HOURS * 3600
     tmp_cutoff = now - _TMP_STALE_SECONDS
     by_mtime: list[tuple[float, int, Path]] = []
@@ -326,20 +329,9 @@ def _read_entry(path: Path, *, with_body: bool = True) -> dict[str, Any] | None:
         else:
             with open(path, "rb") as f:
                 data = f.read(12)
-                try:
-                    (version,) = struct.unpack(">I", data[4:8])
-                except struct.error:
-                    _unlink_best_effort(path)
-                    return None
-                if version != _VERSION:
-                    _unlink_best_effort(path)
-                    return None
-                try:
+                if len(data) == 12:
                     (meta_len,) = struct.unpack(">I", data[8:12])
-                except struct.error:
-                    _unlink_best_effort(path)
-                    return None
-                data += f.read(meta_len)
+                    data += f.read(meta_len)
     except OSError:
         return None
     if len(data) < 12 or not data.startswith(_MAGIC):
@@ -466,7 +458,6 @@ def store(
     status: int,
     headers: dict[str, str | list[str]],
     body: bytes,
-    created: float | None = None,
 ) -> None:
     """Persist a 2xx GET response body for ``url``.
 
@@ -496,9 +487,7 @@ def store(
         "status": status,
         "headers": {k: _header_str(v) for k, v in headers.items()},
         "body": body,
-        "created": (
-            created if created is not None and not isinstance(created, bool) else time.time()
-        ),
+        "created": time.time(),
         "etag": _header_str(etag) if etag else None,
         "last_modified": _header_str(last_modified) if last_modified else None,
     }
@@ -532,15 +521,10 @@ def clear(on_file: Any = None) -> int:
     ``on_file`` is called after each removal so callers can drive a progress
     bar; omitted, the call is a silent batch delete.
     """
-    root = _cache_root()
-    if not root.is_dir():
-        return 0
-    try:
-        paths = [p for p in root.iterdir() if p.is_file() and p.suffix in (".dat", ".tmp")]
-    except OSError:
-        return 0
     removed = 0
-    for path in paths:
+    for path in _cache_files():
+        if path.suffix not in (".dat", ".tmp"):
+            continue
         try:
             path.unlink()
         except OSError:
@@ -558,14 +542,7 @@ def stats() -> dict[str, int]:
     next lookup anyway) and counted as stale.
     """
     out = {"entries": 0, "tmp_files": 0, "bytes": 0, "fresh": 0, "stale": 0}
-    root = _cache_root()
-    if not root.is_dir():
-        return out
-    try:
-        paths = [p for p in root.iterdir() if p.is_file()]
-    except OSError:
-        return out
-    for p in paths:
+    for p in _cache_files():
         if p.suffix == ".tmp":
             out["tmp_files"] += 1
             continue
@@ -591,16 +568,9 @@ def prune() -> tuple[int, int]:
     Returns ``(removed, reclaimed_bytes)``. Unlike the throttled background
     sweep, this is a deliberate run: everything not serving fresh hits goes.
     """
-    root = _cache_root()
     removed = 0
     reclaimed = 0
-    if not root.is_dir():
-        return removed, reclaimed
-    try:
-        paths = [p for p in root.iterdir() if p.is_file()]
-    except OSError:
-        return removed, reclaimed
-    for p in paths:
+    for p in _cache_files():
         try:
             size = p.stat().st_size
         except OSError:

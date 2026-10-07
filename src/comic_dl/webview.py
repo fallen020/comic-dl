@@ -34,7 +34,7 @@ import shutil
 import subprocess  # nosec B404
 import sys
 from collections.abc import AsyncIterator, Mapping
-from typing import Any
+from typing import Any, NoReturn
 from urllib.parse import urlsplit
 
 from .http import get_jar
@@ -370,9 +370,8 @@ class _SessionStream:
     :class:`SessionTransportError` instead of yielding a truncated image.
     """
 
-    def __init__(self, session: WebViewSession, timeout: float) -> None:
+    def __init__(self, session: WebViewSession) -> None:
         self._session = session
-        self._timeout = timeout
         self._chunks: asyncio.Queue[bytes | BaseException | None] = asyncio.Queue()
         self._ready = asyncio.Event()
         self._header_error: BaseException | None = None
@@ -452,10 +451,6 @@ class WebViewSession:
         self._stream_task: asyncio.Task[None] | None = None
 
     @property
-    def host(self) -> str:
-        return (urlsplit(self._base_url).hostname or "").lower()
-
-    @property
     def alive(self) -> bool:
         return self._proc is not None and self._proc.returncode is None
 
@@ -492,19 +487,13 @@ class WebViewSession:
         except (OSError, subprocess.SubprocessError) as exc:
             trace(f"webview: session could not start: {type(exc).__name__}")
             return False
-        if self._proc.stdout is None:
-            await self.close()
-            return False
-        try:
-            line = await asyncio.wait_for(self._proc.stdout.readline(), timeout=SESSION_TIMEOUT)
-        except TimeoutError:
-            await self.close()
-            return False
-        try:
-            data = json.loads(line.decode(errors="ignore"))
-        except json.JSONDecodeError:
-            await self.close()
-            return False
+        data: Any = None
+        if self._proc.stdout is not None:
+            try:
+                line = await asyncio.wait_for(self._proc.stdout.readline(), timeout=SESSION_TIMEOUT)
+                data = json.loads(line.decode(errors="ignore"))
+            except (TimeoutError, json.JSONDecodeError):
+                pass
         if not isinstance(data, dict) or not data.get("ready"):
             await self.close()
             return False
@@ -618,10 +607,6 @@ class WebViewSession:
         self,
         method: str,
         url: str,
-        *,
-        headers: dict[str, str] | None = None,
-        body: str | None = None,
-        timeout: float = REQUEST_TIMEOUT,
     ) -> _SessionStream:
         """Start ``method`` ``url`` inside the page; stream its body back.
 
@@ -639,10 +624,8 @@ class WebViewSession:
             raise SessionTransportError(
                 f"webview session for {self._origin} cannot request {req_origin}"
             )
-        stream = _SessionStream(self, timeout)
-        self._stream_task = asyncio.create_task(
-            self._run_stream(stream, method, url, headers, body, timeout)
-        )
+        stream = _SessionStream(self)
+        self._stream_task = asyncio.create_task(self._run_stream(stream, method, url))
         try:
             await stream._await_headers()
         except BaseException:
@@ -661,9 +644,6 @@ class WebViewSession:
         stream: _SessionStream,
         method: str,
         url: str,
-        headers: dict[str, str] | None,
-        body: str | None,
-        timeout: float,
     ) -> None:
         """Frame one stream request: write, read header, stream the body.
 
@@ -691,55 +671,47 @@ class WebViewSession:
                     "id": req_id,
                     "method": method,
                     "url": url,
-                    "headers": headers or {},
-                    "body": body,
+                    "headers": {},
+                    "body": None,
                     "stream": True,
                 }
                 try:
                     proc.stdin.write((json.dumps(request) + "\n").encode("utf-8"))
                     await proc.stdin.drain()
                 except (BrokenPipeError, ConnectionResetError) as exc:
-                    await self._close_stream_transport()
-                    raise SessionTransportError("webview session pipe closed") from exc
+                    await self._fail_transport("webview session pipe closed", exc)
                 # Expose the header read as a cancellable task so close() can
                 # interrupt a stream that never gets its header.
                 header_task = asyncio.create_task(proc.stdout.readline())
                 self._active_request = header_task
 
                 try:
-                    line = await asyncio.wait_for(header_task, timeout=timeout)
+                    line = await asyncio.wait_for(header_task, timeout=REQUEST_TIMEOUT)
                 except TimeoutError as exc:
                     raise SessionTransportError(
-                        f"webview session timed out after {timeout:.0f}s"
+                        f"webview session timed out after {REQUEST_TIMEOUT:.0f}s"
                     ) from exc
                 except ValueError as exc:
-                    await self._close_stream_transport()
-                    raise SessionTransportError("response frame too large") from exc
+                    await self._fail_transport("response frame too large", exc)
                 finally:
                     if self._active_request is header_task:
                         self._active_request = None
                 if not line:
-                    await self._close_stream_transport()
-                    raise SessionTransportError("webview session closed early")
+                    await self._fail_transport("webview session closed early")
                 try:
                     data = json.loads(line.decode(errors="ignore"))
                 except json.JSONDecodeError as exc:
-                    await self._close_stream_transport()
-                    raise SessionTransportError("malformed stream frame") from exc
+                    await self._fail_transport("malformed stream frame", exc)
                 if not isinstance(data, dict) or data.get("id") != req_id:
-                    await self._close_stream_transport()
-                    raise SessionTransportError("unexpected response id")
+                    await self._fail_transport("unexpected response id")
                 if data.get("error"):
-                    await self._close_stream_transport()
-                    raise SessionTransportError(str(data["error"]))
+                    await self._fail_transport(str(data["error"]))
                 status = data.get("status", 0)
                 if not isinstance(status, int):
-                    await self._close_stream_transport()
-                    raise SessionTransportError("malformed stream status")
+                    await self._fail_transport("malformed stream status")
                 length = data.get("length")
                 if not isinstance(length, int) or length < 0:
-                    await self._close_stream_transport()
-                    raise SessionTransportError("malformed stream length")
+                    await self._fail_transport("malformed stream length")
                 stream._store_header(
                     status,
                     {str(k): str(v) for k, v in (data.get("headers") or {}).items()},
@@ -750,18 +722,16 @@ class WebViewSession:
                     take = min(remaining, WEBVIEW_STREAM_CHUNK_BYTES)
                     try:
                         chunk = await asyncio.wait_for(
-                            proc.stdout.readexactly(take), timeout=timeout
+                            proc.stdout.readexactly(take), timeout=REQUEST_TIMEOUT
                         )
                     except asyncio.IncompleteReadError as exc:
-                        await self._close_stream_transport()
-                        raise SessionTransportError(
-                            f"webview stream truncated (expected {length} bytes)"
-                        ) from exc
+                        await self._fail_transport(
+                            f"webview stream truncated (expected {length} bytes)", exc
+                        )
                     except TimeoutError as exc:
-                        await self._close_stream_transport()
-                        raise SessionTransportError(
-                            f"webview stream timed out after {timeout:.0f}s"
-                        ) from exc
+                        await self._fail_transport(
+                            f"webview stream timed out after {REQUEST_TIMEOUT:.0f}s", exc
+                        )
                     remaining -= len(chunk)
                     stream._chunks.put_nowait(chunk)
                 stream._chunks.put_nowait(None)
@@ -783,6 +753,10 @@ class WebViewSession:
         self._stream_task = None
         with contextlib.suppress(Exception):
             await self.close()
+
+    async def _fail_transport(self, message: str, cause: BaseException | None = None) -> NoReturn:
+        await self._close_stream_transport()
+        raise SessionTransportError(message) from cause
 
     def _arm_idle(self) -> None:
         """(Re)schedule shutdown after ``_idle_timeout`` seconds of no requests."""
