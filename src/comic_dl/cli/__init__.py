@@ -3137,7 +3137,7 @@ def _report_dry_run(
     for i, entry in enumerate(entries, start=1):
         if total > 1:
             width = len(str(total))
-            idx = f"[{i:{width}d}/{total}] "
+            idx = f"[{i:0{width}d}/{total}] "
         else:
             idx = ""
         # Rich markup consumes ``[``-delimited spans; escape the dynamic parts
