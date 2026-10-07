@@ -18,6 +18,7 @@ from comic_dl.ui import (
     DIAGNOSTIC,
     ETA,
     NORMAL,
+    TAG_ARCHIVE,
     TAG_HTTP,
     TRACE,
     VERBOSE,
@@ -32,6 +33,7 @@ from comic_dl.ui import (
     _http_trace_enabled,
     _preview_number,
     _redact_text,
+    _status_style,
     checkbox_prompt,
     http_event,
     make_download_progress,
@@ -248,6 +250,32 @@ class TestHttpEvent:
         monkeypatch.setenv("COMIC_DL_TRACE_HTTP", "headers")
         assert _http_trace_enabled() is True
 
+    def test_status_style_bands(self):
+        assert _status_style(200) == "green"
+        assert _status_style(299) == "green"
+        assert _status_style(301) == "yellow"
+        assert _status_style(404) == "red"
+        assert _status_style(500) == "red"
+        assert _status_style("") is None
+        assert _status_style("bogus") is None
+
+    def test_status_markup_never_leaks_as_text(self, capsys, monkeypatch):
+        monkeypatch.delenv("COMIC_DL_TRACE_HTTP", raising=False)
+        set_verbosity(TRACE)
+        http_event("GET", "https://x/1", status=503, duration=1.5)
+        err = capsys.readouterr().err
+        assert "[http] GET 503 https://x/1" in err
+        assert "(1500 ms)" in err
+        assert "[green]" not in err
+        assert "[red]" not in err
+        assert "[yellow]" not in err
+
+    def test_error_token_markup_never_leaks_as_text(self, capsys, monkeypatch):
+        monkeypatch.delenv("COMIC_DL_TRACE_HTTP", raising=False)
+        set_verbosity(DIAGNOSTIC)
+        http_event("GET", "https://x/1", error="connection refused")
+        assert "[red]" not in capsys.readouterr().err
+
 
 class TestHttpEventRedaction:
     @pytest.fixture(autouse=True)
@@ -421,6 +449,11 @@ class TestStageLine:
         set_verbosity(NORMAL)
         stage_line("Fetching chapter…")
         assert capsys.readouterr().err == ""
+
+    def test_archive_tag(self, capsys):
+        set_verbosity(VERBOSE)
+        stage_line("Creating CBZ archive...", tag=TAG_ARCHIVE)
+        assert "[archive] Creating CBZ archive..." in capsys.readouterr().err
 
 
 class TestTrace:

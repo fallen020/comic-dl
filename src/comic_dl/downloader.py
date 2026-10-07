@@ -31,8 +31,10 @@ from .models import ImageItem, PostMetadata
 from .rate import await_ratelimit, rate_limiting_enabled
 from .ui import (
     DIAGNOSTIC,
+    TAG_ARCHIVE,
     TAG_DOWNLOAD,
     TAG_RETRY,
+    TAG_SCRAPE,
     TRACE,
     VERBOSITY,
     glyphs,
@@ -1726,7 +1728,7 @@ class StatusSink(Protocol):
     ``succeed`` / ``fail`` retire the row and print a durable result line.
     """
 
-    def stage(self, text: str) -> None: ...
+    def stage(self, text: str, *, tag: str = TAG_SCRAPE) -> None: ...
 
     def set_activity(self, text: str) -> None: ...
 
@@ -1746,7 +1748,7 @@ class StatusSink(Protocol):
 async def _announce_pack(
     series_prefix: str,
     state: dict[str, int],
-    stage: Callable[[str], Awaitable[None]],
+    stage: Callable[..., Awaitable[None]],
     pack_task: asyncio.Task,
 ) -> None:
     """Live-update the archive stage text while the archiver packs pages.
@@ -1760,7 +1762,10 @@ async def _announce_pack(
     while True:
         n = state["n"]
         if n != last and n:
-            await stage(f"{series_prefix}Creating CBZ archive... {n}/{state['total']} pages")
+            await stage(
+                f"{series_prefix}Creating CBZ archive... {n}/{state['total']} pages",
+                tag=TAG_ARCHIVE,
+            )
             last = n
         if pack_task.done():
             return
@@ -1871,11 +1876,11 @@ class DownloadPipeline:
         sink = self._status_sink
         pipe = None if sink is not None else Pipeline(quiet=self._quiet)
 
-        async def stage(text: str) -> None:
+        async def stage(text: str, *, tag: str = TAG_SCRAPE) -> None:
             if sink is not None:
-                sink.stage(text)
+                sink.stage(text, tag=tag)
             elif pipe is not None:
-                pipe.stage(text)
+                pipe.stage(text, tag=tag)
 
         async def show_progress(total: int) -> None:
             if sink is not None:
@@ -2023,7 +2028,7 @@ class DownloadPipeline:
                     failed_reasons=dict(self._failure_labels),
                 )
 
-            await stage(f"{series_prefix}Creating CBZ archive...")
+            await stage(f"{series_prefix}Creating CBZ archive...", tag=TAG_ARCHIVE)
             pack_state: dict[str, int] = {"n": 0, "total": len(images)}
 
             def _on_packed(n: int, total: int) -> None:

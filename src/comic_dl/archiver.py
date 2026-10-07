@@ -20,7 +20,7 @@ from zipfile import ZIP_DEFLATED, ZIP_STORED, ZipFile
 
 from .comicinfo import generate_comicinfo_xml
 from .models import ImageItem, PostMetadata
-from .ui import TRACE, vlog
+from .ui import TAG_ARCHIVE, TRACE, vlog
 from .utils import MAGIC_MAX, verify_image_bytes
 
 #: Archive suffixes `create_archive` can produce.
@@ -296,7 +296,7 @@ def create_archive(
         )
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    vlog(TRACE, f"archive: packing {len(images)} files → {output_path.name}")
+    vlog(TRACE, f"packing {len(images)} files → {output_path.name}", tag=TAG_ARCHIVE)
     skipped: list[str] = []
 
     tmp_path: Path | None = None

@@ -87,6 +87,7 @@ TAG_RETRY = "retry"
 TAG_SCRAPE = "scrape"
 TAG_TIMING = "timing"
 TAG_DOWNLOAD = "download"
+TAG_ARCHIVE = "archive"
 TAG_CONTEXT = "context"
 TAG_WARNING = "warning"
 TAG_ERROR = "error"
@@ -98,6 +99,7 @@ DIAGNOSTIC_TAGS = (
     TAG_SCRAPE,
     TAG_TIMING,
     TAG_DOWNLOAD,
+    TAG_ARCHIVE,
     TAG_CONTEXT,
     TAG_WARNING,
     TAG_ERROR,
@@ -110,6 +112,7 @@ _TAG_STYLES = {
     TAG_SCRAPE: "magenta",
     TAG_TIMING: "blue",
     TAG_DOWNLOAD: "green",
+    TAG_ARCHIVE: "bright_yellow",
     TAG_CONTEXT: "bright_cyan",
     TAG_WARNING: "yellow",
     TAG_ERROR: "red",
@@ -211,7 +214,7 @@ def _close_debug_file() -> None:
         _DEBUG_FILE = None
 
 
-def vlog(level: int, message: str, *, tag: str | None = None) -> None:
+def vlog(level: int, message: str, *, tag: str | None = None, markup: bool = False) -> None:
     """Emit an additive diagnostic line when ``VERBOSITY >= level``.
 
     Level 0 UI must never be routed through ``vlog`` — the ``print_*``
@@ -222,30 +225,38 @@ def vlog(level: int, message: str, *, tag: str | None = None) -> None:
     stay clean. ``tag`` must be one of :data:`DIAGNOSTIC_TAGS` so ``-vv``
     output stays searchable and consistent. Each tag renders in its own
     color (:data:`_TAG_STYLES`) so a stream of diagnostics stays scannable.
+
+    ``markup`` marks ``message`` as trusted Rich markup (already escaped by
+    the caller); the default escapes the whole message, so only callers
+    that color individual tokens opt in.
     """
     if level > VERBOSITY:
         return
     message = _redact_text(message)
     if _DEBUG_FILE is not None:
         prefix = f"[{tag}] " if tag is not None else ""
-        _DEBUG_FILE.write(f"{prefix}{message}\n")
+        text = Text.from_markup(message).plain if markup else message
+        _DEBUG_FILE.write(f"{prefix}{text}\n")
         _DEBUG_FILE.flush()
         return
     if tag is not None:
         style = _TAG_STYLES.get(tag, "dim")
-        body = f"[{style}]{esc(f'[{tag}]')}[/] [{MUTED}]{esc(message)}[/]"
+        rendered = message if markup else esc(message)
+        body = f"[{style}]{esc(f'[{tag}]')}[/] [{MUTED}]{rendered}[/]"
     else:
         body = f"[{MUTED}]{esc(message)}[/]"
     _active_console().print(body)
 
 
-def stage_line(text: str) -> None:
+def stage_line(text: str, *, tag: str = TAG_SCRAPE) -> None:
     """Emit a lifecycle-stage step (``Fetching chapter…``) at ``-v``.
 
-    Always carries the ``[scrape]`` tag so the line stays greppable next to
-    other diagnostics at every verbosity. No-op at NORMAL verbosity.
+    Always carries a tag so the line stays greppable next to
+    other diagnostics at every verbosity (``[scrape]`` unless the caller
+    names another, e.g. ``[archive]`` for the packing phase). No-op at
+    NORMAL verbosity.
     """
-    vlog(VERBOSE, text, tag=TAG_SCRAPE)
+    vlog(VERBOSE, text, tag=tag)
 
 
 def trace(message: str) -> None:
@@ -409,6 +420,26 @@ def _print_header_block(headers: list[str], indent: int = 3) -> None:
         console_obj.print(body, no_wrap=True, overflow="ignore", crop=False)
 
 
+# A per-image fetch slower than this gets its duration tinted so stalls
+# stand out in a wall of ``-vvv`` lines without any extra verbosity.
+_SLOW_HTTP_MS = 1000.0
+
+
+def _status_style(status: str | int) -> str | None:
+    """Rich style for an HTTP status code (``None`` when not a status)."""
+    try:
+        code = int(str(status))
+    except (TypeError, ValueError):
+        return None
+    if 200 <= code < 300:
+        return "green"
+    if 300 <= code < 400:
+        return "yellow"
+    if code >= 400:
+        return "red"
+    return None
+
+
 def http_event(
     method: str,
     url: str | SafeURL,
@@ -435,17 +466,29 @@ def http_event(
     (``level=TRACE``) fold them onto the request line so a full ``-vvv``
     image run stays one line per file. Sensitive headers are masked and
     the displayed URL has credentials query-params redacted.
+
+    The status token is colored (green 2xx, yellow 3xx, red 4xx/5xx and
+    errors) and a duration at or above ``_SLOW_HTTP_MS`` is tinted yellow,
+    so failures and stalls stand out in a long run. Colors are Rich markup
+    on the line only — piped/non-TTY output and the debug file stay plain.
     """
     display_url = redact_url(str(url))
-    line = (
-        f"{method} {glyphs().dash} {error} {glyphs().dash} {display_url}"
-        if error
-        else f"{method} {status} {display_url}"
-    )
+
+    def _tok(text: str, style: str | None) -> str:
+        text = esc(text)
+        return f"[{style}]{text}[/]" if style else text
+
+    if error:
+        dash = glyphs().dash
+        line = f"{esc(method)} {dash} {_tok(error, 'red')} {dash} {esc(display_url)}"
+    else:
+        line = f"{esc(method)} {_tok(str(status), _status_style(status))} {esc(display_url)}"
     if note:
-        line += f"  [{note}]"
+        line += f"  [{esc(note)}]"
     if duration is not None:
-        line += f"  ({duration * 1000:.0f} ms)"
+        timing = f"({duration * 1000:.0f} ms)"
+        slow = duration * 1000 >= _SLOW_HTTP_MS
+        line += f"  {_tok(timing, 'yellow' if slow else None)}"
     trace_on = _http_trace_enabled()
     if headers and (trace_on or VERBOSITY >= TRACE):
         trace_level = level if trace_on else TRACE
@@ -453,11 +496,11 @@ def http_event(
         if kept and not trace_on and level >= TRACE:
             line = f"{line}  {'  '.join(kept)}"
             kept = []
-        vlog(trace_level, line, tag=TAG_HTTP)
+        vlog(trace_level, line, tag=TAG_HTTP, markup=True)
         if kept:
             _print_header_block(kept)
     else:
-        vlog(level, line, tag=TAG_HTTP)
+        vlog(level, line, tag=TAG_HTTP, markup=True)
 
 
 def _resolve_env_color() -> str | None:
@@ -2354,9 +2397,9 @@ class Pipeline:
             self._frame += 1
             await asyncio.sleep(SPIN_INTERVAL)
 
-    def stage(self, desc: str) -> None:
+    def stage(self, desc: str, *, tag: str = TAG_SCRAPE) -> None:
         if desc != self._desc:
-            stage_line(desc)
+            stage_line(desc, tag=tag)
         self._desc = desc
         if self._state is not None:
             self._state.stage = desc
@@ -2465,10 +2508,10 @@ class _RowSink:
         self._activity = activity
         self._key = key
 
-    def stage(self, text: str) -> None:
+    def stage(self, text: str, *, tag: str = TAG_SCRAPE) -> None:
         self._activity.set_status(self._key, text)
         if self._activity.note_stage(self._key, text):
-            stage_line(text)
+            stage_line(text, tag=tag)
 
     def set_activity(self, text: str) -> None:
         self._activity.set_activity(self._key, text)

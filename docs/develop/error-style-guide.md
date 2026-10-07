@@ -107,7 +107,7 @@ Rules:
 - Level-0 UI is only the `print_*` helpers, never `vlog()`.
 - `vlog(level, message, tag=...)` writes to stderr only at the right level.
   Tags are a fixed vocabulary: `[http]`, `[retry]`, `[scrape]`,
-  `[timing]`, `[download]`.
+  `[timing]`, `[download]`, `[archive]`.
 - Tracebacks print only at `-vvv`, via `report_error`.
 
 Expect a bug report attached with `-vvv` output (see
