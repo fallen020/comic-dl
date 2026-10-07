@@ -17,12 +17,12 @@
 </a>
 
 <h4 align="center">
-  [<a href="#install">Install</a>]
-  [<a href="#usage">Usage</a>]
-  [<a href="#supported-sites">Sites</a>]
-  [<a href="#configuration">Configuration</a>]
-  [<a href="#troubleshooting">Troubleshooting</a>]
-  [<a href="#documentation">Docs</a>]
+  [<a href=https://fallen020.github.io/comic-dl/docs/installation/>Install</a>]
+  [<a href=https://fallen020.github.io/comic-dl/docs/usage/basic/>Usage</a>]
+  [<a href=https://fallen020.github.io/comic-dl/docs/reference/supported-sites/>Sites</a>]
+  [<a href=https://fallen020.github.io/comic-dl/docs/configure/config/>Configuration</a>]
+  [<a href=https://fallen020.github.io/comic-dl/docs/troubleshooting/>Troubleshooting</a>]
+  [<a href=https://fallen020.github.io/comic-dl/docs/>Docs</a>]
 </h4>
 
 <p align="center">
@@ -94,102 +94,15 @@ Use `uv run comic-dl` from a source checkout. Full per-OS instructions are in
 > `pip install comic-dl` is not supported; the PyPI name belongs to an
 > unrelated project.
 
-## Usage
-
-The examples use
-[Becoming the Cheon Clan's Mad Dog](https://asurascans.com/comics/becoming-the-cheon-clans-mad-dog-05c7df14).
-comic-dl is independent. It is not affiliated with, endorsed by, or sponsored
-by Asura Scans, and this example is not an endorsement of the service.
-
-Download one chapter:
+## Quick start
 
 ```bash
-comic-dl -u "https://asurascans.com/comics/becoming-the-cheon-clans-mad-dog-05c7df14/chapter/1"
+comic-dl -u "<gallery-url>"  # any URL from a supported site
+comic-dl --help               # all flags
 ```
 
-Download a series and choose chapters in the picker:
-
-```bash
-comic-dl -u "https://asurascans.com/comics/becoming-the-cheon-clans-mad-dog-05c7df14"
-```
-
-Download specific source chapter numbers to `./out`:
-
-```bash
-comic-dl -u "https://asurascans.com/comics/becoming-the-cheon-clans-mad-dog-05c7df14" \
-  --chapters 1-3,5 -o ./out
-```
-
-A separate live run selecting chapters 21 and 22 completed in 18 seconds:
-
-```text
-Selected 2/22 chapters
-  ✔ [21/22] Saved: Chapter 21.cbz (14.6 MB)
-  ✔ [22/22] Saved: Chapter 22.cbz (14.4 MB)
-
-  ✔ Download complete
-
-    Series     : Becoming the Cheon Clan's Mad Dog
-    Selected   : 2 / 22 chapters
-    Downloaded : 2 chapters
-    Size       : 29 MB
-    Duration   : 18s
-    Average    : 1.57 MB/s
-    Saved to   : /tmp/opencode/comic-dl-asura-demo/Becoming the Cheon Clan's Mad Dog
-```
-
-Without `-o`, archives go to
-`~/Downloads/comic-dl/<Series>/<Chapter>.cbz` on Linux. Each finished archive
-contains numbered page images and `ComicInfo.xml`; the completed chapter is
-also recorded in the library database (`~/.local/share/comic-dl/library.db`
-on Linux).
-
-Image requests time out after 60 seconds and receive two retries by default.
-Known host rates are 1.5 requests/second for Kagane and 2 requests/second for
-Kstatic and E-Hentai; configure any host with `[http].rate`.
-
-## Supported sites
-
-30 built-in scrapers include MangaDex, WEBTOON, E-Hentai, Tapas, WeebCentral,
-Asura Scans, and Madara-based sites. The
-[supported-sites table](docs/reference/supported-sites.md) lists every accepted
-URL shape; `comic-dl --list-sources` also shows installed plugins.
-
-If a scraper breaks, open an issue with the site, URL pattern, comic-dl
-version, OS, and error text. Do not include cookies or credentials.
-
-## Configuration
-
-Configuration is optional. Create the file with `comic-dl config init`, then
-edit these 8 keys:
-
-```toml
-output = "~/Downloads/comic-dl"
-concurrency = 5
-
-[http]
-solver = "off"
-download-retries = 2
-rate = { "e-hentai.org" = 2.0 }
-
-[archive]
-format = "cbz"
-```
-
-CLI flags override config values, and config values override these defaults.
-See [docs/configure/config.md](docs/configure/config.md) for paths, per-site
-overrides, cache settings, and the complete generated file.
-
-## Troubleshooting
-
-- `ModuleNotFoundError: No module named 'comic_dl'` — run `uv sync` in the
-  source checkout.
-- `Access blocked (403)` — open the URL in a normal browser. If it loads there,
-  retry with `--solver webview`; if the browser is blocked too, comic-dl
-  cannot bypass that site or region restriction.
-
-The [troubleshooting guide](docs/troubleshooting.md) covers 403, 404, 429,
-missing webviews, interrupted downloads, and debug logs.
+Replace `<gallery-url>` with a URL from a
+[supported site](https://fallen020.github.io/comic-dl/docs/reference/supported-sites/).
 
 ## Documentation
 
