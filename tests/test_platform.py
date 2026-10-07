@@ -14,6 +14,18 @@ class TestSystemSeam:
     def test_system_is_classified(self):
         assert system() in {"windows", "macos", "linux", "other"}
 
+    def test_system_windows(self, monkeypatch):
+        monkeypatch.setattr(os, "name", "nt")
+        assert system() == "windows"
+
+    def test_system_macos(self, monkeypatch):
+        monkeypatch.setattr(sys, "platform", "darwin")
+        assert system() == "macos"
+
+    def test_system_other(self, monkeypatch):
+        monkeypatch.setattr(sys, "platform", "openbsd7")
+        assert system() == "other"
+
 
 class TestDownloadsDir:
     def test_xdg_override_wins(self, monkeypatch, tmp_path):
@@ -62,6 +74,80 @@ class TestDownloadsDir:
         monkeypatch.setattr(os, "name", "nt")
         monkeypatch.setitem(sys.modules, "winreg", _FakeWinreg)
         assert platform._windows_known_folder("{}") == Path(r"C:\Users\Tester\Downloads")
+
+    def test_known_folder_winreg_missing_returns_none(self, monkeypatch):
+        import importlib
+
+        monkeypatch.setattr(os, "name", "nt")
+
+        def _boom(_name):
+            raise ImportError("no winreg off-Windows")
+
+        monkeypatch.setattr(importlib, "import_module", _boom)
+        assert platform._windows_known_folder("{}") is None
+
+    def test_known_folder_oserror_returns_none(self, monkeypatch):
+        monkeypatch.setattr(os, "name", "nt")
+
+        class _FakeWinreg:
+            HKEY_CURRENT_USER = object()
+
+            @staticmethod
+            def OpenKey(_root, _path):
+                raise OSError("key unreadable")
+
+        monkeypatch.setitem(sys.modules, "winreg", _FakeWinreg)
+        assert platform._windows_known_folder("{}") is None
+
+    def test_known_folder_non_string_value_returns_none(self, monkeypatch):
+        monkeypatch.setattr(os, "name", "nt")
+
+        class _Key:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return False
+
+        class _FakeWinreg:
+            HKEY_CURRENT_USER = object()
+
+            @staticmethod
+            def OpenKey(_root, _path):
+                return _Key()
+
+            @staticmethod
+            def QueryValueEx(_key, _guid):
+                return 123, 3
+
+        monkeypatch.setitem(sys.modules, "winreg", _FakeWinreg)
+        assert platform._windows_known_folder("{}") is None
+
+    @pytest.mark.skipif(
+        sys.version_info < (3, 12),
+        reason="pathlib honors mocked os.name below 3.12",
+    )
+    def test_windows_known_folder_wins_over_home(self, monkeypatch):
+        monkeypatch.delenv("XDG_DOWNLOAD_DIR", raising=False)
+        monkeypatch.setattr(os, "name", "nt")
+        folder = Path(r"C:\Users\Tester\Downloads")
+        monkeypatch.setattr(platform, "_windows_known_folder", lambda _guid: folder)
+        assert downloads_dir() == folder
+
+    @pytest.mark.skipif(
+        sys.version_info < (3, 12),
+        reason="pathlib honors mocked os.name below 3.12",
+    )
+    def test_windows_without_known_folder_falls_back_to_home(self, monkeypatch):
+        # Paths must be built before mocking os.name: pathlib raises on
+        # POSIX once the concrete class is fixed at import time.
+        home = Path("/home/tester")
+        expected = home / "Downloads"
+        monkeypatch.delenv("XDG_DOWNLOAD_DIR", raising=False)
+        monkeypatch.setattr(os, "name", "nt")
+        monkeypatch.setattr(platform, "_windows_known_folder", lambda _guid: None)
+        monkeypatch.setattr(Path, "home", lambda: home)
+        assert downloads_dir() == expected
 
 
 class TestDefaultEditor:

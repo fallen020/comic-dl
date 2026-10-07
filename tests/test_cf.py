@@ -11,7 +11,8 @@ from comic_dl import config as cfgmodule
 
 
 def _run(coro):
-    return asyncio.new_event_loop().run_until_complete(coro)
+    # asyncio.run closes the loop; new_event_loop() here leaked its socketpair.
+    return asyncio.run(coro)
 
 
 @pytest.fixture(autouse=True)

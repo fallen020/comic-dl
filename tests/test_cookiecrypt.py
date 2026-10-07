@@ -137,8 +137,10 @@ def test_jar_encrypts_at_rest(tmp_path, jar_key: bytes, monkeypatch) -> None:
 
     # Raw rows (byte-for-byte through plain sqlite3, never allowed to see a
     # CookieJar) must be encrypted envelopes, never the plaintext secret.
+    # The sqlite3 context manager commits but does not close.
     with sqlite3.connect(tmp_path / "cookies.db") as conn:
         rows = conn.execute("SELECT name, value FROM cookies").fetchall()
+    conn.close()
     assert rows and rows[0][0] == "sk"
     assert is_encrypted(rows[0][1])
     assert "plaintext-secret" not in rows[0][1]
@@ -169,9 +171,10 @@ def test_jar_drops_corrupt_encrypted_row(tmp_path, jar_key: bytes, monkeypatch) 
         jar.set("e-hentai.org", "sk", "good-value")
 
     # Corrupt that row's envelope directly (plain sqlite3, no CookieJar) so
-    # decryption must fail on read.
+    # decryption must fail on read. The context manager commits, not closes.
     with sqlite3.connect(tmp_path / "cookies.db") as conn:
         conn.execute("UPDATE cookies SET value = 'enc1.garbage'")
+    conn.close()
 
     with CookieJar(tmp_path / "cookies.db", encryption="auto") as jar:
         got = jar.cookies_for("e-hentai.org")

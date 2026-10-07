@@ -1778,6 +1778,7 @@ class TestOpenLibrary:
         lib = _open_library(target)
         assert lib is not None
         assert target.is_dir()
+        lib.close()
 
     def test_unwritable_output_returns_none_without_traceback(self, tmp_path, capsys):
         file = tmp_path / "blocked"

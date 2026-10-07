@@ -63,7 +63,7 @@ def _reset_cli_globals(tmp_path):
     config path, runtime [http] overrides — that otherwise leaks across tests
     and reorders rendering/config assertions.
     """
-    from comic_dl import cache, config, cookies, downloader, rate, utils
+    from comic_dl import cache, config, cookies, downloader, http, rate, utils
     from comic_dl import ui as ui_module
 
     cache.set_cache_dir(tmp_path / "http-cache")
@@ -95,3 +95,8 @@ def _reset_cli_globals(tmp_path):
         c._force_terminal = force_terminal
         c._color_system = color_system
     cache.set_cache_dir(None)
+    # Without the reset, the jar outlives the test (frozen tmp path):
+    # leaked sqlite conn plus cookies bleeding into later tests.
+    if http._JAR is not None:
+        http._JAR.close()
+        http._JAR = None
