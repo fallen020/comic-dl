@@ -19,10 +19,12 @@ class TestSystemSeam:
         assert system() == "windows"
 
     def test_system_macos(self, monkeypatch):
+        monkeypatch.setattr(os, "name", "posix")
         monkeypatch.setattr(sys, "platform", "darwin")
         assert system() == "macos"
 
     def test_system_other(self, monkeypatch):
+        monkeypatch.setattr(os, "name", "posix")
         monkeypatch.setattr(sys, "platform", "openbsd7")
         assert system() == "other"
 
