@@ -96,47 +96,26 @@ from ..scrapers.registry import (
 from ..scrapers.sites.asurascans import (
     is_chapter_url as is_asurascans_chapter_url,
 )
-from ..scrapers.sites.asurascans import (
-    is_series_url as is_asurascans_series_url,
-)
 from ..scrapers.sites.flamecomics import (
     is_chapter_url as is_flamecomics_chapter_url,
-)
-from ..scrapers.sites.flamecomics import (
-    is_series_url as is_flamecomics_series_url,
 )
 from ..scrapers.sites.fsicomics import (
     is_chapter_url as is_fsicomics_chapter_url,
 )
-from ..scrapers.sites.fsicomics import (
-    is_series_url as is_fsicomics_series_url,
-)
 from ..scrapers.sites.gedecomix import (
     is_chapter_url as is_gedecomix_chapter_url,
-)
-from ..scrapers.sites.gedecomix import (
-    is_series_url as is_gedecomix_series_url,
 )
 from ..scrapers.sites.kagane import (
     is_chapter_url as is_kagane_chapter_url,
 )
-from ..scrapers.sites.kagane import (
-    is_series_url as is_kagane_series_url,
-)
 from ..scrapers.sites.webtoon import (
     is_chapter_url as is_webtoon_chapter_url,
-)
-from ..scrapers.sites.webtoon import (
-    is_series_url as is_webtoon_series_url,
 )
 from ..scrapers.sites.webtoon import (
     normalize_webtoon_url,
 )
 from ..scrapers.sites.weebcentral import (
     is_chapter_url as is_weebcentral_chapter_url,
-)
-from ..scrapers.sites.weebcentral import (
-    is_series_url as is_weebcentral_series_url,
 )
 from ..self_update import run_update_command
 from ..site_update import (
@@ -1727,10 +1706,9 @@ async def process_url(
     trace(f"dispatch: host → {domain or '<none>'}")
 
     series_scraper = get_series_scraper(domain)
-    # The same checkers drive the dry-run preview path via _SERIES_URL_CHECKERS,
-    # falling back to the source's own matches_series_url when the static map
-    # has no entry (plugins, mangadex, and the Madara family).
-    series_check = _series_url_checker(domain, series_scraper)
+    # Series routing lives on the source: matches_series_url, else no
+    # series match (plugins without it are chapter-only for dispatch).
+    series_check = getattr(series_scraper, "matches_series_url", None)
     if series_check is not None and series_check(url):
         trace(f"dispatch: {domain} → series mode ({type(series_scraper).__name__})")
         vlog(VERBOSE, f"Source: {domain}", tag=TAG_CONTEXT)
@@ -2904,32 +2882,6 @@ def _url_origin(args: argparse.Namespace, url: str) -> str:
     return f" ({origin})" if origin else ""
 
 
-_SERIES_URL_CHECKERS = {
-    "webtoons.com": is_webtoon_series_url,
-    "flamecomics.xyz": is_flamecomics_series_url,
-    "fsicomics.com": is_fsicomics_series_url,
-    "gedecomix.com": is_gedecomix_series_url,
-    "asurascans.com": is_asurascans_series_url,
-    "kagane.to": is_kagane_series_url,
-    "weebcentral.com": is_weebcentral_series_url,
-}
-
-
-def _series_url_checker(domain: str, series_scraper: object | None) -> Callable[[str], bool] | None:
-    """Series-URL predicate for ``domain``, static map then scraper's own.
-
-    The static map covers the handful of built-ins whose series grammar
-    predates the URL-aware sources. Every other series-capable source —
-    built-ins like mangadex and the Madara family, plus third-party plugins
-    — exposes ``matches_series_url`` on the instance, which is what makes
-    their series pages reachable at all.
-    """
-    checker = _SERIES_URL_CHECKERS.get(domain)
-    if checker is None and series_scraper is not None:
-        checker = getattr(series_scraper, "matches_series_url", None)
-    return checker
-
-
 def _classify_preview_entry(entry: dict, url: str, index: dict[str, Path], force: bool) -> dict:
     """Tag a preview entry with its download action, mirroring live logic.
 
@@ -2976,7 +2928,7 @@ async def _preview_url(url: str, index: dict[str, Path], force: bool) -> dict:
 
     try:
         series_scraper = get_series_scraper(domain)
-        series_check = _series_url_checker(domain, series_scraper)
+        series_check = getattr(series_scraper, "matches_series_url", None)
         if series_scraper is not None and series_check is not None and series_check(url):
             async with AsyncSession(**_with_referer(url)) as client:
                 info = await series_scraper.scrape_series(url, client)

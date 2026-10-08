@@ -23,13 +23,6 @@ _SITE_ID_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 
 # ponytail: allowlist, delete entries as sites migrate, delete dict at empty
 KNOWN_VIOLATIONS = {
-    "asurascans.com": {"series-matcher"},
-    "flamecomics.xyz": {"series-matcher"},
-    "fsicomics.com": {"series-matcher"},
-    "gedecomix.com": {"series-matcher"},
-    "kagane.to": {"series-matcher"},
-    "webtoons.com": {"series-matcher"},
-    "weebcentral.com": {"series-matcher"},
     "genztoons.org": {"test-url"},
     "hdporncomics.com": {"test-url"},
 }

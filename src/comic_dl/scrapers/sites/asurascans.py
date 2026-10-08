@@ -303,6 +303,9 @@ class AsurascansScraper(BaseScraper):
     def matches_url(self, url: str) -> bool:
         return is_chapter_url(url) or is_series_url(url)
 
+    def matches_series_url(self, url: str) -> bool:
+        return is_series_url(url)
+
     @staticmethod
     async def _fetch(url: str, client: AsyncSession) -> tuple[BeautifulSoup, str]:
         """Fetch a page, turning a 404 into a friendly removal error."""
