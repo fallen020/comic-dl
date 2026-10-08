@@ -84,11 +84,14 @@ class FlameScraper(BaseScraper):
     test_url_kind = "chapter"
     minimum_core_version = "0.0.2"
 
+    series_url_re = SERIES_PATTERN
+    chapter_url_re = CHAPTER_PATTERN
+
     def matches_url(self, url: str) -> bool:
-        return is_chapter_url(url) or is_series_url(url)
+        return bool(self.chapter_url_re.match(url)) or bool(self.series_url_re.match(url))
 
     def matches_series_url(self, url: str) -> bool:
-        return is_series_url(url)
+        return bool(self.series_url_re.match(url))
 
     @staticmethod
     async def _fetch(url: str, client: AsyncSession) -> BeautifulSoup:

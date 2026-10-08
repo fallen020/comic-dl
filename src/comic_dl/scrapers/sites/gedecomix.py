@@ -246,14 +246,17 @@ class GedecomixScraper(MadaraScraper):
     test_url = "https://gedecomix.com/porncomic/hell-village-bulls-pigking/hell-village-bulls-5/"
     test_url_kind = "chapter"
     minimum_core_version = "0.0.2"
+
+    series_url_re = _SERIES_PATH_RE
+    chapter_url_re = _CHAPTER_PATH_RE
     base_url = BASE
     series_segment = "porncomic"
 
     def matches_url(self, url: str) -> bool:
-        return is_chapter_url(url) or is_series_url(url)
+        return bool(self.chapter_url_re.match(url)) or bool(self.series_url_re.match(url))
 
     def matches_series_url(self, url: str) -> bool:
-        return is_series_url(url)
+        return bool(self.series_url_re.match(url))
 
     async def scrape(self, url: str, client: AsyncSession) -> PostMetadata:
         chapter = await self._scrape_chapter(url, client)

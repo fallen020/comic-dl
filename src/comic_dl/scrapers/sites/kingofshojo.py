@@ -141,12 +141,14 @@ class KingofshojoScraper(BaseScraper):
     test_url = "https://kingofshojo.com/back-to-spring-chapter-81/"
     test_url_kind = "chapter"
     minimum_core_version = "0.0.2"
+
+    chapter_url_re = _CHAPTER_PATH_RE
     base_url = BASE
 
     chapter_url_re = _CHAPTER_PATH_RE
 
     def matches_url(self, url: str) -> bool:
-        return is_chapter_url(url)
+        return bool(self.chapter_url_re.match(url))
 
     async def scrape(self, url: str, client) -> PostMetadata:
         chapter = await self._scrape_chapter(url, client)

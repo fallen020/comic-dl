@@ -108,4 +108,11 @@ def test_series_matcher(entry):
         pytest.skip("chapter-only source")
     if _violated(domain, "series-matcher"):
         pytest.skip(f"known violation: {domain} relies on static series map")
-    assert callable(getattr(entry.instance, "matches_series_url", None)), domain
+    matcher = getattr(entry.instance, "matches_series_url", None)
+    assert callable(matcher), domain
+    if not entry.test_url:
+        return
+    if entry.test_url_kind == "series":
+        assert matcher(entry.test_url), f"{domain}: matches_series_url rejects its series test_url"
+    else:
+        assert not matcher(entry.test_url), f"{domain}: chapter test_url matches matches_series_url"

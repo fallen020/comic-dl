@@ -300,12 +300,7 @@ class MadaraSeriesSiteScraper(MadaraScraper):
         )
 
     def matches_series_url(self, url: str) -> bool:
-        """True when ``url`` is a series page, not a chapter.
-
-        Lets the CLI route series URLs when the domain is not in its own
-        ``_SERIES_URL_CHECKERS`` table — which is every plugin and any
-        built-in that never got a static entry (toonily).
-        """
+        """True when ``url`` is a series page, not a chapter."""
         return bool(self.series_url_re is not None and self.series_url_re.match(url))
 
     def _image_host_ok(self, raw: str) -> bool:
