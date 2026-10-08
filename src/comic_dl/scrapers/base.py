@@ -15,9 +15,11 @@ from curl_cffi.requests import AsyncSession
 
 from ..cf import retry_challenge_once
 from ..errors import (
+    SITE_ID_RE,
     SITE_NO_CHAPTERS,
     SITE_NO_PAGES,
     SITE_NOT_RECOGNIZED,
+    VERSION_RE,
     ScrapeError,
     ScrapeTimeout,
 )
@@ -244,6 +246,26 @@ class BaseScraper:
     """Shared HTTP, retry, and metadata helpers for every built-in scraper."""
 
     domain: str = ""
+
+    def __init_subclass__(cls, **kwargs: object) -> None:
+        super().__init_subclass__(**kwargs)
+        # Format only, not presence: intermediate bases (Madara*, ``_``-family
+        # roots, generic) declare empty placeholders and inherit them upward,
+        # so blanks pass here and the registry + contract test demand the
+        # real values on registered built-ins.
+        for attr, pattern, what in (
+            ("site_id", SITE_ID_RE, "a lowercase-slug id like 'manga-example'"),
+            ("version", VERSION_RE, "a MAJOR.MINOR.PATCH version"),
+            ("minimum_core_version", VERSION_RE, "a MAJOR.MINOR.PATCH version"),
+        ):
+            value = getattr(cls, attr, None)
+            if (
+                isinstance(value, str)
+                and value.strip()
+                and value != "builtin"
+                and not pattern.match(value)
+            ):
+                raise ValueError(f"{cls.__name__} declares invalid {attr} {value!r}; use {what}.")
 
     @staticmethod
     async def fetch_html(url: str, client: AsyncSession) -> BeautifulSoup:

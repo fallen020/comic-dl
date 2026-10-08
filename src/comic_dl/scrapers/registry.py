@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import hashlib
-import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from importlib.metadata import entry_points
@@ -140,9 +139,6 @@ def register(
 #: Built-in site id -> registering domain, for duplicate-id fail-fast.
 _builtin_ids: dict[str, str] = {}
 
-_SITE_ID_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
-_VERSION_RE = re.compile(r"^\d+\.\d+\.\d+$")
-
 
 def _check_builtin_id_unique(domain: str, site_id: str) -> None:
     """Reject a built-in whose declared ``id`` breaks the site-support model.
@@ -150,9 +146,9 @@ def _check_builtin_id_unique(domain: str, site_id: str) -> None:
     Site ids are the stable public key per adapter: they must be unique across
     built-ins and stay lowercase-slug so a manifest id is never ambiguous.
     """
-    from ..errors import SiteRegistryError
+    from ..errors import SITE_ID_RE, SiteRegistryError
 
-    if not _SITE_ID_RE.match(site_id):
+    if not SITE_ID_RE.match(site_id):
         raise SiteRegistryError(
             f"Built-in scraper for {domain!r} declares an invalid site id {site_id!r}.",
             hint="Use a stable lowercase-slug id (e.g. 'manga-example').",
@@ -212,6 +208,13 @@ def register_scraper(
     """
 
     def decorator(cls: type) -> type:
+        from ..errors import VERSION_RE, SiteRegistryError
+
+        if not (domain or "").strip():
+            raise SiteRegistryError(
+                f"Built-in scraper {cls.__name__!r} declares an empty domain.",
+                hint="Pass the site's registrable domain, e.g. domain='manga-example.com'.",
+            )
         version = str(getattr(cls, "version", "") or "builtin")
         site_id = getattr(cls, "site_id", None)
         min_core = getattr(cls, "minimum_core_version", None)
@@ -221,21 +224,34 @@ def register_scraper(
             site_id = None
         if isinstance(min_core, str) and not min_core.strip():
             min_core = None
-        if version != "builtin" and not _VERSION_RE.match(version):
+        if version != "builtin" and not VERSION_RE.match(version):
             raise ValueError(
                 f"{domain!r} declares an invalid site version {version!r}; use MAJOR.MINOR.PATCH."
             )
-        if min_core is not None and not _VERSION_RE.match(str(min_core)):
+        if min_core is not None and not VERSION_RE.match(str(min_core)):
             raise ValueError(
                 f"{domain!r} declares an invalid minimum_core_version "
                 f"{min_core!r}; use MAJOR.MINOR.PATCH."
             )
+        if site_id is None:
+            raise SiteRegistryError(
+                f"Built-in scraper for {domain!r} declares no site_id.",
+                hint="Add a stable lowercase-slug id (e.g. site_id='manga-example').",
+            )
+        name = str(getattr(cls, "name", "") or cls.__name__)
+        if not name.strip():
+            raise SiteRegistryError(
+                f"Built-in scraper for {domain!r} declares an empty name.",
+                hint="Add a human-readable name (e.g. name='Manga Example').",
+            )
+        caps = set(capabilities or {"chapter"})
         instance = cls()
+        _validate_source_shape(domain, instance, caps)
         register_builtin(
             instance,
             domain=domain,
-            capabilities=set(capabilities or {"chapter"}),
-            name=str(getattr(cls, "name", "") or cls.__name__),
+            capabilities=caps,
+            name=name,
             version=version,
             site_id=site_id,
             minimum_core_version=min_core,
@@ -245,6 +261,44 @@ def register_scraper(
         return cls
 
     return decorator
+
+
+def _validate_source_shape(domain: str, instance: Any, caps: set[str]) -> None:
+    """Check that declared capabilities and metadata agree at registration.
+
+    A capability is only paired with the registry at decoration, so ``series``
+    without ``scrape_series`` is a registration error the packager sees, not
+    a runtime surprise. An empty ``test_url`` is allowed (a Cloudflare-walled
+    site has no verifiable public URL).
+    """
+    from ..errors import SiteRegistryError
+
+    if "chapter" in caps and not callable(getattr(instance, "scrape", None)):
+        raise SiteRegistryError(
+            f"{domain!r} declares the 'chapter' capability but no scrape().",
+            hint="Add scrape(), or drop 'chapter' from the capabilities.",
+        )
+    missing = [
+        name
+        for name in ("scrape_series", "matches_series_url")
+        if "series" in caps and not callable(getattr(instance, name, None))
+    ]
+    if missing:
+        raise SiteRegistryError(
+            f"{domain!r} declares the 'series' capability but is missing {', '.join(missing)}().",
+            hint=(
+                "Add the missing method(s), or drop 'series' from the "
+                "capabilities; series URLs are unroutable without "
+                "matches_series_url()."
+            ),
+        )
+    matcher = getattr(instance, "matches_url", None)
+    test_url = getattr(instance, "test_url", None)
+    if callable(matcher) and isinstance(test_url, str) and test_url and not matcher(test_url):
+        raise SiteRegistryError(
+            f"{domain!r} declares test_url {test_url!r} that its own matches_url() rejects.",
+            hint="Fix matches_url()/the URL regexes, or the test_url.",
+        )
 
 
 def get_entry(domain: str) -> SourceEntry | None:
@@ -368,14 +422,21 @@ def load_plugins(group: str = ENTRY_POINT_GROUP) -> list[SourceEntry]:
             except (TypeError, ValueError):
                 # A malformed plugin priority must not sink the CLI.
                 priority = 0
-            entry = register(
-                cls(),
-                domain=str(domain),
-                capabilities=set(caps),
-                name=str(getattr(cls, "name", "") or cls.__name__),
-                version=str(getattr(cls, "version", "") or "plugin"),
-                builtin=False,
-                priority=priority,
-            )
+            try:
+                entry = register(
+                    cls(),
+                    domain=str(domain),
+                    capabilities=set(caps),
+                    name=str(getattr(cls, "name", "") or cls.__name__),
+                    version=str(getattr(cls, "version", "") or "plugin"),
+                    builtin=False,
+                    priority=priority,
+                )
+            except Exception as exc:
+                # Same skip-and-report contract as a failed import above:
+                # never break `import comic_dl` over a third-party plugin.
+                key = f"{_ep_key(ep)}:{getattr(cls, '__name__', cls)}"
+                _plugin_load_errors[key] = f"{type(exc).__name__}: {exc}"
+                continue
             discovered.append(entry)
     return discovered

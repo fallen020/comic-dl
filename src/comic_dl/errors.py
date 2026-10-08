@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from enum import IntEnum
 
 
@@ -182,3 +183,10 @@ class SiteRegistryError(ComicError):
 
     kind = "sitereg"
     _default_message = "A built-in site scraper could not be loaded."
+
+
+#: Field-grammar patterns shared by scraper validation and the registry.
+#: ``version="builtin"`` is the no-version marker the generic fallback uses,
+#: so checkers compare against the pattern, not truthiness.
+SITE_ID_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
+VERSION_RE = re.compile(r"^\d+\.\d+\.\d+$")
