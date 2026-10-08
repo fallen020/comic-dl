@@ -11,7 +11,14 @@ from __future__ import annotations
 
 from curl_cffi.requests import AsyncSession
 
-from comic_dl.models import ImageItem, PostMetadata
+from comic_dl.models import (
+    ChapterInfo,
+    ImageItem,
+    PostMetadata,
+    ScrapedChapter,
+    SourceInfo,
+    chapter_to_post_metadata,
+)
 
 
 class FakeExampleSource:
@@ -27,14 +34,18 @@ class FakeExampleSource:
         return url.startswith("https://fake.example/g/")
 
     async def scrape(self, url: str, client: AsyncSession) -> PostMetadata:
-        return PostMetadata(
-            series_title="Fake Series",
-            chapter_title="Chapter from fake.example",
-            images=[
-                ImageItem(
-                    url="https://static.fake.example/catalog/001.jpg",
-                    page_number=1,
-                    filename="001.jpg",
-                )
-            ],
+        return chapter_to_post_metadata(
+            ScrapedChapter(
+                info=ChapterInfo(
+                    series_title="Fake Series",
+                    chapter_title="Chapter from fake.example",
+                ),
+                source=SourceInfo(url=url, service="fakeexample", post_id="catalog"),
+                images=[
+                    ImageItem(
+                        url="https://static.fake.example/catalog/001.jpg",
+                        page_number=1,
+                    )
+                ],
+            )
         )

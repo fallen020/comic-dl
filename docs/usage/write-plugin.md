@@ -25,13 +25,9 @@ A plugin exports one or more `Source` classes. Each class implements:
 
 ## Result types
 
-`scrape` returns `comic_dl.models.PostMetadata`. Build it directly:
-
-```python
-from comic_dl.models import ImageItem, PostMetadata
-```
-
-Or build a `ScrapedChapter` and convert:
+`scrape` returns `comic_dl.models.PostMetadata`, but never hand-build it:
+filenames and page counts come from `chapter_to_post_metadata`, which derives
+them from a `ScrapedChapter`:
 
 ```python
 from comic_dl.models import (
@@ -42,7 +38,34 @@ from comic_dl.models import (
     chapter_to_post_metadata,
 )
 
-return chapter_to_post_metadata(ScrapedChapter(...))
+return chapter_to_post_metadata(
+    ScrapedChapter(
+        info=ChapterInfo(series_title="Series", chapter_title="Chapter 1"),
+        source=SourceInfo(url=url, service="mysite.example", post_id="1"),
+        images=[ImageItem(url="https://cdn.mysite.example/1.jpg", page_number=1)],
+    )
+)
+```
+
+## Errors
+
+Raise `comic_dl.errors.ScrapeError` with a `site_error_code`: the live check
+maps the code to `broken / url-gone / unavailable`, and a bare `ValueError`
+drops it. The common cases have helpers; always hint at a working example URL:
+
+```python
+from comic_dl.scrapers.base import (
+    listing_page_error,
+    no_chapters_error,
+    no_images_error,
+)
+
+if not images:
+    raise no_images_error("https://mysite.example/g/123 shows no reader images")
+if not chapters:
+    raise no_chapters_error("https://mysite.example/series/slug lists no chapters")
+if "/tag/" in url or "/category/" in url:
+    raise listing_page_error("My Site", "https://mysite.example/series/{slug}/")
 ```
 
 `scrape_series` returns `comic_dl.models.SeriesMetadata` — a `series_title`
@@ -66,7 +89,14 @@ soup = await BaseScraper.fetch_html(url, client)
 # my_site/source.py
 from curl_cffi.requests import AsyncSession
 
-from comic_dl.models import ImageItem, PostMetadata
+from comic_dl.models import (
+    ChapterInfo,
+    ImageItem,
+    PostMetadata,
+    ScrapedChapter,
+    SourceInfo,
+    chapter_to_post_metadata,
+)
 
 
 class MySiteSource:
@@ -81,16 +111,17 @@ class MySiteSource:
 
     async def scrape(self, url: str, client: AsyncSession) -> PostMetadata:
         # ... parse the page ...
-        return PostMetadata(
-            series_title="Series",
-            chapter_title="Chapter",
-            images=[
-                ImageItem(
-                    url="https://cdn.mysite.example/1.jpg",
-                    page_number=1,
-                    filename="001.jpg",
-                )
-            ],
+        return chapter_to_post_metadata(
+            ScrapedChapter(
+                info=ChapterInfo(series_title="Series", chapter_title="Chapter"),
+                source=SourceInfo(url=url, service="my-site", post_id="1"),
+                images=[
+                    ImageItem(
+                        url="https://cdn.mysite.example/1.jpg",
+                        page_number=1,
+                    )
+                ],
+            )
         )
 ```
 
