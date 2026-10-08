@@ -245,7 +245,7 @@ def vlog(level: int, message: str, *, tag: str | None = None, markup: bool = Fal
         body = f"[{style}]{esc(f'[{tag}]')}[/] [{MUTED}]{rendered}[/]"
     else:
         body = f"[{MUTED}]{esc(message)}[/]"
-    _active_console().print(body)
+    _active_console().print(body, soft_wrap=True)
 
 
 def stage_line(text: str, *, tag: str = TAG_SCRAPE) -> None:

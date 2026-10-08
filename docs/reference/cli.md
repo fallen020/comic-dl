@@ -157,7 +157,7 @@ which is read as bytes.
 | Flag | Short | Default | Description |
 | :--- | :---- | :------ | :---------- |
 | `--verbose` | `-v` | | Increase verbosity: `-v` context, `-vv` page/cover requests and timing, `-vvv` every image request and full trace |
-| `--debug-file` | | | Divert the `-vvv` trace to a file instead of the screen |
+| `--debug-file` | | | Divert the `-vvv` trace to a file instead of the screen (implies `-vvv`) |
 | `--show-legal-notice` | | | Re-show the first-run legal notice, then continue |
 
 `COMIC_DL_TRACE_HTTP=1` shows page-request headers at `-vv` (images still need `-vvv`).

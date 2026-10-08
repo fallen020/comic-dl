@@ -1149,7 +1149,7 @@ def _build_first_stage_parser() -> ComicArgumentParser:
         type=Path,
         default=None,
         metavar="PATH",
-        help="Divert -vvv trace diagnostics to PATH instead of the screen",
+        help="Divert -vvv trace diagnostics to PATH instead of the screen (implies -vvv)",
     )
     parser.add_argument(
         "--chapters",
