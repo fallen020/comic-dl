@@ -2,11 +2,9 @@
 """Regenerate the supported-sites tables in docs and the website.
 
 The Sites and Per-site features tables are derived from the live registry:
-every built-in source appears automatically with its domain and
-chapter/series capabilities. Only the human metadata that cannot be derived —
-a site's display name and its URL-pattern strings — lives in the ``SITE_META``
-map below. The per-site prose notes, front matter, and every other section are
-left untouched.
+every built-in source appears automatically with its domain, display name,
+URL-pattern strings, and chapter/series capabilities. The per-site prose
+notes, front matter, and every other section are left untouched.
 
 Run without arguments to rewrite the two tables in place; ``--check`` instead
 verifies they are current (used by ``scripts/docs.sh`` so CI fails on drift).
@@ -26,62 +24,6 @@ sys.path.insert(0, str(_REPO / "src"))
 
 from comic_dl.scrapers import list_sources  # noqa: E402
 
-#: domain -> (display name, chapter URL pattern, series URL pattern). Only
-#: fields that cannot be read off the registry live here; add a row when you
-#: add a site ('' pattern when the site lacks that capability).
-SITE_META = {
-    "asurascans.com": ("Asura Scans", "/comics/{series}/chapter/{n}", "/comics/{series}/"),
-    "e-hentai.org": ("E-Hentai", "/g/{gid}/{token}/", ""),
-    "flamecomics.xyz": ("FlameComics", "/series/{id}/{token}/", "/series/{id}/"),
-    "fsicomics.com": ("FSIComics", "/{comic-slug}/", "/all-porn-comics/..."),
-    "divascans.org": (
-        "DivaScans",
-        "/series/comic/{slug}/chapter/{n}",
-        "/series/comic/{slug}/",
-    ),
-    "gedecomix.com": ("GEDE Comix", "/porncomic/{series}/{chapter}/", "/porncomic/{series}/"),
-    "genztoons.org": ("GenzToons", "/chapter/{uid}/", "/series/{slug}/"),
-    "hdporncomics.com": ("HD Porn Comics", "/{slug}-sex-comic/", ""),
-    "hivetoons.org": ("HiveToons", "/series/{slug}/chapter-{n}/", "/series/{slug}/"),
-    "imhentai.xxx": ("IMHentai", "/view/{id}/{n}/", "/gallery/{id}/"),
-    "kagane.to": ("Kagane", "/series/{id}/reader/{book}", "/series/{id}/"),
-    "kingofshojo.com": ("Kingofshojo", "/{slug}-chapter-{n}/", ""),
-    "kodokueasyaccess.com": ("Kodoku", "/read/{slug}/{lang}/{n}/", "/manhwa/{slug}/"),
-    "lgbtics.com": ("LGBTics", "/comic/{slug}/{chapter}/", "/comic/{slug}/"),
-    "mangadex.org": (
-        "MangaDex",
-        "/chapter/{chapter-uuid}",
-        "/title/{manga-uuid} or /manga/{manga-uuid}",
-    ),
-    "manhuato.com": (
-        "ManhuaTo",
-        "/manhua/{slug}/chapter-{n}-ch{id}",
-        "/manhua/{slug}/",
-    ),
-    "manhwatop.com": ("ManhwaTop", "/manga/{slug}/chapter-{n}/", "/manga/{slug}/"),
-    "nyxscans.com": ("Nyx Scans", "/series/{slug}/chapter-{n}", "/series/{slug}/"),
-    "pawchive.pw": ("Pawchive", "/{service}/user/{id}/post/{id}/", ""),
-    "tapas.io": ("Tapas", "/episode/{id}", "/series/{slug}"),
-    "qimanga.com": ("QiScans", "/series/{slug}/chapter-{n}", "/series/{slug}"),
-    "richpopup.com": ("RichPopup", "/{id}-{slug}.html", ""),
-    "stonescape.xyz": ("StoneScape", "/series/{slug}/ch-{n}", "/series/{slug}"),
-    "en-thunderscans.com": ("Thunderscans", "/{slug}-chapter-{n}/", "/comics/{slug}/"),
-    "toonily.com": ("Toonily", "/serie/{slug}/chapter-{n}/", "/serie/{slug}/"),
-    "toonverse.net": ("ToonVerse", "/read/{slug}/{n}", "/series/{slug}/"),
-    "valirscans.org": (
-        "ValirScans",
-        "/series/comic/{slug}/chapter/{n}",
-        "/series/comic/{slug}/",
-    ),
-    "vortexscans.org": ("Vortex Scans", "/series/{slug}/chapter-{n}", "/series/{slug}/"),
-    "webtoons.com": (
-        "WEBTOON",
-        "/{lang}/{category}/{title}/ep-{n}/viewer?title_no={id}&episode_no={n}",
-        "/{lang}/{category}/{title}/list?title_no={id}",
-    ),
-    "weebcentral.com": ("WeebCentral", "/chapters/{id}", "/series/{id}/{slug}"),
-}
-
 #: Domains whose chapter title comes from tag metadata rather than the page.
 TITLES_FROM_TAGS = {"e-hentai.org", "webtoons.com"}
 
@@ -100,11 +42,10 @@ _COUNT_RE = re.compile(r"\b\d+(\s+built-in\s+(?:sources|scrapers))\b")
 def _entries() -> list:
     """``(domain, entry)`` pairs sorted by domain, every built-in site."""
     by_domain = {e.domain: e for e in list_sources() if e.builtin}
-    known = set(by_domain) | set(SITE_META)
-    unknown = set(by_domain) - set(SITE_META)
-    if unknown:
-        raise SystemExit("SITE_META is missing entries for: " + ", ".join(sorted(unknown)))
-    return [(domain, by_domain[domain]) for domain in sorted(known) if domain in by_domain]
+    missing = sorted(d for d, e in by_domain.items() if not e.display_name.strip())
+    if missing:
+        raise SystemExit("Built-in sources declare no display_name for: " + ", ".join(missing))
+    return [(domain, by_domain[domain]) for domain in sorted(by_domain)]
 
 
 def _yes(flag: bool) -> str:
@@ -128,7 +69,11 @@ def _sites_table(entries, cell):
         "| :--- | :----- | :----------- | :------- | :----- |",
     ]
     for domain, entry in entries:
-        display, chapter, series = SITE_META[domain]
+        display, chapter, series = (
+            entry.display_name,
+            entry.chapter_url_pattern,
+            entry.series_url_pattern,
+        )
         # Comma-joined, not <br>: this cell is emitted into a plain-Markdown
         # file too, where a line break would need JSX markup that MDX only
         # accepts self-closed.
@@ -141,9 +86,8 @@ def _sites_table(entries, cell):
 
 
 def _features_table(entries, cell):
-    domains = [d for d, _ in entries]
-    header = "| Feature | " + " | ".join(SITE_META[d][0] for d in domains) + " |"
-    sep_cols = [":------"] + [":-------"] * len(domains)
+    header = "| Feature | " + " | ".join(e.display_name for _, e in entries) + " |"
+    sep_cols = [":------"] + [":-------"] * len(entries)
     separator = "| " + " | ".join(sep_cols) + " |"
     rows = [header, separator]
 

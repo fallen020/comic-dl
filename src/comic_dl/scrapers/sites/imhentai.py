@@ -127,6 +127,9 @@ class IMHentaiScraper(BaseScraper):
     domain = DOMAIN
     name = "imhentai"
     site_id = "imhentai"
+    display_name = "IMHentai"
+    chapter_url_pattern = "/view/{id}/{n}/"
+    series_url_pattern = "/gallery/{id}/"
     version = "1.0.1"
     test_url = "https://imhentai.xxx/gallery/1746793/"
     test_url_kind = "chapter"

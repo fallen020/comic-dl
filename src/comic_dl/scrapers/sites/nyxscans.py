@@ -15,6 +15,9 @@ class NyxScansScraper(VComicsScraper):
     domain = DOMAIN
     name = "nyxscans"
     site_id = "nyxscans"
+    display_name = "Nyx Scans"
+    chapter_url_pattern = "/series/{slug}/chapter-{n}"
+    series_url_pattern = "/series/{slug}/"
     version = "1.0.1"
     test_url = "https://nyxscans.com/series/operation-true-love/chapter-1"
     test_url_kind = "chapter"

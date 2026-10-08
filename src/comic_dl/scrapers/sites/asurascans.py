@@ -291,6 +291,9 @@ class AsurascansScraper(BaseScraper):
     domain = DOMAIN
     name = "asurascans"
     site_id = "asurascans"
+    display_name = "Asura Scans"
+    chapter_url_pattern = "/comics/{series}/chapter/{n}"
+    series_url_pattern = "/comics/{series}/"
     version = "1.0.3"
     test_url = "https://asurascans.com/comics/nano-machine-3ec3b16f/chapter/1"
     test_url_kind = "chapter"

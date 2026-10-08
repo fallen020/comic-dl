@@ -76,6 +76,9 @@ class FlameScraper(BaseScraper):
     domain = DOMAIN
     name = "flamecomics"
     site_id = "flamecomics"
+    display_name = "FlameComics"
+    chapter_url_pattern = "/series/{id}/{token}/"
+    series_url_pattern = "/series/{id}/"
     version = "1.0.3"
     test_url = "https://flamecomics.xyz/series/1/3efdb83fccbc577a"
     test_url_kind = "chapter"

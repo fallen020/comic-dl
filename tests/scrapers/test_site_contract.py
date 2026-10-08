@@ -61,6 +61,11 @@ def test_metadata(entry):
     assert entry.version and _VERSION_RE.match(entry.version), domain
     assert entry.capabilities <= {"chapter", "series"}, domain
     assert entry.test_url_kind in ("series", "chapter"), domain
+    assert entry.display_name.strip(), f"{domain} declares no display_name"
+    if "chapter" in entry.capabilities:
+        assert entry.chapter_url_pattern.strip(), f"{domain} lacks a chapter URL pattern"
+    if "series" in entry.capabilities:
+        assert entry.series_url_pattern.strip(), f"{domain} lacks a series URL pattern"
     if _violated(domain, "test-url"):
         pytest.skip(f"known violation: {domain} missing test_url")
     assert entry.test_url, f"{domain} declares no test_url"

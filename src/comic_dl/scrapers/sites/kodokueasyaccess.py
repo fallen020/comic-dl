@@ -107,6 +107,9 @@ class KodokuEasyAccessScraper(BaseScraper):
     domain = DOMAIN
     name = "kodokueasyaccess"
     site_id = "kodokueasyaccess"
+    display_name = "Kodoku"
+    chapter_url_pattern = "/read/{slug}/{lang}/{n}/"
+    series_url_pattern = "/manhwa/{slug}/"
     version = "1.0.1"
     test_url = "https://kodokueasyaccess.com/read/reverend-insanity/en/1"
     test_url_kind = "chapter"

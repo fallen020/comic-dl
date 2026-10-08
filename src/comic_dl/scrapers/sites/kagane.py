@@ -269,6 +269,9 @@ class KaganeScraper(BaseScraper):
     domain = DOMAIN
     name = "kagane"
     site_id = "kagane"
+    display_name = "Kagane"
+    chapter_url_pattern = "/series/{id}/reader/{book}"
+    series_url_pattern = "/series/{id}/"
     version = "1.0.3"
     test_url = "https://kagane.to/series/019c2b1c-cc9b-745f-afed-09c230759162/reader/019c2bda-f619-716e-b0f5-043564eecffe"
     test_url_kind = "chapter"

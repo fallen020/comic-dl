@@ -327,6 +327,9 @@ class HiveToonsScraper(BaseScraper):
     domain = DOMAIN
     name = "hivetoons"
     site_id = "hivetoons"
+    display_name = "HiveToons"
+    chapter_url_pattern = "/series/{slug}/chapter-{n}/"
+    series_url_pattern = "/series/{slug}/"
     version = "1.0.3"
     test_url = "https://hivetoons.org/series/lookism/chapter-1/"
     test_url_kind = "chapter"

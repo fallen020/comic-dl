@@ -223,6 +223,9 @@ class QiMangaScraper(BaseScraper):
     domain = DOMAIN
     name = "qimanga"
     site_id = "qimanga"
+    display_name = "QiScans"
+    chapter_url_pattern = "/series/{slug}/chapter-{n}"
+    series_url_pattern = "/series/{slug}"
     version = "1.0.2"
     test_url = "https://qimanga.com/series/4190634673-eleceed/chapter-419"
     test_url_kind = "chapter"

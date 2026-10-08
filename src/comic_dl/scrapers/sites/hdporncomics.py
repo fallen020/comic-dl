@@ -136,6 +136,9 @@ class HDPornComicsScraper(BaseScraper):
     domain = DOMAIN
     name = "hdporncomics"
     site_id = "hdporncomics"
+    display_name = "HD Porn Comics"
+    chapter_url_pattern = "/{slug}-sex-comic/"
+    series_url_pattern = ""
     version = "1.0.0"
     minimum_core_version = "0.0.2"
 

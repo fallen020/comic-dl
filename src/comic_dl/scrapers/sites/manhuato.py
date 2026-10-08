@@ -180,6 +180,9 @@ class ManhuatoScraper(BaseScraper):
     domain = DOMAIN
     name = "manhuato"
     site_id = "manhuato"
+    display_name = "ManhuaTo"
+    chapter_url_pattern = "/manhua/{slug}/chapter-{n}-ch{id}"
+    series_url_pattern = "/manhua/{slug}/"
     version = "1.0.1"
     test_url = "https://manhuato.com/manhua/blue-lock-chapter-362-ch403952"
     test_url_kind = "chapter"

@@ -277,6 +277,9 @@ class WebtoonScraper(BaseScraper):
     domain = WEBTOON_DOMAIN
     name = "webtoons"
     site_id = "webtoon"
+    display_name = "WEBTOON"
+    chapter_url_pattern = "/{lang}/{category}/{title}/ep-{n}/viewer?title_no={id}&episode_no={n}"
+    series_url_pattern = "/{lang}/{category}/{title}/list?title_no={id}"
     version = "1.0.2"
     test_url = "https://www.webtoons.com/en/action/tower-of-god/season-1-ep-0/viewer?title_no=95&episode_no=1"
     test_url_kind = "chapter"

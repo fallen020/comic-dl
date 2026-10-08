@@ -15,6 +15,9 @@ class ValirScansScraper(ValiScansScraper):
     domain = DOMAIN
     name = "valirscans"
     site_id = "valirscans"
+    display_name = "ValirScans"
+    chapter_url_pattern = "/series/comic/{slug}/chapter/{n}"
+    series_url_pattern = "/series/comic/{slug}/"
     version = "1.0.1"
     test_url = "https://valirscans.org/series/comic/not-your-typical-reincarnation-story/chapter/1"
     test_url_kind = "chapter"

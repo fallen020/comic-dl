@@ -124,6 +124,9 @@ class LgbticsScraper(MadaraSeriesSiteScraper):
     domain = DOMAIN
     name = "lgbtics"
     site_id = "lgbtics"
+    display_name = "LGBTics"
+    chapter_url_pattern = "/comic/{slug}/{chapter}/"
+    series_url_pattern = "/comic/{slug}/"
     version = "1.0.2"
     test_url = "https://lgbtics.com/comic/are-cross-dressing-lesbians-gay-ningen-janai/1-are-cross-dressing-lesbians-gay-chapter-1-ningen-janai/"
     test_url_kind = "chapter"

@@ -110,6 +110,9 @@ class RichPopupScraper(BaseScraper):
     domain = DOMAIN
     name = "richpopup"
     site_id = "richpopup"
+    display_name = "RichPopup"
+    chapter_url_pattern = "/{id}-{slug}.html"
+    series_url_pattern = ""
     version = "1.0.0"
     test_url = "https://richpopup.com/29038-immoral-desires-12.html"
     test_url_kind = "chapter"

@@ -145,6 +145,9 @@ class WeebCentralScraper(BaseScraper):
     domain = DOMAIN
     name = "weebcentral"
     site_id = "weebcentral"
+    display_name = "WeebCentral"
+    chapter_url_pattern = "/chapters/{id}"
+    series_url_pattern = "/series/{id}/{slug}"
     version = "1.0.2"
     test_url = "https://weebcentral.com/chapters/01M3HPDSAT2JTQBP0V7A6AZJWX"
     test_url_kind = "chapter"

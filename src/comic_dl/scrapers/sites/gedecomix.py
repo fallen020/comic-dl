@@ -239,6 +239,9 @@ class GedecomixScraper(MadaraScraper):
     domain = DOMAIN
     name = "gedecomix"
     site_id = "gedecomix"
+    display_name = "GEDE Comix"
+    chapter_url_pattern = "/porncomic/{series}/{chapter}/"
+    series_url_pattern = "/porncomic/{series}/"
     version = "1.0.2"
     test_url = "https://gedecomix.com/porncomic/hell-village-bulls-pigking/hell-village-bulls-5/"
     test_url_kind = "chapter"

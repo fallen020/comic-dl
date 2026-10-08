@@ -158,6 +158,9 @@ class StoneScapeScraper(BaseScraper):
     domain = DOMAIN
     name = "stonescape"
     site_id = "stonescape"
+    display_name = "StoneScape"
+    chapter_url_pattern = "/series/{slug}/ch-{n}"
+    series_url_pattern = "/series/{slug}"
     version = "1.0.2"
     test_url = "https://stonescape.xyz/series/ghost-story-work/ch-1"
     test_url_kind = "chapter"

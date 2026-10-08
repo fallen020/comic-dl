@@ -15,6 +15,9 @@ class VortexScansScraper(VComicsScraper):
     domain = DOMAIN
     name = "vortexscans"
     site_id = "vortexscans"
+    display_name = "Vortex Scans"
+    chapter_url_pattern = "/series/{slug}/chapter-{n}"
+    series_url_pattern = "/series/{slug}/"
     version = "1.0.1"
     test_url = "https://vortexscans.org/series/shadow-slave/chapter-1"
     test_url_kind = "chapter"

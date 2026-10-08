@@ -155,6 +155,9 @@ class TapasScraper(BaseScraper):
     domain = DOMAIN
     name = "tapas"
     site_id = "tapas"
+    display_name = "Tapas"
+    chapter_url_pattern = "/episode/{id}"
+    series_url_pattern = "/series/{slug}"
     version = "1.0.2"
     test_url = "https://tapas.io/episode/879913"
     test_url_kind = "chapter"

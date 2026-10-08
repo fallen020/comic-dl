@@ -87,6 +87,9 @@ class ToonVerseScraper(BaseScraper):
     domain = DOMAIN
     name = "toonverse"
     site_id = "toonverse"
+    display_name = "ToonVerse"
+    chapter_url_pattern = "/read/{slug}/{n}"
+    series_url_pattern = "/series/{slug}/"
     version = "1.0.1"
     test_url = "https://toonverse.net/read/solo-leveling/1"
     test_url_kind = "chapter"

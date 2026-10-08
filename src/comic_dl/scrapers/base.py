@@ -246,6 +246,9 @@ class BaseScraper:
     """Shared HTTP, retry, and metadata helpers for every built-in scraper."""
 
     domain: str = ""
+    display_name: str = ""
+    chapter_url_pattern: str = ""
+    series_url_pattern: str = ""
 
     def __init_subclass__(cls, **kwargs: object) -> None:
         super().__init_subclass__(**kwargs)

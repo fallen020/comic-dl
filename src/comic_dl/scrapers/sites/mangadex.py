@@ -204,6 +204,9 @@ class MangadexScraper(BaseScraper):
     domain = DOMAIN
     name = "mangadex"
     site_id = "mangadex"
+    display_name = "MangaDex"
+    chapter_url_pattern = "/chapter/{chapter-uuid}"
+    series_url_pattern = "/title/{manga-uuid} or /manga/{manga-uuid}"
     version = "1.0.2"
     test_url = "https://mangadex.org/chapter/6310f6a1-17ee-4890-b837-2ec1b372905b"
     test_url_kind = "chapter"

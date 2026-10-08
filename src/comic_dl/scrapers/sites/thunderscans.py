@@ -245,6 +245,9 @@ class ThunderscansScraper(BaseScraper):
     domain = DOMAIN
     name = "thunderscans"
     site_id = "thunderscans"
+    display_name = "Thunderscans"
+    chapter_url_pattern = "/{slug}-chapter-{n}/"
+    series_url_pattern = "/comics/{slug}/"
     version = "1.0.2"
     test_url = "https://en-thunderscans.com/shadow-slave-chapter-1/"
     test_url_kind = "chapter"

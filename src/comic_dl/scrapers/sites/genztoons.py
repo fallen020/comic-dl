@@ -222,6 +222,9 @@ class GenzToonsScraper(BaseScraper):
     domain = DOMAIN
     name = "genztoons"
     site_id = "genztoons"
+    display_name = "GenzToons"
+    chapter_url_pattern = "/chapter/{uid}/"
+    series_url_pattern = "/series/{slug}/"
     version = "1.0.1"
     minimum_core_version = "0.0.2"
 

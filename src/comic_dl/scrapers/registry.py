@@ -35,6 +35,9 @@ class SourceEntry:
     minimum_core_version: str | None = None
     test_url: str | None = None
     test_url_kind: str = "series"
+    display_name: str = ""
+    chapter_url_pattern: str = ""
+    series_url_pattern: str = ""
 
     @property
     def has_chapter(self) -> bool:
@@ -92,6 +95,9 @@ def register(
     minimum_core_version: str | None = None,
     test_url: str | None = None,
     test_url_kind: str = "series",
+    display_name: str = "",
+    chapter_url_pattern: str = "",
+    series_url_pattern: str = "",
 ) -> SourceEntry:
     """Register ``instance`` for ``domain`` with deterministic conflict handling.
 
@@ -131,6 +137,9 @@ def register(
         minimum_core_version=minimum_core_version,
         test_url=test_url,
         test_url_kind=test_url_kind,
+        display_name=display_name,
+        chapter_url_pattern=chapter_url_pattern,
+        series_url_pattern=series_url_pattern,
     )
     _sourcemap[domain] = entry
     return entry
@@ -173,6 +182,9 @@ def register_builtin(
     minimum_core_version: str | None = None,
     test_url: str | None = None,
     test_url_kind: str = "series",
+    display_name: str = "",
+    chapter_url_pattern: str = "",
+    series_url_pattern: str = "",
 ) -> SourceEntry:
     """Register a built-in source with the default priority.
 
@@ -191,6 +203,9 @@ def register_builtin(
         minimum_core_version=minimum_core_version,
         test_url=test_url,
         test_url_kind=test_url_kind,
+        display_name=display_name,
+        chapter_url_pattern=chapter_url_pattern,
+        series_url_pattern=series_url_pattern,
     )
 
 
@@ -202,9 +217,10 @@ def register_scraper(
     """Decorator registering a built-in scraper class for ``domain``.
 
     The decorated class may declare ``site_id``, ``version``,
-    ``minimum_core_version``, ``test_url``, and ``test_url_kind`` attributes;
-    they flow into the registry and feed the site-support manifest (see
-    ``comic_dl.site_update``).
+    ``minimum_core_version``, ``test_url``, ``test_url_kind``,
+    ``display_name``, ``chapter_url_pattern``, and ``series_url_pattern``
+    attributes; they flow into the registry and feed the site-support
+    manifest and the supported-sites docs (see ``comic_dl.site_update``).
     """
 
     def decorator(cls: type) -> type:
@@ -245,6 +261,14 @@ def register_scraper(
                 hint="Add a human-readable name (e.g. name='Manga Example').",
             )
         caps = set(capabilities or {"chapter"})
+        display_name = str(getattr(cls, "display_name", "") or "")
+        chapter_pattern = str(getattr(cls, "chapter_url_pattern", "") or "")
+        series_pattern = str(getattr(cls, "series_url_pattern", "") or "")
+        if not display_name.strip():
+            raise SiteRegistryError(
+                f"Built-in scraper for {domain!r} declares an empty display_name.",
+                hint="Add the reader-facing name (e.g. display_name='Manga Example').",
+            )
         instance = cls()
         _validate_source_shape(domain, instance, caps)
         register_builtin(
@@ -257,6 +281,9 @@ def register_scraper(
             minimum_core_version=min_core,
             test_url=test_url,
             test_url_kind=test_url_kind,
+            display_name=display_name,
+            chapter_url_pattern=chapter_pattern,
+            series_url_pattern=series_pattern,
         )
         return cls
 
@@ -299,6 +326,15 @@ def _validate_source_shape(domain: str, instance: Any, caps: set[str]) -> None:
             f"{domain!r} declares test_url {test_url!r} that its own matches_url() rejects.",
             hint="Fix matches_url()/the URL regexes, or the test_url.",
         )
+    for cap, field in (
+        ("chapter", "chapter_url_pattern"),
+        ("series", "series_url_pattern"),
+    ):
+        if cap in caps and not str(getattr(instance, field, "") or "").strip():
+            raise SiteRegistryError(
+                f"{domain!r} declares the {cap!r} capability but no {field}.",
+                hint=f"Add the docs URL shape (e.g. {field}='/{cap}/{{slug}}/'), or drop {cap!r}.",
+            )
 
 
 def get_entry(domain: str) -> SourceEntry | None:

@@ -15,6 +15,9 @@ class DivaScansScraper(ValiScansScraper):
     domain = DOMAIN
     name = "divascans"
     site_id = "divascans"
+    display_name = "DivaScans"
+    chapter_url_pattern = "/series/comic/{slug}/chapter/{n}"
+    series_url_pattern = "/series/comic/{slug}/"
     version = "1.0.1"
     test_url = "https://divascans.org/series/comic/obedient-pregnancy/chapter/1"
     test_url_kind = "chapter"

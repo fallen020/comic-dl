@@ -127,6 +127,9 @@ class ManhwaTopScraper(MadaraSeriesSiteScraper):
     domain = DOMAIN
     name = "manhwatop"
     site_id = "manhwatop"
+    display_name = "ManhwaTop"
+    chapter_url_pattern = "/manga/{slug}/chapter-{n}/"
+    series_url_pattern = "/manga/{slug}/"
     version = "1.0.2"
     test_url = "https://manhwatop.com/manga/the-tutorial-is-too-hard-series/chapter-289/"
     test_url_kind = "chapter"

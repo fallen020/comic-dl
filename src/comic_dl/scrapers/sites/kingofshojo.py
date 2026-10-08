@@ -134,6 +134,9 @@ class KingofshojoScraper(BaseScraper):
     domain = DOMAIN
     name = "kingofshojo"
     site_id = "kingofshojo"
+    display_name = "Kingofshojo"
+    chapter_url_pattern = "/{slug}-chapter-{n}/"
+    series_url_pattern = ""
     version = "1.0.2"
     test_url = "https://kingofshojo.com/back-to-spring-chapter-81/"
     test_url_kind = "chapter"
