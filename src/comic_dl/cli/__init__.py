@@ -99,7 +99,7 @@ from ..scrapers.sites.asurascans import (
 from ..scrapers.sites.flamecomics import (
     is_chapter_url as is_flamecomics_chapter_url,
 )
-from ..scrapers.sites.fsicomics import (
+from ..scrapers.sites.fsicomics._base import (
     is_chapter_url as is_fsicomics_chapter_url,
 )
 from ..scrapers.sites.gedecomix import (
@@ -1639,6 +1639,22 @@ _CHAPTER_URL_GUARDS: dict[str, _ChapterUrlGuard] = {
     "fsicomics.com": _ChapterUrlGuard(
         is_fsicomics_chapter_url,
         "https://fsicomics.com/{comic-slug}/",
+    ),
+    "es.fsicomics.com": _ChapterUrlGuard(
+        is_fsicomics_chapter_url,
+        "https://es.fsicomics.com/{comic-slug}/",
+    ),
+    "de.fsicomics.com": _ChapterUrlGuard(
+        is_fsicomics_chapter_url,
+        "https://de.fsicomics.com/{comic-slug}/",
+    ),
+    "fr.fsicomics.com": _ChapterUrlGuard(
+        is_fsicomics_chapter_url,
+        "https://fr.fsicomics.com/{comic-slug}/",
+    ),
+    "it.fsicomics.com": _ChapterUrlGuard(
+        is_fsicomics_chapter_url,
+        "https://it.fsicomics.com/{comic-slug}/",
     ),
     "gedecomix.com": _ChapterUrlGuard(
         is_gedecomix_chapter_url,

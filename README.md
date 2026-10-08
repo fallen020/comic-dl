@@ -48,7 +48,7 @@ or region locks: it downloads only what the site serves you.
 | Instead of | comic-dl does |
 | --- | --- |
 | Clicking 30 "next" pages and zipping a folder | One URL, verified and numbered page images |
-| An ad-hoc per-site script that breaks on redesigns | 30 built-in scrapers plus a plugin system |
+| An ad-hoc per-site script that breaks on redesigns | 34 built-in scrapers plus a plugin system |
 | A folder of loose images with no metadata | Reader-ready CBZ/ZIP/CBT with `ComicInfo.xml` |
 
 Above that, it resumes missing pages, dedupes images by SHA-256, and records

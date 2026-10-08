@@ -124,21 +124,36 @@ class TestBuiltinRegistration:
     def test_every_site_module_registers(self):
         """Drop-in site modules must register, or they silently vanish.
 
-        Auto-discovery in ``comic_dl.scrapers.sites`` imports every non-
-        underscore module and fails startup if one does not register (the
+        Auto-discovery in ``comic_dl.scrapers.sites`` imports every
+        non-underscore module and fails startup if one does not register (the
         hivetoons-shaped bug) or two register the same domain. That invariant
         is checked in a fresh interpreter so this test is immune to the fake
         registrations other tests make in this process.
+
+        The walk recurses into sub-packages, because a site may ship as one
+        (the five FSI Comics hosts share a module tree) — that counts as a
+        single top-level entry but registers several domains.
         """
         import subprocess
         import sys
 
         code = (
+            "import importlib\n"
             "import pkgutil\n"
             "import comic_dl.scrapers.sites as s\n"
             "from comic_dl.scrapers import list_sources\n"
-            "mods = {m.name for m in pkgutil.iter_modules(s.__path__) "
-            "if not m.name.startswith('_')}\n"
+            "mods = set()\n"
+            "def walk(pkg, path):\n"
+            "    for m in pkgutil.iter_modules(path):\n"
+            "        if m.name.startswith('_'):\n"
+            "            continue\n"
+            "        full = pkg + '.' + m.name\n"
+            "        sub = importlib.import_module(full)\n"
+            "        if m.ispkg:\n"
+            "            walk(full, sub.__path__)\n"
+            "        else:\n"
+            "            mods.add(full)\n"
+            "walk(s.__name__, s.__path__)\n"
             "doms = {e.domain for e in list_sources() if e.builtin}\n"
             "assert mods, 'no site modules discovered'\n"
             "assert len(mods) == len(doms), (\n"

@@ -30,7 +30,31 @@
       "minimum_core_version": "0.0.2",
       "status": "supported",
       "test_url": "https://fsicomics.com/taming-the-beast-chapter-5-kizaru3d/",
-      "version": "1.0.4"
+      "version": "2.0.0"
+    },
+    "fsicomics-de": {
+      "minimum_core_version": "0.0.2",
+      "status": "supported",
+      "test_url": "https://de.fsicomics.com/emmas-corruption-kapitel-10-antalore42/",
+      "version": "2.0.0"
+    },
+    "fsicomics-es": {
+      "minimum_core_version": "0.0.2",
+      "status": "supported",
+      "test_url": "https://es.fsicomics.com/a-night-with-loona-capitulo-3-jizoku/",
+      "version": "2.0.0"
+    },
+    "fsicomics-fr": {
+      "minimum_core_version": "0.0.2",
+      "status": "supported",
+      "test_url": "https://fr.fsicomics.com/epouse-pervertie-chapitre-13-historikito/",
+      "version": "2.0.0"
+    },
+    "fsicomics-it": {
+      "minimum_core_version": "0.0.2",
+      "status": "supported",
+      "test_url": "https://it.fsicomics.com/oba-to-haha-zenpen-zia-e-madre-capitolo-2-nishikawa-kou/",
+      "version": "2.0.0"
     },
     "gedecomix": {
       "minimum_core_version": "0.0.2",

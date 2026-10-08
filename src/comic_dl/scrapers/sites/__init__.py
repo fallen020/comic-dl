@@ -1,10 +1,11 @@
 """Site-specific scraper implementations.
 
-One module per supported site, each decorated with ``@register_scraper``.
-Modules are discovered automatically: every ``*.py`` file in this package
-(except ``_``-prefixed helpers) is imported so its registry decorator runs.
-Importing this package (which ``comic_dl.scrapers`` does) therefore wires
-every site into the shared registry with no per-site import to maintain.
+Modules are discovered automatically: every top-level ``*.py`` file in this
+package (except ``_``-prefixed helpers) is imported so its registry decorator
+runs, as is every sub-package — whose ``__init__`` wires up its own modules —
+which is how the five FSI Comics hosts share one module tree. Importing this
+package (which ``comic_dl.scrapers`` does) therefore wires every site into the
+shared registry with no per-site import to maintain.
 
 A module that fails to import fails startup: dropping a built-in scraper on
 the floor would make it silently vanish from ``--list-sources`` and from URL

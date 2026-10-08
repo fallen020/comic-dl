@@ -4,7 +4,7 @@ import pytest
 from bs4 import BeautifulSoup
 
 from comic_dl.scrapers.base import BaseScraper, meta_index
-from comic_dl.scrapers.sites.fsicomics import (
+from comic_dl.scrapers.sites.fsicomics._base import (
     DOMAIN,
     FsicomixScraper,
     _clean_image_url,
@@ -50,11 +50,47 @@ class TestUrlPatterns:
         assert not is_chapter_url("https://fsicomics.com/search/")
         assert not is_chapter_url("https://other.com/comic/")
 
+    def test_valid_mirror_chapter_urls(self):
+        for host in ("es", "de", "fr", "it"):
+            assert is_chapter_url(f"https://{host}.fsicomics.com/a-comic-slug/")
+
+    def test_invalid_mirror_chapter_urls(self):
+        # Category roots, localized legal pages, and WordPress machinery on a
+        # mirror are listings, never a comic permalink.
+        for url in (
+            "https://es.fsicomics.com/comics-porno-3d/",
+            "https://de.fsicomics.com/3d-porno-comics/",
+            "https://fr.fsicomics.com/comics-porno-3d/",
+            "https://it.fsicomics.com/fumetti-porno-3d/",
+            "https://es.fsicomics.com/contactenos/",
+            "https://de.fsicomics.com/datenschutzerklarung/",
+            "https://fr.fsicomics.com/contactez-nous/",
+            "https://it.fsicomics.com/termini-di-servizio/",
+            "https://es.fsicomics.com/wp-json/",
+            "https://es.fsicomics.com/dmca/",
+            "https://sub.es.fsicomics.com/comic/",
+        ):
+            assert not is_chapter_url(url), url
+
     def test_valid_series_urls(self):
         assert is_series_url("https://fsicomics.com/all-porn-comics/3d-porn-comics/tlameteotl/")
         assert is_series_url(
             "https://fsicomics.com/all-porn-comics/indian-porn-comics/savita-bhabhi-english/"
         )
+
+    def test_valid_mirror_series_urls(self):
+        # Mirrors expose their taxonomy at /{category}/{artist-or-group}/.
+        assert is_series_url("https://es.fsicomics.com/comics-porno-3d/kizaru3d/")
+        assert is_series_url("https://de.fsicomics.com/3d-porno-comics/antalore42/")
+        assert is_series_url("https://it.fsicomics.com/manga-hentai/vari-manga-hentai/")
+
+    def test_mirror_category_root_is_not_a_series(self):
+        # A single segment is a category root, not the artist/group listing.
+        for url in (
+            "https://es.fsicomics.com/comics-porno-3d/",
+            "https://es.fsicomics.com/ultimos-comics-porno/",
+        ):
+            assert not is_series_url(url), url
 
     def test_invalid_series_urls(self):
         assert not is_series_url("")
@@ -254,6 +290,106 @@ class TestChapterNumber:
         assert _extract_chapter_number("") is None
 
 
+class TestLocalizedTitleFormats:
+    """Live title formats on the four mirrors and the apex.
+
+    The site tail is localized ("FSI Comics ES", "FSI Comics Italiano", ...) and
+    the chapter/artist separator is an ASCII hyphen on some hosts and an en dash
+    on others, so both the tail match and the split have to be shape-based.
+    ``EN`` spells out the en dash because the repo's lint flags a literal one.
+    """
+
+    EN = "\u2013"
+
+    LIVE_TITLES = {
+        "https://es.fsicomics.com/a-night-with-loona-capitulo-3-jizoku/": (
+            "A Night With Loona Cap\u00edtulo\u00a03 " + EN + " Jizoku - FSI Comics ES",
+            "A Night With Loona - Jizoku",
+            "3",
+        ),
+        "https://de.fsicomics.com/emmas-corruption-kapitel-10-antalore42/": (
+            "Emma's Corruption Kapitel 10 - Antalore42 - FSI Comics",
+            "Emmas Corruption - Antalore42",
+            "10",
+        ),
+        "https://fr.fsicomics.com/epouse-pervertie-chapitre-13-historikito/": (
+            "\u00c9pouse Pervertie Chapitre 13 - Historikito - FSI Comics Fran\u00e7ais",
+            "Epouse Pervertie - Historikito",
+            "13",
+        ),
+        "https://it.fsicomics.com/oba-to-haha-zenpen-zia-e-madre-capitolo-2-nishikawa-kou/": (
+            "Oba to Haha Zenpen - Zia e Madre Capitolo 2 " + EN + " Nishikawa Kou"
+            " - FSI Comics Italiano",
+            "Oba To Haha Zenpen Zia E Madre - Nishikawa Kou",
+            "2",
+        ),
+        "https://fsicomics.com/taming-the-beast-chapter-5-kizaru3d/": (
+            "Taming The Beast Chapter 5 - Kizaru3D - FSIComics",
+            "Taming The Beast - Kizaru3D",
+            "5",
+        ),
+    }
+
+    @pytest.mark.parametrize("url", sorted(LIVE_TITLES))
+    def test_series_and_chapter_from_live_title(self, url):
+        title, expected_series, expected_number = self.LIVE_TITLES[url]
+        html = (
+            "<html><head><title>" + title + "</title></head><body>"
+            '<div class="entry-content"><figure><img src="https://fsicomics.com'
+            '/wp-content/uploads/2026/07/comic-001.webp"/></figure></div>'
+            "</body></html>"
+        )
+        soup = BeautifulSoup(html, "lxml")
+        series, _chapter = _extract_meta(soup, meta_index(soup))
+        assert series != title, "the localized site tail was not stripped"
+        assert "FSI Comics" not in series and "FSIComics" not in series
+        assert _derive_series_title(url, title) == expected_series
+        assert _extract_chapter_number(title) == expected_number
+
+
+class TestLocalizedChapterNumbers:
+    @pytest.mark.parametrize(
+        "title,expected",
+        [
+            ("My Comic Chapter 5", "5"),
+            ("Comic Ch. 05", "05"),
+            ("A Night With Loona Cap\u00edtulo 3\u2013 Jizoku", "3"),
+            ("Emma's Corruption Kapitel 10", "10"),
+            ("Épouse Pervertie Chapitre 13", "13"),
+            ("Zia e Madre Capitolo 2", "2"),
+        ],
+    )
+    def test_matches_every_language(self, title, expected):
+        assert _extract_chapter_number(title) == expected
+
+    def test_non_breaking_space_before_number(self):
+        # The mirrors use U+00A0 between the chapter word and the number.
+        assert _extract_chapter_number("A Night With Loona Capítulo\u00a03") == "3"
+
+    def test_epilogue_has_no_number(self):
+        assert _extract_chapter_number("Valentina's Choice Epílogo") is None
+
+
+class TestLocalizedSeriesDerivation:
+    @pytest.mark.parametrize(
+        "url,title,expected",
+        [
+            (
+                "https://es.fsicomics.com/valentinas-choice-epilogo-jl78/",
+                "Valentina's Choice Ep\u00edlogo \u2013 JL78 - FSI Comics ES",
+                "Valentinas Choice - JL78",
+            ),
+            (
+                "https://de.fsicomics.com/emmas-corruption-kapitel-10-antalore42/",
+                "Emma's Corruption Kapitel 10 - Antalore42 - FSI Comics",
+                "Emmas Corruption - Antalore42",
+            ),
+        ],
+    )
+    def test_marker_words(self, url, title, expected):
+        assert _derive_series_title(url, title) == expected
+
+
 class TestArtistExtraction:
     def test_title_contains_artist(self):
         html = "<html><head><title>Comic Name - Artist Name - FSIComics</title></head><body></body></html>"
@@ -370,6 +506,113 @@ class TestImageExtraction:
         assert len(images) == 1
         assert "lazy-001.webp" in images[0].url
         assert images[0].page_number == 1
+
+
+class TestMirrorHosts:
+    """Each mirror registers its own host, because the CLI resolves by exact host."""
+
+    @pytest.mark.parametrize(
+        "module,domain,language,chapter_url,series_url",
+        [
+            (
+                "apex",
+                "fsicomics.com",
+                "en",
+                "https://fsicomics.com/x-chapter-1-a/",
+                "https://fsicomics.com/all-porn-comics/cat/artist/",
+            ),
+            (
+                "es",
+                "es.fsicomics.com",
+                "es",
+                "https://es.fsicomics.com/x-capitulo-1-a/",
+                "https://es.fsicomics.com/comics-porno-3d/artist/",
+            ),
+            (
+                "de",
+                "de.fsicomics.com",
+                "de",
+                "https://de.fsicomics.com/x-kapitel-1-a/",
+                "https://de.fsicomics.com/3d-porno-comics/artist/",
+            ),
+            (
+                "fr",
+                "fr.fsicomics.com",
+                "fr",
+                "https://fr.fsicomics.com/x-chapitre-1-a/",
+                "https://fr.fsicomics.com/comics-porno-3d/artist/",
+            ),
+            (
+                "it",
+                "it.fsicomics.com",
+                "it",
+                "https://it.fsicomics.com/x-capitolo-1-a/",
+                "https://it.fsicomics.com/fumetti-porno-3d/artist/",
+            ),
+        ],
+    )
+    def test_host_is_owned_and_language_comes_from_the_host(
+        self, module, domain, language, chapter_url, series_url
+    ):
+        import importlib
+
+        cls = importlib.import_module(f"comic_dl.scrapers.sites.fsicomics.{module}")
+        scraper = next(
+            v for k, v in vars(cls).items() if isinstance(v, type) and v.__module__ == cls.__name__
+        )()
+        assert scraper.domain == domain
+        assert scraper.language == language
+
+        other = "de.fsicomics.com" if domain != "de.fsicomics.com" else "es.fsicomics.com"
+        assert scraper.matches_url(f"https://{domain}/a-slug/")
+        assert not scraper.matches_url(f"https://{other}/a-slug/")
+        assert scraper.matches_series_url(series_url)
+
+    def test_every_fsi_host_is_registered_exactly_once(self):
+        from comic_dl.scrapers import list_sources
+
+        entries = [e for e in list_sources() if e.builtin and "fsicomics" in e.domain]
+        assert len(entries) == 5
+        assert len({e.site_id for e in entries}) == 5
+        assert {e.domain for e in entries} == {
+            "fsicomics.com",
+            "es.fsicomics.com",
+            "de.fsicomics.com",
+            "fr.fsicomics.com",
+            "it.fsicomics.com",
+        }
+        for entry in entries:
+            assert entry.has_chapter and entry.has_series
+            assert entry.display_name.strip()
+            assert entry.chapter_url_pattern.strip()
+            assert entry.series_url_pattern.strip()
+
+    @pytest.mark.asyncio
+    async def test_mirror_chapter_end_to_end(self):
+        # Real live title/artist separator for the Spanish mirror.
+        html = (
+            "<html><head>"
+            "<title>A Night With Loona Cap\u00edtulo 3 \u2013 Jizoku - FSI Comics ES</title>"
+            '<meta property="og:image" content="https://es.fsicomics.com'
+            '/wp-content/uploads/2026/06/cover.webp"/>'
+            "</head><body>"
+            '<div class="entry-content"><figure><img src="https://es.fsicomics.com'
+            '/wp-content/uploads/2026/06/a-night-with-loona-capitulo-3-jizoku-001.webp"/>'
+            "</figure></div></body></html>"
+        ).encode()
+
+        from comic_dl.scrapers.sites.fsicomics.es import FsicomicsEsScraper
+
+        session = _MockSession(lambda url: _MockResponse(html))
+        chapter = await FsicomicsEsScraper()._scrape_chapter(
+            "https://es.fsicomics.com/a-night-with-loona-capitulo-3-jizoku/", session
+        )
+        assert chapter.info.series_title == "A Night With Loona - Jizoku"
+        assert chapter.info.chapter_title == "Chapter 3"
+        assert chapter.info.chapter_number == "3"
+        assert chapter.info.artists == ["Jizoku"]
+        assert chapter.info.language == "es"
+        assert chapter.source.service == "es.fsicomics.com"
 
 
 class TestFsicomixScraper:
@@ -580,7 +823,7 @@ class TestFsicomixScraper:
     @pytest.mark.asyncio
     async def test_pagination_probes_past_single_dead_page(self, monkeypatch):
         """One dead page must not truncate the listing; later pages still land."""
-        from comic_dl.scrapers.sites.fsicomics import _collect_series_pages
+        from comic_dl.scrapers.sites.fsicomics._base import _collect_series_pages
 
         def page(next_on):
             nxt = '<a class="next page-numbers" href="/page/9/">Next</a>' if next_on else ""
@@ -615,7 +858,7 @@ class TestFsicomixScraper:
     @pytest.mark.asyncio
     async def test_pagination_stops_after_consecutive_dead_pages(self, monkeypatch):
         """A genuinely finished series still terminates after two misses."""
-        from comic_dl.scrapers.sites.fsicomics import _collect_series_pages
+        from comic_dl.scrapers.sites.fsicomics._base import _collect_series_pages
 
         fetched = []
 

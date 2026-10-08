@@ -1,6 +1,6 @@
 # Supported Sites
 
-The 30 built-in scrapers shipped with comic-dl. The live registry — including
+The 34 built-in scrapers shipped with comic-dl. The live registry — including
 any third-party plugins — is shown by `comic-dl --list-sources`.
 
 ## Sites
@@ -8,16 +8,20 @@ any third-party plugins — is shown by `comic-dl --list-sources`.
 | Site | Domain | URL patterns | Chapters | Series |
 | :--- | :----- | :----------- | :------- | :----- |
 | **Asura Scans** | `asurascans.com` | `/comics/{series}/`, `/comics/{series}/chapter/{n}` | Yes | Yes |
+| **FSI Comics DE** | `de.fsicomics.com` | `/{category}/{artist}/`, `/{comic-slug}/` | Yes | Yes |
 | **DivaScans** | `divascans.org` | `/series/comic/{slug}/`, `/series/comic/{slug}/chapter/{n}` | Yes | Yes |
 | **E-Hentai** | `e-hentai.org` | `/g/{gid}/{token}/` | Yes | — |
 | **Thunderscans** | `en-thunderscans.com` | `/comics/{slug}/`, `/{slug}-chapter-{n}/` | Yes | Yes |
+| **FSI Comics ES** | `es.fsicomics.com` | `/{category}/{artist}/`, `/{comic-slug}/` | Yes | Yes |
 | **FlameComics** | `flamecomics.xyz` | `/series/{id}/`, `/series/{id}/{token}/` | Yes | Yes |
+| **FSI Comics FR** | `fr.fsicomics.com` | `/{category}/{artist}/`, `/{comic-slug}/` | Yes | Yes |
 | **FSIComics** | `fsicomics.com` | `/all-porn-comics/...`, `/{comic-slug}/` | Yes | Yes |
 | **GEDE Comix** | `gedecomix.com` | `/porncomic/{series}/`, `/porncomic/{series}/{chapter}/` | Yes | Yes |
 | **GenzToons** | `genztoons.org` | `/series/{slug}/`, `/chapter/{uid}/` | Yes | Yes |
 | **HD Porn Comics** | `hdporncomics.com` | `/{slug}-sex-comic/` | Yes | — |
 | **HiveToons** | `hivetoons.org` | `/series/{slug}/`, `/series/{slug}/chapter-{n}/` | Yes | Yes |
 | **IMHentai** | `imhentai.xxx` | `/gallery/{id}/`, `/view/{id}/{n}/` | Yes | — |
+| **FSI Comics IT** | `it.fsicomics.com` | `/{category}/{artist}/`, `/{comic-slug}/` | Yes | Yes |
 | **Kagane** | `kagane.to` | `/series/{id}/`, `/series/{id}/reader/{book}` | Yes | Yes |
 | **Kingofshojo** | `kingofshojo.com` | `/{slug}-chapter-{n}/` | Yes | — |
 | **Kodoku** | `kodokueasyaccess.com` | `/manhwa/{slug}/`, `/read/{slug}/{lang}/{n}/` | Yes | Yes |
@@ -40,14 +44,14 @@ any third-party plugins — is shown by `comic-dl --list-sources`.
 
 ## Per-site features
 
-| Feature | Asura Scans | DivaScans | E-Hentai | Thunderscans | FlameComics | FSIComics | GEDE Comix | GenzToons | HD Porn Comics | HiveToons | IMHentai | Kagane | Kingofshojo | Kodoku | LGBTics | MangaDex | ManhuaTo | ManhwaTop | Nyx Scans | Pawchive | QiScans | RichPopup | StoneScape | Tapas | Toonily | ToonVerse | ValirScans | Vortex Scans | WEBTOON | WeebCentral |
-| :------ | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- |
-| Individual posts/chapters | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| Series chapter listing | Yes | Yes | — | Yes | Yes | Yes | Yes | Yes | — | Yes | — | Yes | — | Yes | Yes | Yes | Yes | Yes | Yes | — | Yes | — | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| Image dedup (SHA-256) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| Download resume | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| Concurrent downloads | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| Chapter title from tags | — | — | Yes | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | Yes | — |
+| Feature | Asura Scans | FSI Comics DE | DivaScans | E-Hentai | Thunderscans | FSI Comics ES | FlameComics | FSI Comics FR | FSIComics | GEDE Comix | GenzToons | HD Porn Comics | HiveToons | IMHentai | FSI Comics IT | Kagane | Kingofshojo | Kodoku | LGBTics | MangaDex | ManhuaTo | ManhwaTop | Nyx Scans | Pawchive | QiScans | RichPopup | StoneScape | Tapas | Toonily | ToonVerse | ValirScans | Vortex Scans | WEBTOON | WeebCentral |
+| :------ | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- | :------- |
+| Individual posts/chapters | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Series chapter listing | Yes | Yes | Yes | — | Yes | Yes | Yes | Yes | Yes | Yes | Yes | — | Yes | — | Yes | Yes | — | Yes | Yes | Yes | Yes | Yes | Yes | — | Yes | — | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Image dedup (SHA-256) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Download resume | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Concurrent downloads | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Chapter title from tags | — | — | — | Yes | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | — | Yes | — |
 
 ## Site notes
 
