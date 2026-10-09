@@ -16,6 +16,26 @@ account's privileges on every scrape. Only install plugins you trust.
 
 </Warning>
 
+## Before you write a parser
+
+Most sites need no new code. Check in this order:
+
+1. **Generic extraction already handles it.** Run `comic-dl --dry-run URL`
+   with the fallback on (the default): a direct image URL, an image gallery
+   page, or a chapter/series listing in static HTML or embedded JSON comes
+   back with a `Using generic extraction for ...` note. If the listing is
+   right, stop here — there is nothing to write. The fallback never runs
+   JavaScript and never shadows a site scraper; `--no-generic` turns it off.
+2. **Known theme.** A WordPress Madara site, a `/series/comic/` ValiScans-platform
+   site, or an API-driven VComics site is a metadata-only subclass:
+   `uv run python scripts/new-site.py mysite mysite.example --theme madara`
+   (or `vali` / `vcomics`) writes the module and its test stub, with TODOs
+   marking the site-specific parts.
+3. **Bespoke parser.** Only now subclass `BaseScraper`: class-level
+   `series_url_re` / `chapter_url_re` with `matches_url` /
+   `matches_series_url` derived from them (the `bare` theme stub shows the
+   shape), `ScrapedChapter` results, and the standard errors below.
+
 ## The plugin contract
 
 A plugin exports one or more `Source` classes. Each class implements:
@@ -178,6 +198,16 @@ After installing the plugin, restart the CLI. The source appears in
 When two sources claim the same domain, the higher `priority` wins. On a tie,
 the first registration is kept (built-ins register first at priority `0`). A
 plugin replacing a built-in must set `priority > 0`.
+
+## PR checklist
+
+Reviewers check boxes, not style:
+
+- [ ] `test_url` (+ `test_url_kind`) points at a live chapter or series page
+- [ ] URL valid and invalid cases (`matches_url`, `matches_series_url`, foreign domain)
+- [ ] chapter and series paths covered with mocked responses
+- [ ] error case covered (empty page raises with a `site_error_code`)
+- [ ] docs regen run (`uv run python scripts/update-sites-docs.py`)
 
 ## Testing
 
