@@ -226,11 +226,48 @@ def _check_class(cls: type) -> _Finding:
             "scrape: missing — required for the 'chapter' capability "
             "(async scrape(url, client) -> PostMetadata)"
         )
-    if "series" in caps and not callable(getattr(cls, "scrape_series", None)):
+    if "series" in caps:
+        if not callable(getattr(cls, "scrape_series", None)):
+            problems.append(
+                "scrape_series: missing — add it, or drop 'series' from capabilities "
+                "(async scrape_series(url, client) -> SeriesMetadata)"
+            )
+        if not callable(getattr(cls, "matches_series_url", None)):
+            problems.append(
+                "matches_series_url: missing — add it, or drop 'series' from capabilities "
+                "(series URLs are unroutable without it)"
+            )
+
+    test_url = getattr(cls, "test_url", None)
+    if isinstance(test_url, str) and test_url and callable(matches_url):
+        try:
+            bound = getattr(cls(), "matches_url", None)
+            agrees = bound(test_url) if callable(bound) else None
+        except Exception:
+            # A validator reports plugin problems; it never raises its own.
+            agrees = None
+        if agrees is False:
+            problems.append(
+                f"test_url: matches_url() rejects {test_url!r} — fix the regex or the URL"
+            )
+
+    if not getattr(cls, "site_id", None):
         problems.append(
-            "scrape_series: missing — required for the 'series' capability "
-            "(async scrape_series(url, client) -> SeriesMetadata)"
+            "site_id: missing — `self site` addresses sources by site id, "
+            "so this source stays invisible there"
         )
+    if not getattr(cls, "minimum_core_version", None):
+        problems.append(
+            "minimum_core_version: missing — core-update gating stays off for this source"
+        )
+    test_url_kind = getattr(cls, "test_url_kind", None)
+    if test_url_kind is None:
+        problems.append(
+            "test_url_kind: missing — the live check assumes a series URL; "
+            "set 'chapter' for chapter test URLs"
+        )
+    elif test_url_kind not in ("series", "chapter"):
+        problems.append(f"test_url_kind: expected 'series' or 'chapter', got {test_url_kind!r}")
     return _Finding(source=source, problems=problems)
 
 

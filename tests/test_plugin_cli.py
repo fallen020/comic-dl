@@ -13,6 +13,10 @@ class ExampleSource:
     domain = "example.org"
     name = "example"
     version = "1.2.0"
+    site_id = "example"
+    minimum_core_version = "0.0.1"
+    test_url = "https://example.org/series/1"
+    test_url_kind = "series"
     capabilities = {"chapter", "series"}
     priority = 0
 
@@ -99,6 +103,49 @@ class TestValidate:
         d.mkdir()
         (d / "source.py").write_text(GOOD_SOURCE)
         assert run_plugin_command("validate", [str(d)]) == 0
+
+    def test_series_capability_names_both_repairs(self, tmp_path, capsys):
+        f = tmp_path / "source.py"
+        f.write_text(
+            "class SeriesOnly:\n"
+            '    domain = "series.example"\n'
+            '    capabilities = {"chapter", "series"}\n'
+            "    async def scrape(self, url, client):\n"
+            "        return None\n"
+        )
+        assert run_plugin_command("validate", [str(f)]) == 1
+        err = capsys.readouterr().err.replace("\n", "")
+        assert "scrape_series" in err and "drop 'series'" in err
+        assert "matches_series_url" in err
+
+    def test_self_rejecting_test_url(self, tmp_path, capsys):
+        f = tmp_path / "source.py"
+        f.write_text(
+            "class BadUrl:\n"
+            '    domain = "badurl.example"\n'
+            '    test_url = "https://badurl.example/series/1"\n'
+            "    def matches_url(self, url: str) -> bool:\n"
+            "        return False\n"
+            "    async def scrape(self, url, client):\n"
+            "        return None\n"
+        )
+        assert run_plugin_command("validate", [str(f)]) == 1
+        err = capsys.readouterr().err.replace("\n", "")
+        assert "fix the regex or the URL" in err
+
+    def test_missing_metadata_names_consumers(self, tmp_path, capsys):
+        f = tmp_path / "source.py"
+        f.write_text(
+            "class Bare:\n"
+            '    domain = "bare.example"\n'
+            "    async def scrape(self, url, client):\n"
+            "        return None\n"
+        )
+        assert run_plugin_command("validate", [str(f)]) == 1
+        err = capsys.readouterr().err.replace("\n", "")
+        assert "`self site`" in err
+        assert "core-update gating" in err
+        assert "live check assumes" in err
 
 
 class TestScaffold:
