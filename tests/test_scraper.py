@@ -13,6 +13,9 @@ from comic_dl.scrapers.sites.pawchive import (
     _extract_series_and_chapter,
     _try_full_resolution,
 )
+from comic_dl.utils import MAX_REDIRECTS, RequestBlockedError
+from tests.helpers import MockResponse as _MockResponse
+from tests.helpers import MockSession as _MockSession
 
 
 def _soup(html: str) -> BeautifulSoup:
@@ -746,3 +749,67 @@ class TestTimeoutGetCache:
         with pytest.raises(RequestBlockedError):
             await BaseScraper._timeout_get(self.url, client)
         assert calls == []  # validation fired before the cache was consulted
+
+
+def _redirect_session(routes: dict[str, tuple[int, dict, bytes]]) -> _MockSession:
+    """MockSession serving ``{url: (status, headers, body)}`` routes.
+
+    Lowercases header names: the fetch path reads ``headers["location"]``
+    off a case-insensitive mapping on real responses, and the mock's plain
+    dict needs the same shape.
+    """
+
+    def handle(url: str) -> _MockResponse:
+        status, headers, body = routes[url]
+        resp = _MockResponse(body, status)
+        resp.headers = {k.lower(): v for k, v in headers.items()}
+        return resp
+
+    return _MockSession(handle)
+
+
+class TestTimeoutGetRedirects:
+    """Redirect walk through the real fetch path (no socket server).
+
+    The security suite covers the same walk against live localhost; these
+    run anywhere via the shared mock harness and assert the exact request
+    sequence from its replay log.
+    """
+
+    pytestmark = pytest.mark.asyncio
+
+    async def test_follows_redirect_chain_in_order(self):
+        from comic_dl.scrapers.base import BaseScraper
+
+        a = "https://redirect.example/a"
+        b = "https://redirect.example/b"
+        c = "https://redirect.example/c"
+        session = _redirect_session(
+            {
+                a: (302, {"Location": "/b"}, b""),
+                b: (302, {"Location": c}, b""),
+                c: (200, {"Content-Type": "text/html"}, b"<html>landed</html>"),
+            }
+        )
+        resp = await BaseScraper._timeout_get(a, session)
+        assert resp.status_code == 200
+        assert resp.text == "<html>landed</html>"
+        assert [url for url, _ in session.requests] == [a, b, c]
+
+    async def test_private_redirect_hop_blocked_before_second_request(self):
+        from comic_dl.scrapers.base import BaseScraper
+
+        a = "https://redirect.example/a"
+        session = _redirect_session({a: (302, {"Location": "http://localhost:9/evil"}, b"")})
+        with pytest.raises(RequestBlockedError):
+            await BaseScraper._timeout_get(a, session)
+        assert [url for url, _ in session.requests] == [a]
+
+    async def test_redirect_loop_capped(self):
+        from comic_dl.scrapers.base import BaseScraper
+
+        r = "https://redirect.example/r"
+        session = _redirect_session({r: (302, {"Location": "/r"}, b"")})
+        with pytest.raises(RequestBlockedError, match="too many redirects"):
+            await BaseScraper._timeout_get(r, session)
+        assert len(session.requests) == MAX_REDIRECTS + 1
