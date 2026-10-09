@@ -159,6 +159,7 @@ class StoneScapeScraper(BaseScraper):
     name = "stonescape"
     site_id = "stonescape"
     display_name = "StoneScape"
+    content_warning = "safe"
     chapter_url_pattern = "/series/{slug}/ch-{n}"
     series_url_pattern = "/series/{slug}"
     version = "1.0.2"

@@ -270,6 +270,7 @@ class KaganeScraper(BaseScraper):
     name = "kagane"
     site_id = "kagane"
     display_name = "Kagane"
+    content_warning = "safe"
     chapter_url_pattern = "/series/{id}/reader/{book}"
     series_url_pattern = "/series/{id}/"
     version = "1.0.3"

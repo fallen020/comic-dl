@@ -181,6 +181,7 @@ class ManhuatoScraper(BaseScraper):
     name = "manhuato"
     site_id = "manhuato"
     display_name = "ManhuaTo"
+    content_warning = "safe"
     chapter_url_pattern = "/manhua/{slug}/chapter-{n}-ch{id}"
     series_url_pattern = "/manhua/{slug}/"
     version = "1.0.1"

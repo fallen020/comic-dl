@@ -137,6 +137,7 @@ class ToonilyScraper(MadaraSeriesSiteScraper):
     name = "toonily"
     site_id = "toonily"
     display_name = "Toonily"
+    content_warning = "mixed"
     chapter_url_pattern = "/serie/{slug}/chapter-{n}/"
     series_url_pattern = "/serie/{slug}/"
     version = "1.0.2"

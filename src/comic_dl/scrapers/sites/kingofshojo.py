@@ -135,6 +135,7 @@ class KingofshojoScraper(BaseScraper):
     name = "kingofshojo"
     site_id = "kingofshojo"
     display_name = "Kingofshojo"
+    content_warning = "nsfw"
     chapter_url_pattern = "/{slug}-chapter-{n}/"
     series_url_pattern = ""
     version = "1.0.2"

@@ -38,6 +38,7 @@ class SourceEntry:
     display_name: str = ""
     chapter_url_pattern: str = ""
     series_url_pattern: str = ""
+    content_warning: str = ""
 
     @property
     def has_chapter(self) -> bool:
@@ -98,6 +99,7 @@ def register(
     display_name: str = "",
     chapter_url_pattern: str = "",
     series_url_pattern: str = "",
+    content_warning: str = "",
 ) -> SourceEntry:
     """Register ``instance`` for ``domain`` with deterministic conflict handling.
 
@@ -140,6 +142,7 @@ def register(
         display_name=display_name,
         chapter_url_pattern=chapter_url_pattern,
         series_url_pattern=series_url_pattern,
+        content_warning=content_warning,
     )
     _sourcemap[domain] = entry
     return entry
@@ -185,6 +188,7 @@ def register_builtin(
     display_name: str = "",
     chapter_url_pattern: str = "",
     series_url_pattern: str = "",
+    content_warning: str = "",
 ) -> SourceEntry:
     """Register a built-in source with the default priority.
 
@@ -206,6 +210,7 @@ def register_builtin(
         display_name=display_name,
         chapter_url_pattern=chapter_url_pattern,
         series_url_pattern=series_url_pattern,
+        content_warning=content_warning,
     )
 
 
@@ -218,9 +223,10 @@ def register_scraper(
 
     The decorated class may declare ``site_id``, ``version``,
     ``minimum_core_version``, ``test_url``, ``test_url_kind``,
-    ``display_name``, ``chapter_url_pattern``, and ``series_url_pattern``
-    attributes; they flow into the registry and feed the site-support
-    manifest and the supported-sites docs (see ``comic_dl.site_update``).
+    ``display_name``, ``chapter_url_pattern``, ``series_url_pattern``, and
+    ``content_warning`` attributes; they flow into the registry and feed the
+    site-support manifest and the supported-sites docs (see
+    ``comic_dl.site_update``).
     """
 
     def decorator(cls: type) -> type:
@@ -269,6 +275,13 @@ def register_scraper(
                 f"Built-in scraper for {domain!r} declares an empty display_name.",
                 hint="Add the reader-facing name (e.g. display_name='Manga Example').",
             )
+        content_warning = str(getattr(cls, "content_warning", "") or "").strip()
+        if content_warning not in ("safe", "mixed", "nsfw"):
+            raise SiteRegistryError(
+                f"Built-in scraper for {domain!r} declares an invalid content_warning "
+                f"{content_warning!r}.",
+                hint="Use 'safe', 'mixed', or 'nsfw'.",
+            )
         instance = cls()
         _validate_source_shape(domain, instance, caps)
         register_builtin(
@@ -284,6 +297,7 @@ def register_scraper(
             display_name=display_name,
             chapter_url_pattern=chapter_pattern,
             series_url_pattern=series_pattern,
+            content_warning=content_warning,
         )
         return cls
 

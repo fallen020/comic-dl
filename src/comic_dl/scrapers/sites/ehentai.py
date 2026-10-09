@@ -502,6 +502,7 @@ class EHentaiScraper(BaseScraper):
     name = "e-hentai"
     site_id = "e-hentai"
     display_name = "E-Hentai"
+    content_warning = "nsfw"
     chapter_url_pattern = "/g/{gid}/{token}/"
     series_url_pattern = ""
     version = "1.0.3"

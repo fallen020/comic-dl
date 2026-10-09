@@ -108,6 +108,7 @@ class KodokuEasyAccessScraper(BaseScraper):
     name = "kodokueasyaccess"
     site_id = "kodokueasyaccess"
     display_name = "Kodoku"
+    content_warning = "nsfw"
     chapter_url_pattern = "/read/{slug}/{lang}/{n}/"
     series_url_pattern = "/manhwa/{slug}/"
     version = "1.0.1"

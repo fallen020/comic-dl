@@ -223,6 +223,7 @@ class GenzToonsScraper(BaseScraper):
     name = "genztoons"
     site_id = "genztoons"
     display_name = "GenzToons"
+    content_warning = "safe"
     chapter_url_pattern = "/chapter/{uid}/"
     series_url_pattern = "/series/{slug}/"
     version = "1.0.1"

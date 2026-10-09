@@ -249,6 +249,7 @@ class BaseScraper:
     display_name: str = ""
     chapter_url_pattern: str = ""
     series_url_pattern: str = ""
+    content_warning: str = ""
 
     def __init_subclass__(cls, **kwargs: object) -> None:
         super().__init_subclass__(**kwargs)

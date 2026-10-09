@@ -111,6 +111,7 @@ class RichPopupScraper(BaseScraper):
     name = "richpopup"
     site_id = "richpopup"
     display_name = "RichPopup"
+    content_warning = "nsfw"
     chapter_url_pattern = "/{id}-{slug}.html"
     series_url_pattern = ""
     version = "1.0.0"

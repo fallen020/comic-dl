@@ -5,42 +5,42 @@ any third-party plugins — is shown by `comic-dl --list-sources`.
 
 ## Sites
 
-| Site | Domain | URL patterns | Chapters | Series |
-| :--- | :----- | :----------- | :------- | :----- |
-| **Asura Scans** | `asurascans.com` | `/comics/{series}/`, `/comics/{series}/chapter/{n}` | Yes | Yes |
-| **FSI Comics DE** | `de.fsicomics.com` | `/{category}/{artist}/`, `/{comic-slug}/` | Yes | Yes |
-| **DivaScans** | `divascans.org` | `/series/comic/{slug}/`, `/series/comic/{slug}/chapter/{n}` | Yes | Yes |
-| **E-Hentai** | `e-hentai.org` | `/g/{gid}/{token}/` | Yes | — |
-| **Thunderscans** | `en-thunderscans.com` | `/comics/{slug}/`, `/{slug}-chapter-{n}/` | Yes | Yes |
-| **FSI Comics ES** | `es.fsicomics.com` | `/{category}/{artist}/`, `/{comic-slug}/` | Yes | Yes |
-| **FlameComics** | `flamecomics.xyz` | `/series/{id}/`, `/series/{id}/{token}/` | Yes | Yes |
-| **FSI Comics FR** | `fr.fsicomics.com` | `/{category}/{artist}/`, `/{comic-slug}/` | Yes | Yes |
-| **FSIComics** | `fsicomics.com` | `/all-porn-comics/...`, `/{comic-slug}/` | Yes | Yes |
-| **GEDE Comix** | `gedecomix.com` | `/porncomic/{series}/`, `/porncomic/{series}/{chapter}/` | Yes | Yes |
-| **GenzToons** | `genztoons.org` | `/series/{slug}/`, `/chapter/{uid}/` | Yes | Yes |
-| **HD Porn Comics** | `hdporncomics.com` | `/{slug}-sex-comic/` | Yes | — |
-| **HiveToons** | `hivetoons.org` | `/series/{slug}/`, `/series/{slug}/chapter-{n}/` | Yes | Yes |
-| **IMHentai** | `imhentai.xxx` | `/gallery/{id}/`, `/view/{id}/{n}/` | Yes | — |
-| **FSI Comics IT** | `it.fsicomics.com` | `/{category}/{artist}/`, `/{comic-slug}/` | Yes | Yes |
-| **Kagane** | `kagane.to` | `/series/{id}/`, `/series/{id}/reader/{book}` | Yes | Yes |
-| **Kingofshojo** | `kingofshojo.com` | `/{slug}-chapter-{n}/` | Yes | — |
-| **Kodoku** | `kodokueasyaccess.com` | `/manhwa/{slug}/`, `/read/{slug}/{lang}/{n}/` | Yes | Yes |
-| **LGBTics** | `lgbtics.com` | `/comic/{slug}/`, `/comic/{slug}/{chapter}/` | Yes | Yes |
-| **MangaDex** | `mangadex.org` | `/title/{manga-uuid} or /manga/{manga-uuid}`, `/chapter/{chapter-uuid}` | Yes | Yes |
-| **ManhuaTo** | `manhuato.com` | `/manhua/{slug}/`, `/manhua/{slug}/chapter-{n}-ch{id}` | Yes | Yes |
-| **ManhwaTop** | `manhwatop.com` | `/manga/{slug}/`, `/manga/{slug}/chapter-{n}/` | Yes | Yes |
-| **Nyx Scans** | `nyxscans.com` | `/series/{slug}/`, `/series/{slug}/chapter-{n}` | Yes | Yes |
-| **Pawchive** | `pawchive.pw` | `/{service}/user/{id}/post/{id}/` | Yes | — |
-| **QiScans** | `qimanga.com` | `/series/{slug}`, `/series/{slug}/chapter-{n}` | Yes | Yes |
-| **RichPopup** | `richpopup.com` | `/{id}-{slug}.html` | Yes | — |
-| **StoneScape** | `stonescape.xyz` | `/series/{slug}`, `/series/{slug}/ch-{n}` | Yes | Yes |
-| **Tapas** | `tapas.io` | `/series/{slug}`, `/episode/{id}` | Yes | Yes |
-| **Toonily** | `toonily.com` | `/serie/{slug}/`, `/serie/{slug}/chapter-{n}/` | Yes | Yes |
-| **ToonVerse** | `toonverse.net` | `/series/{slug}/`, `/read/{slug}/{n}` | Yes | Yes |
-| **ValirScans** | `valirscans.org` | `/series/comic/{slug}/`, `/series/comic/{slug}/chapter/{n}` | Yes | Yes |
-| **Vortex Scans** | `vortexscans.org` | `/series/{slug}/`, `/series/{slug}/chapter-{n}` | Yes | Yes |
-| **WEBTOON** | `webtoons.com` | `/{lang}/{category}/{title}/list?title_no={id}`, `/{lang}/{category}/{title}/ep-{n}/viewer?title_no={id}&episode_no={n}` | Yes | Yes |
-| **WeebCentral** | `weebcentral.com` | `/series/{id}/{slug}`, `/chapters/{id}` | Yes | Yes |
+| Site | Domain | URL patterns | Chapters | Series | Content |
+| :--- | :----- | :----------- | :------- | :----- | :------ |
+| **Asura Scans** | `asurascans.com` | `/comics/{series}/`, `/comics/{series}/chapter/{n}` | Yes | Yes | Safe |
+| **FSI Comics DE** | `de.fsicomics.com` | `/{category}/{artist}/`, `/{comic-slug}/` | Yes | Yes | NSFW |
+| **DivaScans** | `divascans.org` | `/series/comic/{slug}/`, `/series/comic/{slug}/chapter/{n}` | Yes | Yes | Safe |
+| **E-Hentai** | `e-hentai.org` | `/g/{gid}/{token}/` | Yes | — | NSFW |
+| **Thunderscans** | `en-thunderscans.com` | `/comics/{slug}/`, `/{slug}-chapter-{n}/` | Yes | Yes | Safe |
+| **FSI Comics ES** | `es.fsicomics.com` | `/{category}/{artist}/`, `/{comic-slug}/` | Yes | Yes | NSFW |
+| **FlameComics** | `flamecomics.xyz` | `/series/{id}/`, `/series/{id}/{token}/` | Yes | Yes | Safe |
+| **FSI Comics FR** | `fr.fsicomics.com` | `/{category}/{artist}/`, `/{comic-slug}/` | Yes | Yes | NSFW |
+| **FSIComics** | `fsicomics.com` | `/all-porn-comics/...`, `/{comic-slug}/` | Yes | Yes | NSFW |
+| **GEDE Comix** | `gedecomix.com` | `/porncomic/{series}/`, `/porncomic/{series}/{chapter}/` | Yes | Yes | NSFW |
+| **GenzToons** | `genztoons.org` | `/series/{slug}/`, `/chapter/{uid}/` | Yes | Yes | Safe |
+| **HD Porn Comics** | `hdporncomics.com` | `/{slug}-sex-comic/` | Yes | — | NSFW |
+| **HiveToons** | `hivetoons.org` | `/series/{slug}/`, `/series/{slug}/chapter-{n}/` | Yes | Yes | Safe |
+| **IMHentai** | `imhentai.xxx` | `/gallery/{id}/`, `/view/{id}/{n}/` | Yes | — | NSFW |
+| **FSI Comics IT** | `it.fsicomics.com` | `/{category}/{artist}/`, `/{comic-slug}/` | Yes | Yes | NSFW |
+| **Kagane** | `kagane.to` | `/series/{id}/`, `/series/{id}/reader/{book}` | Yes | Yes | Safe |
+| **Kingofshojo** | `kingofshojo.com` | `/{slug}-chapter-{n}/` | Yes | — | NSFW |
+| **Kodoku** | `kodokueasyaccess.com` | `/manhwa/{slug}/`, `/read/{slug}/{lang}/{n}/` | Yes | Yes | NSFW |
+| **LGBTics** | `lgbtics.com` | `/comic/{slug}/`, `/comic/{slug}/{chapter}/` | Yes | Yes | NSFW |
+| **MangaDex** | `mangadex.org` | `/title/{manga-uuid} or /manga/{manga-uuid}`, `/chapter/{chapter-uuid}` | Yes | Yes | Safe |
+| **ManhuaTo** | `manhuato.com` | `/manhua/{slug}/`, `/manhua/{slug}/chapter-{n}-ch{id}` | Yes | Yes | Safe |
+| **ManhwaTop** | `manhwatop.com` | `/manga/{slug}/`, `/manga/{slug}/chapter-{n}/` | Yes | Yes | Safe |
+| **Nyx Scans** | `nyxscans.com` | `/series/{slug}/`, `/series/{slug}/chapter-{n}` | Yes | Yes | Safe |
+| **Pawchive** | `pawchive.pw` | `/{service}/user/{id}/post/{id}/` | Yes | — | Mixed |
+| **QiScans** | `qimanga.com` | `/series/{slug}`, `/series/{slug}/chapter-{n}` | Yes | Yes | Safe |
+| **RichPopup** | `richpopup.com` | `/{id}-{slug}.html` | Yes | — | NSFW |
+| **StoneScape** | `stonescape.xyz` | `/series/{slug}`, `/series/{slug}/ch-{n}` | Yes | Yes | Safe |
+| **Tapas** | `tapas.io` | `/series/{slug}`, `/episode/{id}` | Yes | Yes | Safe |
+| **Toonily** | `toonily.com` | `/serie/{slug}/`, `/serie/{slug}/chapter-{n}/` | Yes | Yes | Mixed |
+| **ToonVerse** | `toonverse.net` | `/series/{slug}/`, `/read/{slug}/{n}` | Yes | Yes | Safe |
+| **ValirScans** | `valirscans.org` | `/series/comic/{slug}/`, `/series/comic/{slug}/chapter/{n}` | Yes | Yes | Safe |
+| **Vortex Scans** | `vortexscans.org` | `/series/{slug}/`, `/series/{slug}/chapter-{n}` | Yes | Yes | Safe |
+| **WEBTOON** | `webtoons.com` | `/{lang}/{category}/{title}/list?title_no={id}`, `/{lang}/{category}/{title}/ep-{n}/viewer?title_no={id}&episode_no={n}` | Yes | Yes | Safe |
+| **WeebCentral** | `weebcentral.com` | `/series/{id}/{slug}`, `/chapters/{id}` | Yes | Yes | Safe |
 
 ## Per-site features
 

@@ -65,8 +65,8 @@ def _sites_table(entries, cell):
     and making a supported site look like two sites.
     """
     rows = [
-        "| Site | Domain | URL patterns | Chapters | Series |",
-        "| :--- | :----- | :----------- | :------- | :----- |",
+        "| Site | Domain | URL patterns | Chapters | Series | Content |",
+        "| :--- | :----- | :----------- | :------- | :----- | :------ |",
     ]
     for domain, entry in entries:
         display, chapter, series = (
@@ -78,9 +78,10 @@ def _sites_table(entries, cell):
         # file too, where a line break would need JSX markup that MDX only
         # accepts self-closed.
         patterns = ", ".join(f"`{p}`" for p in (series, chapter) if p)
+        content = {"safe": "Safe", "mixed": "Mixed", "nsfw": "NSFW"}.get(entry.content_warning, "—")
         rows.append(
             f"| **{display}** | `{domain}` | {patterns} "
-            f"| {cell(entry.has_chapter)} | {cell(entry.has_series)} |"
+            f"| {cell(entry.has_chapter)} | {cell(entry.has_series)} | {content} |"
         )
     return rows
 

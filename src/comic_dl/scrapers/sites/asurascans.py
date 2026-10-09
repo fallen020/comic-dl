@@ -292,6 +292,7 @@ class AsurascansScraper(BaseScraper):
     name = "asurascans"
     site_id = "asurascans"
     display_name = "Asura Scans"
+    content_warning = "safe"
     chapter_url_pattern = "/comics/{series}/chapter/{n}"
     series_url_pattern = "/comics/{series}/"
     version = "1.0.3"

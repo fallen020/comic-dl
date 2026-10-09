@@ -16,6 +16,7 @@ class NyxScansScraper(VComicsScraper):
     name = "nyxscans"
     site_id = "nyxscans"
     display_name = "Nyx Scans"
+    content_warning = "safe"
     chapter_url_pattern = "/series/{slug}/chapter-{n}"
     series_url_pattern = "/series/{slug}/"
     version = "1.0.1"

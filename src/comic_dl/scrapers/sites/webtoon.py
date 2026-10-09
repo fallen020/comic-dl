@@ -278,6 +278,7 @@ class WebtoonScraper(BaseScraper):
     name = "webtoons"
     site_id = "webtoon"
     display_name = "WEBTOON"
+    content_warning = "safe"
     chapter_url_pattern = "/{lang}/{category}/{title}/ep-{n}/viewer?title_no={id}&episode_no={n}"
     series_url_pattern = "/{lang}/{category}/{title}/list?title_no={id}"
     version = "1.0.2"

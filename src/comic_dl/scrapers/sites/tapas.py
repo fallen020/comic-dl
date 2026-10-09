@@ -156,6 +156,7 @@ class TapasScraper(BaseScraper):
     name = "tapas"
     site_id = "tapas"
     display_name = "Tapas"
+    content_warning = "safe"
     chapter_url_pattern = "/episode/{id}"
     series_url_pattern = "/series/{slug}"
     version = "1.0.2"

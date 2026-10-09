@@ -143,6 +143,7 @@ class PawchiveScraper(BaseScraper):
     name = "pawchive"
     site_id = "pawchive"
     display_name = "Pawchive"
+    content_warning = "mixed"
     chapter_url_pattern = "/{service}/user/{id}/post/{id}/"
     series_url_pattern = ""
     version = "1.0.2"

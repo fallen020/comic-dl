@@ -128,6 +128,7 @@ class IMHentaiScraper(BaseScraper):
     name = "imhentai"
     site_id = "imhentai"
     display_name = "IMHentai"
+    content_warning = "nsfw"
     chapter_url_pattern = "/view/{id}/{n}/"
     series_url_pattern = "/gallery/{id}/"
     version = "1.0.1"

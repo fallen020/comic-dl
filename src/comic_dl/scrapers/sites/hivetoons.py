@@ -328,6 +328,7 @@ class HiveToonsScraper(BaseScraper):
     name = "hivetoons"
     site_id = "hivetoons"
     display_name = "HiveToons"
+    content_warning = "safe"
     chapter_url_pattern = "/series/{slug}/chapter-{n}/"
     series_url_pattern = "/series/{slug}/"
     version = "1.0.3"

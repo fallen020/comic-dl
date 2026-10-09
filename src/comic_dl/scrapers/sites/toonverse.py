@@ -88,6 +88,7 @@ class ToonVerseScraper(BaseScraper):
     name = "toonverse"
     site_id = "toonverse"
     display_name = "ToonVerse"
+    content_warning = "safe"
     chapter_url_pattern = "/read/{slug}/{n}"
     series_url_pattern = "/series/{slug}/"
     version = "1.0.1"

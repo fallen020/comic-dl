@@ -140,6 +140,7 @@ def test_series_capability_without_methods_rejected(monkeypatch):
         class _NoSeries(BaseScraper):
             site_id = "no-series"
             display_name = "No Series"
+            content_warning = "safe"
             version = "1.0.0"
 
             async def scrape(self, url, client):
@@ -155,6 +156,7 @@ def test_self_rejecting_test_url_rejected(monkeypatch):
         class _BadUrl(BaseScraper):
             site_id = "bad-url"
             display_name = "Bad Url"
+            content_warning = "safe"
             version = "1.0.0"
             test_url = "https://badurl.example/series/1"
 

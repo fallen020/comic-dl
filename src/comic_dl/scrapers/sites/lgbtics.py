@@ -125,6 +125,7 @@ class LgbticsScraper(MadaraSeriesSiteScraper):
     name = "lgbtics"
     site_id = "lgbtics"
     display_name = "LGBTics"
+    content_warning = "nsfw"
     chapter_url_pattern = "/comic/{slug}/{chapter}/"
     series_url_pattern = "/comic/{slug}/"
     version = "1.0.2"

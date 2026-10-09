@@ -146,6 +146,7 @@ class WeebCentralScraper(BaseScraper):
     name = "weebcentral"
     site_id = "weebcentral"
     display_name = "WeebCentral"
+    content_warning = "safe"
     chapter_url_pattern = "/chapters/{id}"
     series_url_pattern = "/series/{id}/{slug}"
     version = "1.0.2"

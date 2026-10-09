@@ -240,6 +240,7 @@ class GedecomixScraper(MadaraScraper):
     name = "gedecomix"
     site_id = "gedecomix"
     display_name = "GEDE Comix"
+    content_warning = "nsfw"
     chapter_url_pattern = "/porncomic/{series}/{chapter}/"
     series_url_pattern = "/porncomic/{series}/"
     version = "1.0.2"

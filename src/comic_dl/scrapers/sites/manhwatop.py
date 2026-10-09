@@ -128,6 +128,7 @@ class ManhwaTopScraper(MadaraSeriesSiteScraper):
     name = "manhwatop"
     site_id = "manhwatop"
     display_name = "ManhwaTop"
+    content_warning = "safe"
     chapter_url_pattern = "/manga/{slug}/chapter-{n}/"
     series_url_pattern = "/manga/{slug}/"
     version = "1.0.2"

@@ -20,6 +20,7 @@ class FsicomicsEsScraper(FsicomixScraper):
     name = "fsicomics-es"
     site_id = "fsicomics-es"
     display_name = "FSI Comics ES"
+    content_warning = "nsfw"
     chapter_url_pattern = "/{comic-slug}/"
     series_url_pattern = "/{category}/{artist}/"
     version = "2.0.0"

@@ -16,6 +16,7 @@ class VortexScansScraper(VComicsScraper):
     name = "vortexscans"
     site_id = "vortexscans"
     display_name = "Vortex Scans"
+    content_warning = "safe"
     chapter_url_pattern = "/series/{slug}/chapter-{n}"
     series_url_pattern = "/series/{slug}/"
     version = "1.0.1"

@@ -246,6 +246,7 @@ class ThunderscansScraper(BaseScraper):
     name = "thunderscans"
     site_id = "thunderscans"
     display_name = "Thunderscans"
+    content_warning = "safe"
     chapter_url_pattern = "/{slug}-chapter-{n}/"
     series_url_pattern = "/comics/{slug}/"
     version = "1.0.2"

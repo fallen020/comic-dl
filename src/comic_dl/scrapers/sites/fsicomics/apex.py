@@ -18,6 +18,7 @@ class FsicomixEnScraper(FsicomixScraper):
     name = "fsicomics"
     site_id = "fsicomics"
     display_name = "FSIComics"
+    content_warning = "nsfw"
     chapter_url_pattern = "/{comic-slug}/"
     series_url_pattern = "/all-porn-comics/..."
     version = "2.0.0"

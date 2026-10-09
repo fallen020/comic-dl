@@ -77,6 +77,7 @@ class FlameScraper(BaseScraper):
     name = "flamecomics"
     site_id = "flamecomics"
     display_name = "FlameComics"
+    content_warning = "safe"
     chapter_url_pattern = "/series/{id}/{token}/"
     series_url_pattern = "/series/{id}/"
     version = "1.0.3"

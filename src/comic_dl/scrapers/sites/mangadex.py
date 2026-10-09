@@ -205,6 +205,7 @@ class MangadexScraper(BaseScraper):
     name = "mangadex"
     site_id = "mangadex"
     display_name = "MangaDex"
+    content_warning = "safe"
     chapter_url_pattern = "/chapter/{chapter-uuid}"
     series_url_pattern = "/title/{manga-uuid} or /manga/{manga-uuid}"
     version = "1.0.2"

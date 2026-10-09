@@ -61,6 +61,7 @@ def test_metadata(entry):
     assert entry.version and _VERSION_RE.match(entry.version), domain
     assert entry.capabilities <= {"chapter", "series"}, domain
     assert entry.test_url_kind in ("series", "chapter"), domain
+    assert entry.content_warning in ("safe", "mixed", "nsfw"), domain
     assert entry.display_name.strip(), f"{domain} declares no display_name"
     if "chapter" in entry.capabilities:
         assert entry.chapter_url_pattern.strip(), f"{domain} lacks a chapter URL pattern"

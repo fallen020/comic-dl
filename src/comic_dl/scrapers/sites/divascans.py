@@ -16,6 +16,7 @@ class DivaScansScraper(ValiScansScraper):
     name = "divascans"
     site_id = "divascans"
     display_name = "DivaScans"
+    content_warning = "safe"
     chapter_url_pattern = "/series/comic/{slug}/chapter/{n}"
     series_url_pattern = "/series/comic/{slug}/"
     version = "1.0.1"

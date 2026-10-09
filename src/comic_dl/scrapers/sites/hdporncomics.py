@@ -137,6 +137,7 @@ class HDPornComicsScraper(BaseScraper):
     name = "hdporncomics"
     site_id = "hdporncomics"
     display_name = "HD Porn Comics"
+    content_warning = "nsfw"
     chapter_url_pattern = "/{slug}-sex-comic/"
     series_url_pattern = ""
     version = "1.0.0"
