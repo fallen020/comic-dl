@@ -69,15 +69,6 @@ debian/stage/
 *.temp
 *.bak
 
-# OpenCode / agent config
-.opencode/
-.agents/
-node_modules
-opencode.json
-package.json
-package-lock.json
-skills-lock.json
-
 # Docs website (website/) — keep source, ignore build artifacts
 website/dist/
 website/node_modules/

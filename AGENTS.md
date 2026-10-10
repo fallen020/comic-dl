@@ -1,141 +1,138 @@
 # AGENTS.md
 
-## Project
-
 `comic-dl` downloads comic/manga galleries from supported sites and compiles
-them into CBZ, ZIP, and CBT archives. Latest release (`v0.0.4`).
-See `docs/develop/releasing.md` for the runbook.
+them into CBZ, ZIP, and CBT archives. Upstream: `fallen020/comic-dl`
+(default branch `main`). Latest release: `CHANGELOG.md`; release runbook:
+`docs/develop/releasing.md`.
 
-Upstream: `https://github.com/fallen020/comic-dl`, default branch `main`.
-Remote uses SSH (`git@github.com:fallen020/comic-dl.git`); HTTPS needs a
-PAT via the credential helper (password auth is dead).
+## Setup and gates
 
-Three long-lived branches: `dev` (unstable, work lands here), `staging`
-(validation, mirrors what will ship), `main` (production, releases only).
-Feature branches fork from `dev` and merge back via squash PRs.
+Python >=3.11, managed with `uv` (package `comic-dl`). Set up with
+`uv sync --extra dev --locked`. Never mix `pip`/`venv`.
 
-## Stack
+Run every gate after every change:
 
-- Python >=3.11, managed with `uv`; package name `comic-dl`.
-- `uv sync --extra dev --locked` to set up. Never mix `pip`/`venv`.
-
-## Commands (run after every change)
-
-| Gate | Command |
-| :--- | :------ |
-| Lint | `./scripts/lint.sh` |
-| Test | `./scripts/test.sh` — single file: `uv run pytest tests/test_X.py -q` |
+| Gate  | Command |
+| :---- | :------ |
+| Lint  | `./scripts/lint.sh` |
+| Test  | `./scripts/test.sh` (single file: `uv run pytest tests/test_X.py`) |
 | Build | `./scripts/build.sh` |
-| Docs | `./scripts/docs.sh` — runs `update-sites-docs.py --check`, then Markdown lint |
-| Docs tables | `uv run python scripts/update-sites-docs.py` (after adding a site) |
+| Docs  | `./scripts/docs.sh` (site-table, manifest, and mirror `--check`s, then Markdown lint) |
+
+Adding or changing a site:
+
+1. Scaffold: `uv run python scripts/new-site.py NAME DOMAIN [--theme THEME]`
+2. Regenerate the supported-sites tables (`docs/reference/` and
+   `website/src/content/docs/reference/`):
+   `uv run python scripts/update-sites-docs.py`
 
 ## Repository map
 
 ```
 src/comic_dl/
-  __init__.py, __main__.py, _version.py
-  cli/__init__.py          # CLI orchestration (large — read surrounding context first)
-  cli/library.py, plugins.py, selection.py, sizing.py
+  cli/                 # CLI orchestration; cli/__init__.py is large, read
+                       # surrounding context first
   scrapers/
-    base.py                # BaseScraper contract
-    generic.py             # Fallback HTML scraper
-    madara.py              # Madara-theme framework scraper
-    registry.py            # Plugin loader
-    refresh.py             # Chapter re-fetch logic
-    sites/                 # Per-site parsers (30 built-in, auto-discovered)
-  archiver.py              # CBZ/ZIP/CBT packing
-  downloader.py            # Async download engine
-  comicinfo.py             # ComicInfo.xml generation
-  config.py                # TOML config parsing
-  cache.py                 # Scrape response cache
-  rate.py                  # Per-host token-bucket limiter
-  http.py, cookies.py      # HTTP client, cookie jar
-  cf.py, antibot.py        # Cloudflare detection, WAF fingerprints
-  webview.py, webview_solver.py, webview_constants.py  # System-webview solver
-  library.py               # SQLite download history (library CLI + update)
-  self_update.py           # `self` — install-source detection + update strategies
-  site_update.py           # `self site` — per-site versions, checks, live-check
-  ui.py                    # Rich progress/rendering (large)
+    base.py            # BaseScraper contract
+    generic.py         # Fallback HTML scraper
+    madara.py          # Madara-theme framework scraper
+    registry.py        # Plugin loader
+    refresh.py         # Chapter re-fetch logic
+    sites/             # Per-site parsers, auto-discovered (count in
+                       # docs/reference/supported-sites.md)
+  archiver.py          # CBZ/ZIP/CBT packing
+  downloader.py        # Async download engine
+  comicinfo.py         # ComicInfo.xml generation
+  config.py            # TOML config parsing
+  cache.py             # Scrape response cache
+  rate.py              # Per-host token-bucket limiter
+  http.py, cookies.py  # HTTP client, cookie jar
+  cf.py, antibot.py    # Cloudflare detection, WAF fingerprints
+  webview*.py          # System-webview solver
+  library.py           # SQLite download history (library CLI + update)
+  self_update.py       # `self`: install-source detection + update strategies
+  site_update.py       # `self site`: per-site versions, checks, live-check
+  ui.py                # Rich progress/rendering (large)
   models.py, errors.py, utils.py, platform.py
-tests/                     # Offline-safe suite (no live network)
-  security/                # SSRF and filesystem safety tests
-  scrapers/sites/          # Per-site parser tests
-docs/                      # Plain Markdown docs, source of truth (author here,
-                           # then mirror published pages into website/ as .mdx)
-scripts/                   # CI gate scripts + docs generator (update-sites-docs.py)
-packaging/                 # Distro packaging (deb/rpm/arch), versioning, PyInstaller
-examples/                  # Sample config, plugin, URL list
-website/                   # Astro docs site (GitHub Pages); mirrors docs/ subset
+tests/                 # Offline-safe suite (no live network)
+  security/            # SSRF and filesystem safety
+  scrapers/sites/      # Per-site parser tests
+docs/                  # Source of truth (plain Markdown); mirror published
+                       # pages into website/ as .mdx
+scripts/               # Gates, docs generator, manifest/mirror checkers,
+                       # scraper scaffold
+packaging/             # Distro packaging (deb/rpm/arch), versioning, PyInstaller
+examples/              # Sample config, plugin, URL list
+website/               # Astro docs site (GitHub Pages); mirrors a docs/ subset
 ```
 
-Note: `scripts/update-sites-docs.py` regenerates the supported-sites tables in
-both `docs/reference/` and `website/src/content/docs/reference/`. Run
-`docs.sh` (via `update-sites-docs.py --check`) after adding or changing a site.
+## Website (`website/`)
 
-## Non-obvious conventions
+Astro 7 static docs site (MDX, Tailwind 4, Shiki, Pagefind search),
+published to GitHub Pages by `.github/workflows/docs-deploy.yml` on `main`
+(`https://fallen020.github.io/comic-dl`).
 
-- **Security:** every outbound fetch passes `validate_request_url` via
+- Commands (run from `website/`): `npm run dev`, `npm run build`, `npm run preview`.
+- Content is a hand mirror of `docs/`: author in `docs/`, copy to
+  `website/src/content/docs/` as `.mdx`. `docs.sh` enforces the mirror.
+
+## Conventions
+
+- **Security:** every outbound fetch must pass `validate_request_url` via
   `BaseScraper._timeout_get` / `_open_stream`. Never weaken it.
-- **Bandit nosec:** scoped `# nosec BXXX` triggers a spurious bandit warning
-  whenever the marked line also falls inside an enclosing AST statement
-  (bandit 1.9.4). Prefer fixing the flagged call (e.g. `sha256` over `md5`
-  for identity hashes) or a plain `# nosec` plus a WHY comment.
-- **Politeness:** per-host rate limiter (`rate.py`) and shared retry cooldown
-  are load-bearing. Never bypass them.
-- **Errors:** 0 success / 1 error / 2 usage / 130 interrupted (`errors.py`).
-  User-facing text through `ui.py` helpers; never leak raw exception args.
-- **Comments:** Google-style docstrings; WHY-not-WHAT; no filler.
-  Never add a comment that restates code. Write about *why*, not *what*, unless
-  the behavior is genuinely non-obvious — that includes not narrating control
-  flow or function purpose in comments. No process narration ("we need to",
-  "this ensures"); no praise, summaries, or AI/ChatGPT mentions; no TODO/FIXME
-  without a concrete, actionable issue. Prefer self-explanatory code; if an
-  explanation needs several paragraphs, put it in `docs/`, not a comment.
-  When editing code, only update comments if the behavior or rationale they
-  describe has changed.
-- **Docs:** `docs/` is the single source of truth; `README.md` is a landing page.
-  When docs name a CLI surface (columns, flags, subcommands), verify the claim
-  against `src/` first. Never describe aspirational capabilities as present —
-  say the exact output (e.g. SOURCE · ORIGIN columns) or leave it out.
-- **Tests:** offline-only, must stay that way for deterministic CI.
-- **Tests:** assert on unwrapped content — Rich folds console output at 80
-  cols on CI, splitting paths/phrases mid-token. Compare against
-  `output.replace("\n", "")`, never raw capture. Machine JSON must print
-  with `soft_wrap=True` so narrow terminals cannot corrupt it.
-- **Tests:** never construct `Path()` while `os.name` is mocked — on
-  Python < 3.12 it dispatches to `WindowsPath` and raises on POSIX (and
-  crashes pytest's own failure renderer the same way).
+- **Politeness:** the per-host rate limiter (`rate.py`) and shared retry
+  cooldown are load-bearing. Never bypass them.
+- **Errors:** exit codes are 0 success / 1 error / 2 usage / 130 interrupted
+  (`errors.py`). Route user-facing text through `ui.py` helpers; never leak
+  raw exception args.
+- **Comments:** Google-style docstrings; explain WHY, not WHAT. No filler,
+  code restatement, process narration ("we need to", "this ensures"), praise,
+  or AI mentions. No TODO/FIXME without a concrete, actionable issue.
+  Anything longer than a paragraph belongs in `docs/`. Touch a comment only
+  when the behavior it describes changes.
+- **Bandit:** with bandit 1.9.4, a scoped `# nosec BXXX` raises a spurious
+  warning when the marked line sits inside an enclosing AST statement. Prefer
+  fixing the flagged call (e.g. `sha256` instead of `md5` for identity
+  hashes); otherwise use a plain `# nosec` with a WHY comment.
+- **Docs:** `docs/` is the single source of truth; `README.md` is a landing
+  page. Verify every CLI surface named in docs (columns, flags, subcommands)
+  against `src/` first. Never present aspirational behavior as shipped.
+- **Tests:** offline only, so CI stays deterministic.
+  - Rich folds console output at 80 columns on CI: compare against
+    `output.replace("\n", "")` and print machine JSON with `soft_wrap=True`.
+  - Never construct `Path()` while `os.name` is mocked; on Python < 3.12 it
+    dispatches to `WindowsPath` and raises on POSIX.
 
 ## Git workflow
 
-- Conventional Commits: `feat:` `fix:` `docs:` `chore:` `perf:` `refactor:` `test:`
-- **Branch flow:** feature branches fork from `dev` and land there via squash
-  PRs. `dev` is unstable — integration and experiments happen here. When work
-  is release-ready, `staging` is cut from `dev` and validated (CI, packaging,
-  release smoke). `staging` proves what will ship without blocking `dev`.
-- `main` is protected: signed commits required, linear history, no force
-  pushes or deletions. Land work via squash-merges (one commit per PR).
-  Every Monday, the validated `staging` state is released to `main` as a new
-  `vX.Y.Z` (Monday cadence in `docs/develop/releasing.md`).
-- After `git pull --rebase`, re-sign if the signature was dropped, then push.
-- Tags are GPG-signed and must equal `version` in `pyproject.toml`
-  exactly (PEP 440, e.g. `v0.0.1` — never `v0.0.1-beta`; hyphens break
-  arch/rpm versioning and the release guards). Pushing a `v*` tag triggers
-  `release.yml`. Moving a tag is allowed only to repair an unpublished
-  broken release.
-- Dependabot edits `pyproject.toml` but not `uv.lock`: after merging any
-  dependency PR, run `uv lock` against the merged tree and push the
-  refreshed lockfile, or every `--locked` gate fails.
-- Releasing: `docs/develop/releasing.md`. Pushing, tagging, and PyPI publishes
-  are boundary actions — always confirm first.
+- **Branches:** feature branches fork from `dev` (unstable) and merge back via
+  squash PRs. Release-ready work is cut to `staging` for validation (CI,
+  packaging, release smoke), then released to `main` every Monday as a new
+  `vX.Y.Z`.
+- **`main`:** protected. Signed commits, linear history, no force pushes or
+  deletions.
+- **Remote:** SSH (`git@github.com:fallen020/comic-dl.git`). HTTPS needs a PAT
+  via the credential helper.
+- **Commits:** Conventional Commits (`feat:` `fix:` `docs:` `chore:` `perf:`
+  `refactor:` `test:`). After `git pull --rebase`, re-sign if the signature
+  was dropped, then push.
+- **Tags:** GPG-signed and equal to `version` in `pyproject.toml` exactly
+  (PEP 440, e.g. `v0.0.1`; never `v0.0.1-beta`, since hyphens break arch/rpm
+  versioning and the release guards). Pushing a `v*` tag triggers
+  `release.yml`. Move a tag only to repair an unpublished broken release.
+- **Dependabot:** it edits `pyproject.toml` but not `uv.lock`. After merging
+  any dependency PR, run `uv lock` on the merged tree and push the refreshed
+  lockfile, or every `--locked` gate fails.
 
 ## Boundaries
 
-- **Always:** run gates after changes; add tests for behavior changes; search
-  existing patterns before adding abstractions.
-- **Ask first:** raising request rates, weakening validation, committing/pushing,
-  changing dependencies in `pyproject.toml`.
-- **Never:** commit secrets or `.env` files; modify `.agents/` or `skills-lock.json`.
+- **Always:** run the gates after changes; add tests for behavior changes;
+  search existing patterns before adding abstractions.
+- **Ask first:** committing or pushing, tagging, publishing to PyPI, raising
+  request rates, weakening validation, changing dependencies in
+  `pyproject.toml`.
+- **Never:** commit secrets or `.env` files; modify `.agents/` or
+  `skills-lock.json`.
 
 ## Key docs
 
@@ -144,30 +141,11 @@ both `docs/reference/` and `website/src/content/docs/reference/`. Run
 | Usage, flags, config | `docs/reference/cli.md`, `docs/usage/download.md`, `docs/configure/config.md` |
 | Library CLI | `docs/usage/library.md` |
 | Self-update | `docs/usage/self-update.md` |
-| Site support | `docs/usage/site-support.md` |
-| Supported sites | `docs/reference/supported-sites.md` |
+| Site support | `docs/usage/site-support.md`, `docs/reference/supported-sites.md` |
 | Writing a scraper | `docs/usage/write-plugin.md`, `examples/plugin-example/` |
-| Development guides | `docs/develop/index.md`, `docs/develop/workflow.md`, `docs/develop/setup.md`, `docs/develop/code-review.md`, `docs/develop/reporting.md` |
+| Development | `docs/develop/index.md`, `docs/develop/workflow.md`, `docs/develop/setup.md`, `docs/develop/testing.md`, `docs/develop/code-review.md`, `docs/develop/reporting.md` |
 | Architecture | `docs/develop/architecture.md` |
+| API reference | `docs/api-reference.md` (hand-maintained; keep docstrings current) |
 | Releasing | `docs/develop/releasing.md` |
 | Error style | `docs/develop/error-style-guide.md` |
 | Security testing | `docs/develop/security-testing.md` |
-
-## Skill routing
-
-When the user's request matches an available skill, invoke it via the Skill tool. When in doubt, invoke the skill.
-
-Key routing rules:
-- Product ideas/brainstorming → invoke /office-hours
-- Strategy/scope → invoke /plan-ceo-review
-- Architecture/plan review → invoke /plan-eng-review
-- Design system/plan review → invoke /design-consultation or /plan-design-review
-- Full review pipeline → invoke /autoplan
-- Bugs/errors → invoke /investigate
-- QA/testing site behavior → invoke /qa or /qa-only
-- Code review/diff check → invoke /review
-- Visual polish → invoke /design-review
-- Ship/deploy/PR → invoke /ship or /land-and-deploy
-- Save progress → invoke /context-save
-- Resume context → invoke /context-restore
-- Author a backlog-ready spec/issue → invoke /spec
