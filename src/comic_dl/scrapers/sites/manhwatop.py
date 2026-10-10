@@ -18,6 +18,7 @@ from ..madara import (
     genres_from_rows,
     reader_images,
     rows_first_prefixed,
+    rows_get,
 )
 from ..registry import register_scraper
 
@@ -103,15 +104,6 @@ def _extract_status(soup: BeautifulSoup) -> str | None:
 
 def _extract_images(soup: BeautifulSoup) -> list[ImageItem]:
     return reader_images(soup, _READ_CONTAINERS, _on_image_host)
-
-
-def rows_get(rows: dict[str, list[str]], *labels: str) -> list[str]:
-    """Values of the first row whose key matches any of ``labels``."""
-    for label in labels:
-        values = rows.get(label.lower())
-        if values:
-            return values
-    return []
 
 
 # Re-exported helpers (tests import them by these names).
