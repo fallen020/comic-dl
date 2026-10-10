@@ -13,6 +13,7 @@ comic-dl reads the following environment variables.
 | Variable | Description |
 | :------- | :---------- |
 | `COMIC_DL_DATA_DIR` | Override the data directory (library database location) |
+| `COMIC_DL_COOKIE_KEY` | Base64url 32-byte key for cookie-jar encryption (overrides the OS keyring; see [Cookies](cookies.md)) |
 
 ## Color control
 

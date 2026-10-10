@@ -99,10 +99,12 @@ to where the series lives) and are purged after 7 days.
 
 ## Temporary files
 
-Scratch space is created under your platform temp directory during each run
-and cleaned up automatically on completion or interruption:
+While a download runs, chapter files are staged in a temporary folder —
+a fresh one per run, deleted automatically when the run finishes or is
+interrupted, so nothing is left behind. If `/tmp` is small (or tmpfs),
+point staging at a larger disk with [`tmp-dir`](../configure/config.md):
 
-| Platform | Location |
-| :------- | :------- |
-| Linux/macOS | `/tmp/comic-dl/` |
-| Windows | `%TEMP%\comic-dl\` |
+```toml
+[download]
+tmp-dir = "/path/with/more/space"
+```

@@ -20,8 +20,8 @@ reports the installation source, installed version, latest version, and status:
 
 ```text
 Installed via:        uv tool
-Installed version:    0.0.2
-Latest version:       0.0.3
+Installed version:    <current>
+Latest version:       <latest>
 Status:               update available.
 ```
 

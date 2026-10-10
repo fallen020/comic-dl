@@ -17,9 +17,9 @@ status.
 
 ## Error kinds
 
-Every :class:`~comic_dl.errors.ComicError` carries a stable machine-readable
+Every `ComicError` carries a stable machine-readable
 `kind` alongside its message and exit code, exposed by
-:func:`comic_dl.ui.error_kind`. Branch on kinds instead of parsing message
+`comic_dl.ui.error_kind`. Branch on kinds instead of parsing message
 text.
 
 | Kind | Exception | Meaning |
@@ -29,8 +29,11 @@ text.
 | `download` | `DownloadError` | Runtime download failure. |
 | `timeout` | `ScrapeTimeout`, `DownloadTimeout` | Hard timeout exceeded. |
 | `library` | `LibraryError` | Library database or operation failure. |
+| `sitereg` | `SiteRegistryError` | A built-in site scraper failed to load. |
+| `blocked` | `RequestBlockedError` | Request refused (safety refusal or anti-bot block). |
 | `network` | — (curl_cffi, builtin `ConnectionError`) | Connectivity problem. |
 | `os` | — (builtin `OSError`) | Filesystem or OS-level failure. |
+| `error` | `ComicError` (base) | Unclassified user-facing error. |
 | `internal` | anything else | Unexpected internal error. |
 
 ## When each code applies

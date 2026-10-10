@@ -31,9 +31,9 @@ comic-dl <COMMAND> [ARGS]
 | `comic-dl list [--json] [--source <DOMAIN>]` | List series in the library |
 | `comic-dl info <SERIES> [--json]` | Show details for one series |
 | `comic-dl latest [-n N] [--json] [--source <DOMAIN>]` | Chapters downloaded in the last N days (default 7) |
-| `comic-dl update <SERIES\|all> [-p N] [--dry-run]` | Re-scrape tracked series, download new chapters. `-p` sets how many series update at once (1–16, default 1) |
-| `comic-dl remove <SERIES> [--dry-run]` | Move a series to trash |
-| `comic-dl restore <SERIES>` | Bring a trashed series back |
+| `comic-dl update <SERIES\|all> [-p N] [-c N] [--chapter-parallel N] [-q] [--compress ALG] [--format FMT] [--json] [--dry-run]` | Re-scrape tracked series, download new chapters. `-p` sets how many series update at once (1–16, default 1) |
+| `comic-dl remove <SERIES> [-y/--yes] [--json] [--dry-run]` | Move a series to trash |
+| `comic-dl restore <SERIES> [--json] [--dry-run]` | Bring a trashed series back |
 
 `update -p` runs series concurrently but every request still passes through the
 per-host rate limiter, so raising it never exceeds the politeness budget.
@@ -54,10 +54,10 @@ per-host rate limiter, so raising it never exceeds the politeness budget.
 | Command | Description |
 | :------ | :---------- |
 | `comic-dl cache status [--json]` | Show cache location, TTL, size budget, fresh/stale split |
-| `comic-dl cache clear [-y] [--dry-run]` | Delete all cached entries (plus stray `comic-dl-*` temp dirs) |
-| `comic-dl cache prune [-y] [--dry-run]` | Delete only stale (past TTL) and orphaned cache files |
+| `comic-dl cache clear [-y] [--dry-run] [--json]` | Delete all cached entries (plus stray `comic-dl-*` temp dirs) |
+| `comic-dl cache prune [-y] [--dry-run] [--json]` | Delete only stale (past TTL) and orphaned cache files |
 | `comic-dl cookie ls [HOST] [--json]` | List stored cookies |
-| `comic-dl cookie set <HOST> <NAME> <VALUE>` | Store a cookie |
+| `comic-dl cookie set <HOST> <NAME> <VALUE> [--expires <epoch>]` | Store a cookie |
 | `comic-dl cookie clear [HOST] [-y]` | Clear cookies |
 
 ### Self & plugins
@@ -65,10 +65,10 @@ per-host rate limiter, so raising it never exceeds the politeness budget.
 | Command | Description |
 | :------ | :---------- |
 | `comic-dl self version` | Print the installed version |
-| `comic-dl self update [--check] [-y] [--channel beta]` | Check for and install updates through the tool that installed comic-dl |
+| `comic-dl self update [--check] [-y/--yes] [--channel beta]` | Check for and install updates through the tool that installed comic-dl |
 | `comic-dl self site list [--json]` | List installed site adapters, their versions, and cached status |
 | `comic-dl self site check [SITE] [--live] [--json]` | Compare installed adapter versions against the latest release manifest; `--live` runs a live check for one site |
-| `comic-dl self site update SITE` / `--all` | Update site support (bundled adapters update with the core) |
+| `comic-dl self site update [SITE] [--all] [-y/--yes]` | Update site support (bundled adapters update with the core) |
 | `comic-dl plugin list [--json]` | List installed third-party sources (including broken ones) |
 | `comic-dl plugin validate <PATH>` | Shape-check a plugin's `Source` class offline |
 | `comic-dl plugin scaffold <NAME> [--domain HOST]` | Generate a plugin package skeleton |

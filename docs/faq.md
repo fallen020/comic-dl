@@ -112,7 +112,7 @@ stderr still shows live progress.
 comic-dl -u <URL> --json | jq .
 ```
 
-The schema version is included in every response (`"schema_version": 1`).
+The schema version is included in every response (`"schema_version": 2`).
 
 ### Previewing before you commit
 

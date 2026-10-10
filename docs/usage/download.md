@@ -3,7 +3,7 @@
 ## Download a single URL
 
 ```bash
-comic-dl -u https://e-hentai.org/g/3161202/e7a26f9e16/
+comic-dl -u https://asurascans.com/comics/demo-series/
 ```
 
 The `-u` / `--url` flag accepts any URL from a [supported site](../reference/supported-sites.md).
@@ -14,8 +14,8 @@ Create a text file with one URL per line:
 
 ```
 # My comics
-https://e-hentai.org/g/123/abc/       # weekend batch
-https://pawchive.pw/patreon/user/456/post/789/
+https://asurascans.com/comics/demo-series/chapter/1       # weekend batch
+https://manhuato.com/manhua/demo-slug/
 ```
 
 ```bash
@@ -146,7 +146,7 @@ comic-dl latest --json
 
 `--json` implies non-interactive mode. All human output goes to stderr; stdout
 receives only the JSON payload. Every payload includes a `schema_version`
-field (currently `1`).
+field (currently `2`).
 
 See [CLI Reference](../reference/cli.md#json-output) for the full JSON schema.
 
