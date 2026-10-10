@@ -73,6 +73,7 @@ published to GitHub Pages by `.github/workflows/docs-deploy.yml` on `main`
 (`https://fallen020.github.io/comic-dl`).
 
 - Commands (run from `website/`): `npm run dev`, `npm run build`, `npm run preview`.
+  Use `npm run build:search` before `preview`. Plain `build` skips the Pagefind index.
 - Content is a hand mirror of `docs/`: author in `docs/`, copy to
   `website/src/content/docs/` as `.mdx`. `docs.sh` enforces the mirror.
 

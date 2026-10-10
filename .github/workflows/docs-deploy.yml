@@ -41,6 +41,10 @@ jobs:
       - run: npm audit --omit=dev
       # Pagefind indexes the static output post-build.
       - run: npm run build:search
+      # Mirror integrity (stdlib-only): every page maps to a docs/ source and
+      # back, and no route link 404s. Table drift stays covered by docs.sh
+      # pre-commit (update-sites-docs.py needs the Python venv).
+      - run: python3 ../scripts/check-docs-mirror.py --check
       # Published files, SEO/AI surfaces, and internal link integrity.
       - run: python3 scripts/check-site.py
       # Theme token contrast, both themes, against the WCAG minimums the UI

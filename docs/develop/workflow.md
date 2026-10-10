@@ -101,6 +101,13 @@ uv run python scripts/update-sites-docs.py
 The second command regenerates the supported-sites tables in `docs/` and the
 docs site — commit the result. `docs.sh` fails if you do not.
 
+Website pages under `website/src/content/docs/` are a hand mirror of `docs/`:
+author in `docs/`, copy to the site as `.mdx`. Three slugs were renamed on
+the way (`index.md` → `introduction`, `install.md` → `installation`,
+`usage/download.md` → `usage/basic`); the rename map lives in
+`website/src/utils/base.ts` (`DOCS_SOURCE`) and `docs.sh` fails on any page
+missing its counterpart in either direction.
+
 ## 5. Open the pull request
 
 Push the branch and open a PR **against `dev`** using the template. The

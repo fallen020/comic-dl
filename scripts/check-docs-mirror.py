@@ -12,7 +12,8 @@ page as a directory: `configure/config/` + `../rate-limiting/` goes to
 `configure/rate-limiting/`, not the top-level page. docs/ links are ordinary
 file paths resolved against the containing directory.
 
-Checks are bounded on purpose: route-level resolution and the `{#...}` scan.
+Checks are bounded on purpose: route-level resolution, the `{#...}` scan,
+and mirror parity (every website page maps to a docs/ source and back).
 Content equality between the trees is NOT enforced -- website pages are a
 hand-maintained fork (frontmatter, unwrapped prose, renamed headings).
 """
@@ -27,8 +28,38 @@ from urllib.parse import urlparse
 ROOT = Path(__file__).resolve().parent.parent
 DOCS = ROOT / "docs"
 WEBSITE = ROOT / "website" / "src" / "content" / "docs"
+BASE_TS = ROOT / "website" / "src" / "utils" / "base.ts"
 
 LINK_RE = re.compile(r"\]\(([^)]+)\)")
+
+
+def _docs_source_map() -> dict[str, str]:
+    """Parse the DOCS_SOURCE rename map from base.ts (single source of truth).
+
+    Keys are website slugs (`usage/basic`), values are docs/ paths
+    (`usage/download.md`). A slug with no entry maps to `<slug>.md`.
+    """
+    block = BASE_TS.read_text().split("DOCS_SOURCE", 1)[1].split("};", 1)[0]
+    return dict(re.findall(r"['\"]?([A-Za-z0-9/_.-]+)['\"]?\s*:\s*['\"]([^'\"]+)['\"]", block))
+
+
+def check_mirror_parity() -> list[str]:
+    """Flag website pages with no docs/ source and docs/ pages with no mirror."""
+    findings: list[str] = []
+    mapping = _docs_source_map()
+    for path in sorted(WEBSITE.rglob("*.mdx")):
+        slug = path.relative_to(WEBSITE).with_suffix("").as_posix()
+        expected = DOCS / mapping.get(slug, f"{slug}.md")
+        if not expected.is_file():
+            want = expected.relative_to(DOCS).as_posix()
+            findings.append(f"website: {slug}.mdx: no docs/ source (expected `{want}`)")
+    reverse = {v: k for k, v in mapping.items()}
+    for path in sorted(DOCS.rglob("*.md")):
+        rel = path.relative_to(DOCS).as_posix()
+        slug = reverse.get(rel, rel[: -len(".md")])
+        if not (WEBSITE / f"{slug}.mdx").is_file():
+            findings.append(f"docs: {rel}: no website mirror (expected `{slug}.mdx`)")
+    return findings
 
 
 def check_md_links(prefix: str, root: Path, *, routes: bool) -> list[str]:
@@ -164,8 +195,14 @@ def main() -> int:
     id_findings = check_heading_ids("docs: ", DOCS)
     table_findings = check_orphaned_table_rows("docs: ", DOCS)
     admonition_findings = check_admonition_syntax("docs: ", DOCS)
+    parity_findings = check_mirror_parity()
     all_findings = (
-        site_findings + docs_findings + id_findings + table_findings + admonition_findings
+        site_findings
+        + docs_findings
+        + id_findings
+        + table_findings
+        + admonition_findings
+        + parity_findings
     )
     for finding in all_findings:
         print(finding)
