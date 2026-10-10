@@ -12,7 +12,7 @@ batch downloads, size limits, and scripting.
 ## Download a single URL
 
 ```bash
-$ comic-dl -u https://e-hentai.org/g/3161202/e7a26f9e16/
+$ comic-dl -u https://asurascans.com/comics/demo-series/
 ```
 
 The `-u` / `--url` flag accepts any URL from a [supported site](../../reference/supported-sites/).
@@ -23,8 +23,8 @@ Create a text file with one URL per line:
 
 ```text
 # My comics
-https://e-hentai.org/g/123/abc/       # weekend batch
-https://pawchive.pw/patreon/user/456/post/789/
+https://asurascans.com/comics/demo-series/chapter/1       # weekend batch
+https://manhuato.com/manhua/demo-slug/
 ```
 
 ```bash
@@ -33,7 +33,7 @@ $ comic-dl -f urls.txt
 
 Blank lines and lines starting with `#` are skipped. Inline `# comments` after a URL are stripped. Duplicate URLs are downloaded once. Lines that are not `http(s)://` URLs produce a warning naming the file and line.
 
-If any URL fails, processing continues and a summary is printed at the end. The exit code is `1` when one or more downloads fail. Each error is annotated with its origin (e.g. `Failed: https://... (urls.txt:12)`).
+If any URL fails, processing continues and a summary is printed at the end. The exit code is `1` when one or more downloads fail; see [Exit Codes](../../reference/exit-codes/). Each error is annotated with its origin (e.g. `Failed: https://... (urls.txt:12)`).
 
 ## Interactive mode
 
@@ -135,7 +135,7 @@ $ comic-dl info <series> --json
 $ comic-dl latest --json
 ```
 
-`--json` implies non-interactive mode. All human output goes to stderr; stdout receives only the JSON payload. Every payload includes a `schema_version` field (currently `1`).
+`--json` implies non-interactive mode. All human output goes to stderr; stdout receives only the JSON payload. Every payload includes a `schema_version` field (currently `2`).
 
 See [JSON output shapes](../../reference/cli/#json-output) for the command-by-command reference.
 
