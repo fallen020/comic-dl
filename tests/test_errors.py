@@ -101,10 +101,13 @@ class TestErrorKindTaxonomy:
         assert LibraryError().kind == "library"
 
     def test_error_kind_helper_mirrors_classify(self):
-        from comic_dl.errors import ScrapeError
+        from comic_dl.errors import ScrapeError, SiteRegistryError
         from comic_dl.ui import error_kind
+        from comic_dl.utils import RequestBlockedError
 
         assert error_kind(ScrapeError("x")) == "scrape"
+        assert error_kind(SiteRegistryError()) == "sitereg"
+        assert error_kind(RequestBlockedError("refused")) == "blocked"
         assert error_kind(ConnectionError("boom")) == "network"
         assert error_kind(OSError("disk")) == "os"
         assert error_kind(RuntimeError("?")) == "internal"

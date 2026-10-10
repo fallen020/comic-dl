@@ -1295,9 +1295,9 @@ def error_kind(exc: BaseException) -> str:
 
     A view over :func:`_classify_all` so JSON-mode and library consumers can
     branch on a taxonomy instead of parsing message text. Kinds: ``usage``/
-    ``scrape``/``download``/``timeout``/``library`` for
-    :class:`~comic_dl.errors.ComicError` subclasses, then ``network``,
-    ``os``, and ``internal``.
+    ``scrape``/``download``/``timeout``/``library``/``sitereg``/``error`` for
+    :class:`~comic_dl.errors.ComicError` subclasses, then ``blocked``,
+    ``network``, ``os``, and ``internal``.
     """
     kind, _, _ = _classify_all(exc)
     return kind
