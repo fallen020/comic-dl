@@ -24,6 +24,7 @@ REQUIRED_FILES = [
 ]
 
 HREF_RE = re.compile(r'href="(/comic-dl/[^"#]+)(#[^"]*)?"')
+SRC_RE = re.compile(r'src="(/comic-dl/[^"]+)"')
 CANONICAL_RE = re.compile(r'<link rel="canonical" href="([^"]+)"')
 REQUIRED_HEAD_RES = [
     re.compile(r'<link rel="canonical"'),
@@ -67,7 +68,7 @@ def main() -> int:
 
     Returns 0 when all required files exist, all HTML pages have canonical/og
     tags, the llms.txt index covers every docs page, and all internal links
-    resolve. Returns 1 on any failure.
+    and local assets resolve. Returns 1 on any failure.
     """
     errors: list[str] = []
     for name in REQUIRED_FILES:
@@ -94,6 +95,10 @@ def main() -> int:
                 text = target.read_text()
                 if f'id="{anchor}"' not in text and f"id='{anchor}'" not in text:
                     errors.append(f"{page.relative_to(DIST)}: broken anchor {url}{frag}")
+        for match in SRC_RE.finditer(html):
+            url = match.group(1)
+            if resolve(url) is None:
+                errors.append(f"{page.relative_to(DIST)}: missing asset {url}")
 
     if (DIST / "llms.txt").is_file():
         check_llms_index(errors)
