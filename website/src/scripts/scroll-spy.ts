@@ -18,9 +18,15 @@ export function initScrollSpy(root: ParentNode = document): void {
   function activate(slug: string | null): void {
     if (slug === current) return;
     current = slug;
-    for (const link of links) link.classList.remove('is-active');
+    for (const link of links) {
+      link.classList.remove('is-active');
+      link.removeAttribute('aria-current');
+    }
     if (slug !== null) {
-      for (const link of bySlug.get(slug) ?? []) link.classList.add('is-active');
+      for (const link of bySlug.get(slug) ?? []) {
+        link.classList.add('is-active');
+        link.setAttribute('aria-current', 'true');
+      }
     }
   }
   const observer = new IntersectionObserver(

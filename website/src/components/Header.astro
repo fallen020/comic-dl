@@ -17,6 +17,7 @@ const nav = [
   { label: 'Docs', href: docsPath('') },
   { label: 'Supported Sites', href: docsPath('reference/supported-sites') },
 ];
+const path = Astro.url.pathname;
 ---
 <header class="sticky top-0 z-30 h-[var(--header-h)] border-b border-line bg-surface/80 backdrop-blur">
   <div class="mx-auto flex h-full max-w-[var(--shell-max)] items-center gap-2 px-[var(--gutter)]">
@@ -40,6 +41,7 @@ const nav = [
         <a
           href={item.href}
           data-astro-prefetch="hover"
+          aria-current={path === item.href ? 'page' : undefined}
           class="rounded px-2.5 py-1.5 text-sm text-fg-secondary no-underline transition-colors hover:bg-surface-1 hover:text-fg"
         >
           {item.label}
