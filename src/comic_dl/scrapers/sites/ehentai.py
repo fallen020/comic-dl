@@ -505,7 +505,7 @@ class EHentaiScraper(BaseScraper):
     content_warning = "nsfw"
     chapter_url_pattern = "/g/{gid}/{token}/"
     series_url_pattern = ""
-    version = "1.0.3"
+    version = "1.0.4"
     test_url = "https://e-hentai.org/g/4217284/6dddc119b6/"
     test_url_kind = "chapter"
     minimum_core_version = "0.0.2"

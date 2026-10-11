@@ -5,6 +5,54 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org).
 
+## [v0.0.6] - 2026-10-11
+
+### Added
+
+- Global egress override for IP-reputation blocks: `--proxy` flag,
+  `[http] proxy` key, `$COMIC_DL_PROXY` / `$HTTPS_PROXY` fallback.
+  Proxy credentials are masked in `config show` and resume hints.
+- Per-host image concurrency cap (default 3, `[http]
+  per-host-concurrency`), so single-node hosts stop absorbing the full
+  eight-wide burst.
+- Session headers locked to the TLS impersonation profile; gallery
+  sessions send page-load fetch metadata, image requests send the image
+  set.
+- Shell completions with per-flag descriptions, PowerShell support, and
+  a tabular logo.
+- RichPopup gallery scraper; FSIComics es/de/fr/it language mirrors.
+- `new-site.py` scaffolds new built-in sites; plugin validation names
+  the repair for each failure.
+
+### Changed
+
+- Site adapter bumps: fsicomics 2.0.0 (mirrors), ehentai 1.0.4,
+  imhentai 1.0.2, mangadex 1.0.3.
+- Dependencies: platformdirs 4.13.0, cryptography 50.0.2,
+  ruff 0.17.0, iniconfig 2.3.1.
+- Generic fallback: shape-based series detection, honest chapter
+  numbers, and a decline reason naming why a URL was skipped.
+- Release packaging runs in CI on PRs: vendored wheels per arch, native
+  arm64 builders, distro package cache, uncached clean-container
+  validation.
+- Verbose output retagged (`[context]`/`[trace]`), per-image headers
+  folded onto the request line, dry-run URLs redacted.
+
+### Fixed
+
+- Challenge solves no longer replay POSTs; the solve still clears the
+  way for later requests.
+- Per-page fan-outs stay resilient instead of fail-fast (ehentai,
+  imhentai); MangaDex at-home assignments fetch fresh.
+- Download cooldown keyed per host; rate-limiter slot reserved before
+  sleeping; each redirect hop validated exactly once; streamed block
+  bodies classified by peek.
+- Dry-run index width zero-padded cross-platform.
+
+### Security
+
+- Release checksum verification before privileged install.
+
 ## [v0.0.5] - 2026-10-04
 
 ### Added

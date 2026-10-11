@@ -14,20 +14,20 @@ new wheel and update its version below.
 | [beautifulsoup4](https://www.crummy.com/software/BeautifulSoup/bs4/) | 4.15.0 | [MIT](beautifulsoup4/LICENSE), [AUTHORS](beautifulsoup4/AUTHORS) |
 | [bottle](https://github.com/bottlepy/bottle) | 0.13.4 | [MIT](bottle/LICENSE) |
 | [certifi](https://github.com/certifi/python-certifi) | 2026.7.22 | [MPL-2.0](certifi/LICENSE) |
-| [cffi](https://github.com/python-cffi/cffi) | 2.1.0 | [MIT-0](cffi/LICENSE) |
+| [cffi](https://github.com/python-cffi/cffi) | 2.1.1 | [MIT-0](cffi/LICENSE) |
 | [clr-loader](https://pypi.org/project/clr-loader/) | 0.3.1 | [MIT](clr-loader/LICENSE) |
 | [curl-cffi](https://pypi.org/project/curl-cffi/) | 0.16.3 | [MIT](curl-cffi/LICENSE) |
-| [cryptography](https://github.com/pyca/cryptography) | 50.0.1 | [Apache-2.0](cryptography/LICENSE.APACHE) or [BSD-3-Clause](cryptography/LICENSE.BSD), [notice](cryptography/LICENSE) |
+| [cryptography](https://github.com/pyca/cryptography) | 50.0.2 | [Apache-2.0](cryptography/LICENSE.APACHE) or [BSD-3-Clause](cryptography/LICENSE.BSD), [notice](cryptography/LICENSE) |
 | [defusedxml](https://github.com/tiran/defusedxml) | 0.7.1 | [PSF-2](defusedxml/LICENSE) |
 | [keyring](https://github.com/jaraco/keyring) | 25.7.0 | [MIT](keyring/LICENSE) |
 | [lxml](https://github.com/lxml/lxml) | 6.1.3 | [BSD-3-Clause](lxml/LICENSE), [LICENSES.txt](lxml/LICENSES.txt) |
 | [markdown-it-py](https://github.com/executablebooks/markdown-it-py) | 4.2.0 | [MIT](markdown-it-py/LICENSE), [LICENSE.markdown-it](markdown-it-py/LICENSE.markdown-it) |
 | [mdurl](https://github.com/executablebooks/mdurl) | 0.1.2 | [MIT](mdurl/LICENSE) |
-| [packaging](https://github.com/pypa/packaging) | 26.2 | [Apache-2.0](packaging/LICENSE.APACHE) or [BSD-3-Clause](packaging/LICENSE.BSD), [notice](packaging/LICENSE) |
-| [platformdirs](https://github.com/tox-dev/platformdirs) | 4.12.3 | [MIT](platformdirs/LICENSE) |
+| [packaging](https://github.com/pypa/packaging) | 26.3 | [Apache-2.0](packaging/LICENSE.APACHE) or [BSD-3-Clause](packaging/LICENSE.BSD), [notice](packaging/LICENSE) |
+| [platformdirs](https://github.com/tox-dev/platformdirs) | 4.13.0 | [MIT](platformdirs/LICENSE) |
 | [proxy-tools](https://github.com/jtushman/proxy_tools) | 0.1.0 | [MIT](proxy-tools/LICENSE) |
-| [pycparser](https://github.com/eliben/pycparser) | 3.0 | [BSD-3-Clause](pycparser/LICENSE) |
-| [pygments](https://github.com/pygments/pygments) | 2.20.0 | [BSD-3-Clause](pygments/LICENSE), [AUTHORS](pygments/AUTHORS) |
+| [pycparser](https://github.com/eliben/pycparser) | 3.11 | [BSD-3-Clause](pycparser/LICENSE) |
+| [pygments](https://github.com/pygments/pygments) | 2.21.0 | [BSD-3-Clause](pygments/LICENSE), [AUTHORS](pygments/AUTHORS) |
 | [pyobjc-core](https://github.com/ronaldoussoren/pyobjc) | 12.2.2 | [MIT](pyobjc-core/LICENSE) |
 | [pyobjc-framework-cocoa](https://github.com/ronaldoussoren/pyobjc) | 12.2.2 | [MIT](pyobjc-framework-cocoa/LICENSE) |
 | [pyobjc-framework-quartz](https://github.com/ronaldoussoren/pyobjc) | 12.2.2 | [MIT](pyobjc-framework-quartz/LICENSE) |
@@ -38,7 +38,7 @@ new wheel and update its version below.
 | [pywebview](https://github.com/r0x0r/pywebview) | 6.2.1 | [BSD-3-Clause](pywebview/LICENSE) |
 | [qtpy](https://github.com/spyder-ide/qtpy) | 2.4.3 | [MIT](qtpy/LICENSE) |
 | [rich](https://github.com/Textualize/rich) | 15.0.0 | [MIT](rich/LICENSE) |
-| [soupsieve](https://github.com/facelessuser/soupsieve) | 2.9.1 | [MIT](soupsieve/LICENSE) |
+| [soupsieve](https://github.com/facelessuser/soupsieve) | 3.0.1 | [MIT](soupsieve/LICENSE.md) |
 | [typing-extensions](https://github.com/python/typing_extensions) | 4.16.0 | [PSF-2](typing-extensions/LICENSE) |
 
 Platform notes:
@@ -80,7 +80,7 @@ texts are vendored here. Versions are informational.
 | [pytest-xdist](https://github.com/pytest-dev/pytest-xdist) | 3.8.0 | MIT |
 | [pytest-asyncio](https://github.com/pytest-dev/pytest-asyncio) | 1.4.0 | Apache-2.0 |
 | [pytest-cov](https://github.com/pytest-dev/pytest-cov) | 7.1.0 | MIT |
-| [ruff](https://docs.astral.sh/ruff/) | 0.16.10 | MIT |
+| [ruff](https://docs.astral.sh/ruff/) | 0.17.0 | MIT |
 | [mypy](https://www.mypy-lang.org) | 2.4.0 | MIT |
 | [bandit](https://bandit.readthedocs.io/) | 1.9.4 | Apache-2.0 |
 | [pyinstaller](https://pyinstaller.org) | 6.22.3 | GPL-2.0-or-later with bootloader exception |
