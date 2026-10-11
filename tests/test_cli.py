@@ -3784,6 +3784,16 @@ class TestResumeCommand:
         assert "secret123" not in result
         assert "<redacted>" in result
 
+    def test_redacts_proxy_credentials(self):
+        result = resume_command(
+            ["comic-dl", "--proxy", "http://user:pw@proxy:8080", "-u", "https://example.com/"]
+        )
+        assert "user:pw@" not in result
+        assert "--proxy <redacted>" in result
+        result = resume_command(["comic-dl", "--proxy=http://user:pw@proxy:8080"])
+        assert "user:pw@" not in result
+        assert result == "comic-dl --proxy=<redacted>"
+
     def test_preserves_chapters_flag(self):
         result = resume_command(["comic-dl", "-u", "https://example.com/", "--chapters", "1-5"])
         assert "--chapters" in result

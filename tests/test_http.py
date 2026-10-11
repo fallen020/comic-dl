@@ -854,3 +854,39 @@ class TestFetchKinds:
     def test_legacy_shape_unchanged_without_kind(self):
         headers = http_client_args()["headers"]
         assert "Sec-Fetch-Dest" not in headers
+
+
+class TestProxyPlumbing:
+    """One global egress override reaches every session."""
+
+    def _args(self, monkeypatch, proxy_setting="", env=None):
+        import comic_dl.utils as utils
+
+        monkeypatch.setattr(utils, "http_setting", lambda *a, **k: proxy_setting)
+        for key in ("COMIC_DL_PROXY", "HTTPS_PROXY"):
+            monkeypatch.delenv(key, raising=False)
+        for key, value in (env or {}).items():
+            monkeypatch.setenv(key, value)
+        return utils.http_client_args()
+
+    def test_empty_default_sends_no_proxies_key(self, monkeypatch):
+        assert "proxies" not in self._args(monkeypatch)
+
+    def test_config_value_lands_in_kwargs(self, monkeypatch):
+        args = self._args(monkeypatch, proxy_setting="http://127.0.0.1:8080")
+        assert args["proxies"] == {
+            "http": "http://127.0.0.1:8080",
+            "https": "http://127.0.0.1:8080",
+        }
+
+    def test_env_beats_empty_config(self, monkeypatch):
+        args = self._args(monkeypatch, env={"HTTPS_PROXY": "http://proxy:3128"})
+        assert args["proxies"]["http"] == "http://proxy:3128"
+
+    def test_flag_beats_env(self, monkeypatch):
+        args = self._args(
+            monkeypatch,
+            proxy_setting="http://flag:8080",
+            env={"COMIC_DL_PROXY": "http://env:8080"},
+        )
+        assert args["proxies"]["http"] == "http://flag:8080"

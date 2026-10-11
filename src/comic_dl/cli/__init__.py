@@ -844,6 +844,8 @@ def _apply_config(args: argparse.Namespace) -> None:
         runtime_http["impersonate"] = args.impersonate
     if args.solver is not None:
         runtime_http["solver"] = args.solver
+    if args.proxy is not None:
+        runtime_http["proxy"] = args.proxy
     if args.no_cookie:
         runtime_http["cookie-jar"] = False
     if args.no_cache:
@@ -988,6 +990,16 @@ def _build_first_stage_parser() -> ComicArgumentParser:
         default=None,
         metavar="MODE",
         help="Cloudflare challenge solver; overrides [http] solver",
+    )
+    parser.add_argument(
+        "--proxy",
+        default=None,
+        metavar="URL",
+        help=(
+            "HTTP(S) proxy for every request "
+            "(e.g. http://127.0.0.1:8080); overrides $COMIC_DL_PROXY, "
+            "$HTTPS_PROXY, and [http] proxy"
+        ),
     )
     parser.add_argument(
         "--no-cookie",
@@ -2820,7 +2832,16 @@ def resume_command(argv: list[str] | None = None) -> str:
             if "=" not in token and i + 1 < len(tokens):
                 skip_next = True
             continue
-        # Redact values after flags that look secret-bearing.
+        # Redact values after flags that look secret-bearing, plus --proxy
+        # (a credential-bearing proxy URL is a secret; the name is not).
+        if low == "--proxy" and i + 1 < len(tokens):
+            parts.append(token)
+            parts.append("<redacted>")
+            skip_next = True
+            continue
+        if low.startswith("--proxy="):
+            parts.append("--proxy=<redacted>")
+            continue
         if _SECRET_PATTERNS.search(low) and i + 1 < len(tokens):
             parts.append(token)
             parts.append("<redacted>")
@@ -4620,7 +4641,13 @@ def _print_effective_config(path: Path) -> None:
         print_dim(f"Loaded from: {path}")
     else:
         print_dim(f"No config file at {path}; built-in defaults apply.")
-    console.print(_toml_dump(effective_config()), end="", markup=False)
+    eff = effective_config()
+    http = eff.get("http")
+    if isinstance(http, dict) and isinstance(http.get("proxy"), str) and http["proxy"]:
+        # A credential-bearing proxy URL must never hit the terminal as-is.
+        http = {**http, "proxy": redact_url(http["proxy"])}
+        eff = {**eff, "http": http}
+    console.print(_toml_dump(eff), end="", markup=False)
 
 
 def _toml_key(key: str) -> str:

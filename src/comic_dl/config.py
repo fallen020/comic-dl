@@ -38,6 +38,7 @@ chapter_parallel = 1
 [http]
 impersonate = "chrome146"
 solver = "off"  # [off | auto | impersonation | webview]
+#proxy = "http://127.0.0.1:8080"
 
 cookie-jar = true
 cookie-encryption = "auto"  # [auto | keyring | off]
@@ -86,6 +87,7 @@ _DEFAULTS: dict[str, Any] = {
     "http": {
         "impersonate": "chrome146",
         "solver": "off",
+        "proxy": "",
         "cookie-jar": True,
         "cookie-encryption": "auto",
         "cache": True,
@@ -365,6 +367,7 @@ _KNOWN_KEYS: dict[str, Any] = {
 _TABLE_RULES: dict[str, dict[str, Any]] = {
     "[http]": {
         "impersonate": "str",
+        "proxy": "str",
         "solver": {"auto", "impersonation", "webview", "off"},
         "cookie-jar": "bool",
         "cookie-encryption": {"auto", "keyring", "off"},

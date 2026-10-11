@@ -341,6 +341,10 @@ class TestRedactUrl:
     def test_keeps_benign_params(self):
         assert redact_url("https://s/p?page=2&lang=en") == "https://s/p?page=2&lang=en"
 
+    def test_masks_proxy_userinfo(self):
+        assert redact_url("http://user:s3cret@proxy:8080/") == "http://***@proxy:8080/"
+        assert redact_url("http://proxy:8080/?a=1") == "http://proxy:8080/?a=1"
+
 
 class TestRedactText:
     @pytest.fixture(autouse=True)

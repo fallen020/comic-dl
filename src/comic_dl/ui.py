@@ -359,14 +359,19 @@ def redact_url(url: str) -> str:
     (built before this function) is unaffected. Non-sensitive URLs pass
     through unchanged. Parameter order and encoding are preserved.
     """
-    if "?" not in url:
+    if "?" not in url and "@" not in urlsplit(url).netloc:
         return url
     parsed = urlsplit(url)
+    netloc = parsed.netloc
+    if "@" in netloc:
+        # Proxy URLs carry credentials as userinfo; the host alone
+        # identifies the egress, the secret never does.
+        netloc = "***@" + netloc.rsplit("@", 1)[1]
     parts = [
         (f"{k}={v}" if k.lower() not in _REDACT_QUERY_PARAMS else f"{k}=***")
         for k, v in parse_qsl(parsed.query, keep_blank_values=True)
     ]
-    return urlunsplit(parsed._replace(query="&".join(parts)))
+    return urlunsplit(parsed._replace(netloc=netloc, query="&".join(parts)))
 
 
 _HTTP_KEEP_HEADERS = frozenset(
@@ -3417,6 +3422,7 @@ _HELP_GROUPS: tuple[tuple[str, tuple[str, ...]], ...] = (
         (
             "--impersonate",
             "--solver",
+            "--proxy",
             "--no-cookie",
             "--no-rate",
             "--no-cache",

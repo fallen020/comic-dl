@@ -546,6 +546,14 @@ def http_client_args(
     args["headers"] = dict(_STEALTH.get(profile.lower(), HTTP_CLIENT_ARGS["headers"]))
     if kind in ("nav", "image"):
         args["headers"].update(fetch_headers(kind))
+    # Egress override, highest precedence first: --proxy flag, then
+    # $COMIC_DL_PROXY / $HTTPS_PROXY, then [http] proxy. Empty means direct.
+    proxy = http_setting("proxy", "")
+    if not (isinstance(proxy, str) and proxy.strip()):
+        proxy = os.environ.get("COMIC_DL_PROXY") or os.environ.get("HTTPS_PROXY") or ""
+    proxy = proxy.strip()
+    if proxy:
+        args["proxies"] = {"http": proxy, "https": proxy}
     args["curl_options"] = {
         CurlOpt.LOW_SPEED_LIMIT: LOW_SPEED_LIMIT_BPS,
         CurlOpt.LOW_SPEED_TIME: LOW_SPEED_WINDOW_SECONDS,
