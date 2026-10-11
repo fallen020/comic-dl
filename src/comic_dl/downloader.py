@@ -1205,6 +1205,14 @@ async def _run_downloads(
     # ones (multi-node chapters); each host's window is still capped by
     # SHARED_COOLDOWN_CAP at consumption time.
     cooldown_until: dict[str, float] = {}
+    # Proactive per-host socket cap: the global semaphore bounds total
+    # concurrency, but eight-wide against one node still opens eight sockets
+    # before any failure teaches restraint. Three at a time per host.
+    try:
+        host_limit = max(1, int(http_setting("per-host-concurrency", 3)))
+    except (TypeError, ValueError):
+        host_limit = 3
+    host_sems: dict[str, asyncio.Semaphore] = {}
     # Cumulative hard cap on total bytes accepted across all downloads (0 = unlimited).
     consumed_bytes = [0]
     completed = 0
@@ -1319,7 +1327,10 @@ async def _run_downloads(
                         tag=TAG_RETRY,
                     )
                     return
-                async with sem:
+                gate = host_sems.get(host)
+                if gate is None:
+                    gate = host_sems[host] = asyncio.Semaphore(host_limit)
+                async with sem, gate:
                     if part_path.exists() and part_path.stat().st_size > 0:
                         # Resume from the partial's byte offset regardless of
                         # whether it already forms a complete image: a dropped

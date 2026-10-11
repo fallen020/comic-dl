@@ -1174,6 +1174,90 @@ class TestDownloadHttpx:
             assert (Path(td) / "test.jpg").exists()
 
 
+class TestPerHostConcurrency:
+    pytestmark = pytest.mark.asyncio
+
+    async def _run(self, tmp_path, images, monkeypatch):
+        import asyncio
+
+        from comic_dl import downloader as dlmod
+        from comic_dl.downloader import download_httpx
+
+        current: dict[str, int] = {}
+        peak: dict[str, int] = {}
+
+        class MockResponse:
+            status_code = 200
+            headers = {"content-length": "3"}
+
+            def raise_for_status(self):
+                pass
+
+            async def aiter_content(self, chunk_size=None):
+                yield MAGIC_JPEG
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *args):
+                pass
+
+        class MockClient:
+            def stream(self, method, url, **kwargs):
+                from urllib.parse import urlsplit
+
+                host = urlsplit(url).hostname or ""
+                current[host] = current.get(host, 0) + 1
+                peak[host] = max(peak.get(host, 0), current[host])
+                return self._resp(host)
+
+            def _resp(self, host):
+                resp = MockResponse()
+                orig = resp.aiter_content
+
+                async def tracked(chunk_size=None):
+                    await asyncio.sleep(0.01)
+                    try:
+                        async for chunk in orig(chunk_size):
+                            yield chunk
+                    finally:
+                        current[host] -= 1
+
+                resp.aiter_content = tracked  # type: ignore[method-assign]
+                return resp
+
+        monkeypatch.setattr(dlmod, "http_setting", lambda *a, **k: 3)
+        failed = await download_httpx(
+            images,
+            tmp_path,
+            concurrency=8,
+            client=MockClient(),  # type: ignore
+        )
+        assert failed == set()
+        return peak
+
+    async def test_single_host_capped(self, tmp_path, monkeypatch):
+        images = [
+            ImageItem(url=f"https://one.example/{i}.jpg", page_number=i, filename=f"p{i}.jpg")
+            for i in range(8)
+        ]
+        peak = await self._run(tmp_path, images, monkeypatch)
+        assert peak["one.example"] <= 3
+
+    async def test_hosts_independent(self, tmp_path, monkeypatch):
+        images = [
+            ImageItem(
+                url=f"https://{'a' if i % 2 else 'b'}.example/{i}.jpg",
+                page_number=i,
+                filename=f"p{i}.jpg",
+            )
+            for i in range(8)
+        ]
+        peak = await self._run(tmp_path, images, monkeypatch)
+        assert peak["a.example"] <= 3
+        assert peak["b.example"] <= 3
+
+
 class TestDownloadHttpxIter:
     pytestmark = pytest.mark.asyncio
 

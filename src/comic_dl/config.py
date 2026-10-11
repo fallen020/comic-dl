@@ -52,6 +52,7 @@ rate = { "kagane.to" = 1.5, "kstatic.to" = 2.0, "e-hentai.org" = 2.0 }
 
 download-timeout = 60
 download-retries = 2
+#per-host-concurrency = 3
 #pass2-enabled = true
 #pass2-concurrency = 1
 #pass2-retries = 2
@@ -95,6 +96,7 @@ _DEFAULTS: dict[str, Any] = {
         "rate": {"kagane.to": 1.5, "kstatic.to": 2.0, "e-hentai.org": 2.0},
         "download-timeout": 60,
         "download-retries": 2,
+        "per-host-concurrency": 3,
         "pass2-enabled": True,
         "pass2-concurrency": 1,
         "pass2-retries": 2,
@@ -374,6 +376,7 @@ _TABLE_RULES: dict[str, dict[str, Any]] = {
         "rate": "rate_map",
         "download-timeout": "positive_number",
         "download-retries": "int_min0",
+        "per-host-concurrency": "int_min1",
         "pass2-enabled": "bool",
         "pass2-concurrency": "int_min1",
         "pass2-retries": "int_min0",
