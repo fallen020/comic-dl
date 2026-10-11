@@ -127,6 +127,21 @@ _SEARCH_ORIGINS = (
     "https://search.yahoo.com/",
 )
 
+
+# Header identity locked to each TLS impersonation profile, so the wire
+# headers always agree with the profile curl_cffi negotiates. Profiles
+# missing here keep the chrome146 session default (status quo ante); the
+# CLI layer already warns on unknown profiles, so no second warning here.
+# Firefox sends no Chromium client-hint headers, hence UA only.
+_STEALTH: dict[str, dict[str, str]] = {
+    "chrome146": dict(HTTP_CLIENT_ARGS["headers"]),
+    "firefox147": {
+        "User-Agent": (
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:147.0) Gecko/20100101 Firefox/147.0"
+        ),
+    },
+}
+
 _SIZE_RE = re.compile(r"^\s*(\d+(?:\.\d+)?)\s*([KMGT]?B)?\s*$", re.IGNORECASE)
 _SIZE_UNITS = {"B": 1, "KB": 1024, "MB": 1024**2, "GB": 1024**3}
 
@@ -472,7 +487,10 @@ def http_client_args(*, referer_url: str | None = None, host: str | None = None)
     """HTTP client kwargs with the effective impersonate profile applied.
 
     ``[http] impersonate`` (or ``--impersonate``) overrides the built-in
-    ``chrome146`` profile; anything else keeps the default. ``referer_url``
+    ``chrome146`` profile; anything else keeps the default. The UA and
+    client-hint headers always come from the locked :data:`_STEALTH` pair
+    for the effective profile, so headers never disagree with the TLS
+    fingerprint. ``referer_url``
     merges a ``Referer`` header (and a matching ``Origin`` derived from its
     scheme+host) when the caller needs one — image CDNs that enforce
     hotlinking, such as kagane.to's ``kstatic.to``, check both.
@@ -484,8 +502,13 @@ def http_client_args(*, referer_url: str | None = None, host: str | None = None)
     """
     args: dict[str, Any] = dict(HTTP_CLIENT_ARGS)
     profile = http_setting("impersonate", "chrome146")
-    if isinstance(profile, str) and profile.strip():
-        args["impersonate"] = profile.strip()
+    if not (isinstance(profile, str) and profile.strip()):
+        profile = "chrome146"
+    profile = profile.strip()
+    args["impersonate"] = profile
+    # Session headers are rebuilt per call from the locked pair: the shared
+    # template must never be mutated, and non-table profiles keep it verbatim.
+    args["headers"] = dict(_STEALTH.get(profile.lower(), HTTP_CLIENT_ARGS["headers"]))
     args["curl_options"] = {
         CurlOpt.LOW_SPEED_LIMIT: LOW_SPEED_LIMIT_BPS,
         CurlOpt.LOW_SPEED_TIME: LOW_SPEED_WINDOW_SECONDS,

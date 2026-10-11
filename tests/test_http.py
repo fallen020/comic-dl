@@ -775,3 +775,49 @@ class TestAsyncDnsValidation:
 
         await u.validate_request_url_async("https://cached.test/a")
         assert len(calls) == 1
+
+
+class TestStealthProfile:
+    """Session headers stay locked to the TLS impersonation profile."""
+
+    def _args_for(self, monkeypatch, profile):
+        import comic_dl.utils as utils
+
+        monkeypatch.setattr(utils, "http_setting", lambda *a, **k: profile)
+        return utils.http_client_args()
+
+    def test_chrome146_pair_agrees(self, monkeypatch):
+        args = self._args_for(monkeypatch, "chrome146")
+        headers = args["headers"]
+        assert args["impersonate"] == "chrome146"
+        assert "Chrome/146" in headers["User-Agent"]
+        assert headers["Sec-Ch-Ua-Platform"] == '"macOS"'
+        assert 'v="146"' in headers["Sec-Ch-Ua"]
+        assert headers["Sec-Ch-Ua-Mobile"] == "?0"
+
+    def test_firefox147_pair_agrees(self, monkeypatch):
+        args = self._args_for(monkeypatch, "firefox147")
+        headers = args["headers"]
+        assert args["impersonate"] == "firefox147"
+        assert "Firefox/147" in headers["User-Agent"]
+        assert not any(k.startswith("Sec-Ch-Ua") for k in headers)
+
+    def test_unlisted_profile_keeps_legacy_headers(self, monkeypatch):
+        args = self._args_for(monkeypatch, "chrome131")
+        assert args["impersonate"] == "chrome131"
+        assert "Chrome/146" in args["headers"]["User-Agent"]
+
+    def test_headers_dict_is_per_call(self, monkeypatch):
+        first = self._args_for(monkeypatch, "chrome146")["headers"]
+        first["User-Agent"] = "mutated"
+        assert self._args_for(monkeypatch, "chrome146")["headers"]["User-Agent"] != "mutated"
+
+    def test_runtime_override_flows_into_kwargs(self, monkeypatch, tmp_path):
+        _patch_paths(monkeypatch, tmp_path)
+        cfgmodule.set_runtime_http(**{"impersonate": "firefox147"})
+        try:
+            args = http_client_args()
+            assert args["impersonate"] == "firefox147"
+            assert "Firefox/147" in args["headers"]["User-Agent"]
+        finally:
+            cfgmodule._RUNTIME_HTTP.clear()
