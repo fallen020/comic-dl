@@ -131,7 +131,7 @@ class IMHentaiScraper(BaseScraper):
     content_warning = "nsfw"
     chapter_url_pattern = "/view/{id}/{n}/"
     series_url_pattern = "/gallery/{id}/"
-    version = "1.0.1"
+    version = "1.0.2"
     test_url = "https://imhentai.xxx/gallery/1746793/"
     test_url_kind = "chapter"
     minimum_core_version = "0.0.2"

@@ -1,5 +1,5 @@
 {
-  "core_version": "0.0.5",
+  "core_version": "0.0.6",
   "schema_version": 1,
   "sites": {
     "asurascans": {
@@ -18,7 +18,7 @@
       "minimum_core_version": "0.0.2",
       "status": "supported",
       "test_url": "https://e-hentai.org/g/4217284/6dddc119b6/",
-      "version": "1.0.3"
+      "version": "1.0.4"
     },
     "flamecomics": {
       "minimum_core_version": "0.0.2",
@@ -82,7 +82,7 @@
       "minimum_core_version": "0.0.2",
       "status": "supported",
       "test_url": "https://imhentai.xxx/gallery/1746793/",
-      "version": "1.0.1"
+      "version": "1.0.2"
     },
     "kagane": {
       "minimum_core_version": "0.0.2",
@@ -112,7 +112,7 @@
       "minimum_core_version": "0.0.2",
       "status": "supported",
       "test_url": "https://mangadex.org/chapter/6310f6a1-17ee-4890-b837-2ec1b372905b",
-      "version": "1.0.2"
+      "version": "1.0.3"
     },
     "manhuato": {
       "minimum_core_version": "0.0.2",
