@@ -80,7 +80,7 @@ The gallery API answered with an error text instead of gallery data:
 
 ### Unsupported URL
 
-No scraper handled the URL. On unknown hosts comic-dl tries the generic fallback unless you passed `--no-generic` or disabled it in the config; this error means the fallback is off or found nothing. Check the [supported sites](../reference/supported-sites/) list, or install a plugin that handles the host.
+No scraper handled the URL. On unknown hosts comic-dl tries the generic fallback unless you passed `--no-generic` or disabled it in the config. When the fallback runs and declines, the error names the reason: a site homepage, links with no repeating chapter pattern, or no gallery images and no chapter list. JavaScript-rendered pages produce the last one. Check the [supported sites](../reference/supported-sites/) list, or install a plugin that handles the host.
 
 ### ModuleNotFoundError
 

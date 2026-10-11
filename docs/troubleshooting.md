@@ -135,10 +135,18 @@ The gallery API answered with an error text instead of gallery data:
 ### Unsupported URL
 
 No scraper handled the URL. On unknown hosts comic-dl tries the generic
-fallback unless you passed `--no-generic` or disabled it in the config;
-this error means the fallback is off or found nothing. Check the
-[supported sites](reference/supported-sites.md) list, or install a plugin
-that handles the host.
+fallback unless you passed `--no-generic` or disabled it in the config.
+When the fallback runs and declines, the error names the reason:
+
+- `looks like a site homepage, not a gallery`: the URL is a front page.
+  Point comic-dl at a series or chapter URL instead.
+- `N links, no repeating chapter pattern`: the page links somewhere, but
+  nothing on it reads as a chapter list.
+- `no images and no chapter group`: neither gallery images nor a chapter
+  list survived. JavaScript-rendered pages land here.
+
+Check the [supported sites](reference/supported-sites.md) list, or install
+a plugin that handles the host.
 
 ### ModuleNotFoundError
 
