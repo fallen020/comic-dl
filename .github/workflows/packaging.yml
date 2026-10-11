@@ -79,7 +79,7 @@ jobs:
           python3 -m pip wheel --no-deps --no-cache-dir --wheel-dir .wheels-out "pywebview==$(lock_version pywebview)"
           python3 -m pip wheel --no-deps --no-cache-dir --wheel-dir .wheels-out "proxy-tools==$(lock_version proxy-tools)"
       - name: Upload wheels
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: wheels-${{ matrix.wheelarch }}
           path: .wheels-out/*
@@ -230,7 +230,7 @@ jobs:
       # re-running the full matrix.
       - name: Upload artifacts on failure
         if: failure()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ${{ matrix.artifact }}
           path: ${{ matrix.outdir }}/*
@@ -265,7 +265,7 @@ jobs:
           & "dist\comic-dl.exe" --list-sources > $null
       - name: Upload exe on failure
         if: failure()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: windows-exe
           path: dist/comic-dl.exe
