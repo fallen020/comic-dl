@@ -707,3 +707,96 @@ class TestSingleImageMeta:
         assert meta.chapter_title == "hello"
         assert meta.total_pages == 1
         assert meta.images[0].filename == "page_0001.jpg"
+
+
+class TestChromePins:
+    @pytest.mark.xfail(strict=True, reason="step 2: chrome links must not force series")
+    @pytest.mark.asyncio
+    async def test_chapter_page_with_chrome_is_gallery(self):
+        html = """
+        <html><body>
+          <img src="https://cdn.example.com/ch/001.jpg"/>
+          <img src="https://cdn.example.com/ch/002.jpg"/>
+          <img src="https://cdn.example.com/ch/003.jpg"/>
+          <img src="https://cdn.example.com/ch/004.jpg"/>
+          <a href="/read/foo/11">Prev</a>
+          <a href="/read/foo/13">Next</a>
+          <a href="/genre/action">Action</a>
+          <a href="/genre/fantasy">Fantasy</a>
+          <a href="/genre/drama">Drama</a>
+          <a href="/series/bar/chapter-1">Other 1</a>
+          <a href="/series/baz/chapter-1">Other 2</a>
+          <a href="/series/qux/chapter-1">Other 3</a>
+        </body></html>
+        """
+        scraper = GenericScraper()
+        url = "https://manga.example.com/read/foo/12"
+        client = _FakeClient({url: _FakeResp(html)})
+        assert await scraper.detect(url, client) == "gallery"
+
+    @pytest.mark.xfail(strict=True, reason="step 2: nav/author/random are not chapters")
+    def test_series_page_excludes_chrome_links(self):
+        soup = _soup("""
+        <html><body>
+          <a href="/series/foo/chapter-1">Chapter 1</a>
+          <a href="/series/foo/chapter-2">Chapter 2</a>
+          <a href="/series/foo/chapter-3">Chapter 3</a>
+          <a href="/genre/action">Action</a>
+          <a href="/author/someone">Author</a>
+          <a href="/random/roll">Random</a>
+        </body></html>
+        """)
+        assert [u for u, _ in _deep_links(soup, SERIES_BASE)] == [
+            "https://manga.example.com/series/foo/chapter-1",
+            "https://manga.example.com/series/foo/chapter-2",
+            "https://manga.example.com/series/foo/chapter-3",
+        ]
+
+    @pytest.mark.xfail(strict=True, reason="step 2: own-shape links are reader nav")
+    @pytest.mark.asyncio
+    async def test_reader_dropdown_stays_gallery(self):
+        html = """
+        <html><body>
+          <img src="https://cdn.example.com/ch/001.jpg"/>
+          <img src="https://cdn.example.com/ch/002.jpg"/>
+          <img src="https://cdn.example.com/ch/003.jpg"/>
+          <a href="/read/foo/10">Ch.10</a>
+          <a href="/read/foo/11">Ch.11</a>
+          <a href="/read/foo/13">Ch.13</a>
+          <a href="/read/foo/14">Ch.14</a>
+        </body></html>
+        """
+        scraper = GenericScraper()
+        url = "https://manga.example.com/read/foo/12"
+        client = _FakeClient({url: _FakeResp(html)})
+        assert await scraper.detect(url, client) == "gallery"
+
+    @pytest.mark.xfail(strict=True, reason="step 2: pagination is not a chapter list")
+    @pytest.mark.asyncio
+    async def test_pagination_links_never_form_series(self):
+        html = """
+        <html><body>
+          <img src="https://cdn.example.com/n/cover.jpg"/>
+          <a href="/news/page/2">2</a>
+          <a href="/news/page/3">3</a>
+          <a href="/news/page/4">4</a>
+        </body></html>
+        """
+        scraper = GenericScraper()
+        url = "https://manga.example.com/news/"
+        client = _FakeClient({url: _FakeResp(html)})
+        assert await scraper.detect(url, client) == "gallery"
+
+
+class TestEpisodeNoPins:
+    @pytest.mark.xfail(strict=True, reason="step 3: volume number shadows chapter")
+    def test_volume_prefix(self):
+        assert _episode_no("Vol. 3 Ch. 12", 1) == "12"
+
+    @pytest.mark.xfail(strict=True, reason="step 3: season number shadows episode")
+    def test_season_prefix(self):
+        assert _episode_no("Season 2 Episode 5", 1) == "5"
+
+    @pytest.mark.xfail(strict=True, reason="step 3: unnumbered must stay empty")
+    def test_prologue_has_no_number(self):
+        assert _episode_no("Prologue", 1) == ""
