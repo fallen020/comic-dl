@@ -1,11 +1,11 @@
-# NOTE (repo convention): Dependabot updates pyproject.toml but not uv.lock.
-# After merging any dependency PR, run `uv lock` against the merged tree and
-# push the refreshed lockfile, or every `--locked` CI gate fails.
+# NOTE (repo convention): the `uv` ecosystem updates uv.lock itself, so no
+# post-merge `uv lock` is needed. (`pip` would only edit pyproject.toml.)
 version: 2
 
 updates:
-  - package-ecosystem: "pip"
+  - package-ecosystem: "uv"
     directory: "/"
+    target-branch: "dev"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 10
@@ -20,6 +20,7 @@ updates:
 
   - package-ecosystem: "github-actions"
     directory: "/"
+    target-branch: "dev"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
@@ -28,6 +29,7 @@ updates:
 
   - package-ecosystem: "npm"
     directory: "/website"
+    target-branch: "dev"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5

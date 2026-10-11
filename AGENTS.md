@@ -121,9 +121,7 @@ published to GitHub Pages by `.github/workflows/docs-deploy.yml` on `main`
   (PEP 440, e.g. `v0.0.1`; never `v0.0.1-beta`, since hyphens break arch/rpm
   versioning and the release guards). Pushing a `v*` tag triggers
   `release.yml`. Move a tag only to repair an unpublished broken release.
-- **Dependabot:** it edits `pyproject.toml` but not `uv.lock`. After merging
-  any dependency PR, run `uv lock` on the merged tree and push the refreshed
-  lockfile, or every `--locked` gate fails.
+- **Dependabot:** `uv` ecosystem, targets `dev`, refreshes `uv.lock` itself.
 
 ## Boundaries
 
