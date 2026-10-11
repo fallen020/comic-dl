@@ -710,7 +710,6 @@ class TestSingleImageMeta:
 
 
 class TestChromePins:
-    @pytest.mark.xfail(strict=True, reason="step 2: chrome links must not force series")
     @pytest.mark.asyncio
     async def test_chapter_page_with_chrome_is_gallery(self):
         html = """
@@ -734,7 +733,6 @@ class TestChromePins:
         client = _FakeClient({url: _FakeResp(html)})
         assert await scraper.detect(url, client) == "gallery"
 
-    @pytest.mark.xfail(strict=True, reason="step 2: nav/author/random are not chapters")
     def test_series_page_excludes_chrome_links(self):
         soup = _soup("""
         <html><body>
@@ -752,7 +750,6 @@ class TestChromePins:
             "https://manga.example.com/series/foo/chapter-3",
         ]
 
-    @pytest.mark.xfail(strict=True, reason="step 2: own-shape links are reader nav")
     @pytest.mark.asyncio
     async def test_reader_dropdown_stays_gallery(self):
         html = """
@@ -771,7 +768,6 @@ class TestChromePins:
         client = _FakeClient({url: _FakeResp(html)})
         assert await scraper.detect(url, client) == "gallery"
 
-    @pytest.mark.xfail(strict=True, reason="step 2: pagination is not a chapter list")
     @pytest.mark.asyncio
     async def test_pagination_links_never_form_series(self):
         html = """
@@ -783,7 +779,7 @@ class TestChromePins:
         </body></html>
         """
         scraper = GenericScraper()
-        url = "https://manga.example.com/news/"
+        url = "https://manga.example.com/news"
         client = _FakeClient({url: _FakeResp(html)})
         assert await scraper.detect(url, client) == "gallery"
 
@@ -800,3 +796,43 @@ class TestEpisodeNoPins:
     @pytest.mark.xfail(strict=True, reason="step 3: unnumbered must stay empty")
     def test_prologue_has_no_number(self):
         assert _episode_no("Prologue", 1) == ""
+
+
+class TestDigitlessSeries:
+    @pytest.mark.asyncio
+    async def test_slug_only_chapters_form_series(self):
+        html = """
+        <html><body>
+          <img src="https://cdn.example.com/series/foo/cover.jpg"/>
+          <a href="/series/foo/the-return">The Return</a>
+          <a href="/series/foo/dark-night">Dark Night</a>
+          <a href="/series/foo/last-stand">Last Stand</a>
+        </body></html>
+        """
+        scraper = GenericScraper()
+        url = "https://manga.example.com/series/foo"
+        client = _FakeClient({url: _FakeResp(html)})
+        assert await scraper.detect(url, client) == "series"
+        series = await scraper.scrape_series(url, client)
+        assert [c["title"] for c in series.chapters] == [
+            "The Return",
+            "Dark Night",
+            "Last Stand",
+        ]
+
+    @pytest.mark.asyncio
+    async def test_same_directory_nav_stays_gallery(self):
+        html = """
+        <html><body>
+          <img src="https://cdn.example.com/ch/001.jpg"/>
+          <img src="https://cdn.example.com/ch/002.jpg"/>
+          <img src="https://cdn.example.com/ch/003.jpg"/>
+          <a href="/read/foo/prologue">Prologue</a>
+          <a href="/read/foo/interlude">Interlude</a>
+          <a href="/read/foo/epilogue">Epilogue</a>
+        </body></html>
+        """
+        scraper = GenericScraper()
+        url = "https://manga.example.com/read/foo/finale"
+        client = _FakeClient({url: _FakeResp(html)})
+        assert await scraper.detect(url, client) == "gallery"

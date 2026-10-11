@@ -16,7 +16,7 @@ import contextlib
 import html
 import json
 import re
-from urllib.parse import urljoin, urlparse
+from urllib.parse import parse_qsl, urljoin, urlparse
 
 from bs4 import BeautifulSoup
 from curl_cffi.requests import AsyncSession
@@ -386,15 +386,111 @@ def _extract_gallery_images(soup: BeautifulSoup, base_url: str) -> list[ImageIte
     return images
 
 
+# First path segments that never hold chapter links: tag/genre/author
+# indexes, random/comment endpoints, WP internals, and login/search pages. A
+# series page's chapter links share the series slug; these share nothing, so
+# dropping them here keeps nav chrome out of every chapter list built below.
+_NON_CHAPTER_FIRST = frozenset(
+    {
+        "author",
+        "authors",
+        "tag",
+        "tags",
+        "genre",
+        "genres",
+        "random",
+        "comment",
+        "comments",
+        "wp-json",
+        "feed",
+        "login",
+        "register",
+        "search",
+    }
+)
+
+_PAGE_SEGMENT_RE = re.compile(r"^(?:page|p)[-_ ]?\d+$", re.IGNORECASE)
+
+
+def _is_pagination(url: str) -> bool:
+    """True when ``url`` is a paged-listing hop rather than a chapter.
+
+    Matches ``page``/``p`` glued to digits (``/news/page-2``), a bare number
+    under a ``page``/``p`` directory (``/news/page/2``), or a ``page``/``p``
+    query key (``/news/?page=2``). Page-number links form perfect shape
+    groups, so they are excluded before grouping.
+    """
+    parsed = urlparse(url)
+    segments = [p for p in parsed.path.split("/") if p]
+    if segments:
+        if _PAGE_SEGMENT_RE.match(segments[-1]):
+            return True
+        if len(segments) >= 2 and segments[-2].lower() in ("page", "p") and segments[-1].isdigit():
+            return True
+    keys = {k.lower() for k, _ in parse_qsl(parsed.query, keep_blank_values=True)}
+    return "page" in keys or "p" in keys
+
+
+def _url_shape(url: str) -> str:
+    """Grouping key for ``url``: path with digit runs collapsed, values dropped.
+
+    ``/series/foo/chapter-12?page=2`` becomes ``/series/foo/chapter-#?page``.
+    A real chapter list is one big shape group; nav chrome is many groups of
+    one, and sidebar links to other series each get their own slug shape.
+    """
+    parsed = urlparse(url)
+    shape = re.sub(r"\d+", "#", parsed.path)
+    keys = sorted({k for k, _ in parse_qsl(parsed.query, keep_blank_values=True)})
+    if keys:
+        shape += "?" + "&".join(keys)
+    return shape
+
+
+def _dir(path: str) -> str:
+    """Containing directory of ``path`` with a trailing slash."""
+    return path.rstrip("/").rsplit("/", 1)[0] + "/"
+
+
+def _chapter_group(links: list[tuple[str, str]], page_url: str) -> list[tuple[str, str]]:
+    """Largest link group that reads as a chapter list, else ``[]``.
+
+    Digit-collapsed shapes first; the page's own shape never counts, so a
+    reader page's jump-to-chapter nav cannot promote itself to a series. With
+    no digit group, same-directory links outside the page's own directory
+    stand in for slug-only chapter URLs; the directory mismatch keeps reader
+    nav (same directory as the page) out.
+    """
+    by_shape: dict[str, list[tuple[str, str]]] = {}
+    for href, text in links:
+        by_shape.setdefault(_url_shape(href), []).append((href, text))
+    own_shape = _url_shape(page_url)
+    digit = [
+        group
+        for shape, group in by_shape.items()
+        if "#" in shape and shape != own_shape and len(group) >= SERIES_MIN_LINKS
+    ]
+    if digit:
+        return max(digit, key=len)
+    page_dir = _dir(urlparse(page_url).path)
+    by_parent: dict[str, list[tuple[str, str]]] = {}
+    for href, text in links:
+        parent = _dir(urlparse(href).path)
+        if parent != page_dir:
+            by_parent.setdefault(parent, []).append((href, text))
+    same_dir = [group for group in by_parent.values() if len(group) >= SERIES_MIN_LINKS]
+    return max(same_dir, key=len) if same_dir else []
+
+
 def _deep_links(soup: BeautifulSoup, base_url: str) -> list[tuple[str, str]]:
     """Internal deep non-asset links in document order.
 
     Returns ``(absolute_url, link_text)`` pairs for anchors whose hrefs are
     deep paths (≥2 segments, not asset files) on the same registrable domain,
-    skipping bare fragments, ``mailto:``/``javascript:`` links, and links to
+    skipping bare fragments, ``mailto:``/``javascript:`` links, nav-chrome
+    first segments (genre/author/random/…), pagination hops, and links to
     the page itself. A series page's chapter links (``/manga/foo/chapter-1``)
-    match; nav chrome (prev/next/first/last) generally does not because it is
-    too shallow or targets the same path.
+    match; a chapter page's prev/next and sidebar links are returned for the
+    group test in :func:`_chapter_group` to reject.
     """
     parsed_base = urlparse(base_url)
     base_host = (parsed_base.hostname or "").lower()
@@ -415,6 +511,11 @@ def _deep_links(soup: BeautifulSoup, base_url: str) -> list[tuple[str, str]]:
         if len([p for p in path.split("/") if p]) < 2:
             continue
         if _path_is_asset(path):
+            continue
+        segments = [p for p in path.split("/") if p]
+        if segments and segments[0].lower() in _NON_CHAPTER_FIRST:
+            continue
+        if _is_pagination(resolved):
             continue
         key = normalize_url_key(resolved)
         if key in seen:
@@ -559,8 +660,8 @@ class GenericScraper(BaseScraper):
         if soup is None:
             return "gallery"  # direct image URL
         images = _extract_gallery_images(soup, url)
-        links = _deep_links(soup, url)
-        if len(links) >= SERIES_MIN_LINKS and len(images) < len(links):
+        group = _chapter_group(_deep_links(soup, url), url)
+        if group and len(images) < len(group):
             return "series"
         if images:
             return "gallery"
@@ -613,7 +714,7 @@ class GenericScraper(BaseScraper):
         soup = await self._load_page(url, client)
         idx = meta_index(soup)
         title = _page_title(soup, idx, url)
-        links = _deep_links(soup, url)
+        links = _chapter_group(_deep_links(soup, url), url)
         if not links:
             raise no_chapters_error()
 
