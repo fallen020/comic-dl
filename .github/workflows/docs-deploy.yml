@@ -32,6 +32,11 @@ jobs:
         working-directory: website
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Docs pages show each file's last commit date. A shallow clone holds
+          # only the root commit, so `git log -1 -- <file>` would answer with
+          # the deploy date on every page.
+          fetch-depth: 0
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
@@ -39,6 +44,7 @@ jobs:
           cache-dependency-path: website/package-lock.json
       - run: npm ci
       - run: npm audit --omit=dev
+      - run: npm run check
       # Pagefind indexes the static output post-build.
       - run: npm run build:search
       # Mirror integrity (stdlib-only): every page maps to a docs/ source and

@@ -8,6 +8,7 @@
     "build": "astro build",
     "build:search": "astro build && pagefind --site dist",
     "preview": "astro preview",
+    "check": "astro check",
     "astro": "astro"
   },
   "dependencies": {
@@ -23,6 +24,10 @@
     "tailwindcss": "^4.3.0"
   },
   "devDependencies": {
+    "@astrojs/check": "^0.9.10",
     "pagefind": "^1.5.0"
+  },
+  "overrides": {
+    "postcss-selector-parser": "^7.1.6"
   }
 }

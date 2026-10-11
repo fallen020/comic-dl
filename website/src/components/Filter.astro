@@ -48,6 +48,7 @@ const { label = 'Filter by name or domain' } = Astro.props;
         row.hidden = !hit;
         if (hit) shown += 1;
       }
+      table.hidden = q !== '' && shown === 0;
       if (!status) return;
       status.textContent = q
         ? `${shown} of ${rows.length} sites`

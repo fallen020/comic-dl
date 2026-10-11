@@ -37,7 +37,7 @@ const brandFor: Record<string, 'windows' | 'debian' | 'fedora' | 'archlinux' | '
         role="tab"
         id={`${idPrefix}-${t.value}`}
         aria-controls={`panel-${idPrefix}-${t.value}`}
-        aria-selected={String(i === 0)}
+        aria-selected={i === 0 ? 'true' : 'false'}
         data-tab-button={t.value}
         class="tabs-tab"
         tabindex={i === 0 ? 0 : -1}
@@ -65,6 +65,14 @@ const brandFor: Record<string, 'windows' | 'debian' | 'fedora' | 'archlinux' | '
       panel.hidden = panel.getAttribute('data-panel') !== value;
     });
   }
+
+  // A tabpanel with no focusable child is unreachable from the tab: keyboard
+  // focus stops on the tablist. ARIA's Tabs pattern asks for tabindex="0" on
+  // exactly those, set here so every panel and every future page gets it.
+  panels.forEach((panel) => {
+    if (panel.querySelector('a,button,input,select,textarea,[tabindex]')) return;
+    panel.tabIndex = 0;
+  });
 
   buttons.forEach(btn => {
     btn.addEventListener('click', () => activate(btn.getAttribute('data-tab-button')));

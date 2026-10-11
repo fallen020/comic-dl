@@ -13,10 +13,19 @@ interface Props {
 const { showMenu = false } = Astro.props;
 // The two destinations a reader reaches for most: the docs root and the list
 // of sites the tool actually supports.
+const docsRoot = docsPath('');
+const sitesHref = docsPath('reference/supported-sites');
 const nav = [
-  { label: 'Docs', href: docsPath('') },
-  { label: 'Supported Sites', href: docsPath('reference/supported-sites') },
+  { label: 'Docs', href: docsRoot },
+  { label: 'Supported Sites', href: sitesHref },
 ];
+const path = Astro.url.pathname;
+// The section link stays current on every docs page except the one the other
+// link points at, so at most one link in the set ever carries aria-current.
+const currentFor = (href: string) =>
+  path === href || (href === docsRoot && path.startsWith(docsRoot) && path !== sitesHref)
+    ? 'page'
+    : undefined;
 ---
 <header class="sticky top-0 z-30 h-[var(--header-h)] border-b border-line bg-surface/80 backdrop-blur">
   <div class="mx-auto flex h-full max-w-[var(--shell-max)] items-center gap-2 px-[var(--gutter)]">
@@ -40,6 +49,7 @@ const nav = [
         <a
           href={item.href}
           data-astro-prefetch="hover"
+          aria-current={currentFor(item.href)}
           class="rounded px-2.5 py-1.5 text-sm text-fg-secondary no-underline transition-colors hover:bg-surface-1 hover:text-fg"
         >
           {item.label}

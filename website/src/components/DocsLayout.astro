@@ -41,7 +41,7 @@ const docHref = (id: string) => docsPath(id);
     <!-- Desktop sidebar -->
     <div class="hidden lg:block">
       <div
-        data-scroll-host
+        data-scroll-host="sidebar"
         class="sticky top-[var(--header-h)] max-h-[calc(100dvh-var(--header-h))] overflow-y-auto py-8 pe-1"
       >
         <Sidebar currentId={currentId} />
@@ -52,7 +52,7 @@ const docHref = (id: string) => docsPath(id);
     <dialog
       id="docs-nav"
       data-sidebar-drawer
-      data-scroll-host
+      data-scroll-host="sidebar"
       class="fixed inset-y-0 left-0 m-0 h-dvh max-h-none w-[min(18rem,85vw)] max-w-full overscroll-contain overflow-y-auto border-r border-line bg-surface px-4 py-4 text-fg shadow-[var(--shadow-pop)] lg:hidden"
       aria-label="Documentation navigation"
     >
@@ -141,7 +141,6 @@ const docHref = (id: string) => docsPath(id);
     <!-- TOC -->
     <div class="hidden xl:block">
       <div
-        data-scroll-host
         class="sticky top-[var(--header-h)] max-h-[calc(100dvh-var(--header-h))] overflow-y-auto py-8 ps-1"
       >
         <TableOfContents headings={headings} />
@@ -208,7 +207,7 @@ const docHref = (id: string) => docsPath(id);
     try { return sessionStorage.getItem(KEY); } catch { return null; }
   })();
   if (saved) {
-    document.querySelectorAll('[data-scroll-host]').forEach((host) => {
+    document.querySelectorAll('[data-scroll-host="sidebar"]').forEach((host) => {
       host.scrollTop = Number(saved);
     });
   }

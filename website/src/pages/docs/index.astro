@@ -1,31 +1,12 @@
 ---
 import { getCollection } from 'astro:content';
-import type { CollectionEntry } from 'astro:content';
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import Header from '../../components/Header.astro';
 import { docsPath } from '../../utils/base';
-
-type Doc = CollectionEntry<'docs'>;
+import { docGroups } from '../../utils/doc-groups';
 
 const entries = (await getCollection('docs')).sort((a, b) => a.data.order - b.data.order);
-
-interface Group {
-  label: string;
-  items: Doc[];
-}
-
-const groups = new Map<string | null, Group>();
-for (const entry of entries) {
-  const label = entry.data.section ?? null;
-  if (!groups.has(label)) {
-    groups.set(label, { label: label ?? '', items: [] });
-  }
-  groups.get(label)!.items.push(entry);
-}
-
-const orderedGroups = Array.from(groups.values()).sort(
-  (a, b) => (a.items[0]?.data.order ?? 0) - (b.items[0]?.data.order ?? 0),
-);
+const orderedGroups = docGroups(entries);
 ---
 <BaseLayout
   title="Documentation"
