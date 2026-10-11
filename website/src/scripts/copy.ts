@@ -7,6 +7,8 @@ async function copyText(text: string): Promise<boolean> {
       /* fall through to legacy path */
     }
   }
+  // Deprecated, but it is what makes copy work where navigator.clipboard is
+  // missing or rejects: non-secure origins, or a browser that refuses the prompt.
   try {
     const ta = document.createElement('textarea');
     ta.value = text;

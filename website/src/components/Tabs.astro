@@ -37,7 +37,7 @@ const brandFor: Record<string, 'windows' | 'debian' | 'fedora' | 'archlinux' | '
         role="tab"
         id={`${idPrefix}-${t.value}`}
         aria-controls={`panel-${idPrefix}-${t.value}`}
-        aria-selected={String(i === 0)}
+        aria-selected={i === 0 ? 'true' : 'false'}
         data-tab-button={t.value}
         class="tabs-tab"
         tabindex={i === 0 ? 0 : -1}

@@ -44,6 +44,7 @@ jobs:
           cache-dependency-path: website/package-lock.json
       - run: npm ci
       - run: npm audit --omit=dev
+      - run: npm run check
       # Pagefind indexes the static output post-build.
       - run: npm run build:search
       # Mirror integrity (stdlib-only): every page maps to a docs/ source and
