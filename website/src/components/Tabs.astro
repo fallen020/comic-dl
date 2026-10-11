@@ -66,6 +66,14 @@ const brandFor: Record<string, 'windows' | 'debian' | 'fedora' | 'archlinux' | '
     });
   }
 
+  // A tabpanel with no focusable child is unreachable from the tab: keyboard
+  // focus stops on the tablist. ARIA's Tabs pattern asks for tabindex="0" on
+  // exactly those, set here so every panel and every future page gets it.
+  panels.forEach((panel) => {
+    if (panel.querySelector('a,button,input,select,textarea,[tabindex]')) return;
+    panel.tabIndex = 0;
+  });
+
   buttons.forEach(btn => {
     btn.addEventListener('click', () => activate(btn.getAttribute('data-tab-button')));
     btn.addEventListener('keydown', (e) => {
