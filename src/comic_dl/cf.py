@@ -142,18 +142,26 @@ def _response_is_challenge(resp: Any) -> bool:
 async def retry_challenge_once(
     fetch: Callable[[], Awaitable[Any]],
     url: str,
+    *,
+    refetch: bool = True,
 ) -> Any:
     """Issue ``fetch()``; on a Cloudflare challenge, solve + retry once.
 
     Used by the scrape and download chokepoints so every chokepoint shares
     the exact same challenge semantics: detect, clear, solve, one retry.
     The result of the last attempt (retry or original) is always returned.
+
+    ``refetch=False`` still runs the solver (clearance helps later
+    requests) but returns the original response: non-idempotent methods
+    are never replayed.
     """
     resp = await fetch()
     if not _response_is_challenge(resp):
         return resp
     trace(f"cf: challenge detected on {urlsplit(url).hostname}")
     if await handle_challenge(url):
+        if not refetch:
+            return resp
         await aclose_response(resp)
         return await fetch()
     return resp

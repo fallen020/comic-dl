@@ -420,7 +420,9 @@ class BaseScraper:
             )
 
         if challenge_retry:
-            resp = await retry_challenge_once(_fetch_once, url)
+            # Only idempotent methods replay after a solve; a POST is
+            # fetched once and classified by the caller.
+            resp = await retry_challenge_once(_fetch_once, url, refetch=method in ("GET", "HEAD"))
         else:
             resp = await _fetch_once()
         if cacheable and stale_entry is not None and resp.status_code == 304:

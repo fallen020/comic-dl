@@ -1,4 +1,7 @@
-"""Streaming download engine with retries, resume, size caps, and the download pipeline."""
+"""Streaming download engine with retries, resume, size caps, and the download pipeline.
+
+Every request here is an idempotent GET, so challenge solves may refetch freely;
+a future POST addition must gate its retry on method (see ``cf.retry_challenge_once``)."""
 
 from __future__ import annotations
 
@@ -50,6 +53,7 @@ from .utils import (
     MAX_REDIRECTS,
     RequestBlockedError,
     aclose_response,
+    fetch_headers,
     host_of,
     http_client_args,
     referer_headers,
@@ -373,8 +377,12 @@ async def _open_stream(
     page identifier (``page_XXXX.webp``) that is echoed on each hop so the
     trace is cross-referable against retry/verify logs. The infrastructure
     only reports at the requested level and never decides semantics itself.
+
+    Image fetch metadata rides on every request here (caller headers win),
+    so resume, stream, probe, and cover bytes all announce an image
+    destination regardless of which session carries them.
     """
-    req = dict(headers or {})
+    req = {**fetch_headers("image"), **(headers or {})}
     current = url
 
     async def _stream_once() -> _StreamResponse:
@@ -1197,6 +1205,14 @@ async def _run_downloads(
     # ones (multi-node chapters); each host's window is still capped by
     # SHARED_COOLDOWN_CAP at consumption time.
     cooldown_until: dict[str, float] = {}
+    # Proactive per-host socket cap: the global semaphore bounds total
+    # concurrency, but eight-wide against one node still opens eight sockets
+    # before any failure teaches restraint. Three at a time per host.
+    try:
+        host_limit = max(1, int(http_setting("per-host-concurrency", 3)))
+    except (TypeError, ValueError):
+        host_limit = 3
+    host_sems: dict[str, asyncio.Semaphore] = {}
     # Cumulative hard cap on total bytes accepted across all downloads (0 = unlimited).
     consumed_bytes = [0]
     completed = 0
@@ -1311,7 +1327,10 @@ async def _run_downloads(
                         tag=TAG_RETRY,
                     )
                     return
-                async with sem:
+                gate = host_sems.get(host)
+                if gate is None:
+                    gate = host_sems[host] = asyncio.Semaphore(host_limit)
+                async with sem, gate:
                     if part_path.exists() and part_path.stat().st_size > 0:
                         # Resume from the partial's byte offset regardless of
                         # whether it already forms a complete image: a dropped
@@ -1592,7 +1611,10 @@ async def _probe_image_size(c: AsyncSession, url: str, timeout: float) -> int:
         except RequestBlockedError:
             return 0
         try:
-            resp = await asyncio.wait_for(c.head(current, allow_redirects=False), timeout=timeout)
+            resp = await asyncio.wait_for(
+                c.head(current, allow_redirects=False, headers=fetch_headers("image")),
+                timeout=timeout,
+            )
         # Advisory probe — HEAD failures are non-fatal; fall through to Range GET.
         except Exception:  # nosec
             resp = None

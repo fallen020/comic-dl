@@ -38,6 +38,7 @@ chapter_parallel = 1
 [http]
 impersonate = "chrome146"
 solver = "off"  # [off | auto | impersonation | webview]
+#proxy = "http://127.0.0.1:8080"
 
 cookie-jar = true
 cookie-encryption = "auto"  # [auto | keyring | off]
@@ -52,6 +53,7 @@ rate = { "kagane.to" = 1.5, "kstatic.to" = 2.0, "e-hentai.org" = 2.0 }
 
 download-timeout = 60
 download-retries = 2
+#per-host-concurrency = 3
 #pass2-enabled = true
 #pass2-concurrency = 1
 #pass2-retries = 2
@@ -85,6 +87,7 @@ _DEFAULTS: dict[str, Any] = {
     "http": {
         "impersonate": "chrome146",
         "solver": "off",
+        "proxy": "",
         "cookie-jar": True,
         "cookie-encryption": "auto",
         "cache": True,
@@ -95,6 +98,7 @@ _DEFAULTS: dict[str, Any] = {
         "rate": {"kagane.to": 1.5, "kstatic.to": 2.0, "e-hentai.org": 2.0},
         "download-timeout": 60,
         "download-retries": 2,
+        "per-host-concurrency": 3,
         "pass2-enabled": True,
         "pass2-concurrency": 1,
         "pass2-retries": 2,
@@ -363,6 +367,7 @@ _KNOWN_KEYS: dict[str, Any] = {
 _TABLE_RULES: dict[str, dict[str, Any]] = {
     "[http]": {
         "impersonate": "str",
+        "proxy": "str",
         "solver": {"auto", "impersonation", "webview", "off"},
         "cookie-jar": "bool",
         "cookie-encryption": {"auto", "keyring", "off"},
@@ -374,6 +379,7 @@ _TABLE_RULES: dict[str, dict[str, Any]] = {
         "rate": "rate_map",
         "download-timeout": "positive_number",
         "download-retries": "int_min0",
+        "per-host-concurrency": "int_min1",
         "pass2-enabled": "bool",
         "pass2-concurrency": "int_min1",
         "pass2-retries": "int_min0",

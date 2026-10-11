@@ -137,6 +137,7 @@ which is read as bytes.
 | :--- | :------ | :---------- |
 | `--impersonate` | `chrome146` | TLS/HTTP impersonation profile (e.g. `chrome131`). Overrides `[http]` |
 | `--solver` | `off` | Cloudflare challenge solver. Overrides `[http]`. `auto` tries impersonation first, then webview if needed; `impersonation` is TLS/HTTP fingerprint only; `webview` uses the system WebView (GTK/WebKit) and needs a display plus GTK libs; `off` disables the solver and challenged sites will fail. Solving is opt-in |
+| `--proxy` | | HTTP(S) proxy for every request (e.g. `http://127.0.0.1:8080`). Overrides `$COMIC_DL_PROXY`, `$HTTPS_PROXY`, `[http]` |
 | `--no-cookie` | | Disable the persistent cookie jar for this run |
 | `--no-rate` | | Disable per-site rate limiting for this run |
 | `--no-cache` | | Disable the on-disk scrape response cache for this run |

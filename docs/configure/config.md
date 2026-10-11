@@ -40,6 +40,12 @@ older template, say) shows up.
   Entries older than 14 days are dropped regardless.
 - `pass2-*` — a second low-rate sweep for pages pass 1 could not get, so a
   transient site-wide blip costs a slow sweep instead of a rerun.
+- `per-host-concurrency` — simultaneous image sockets per host (default 3).
+  Caps the burst against single-node hosts; multi-node chapters keep full
+  speed since each host gets its own budget.
+- `proxy` — HTTP(S) proxy URL for every request (empty = direct). Precedence:
+  `--proxy` flag, then `$COMIC_DL_PROXY` / `$HTTPS_PROXY`, then this key.
+  Credentials in the URL are masked in `config show` and resume hints.
 - `compression` — `stored` (default, fastest); `deflate[:0-9]` rarely
   shrinks already-compressed pages. Zip-family only; `cbt` is never
   compressed.

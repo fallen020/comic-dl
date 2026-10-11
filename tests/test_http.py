@@ -775,3 +775,118 @@ class TestAsyncDnsValidation:
 
         await u.validate_request_url_async("https://cached.test/a")
         assert len(calls) == 1
+
+
+class TestStealthProfile:
+    """Session headers stay locked to the TLS impersonation profile."""
+
+    def _args_for(self, monkeypatch, profile):
+        import comic_dl.utils as utils
+
+        monkeypatch.setattr(utils, "http_setting", lambda *a, **k: profile)
+        return utils.http_client_args()
+
+    def test_chrome146_pair_agrees(self, monkeypatch):
+        args = self._args_for(monkeypatch, "chrome146")
+        headers = args["headers"]
+        assert args["impersonate"] == "chrome146"
+        assert "Chrome/146" in headers["User-Agent"]
+        assert headers["Sec-Ch-Ua-Platform"] == '"macOS"'
+        assert 'v="146"' in headers["Sec-Ch-Ua"]
+        assert headers["Sec-Ch-Ua-Mobile"] == "?0"
+
+    def test_firefox147_pair_agrees(self, monkeypatch):
+        args = self._args_for(monkeypatch, "firefox147")
+        headers = args["headers"]
+        assert args["impersonate"] == "firefox147"
+        assert "Firefox/147" in headers["User-Agent"]
+        assert not any(k.startswith("Sec-Ch-Ua") for k in headers)
+
+    def test_unlisted_profile_keeps_legacy_headers(self, monkeypatch):
+        args = self._args_for(monkeypatch, "chrome131")
+        assert args["impersonate"] == "chrome131"
+        assert "Chrome/146" in args["headers"]["User-Agent"]
+
+    def test_headers_dict_is_per_call(self, monkeypatch):
+        first = self._args_for(monkeypatch, "chrome146")["headers"]
+        first["User-Agent"] = "mutated"
+        assert self._args_for(monkeypatch, "chrome146")["headers"]["User-Agent"] != "mutated"
+
+    def test_runtime_override_flows_into_kwargs(self, monkeypatch, tmp_path):
+        _patch_paths(monkeypatch, tmp_path)
+        cfgmodule.set_runtime_http(**{"impersonate": "firefox147"})
+        try:
+            args = http_client_args()
+            assert args["impersonate"] == "firefox147"
+            assert "Firefox/147" in args["headers"]["User-Agent"]
+        finally:
+            cfgmodule._RUNTIME_HTTP.clear()
+
+
+class TestFetchKinds:
+    """Gallery sessions announce page loads; image bytes announce images."""
+
+    def test_nav_kwargs_carry_document_set(self):
+        from comic_dl.utils import fetch_headers, http_client_args
+
+        assert fetch_headers("nav")["Sec-Fetch-Dest"] == "document"
+        headers = http_client_args(kind="nav")["headers"]
+        assert headers["Sec-Fetch-Dest"] == "document"
+        assert headers["Upgrade-Insecure-Requests"] == "1"
+        assert headers["Sec-Fetch-User"] == "?1"
+
+    def test_gallery_helper_sends_nav_set(self):
+        from comic_dl.utils import _with_referer
+
+        headers = _with_referer("https://example.com/series")["headers"]
+        assert headers["Sec-Fetch-Dest"] == "document"
+        assert headers["Referer"] == "https://example.com/series"
+
+    def test_image_kwargs_carry_image_set(self):
+        from comic_dl.utils import fetch_headers, http_client_args
+
+        assert fetch_headers("image")["Sec-Fetch-Dest"] == "image"
+        headers = http_client_args(kind="image")["headers"]
+        assert headers["Sec-Fetch-Dest"] == "image"
+        assert headers["Sec-Fetch-Mode"] == "no-cors"
+        assert "image/avif" in headers["Accept"]
+
+    def test_legacy_shape_unchanged_without_kind(self):
+        headers = http_client_args()["headers"]
+        assert "Sec-Fetch-Dest" not in headers
+
+
+class TestProxyPlumbing:
+    """One global egress override reaches every session."""
+
+    def _args(self, monkeypatch, proxy_setting="", env=None):
+        import comic_dl.utils as utils
+
+        monkeypatch.setattr(utils, "http_setting", lambda *a, **k: proxy_setting)
+        for key in ("COMIC_DL_PROXY", "HTTPS_PROXY"):
+            monkeypatch.delenv(key, raising=False)
+        for key, value in (env or {}).items():
+            monkeypatch.setenv(key, value)
+        return utils.http_client_args()
+
+    def test_empty_default_sends_no_proxies_key(self, monkeypatch):
+        assert "proxies" not in self._args(monkeypatch)
+
+    def test_config_value_lands_in_kwargs(self, monkeypatch):
+        args = self._args(monkeypatch, proxy_setting="http://127.0.0.1:8080")
+        assert args["proxies"] == {
+            "http": "http://127.0.0.1:8080",
+            "https": "http://127.0.0.1:8080",
+        }
+
+    def test_env_beats_empty_config(self, monkeypatch):
+        args = self._args(monkeypatch, env={"HTTPS_PROXY": "http://proxy:3128"})
+        assert args["proxies"]["http"] == "http://proxy:3128"
+
+    def test_flag_beats_env(self, monkeypatch):
+        args = self._args(
+            monkeypatch,
+            proxy_setting="http://flag:8080",
+            env={"COMIC_DL_PROXY": "http://env:8080"},
+        )
+        assert args["proxies"]["http"] == "http://flag:8080"

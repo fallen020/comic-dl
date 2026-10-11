@@ -173,3 +173,66 @@ class TestSolverModePrecedence:
     def test_bogus_sources_mode_falls_through(self, monkeypatch, tmp_path):
         self._config(monkeypatch, tmp_path, '[sources."other.example"]\nmode = "turbo"\n')
         assert cf.solver_mode("other.example") == "off"
+
+
+class TestRetryRefetchGate:
+    """Only idempotent methods replay after a solve; POST never refetches."""
+
+    def _challenged(self):
+        class Resp:
+            status_code = 503
+            headers = {"server": "cloudflare"}
+            text = ""
+
+        return Resp()
+
+    def test_get_refetches_after_solve(self, monkeypatch):
+        calls = {"fetch": 0, "solve": 0}
+
+        async def fetch():
+            calls["fetch"] += 1
+            return self._challenged()
+
+        async def solve(url):
+            calls["solve"] += 1
+            return True
+
+        monkeypatch.setattr(cf, "handle_challenge", solve)
+        _run(cf.retry_challenge_once(fetch, "https://x.example/a", refetch=True))
+        assert calls == {"fetch": 2, "solve": 1}
+
+    def test_post_solves_without_refetch(self, monkeypatch):
+        calls = {"fetch": 0, "solve": 0}
+        first = self._challenged()
+
+        async def fetch():
+            calls["fetch"] += 1
+            return first
+
+        async def solve(url):
+            calls["solve"] += 1
+            return True
+
+        monkeypatch.setattr(cf, "handle_challenge", solve)
+        resp = _run(cf.retry_challenge_once(fetch, "https://x.example/a", refetch=False))
+        assert resp is first
+        assert calls == {"fetch": 1, "solve": 1}
+
+    def test_clean_response_never_solves(self, monkeypatch):
+        calls = {"solve": 0}
+
+        class Resp:
+            status_code = 200
+            headers = {}
+            text = ""
+
+        async def fetch():
+            return Resp()
+
+        async def solve(url):
+            calls["solve"] += 1
+            return True
+
+        monkeypatch.setattr(cf, "handle_challenge", solve)
+        _run(cf.retry_challenge_once(fetch, "https://x.example/a", refetch=False))
+        assert calls == {"solve": 0}
