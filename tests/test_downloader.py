@@ -3048,3 +3048,43 @@ class TestPipelineManifest:
         assert manifest is not None
         assert self._page(manifest, "p1.jpg").status == STATE_DONE
         assert self._page(manifest, "p2.jpg").status == STATE_FAILED
+
+
+class TestOpenStreamImageHeaders:
+    pytestmark = pytest.mark.asyncio
+
+    class _FakeResp:
+        def __init__(self, status, headers):
+            self.status_code = status
+            self.headers = headers
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return False
+
+    async def test_image_fetch_set_with_caller_headers_winning(self, monkeypatch):
+        from comic_dl import downloader as dlmod
+        from comic_dl.downloader import _open_stream
+
+        seen: dict[str, object] = {}
+
+        class FakeClient:
+            def stream(self, method, url, **kwargs):
+                seen.update(kwargs.get("headers") or {})
+                return TestOpenStreamImageHeaders._FakeResp(200, {})
+
+        async def fake_ratelimit(host, rate=None):
+            return None
+
+        monkeypatch.setattr(dlmod, "await_ratelimit", fake_ratelimit)
+        monkeypatch.setattr(dlmod, "jar_cookies_kwargs", lambda url: {})
+
+        caller = {"Range": "bytes=10-", "Referer": "https://gallery.example/ch/1"}
+        await _open_stream(FakeClient(), "https://cdn.example/1.webp", headers=caller)  # type: ignore
+        assert seen["Sec-Fetch-Dest"] == "image"
+        assert seen["Sec-Fetch-Mode"] == "no-cors"
+        assert "image/avif" in seen["Accept"]
+        assert seen["Range"] == "bytes=10-"
+        assert seen["Referer"] == "https://gallery.example/ch/1"

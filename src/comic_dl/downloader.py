@@ -50,6 +50,7 @@ from .utils import (
     MAX_REDIRECTS,
     RequestBlockedError,
     aclose_response,
+    fetch_headers,
     host_of,
     http_client_args,
     referer_headers,
@@ -373,8 +374,12 @@ async def _open_stream(
     page identifier (``page_XXXX.webp``) that is echoed on each hop so the
     trace is cross-referable against retry/verify logs. The infrastructure
     only reports at the requested level and never decides semantics itself.
+
+    Image fetch metadata rides on every request here (caller headers win),
+    so resume, stream, probe, and cover bytes all announce an image
+    destination regardless of which session carries them.
     """
-    req = dict(headers or {})
+    req = {**fetch_headers("image"), **(headers or {})}
     current = url
 
     async def _stream_once() -> _StreamResponse:
@@ -1592,7 +1597,10 @@ async def _probe_image_size(c: AsyncSession, url: str, timeout: float) -> int:
         except RequestBlockedError:
             return 0
         try:
-            resp = await asyncio.wait_for(c.head(current, allow_redirects=False), timeout=timeout)
+            resp = await asyncio.wait_for(
+                c.head(current, allow_redirects=False, headers=fetch_headers("image")),
+                timeout=timeout,
+            )
         # Advisory probe — HEAD failures are non-fatal; fall through to Range GET.
         except Exception:  # nosec
             resp = None
