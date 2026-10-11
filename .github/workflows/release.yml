@@ -261,9 +261,7 @@ jobs:
         run: |
           sudo chown -R "$(id -u):$(id -g)" .pkg-cache .wheels 2>/dev/null || true
           chmod -R a+rX .wheels 2>/dev/null || true
-      # Containers run as root, so hand the cache back to the runner user
-      # before the save step. Runs on failure too so failed runs still
-      # populate the cache.
+      # The validate step mounts the cache writable, so hand it back again.
       - name: Fix package cache ownership
         if: always()
         run: sudo chown -R "$(id -u):$(id -g)" .pkg-cache 2>/dev/null || true
