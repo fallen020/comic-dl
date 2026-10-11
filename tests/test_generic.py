@@ -877,6 +877,26 @@ class TestDigitlessSeries:
             "Prologue",
         ]
 
+    @pytest.mark.asyncio
+    async def test_cross_series_widget_links_are_not_chapters(self):
+        html = """
+        <html><body>
+          <img src="https://cdn.example.com/ch/001.jpg"/>
+          <img src="https://cdn.example.com/ch/002.jpg"/>
+          <img src="https://cdn.example.com/ch/003.jpg"/>
+          <a href="/manga/foo/chapter-78">Prev</a>
+          <a href="/manga/foo/chapter-80">Next</a>
+          <a href="/manga/bar/">Bar</a>
+          <a href="/manga/baz/">Baz</a>
+          <a href="/manga/qux/">Qux</a>
+          <a href="/manga/quux/">Quux</a>
+        </body></html>
+        """
+        scraper = GenericScraper()
+        url = "https://manga.example.com/manga/foo/chapter-79"
+        client = _FakeClient({url: _FakeResp(html)})
+        assert await scraper.detect(url, client) == "gallery"
+
 
 class TestDeclineReasons:
     @pytest.mark.asyncio
@@ -924,3 +944,83 @@ class TestDeclineReasons:
         assert await scraper.detect(second, client) == "gallery"
         assert scraper.decline_reason(first) == "no images and no chapter group"
         assert scraper.decline_reason(second) == ""
+
+
+class TestChromeImageScoping:
+    YAKSHA_HTML = """\
+    <html><head><title>Some Series - YakshaComics</title></head><body>
+    <header><div class="wrap_branding">
+      <a class="logo" href="/"><img src="https://cdn.example.com/logo/site.png"/></a>
+    </div></header>
+    <div class="reading-content">
+      <div class="page-break"><img src="https://cdn.example.com/ch/001.jpg"/></div>
+      <div class="page-break"><img src="https://cdn.example.com/ch/002.jpg"/></div>
+    </div>
+    <div class="widget"><div class="popular-item-wrap">
+      <a href="/manga/other/"><img src="https://cdn.example.com/other/cover-75x106.jpg"/></a>
+    </div></div>
+    </body></html>
+    """
+
+    def test_chrome_imgs_excluded_from_candidates(self):
+        soup = _soup(self.YAKSHA_HTML)
+        assert _candidate_urls(soup, GALLERY_BASE) == [
+            "https://cdn.example.com/ch/001.jpg",
+            "https://cdn.example.com/ch/002.jpg",
+        ]
+
+    @pytest.mark.asyncio
+    async def test_scrape_keeps_pages_and_chapter_from_path(self):
+        scraper = GenericScraper()
+        url = "https://manga.example.com/manga/foo/chapter-343"
+        client = _FakeClient({url: _FakeResp(self.YAKSHA_HTML)})
+        meta = await scraper.scrape(url, client)
+        assert [i.filename for i in meta.images] == ["page_0001.jpg", "page_0002.jpg"]
+        assert meta.series_title == "Some Series"
+        assert meta.chapter_title == "chapter 343"
+
+    def test_lightbox_wrapped_gallery_keeps_everything(self):
+        soup = _soup("""
+        <html><body>
+          <a href="https://cdn.example.com/ch/001-full.jpg">
+            <img src="https://cdn.example.com/ch/001.jpg"/></a>
+          <a href="https://cdn.example.com/ch/002-full.jpg">
+            <img src="https://cdn.example.com/ch/002.jpg"/></a>
+        </body></html>
+        """)
+        assert _candidate_urls(soup, GALLERY_BASE) == [
+            "https://cdn.example.com/ch/001.jpg",
+            "https://cdn.example.com/ch/002.jpg",
+        ]
+
+    def test_all_anchored_falls_back_to_everything(self):
+        soup = _soup("""
+        <html><body>
+          <a href="/manga/other/"><img src="https://cdn.example.com/a/1.jpg"/></a>
+          <a href="/manga/another/"><img src="https://cdn.example.com/a/2.jpg"/></a>
+        </body></html>
+        """)
+        assert _candidate_urls(soup, GALLERY_BASE) == [
+            "https://cdn.example.com/a/1.jpg",
+            "https://cdn.example.com/a/2.jpg",
+        ]
+
+
+class TestDescriptionCleanup:
+    def _idx(self, content: str):
+        soup = _soup(
+            f'<html><head><meta property="og:description" content="{content}"/></head></html>'
+        )
+        return gen.meta_index(soup)
+
+    def test_read_more_prompt_stripped(self):
+        idx = self._idx("A thrilling path...Continue Reading →")
+        assert gen._description(idx) == "A thrilling path"
+
+    def test_plain_description_untouched(self):
+        idx = self._idx("A thrilling path to wealth and power.")
+        assert gen._description(idx) == "A thrilling path to wealth and power."
+
+    def test_bare_truncation_ellipsis_kept(self):
+        idx = self._idx("A thrilling path...")
+        assert gen._description(idx) == "A thrilling path..."

@@ -18,7 +18,7 @@ import json
 import re
 from urllib.parse import parse_qsl, urljoin, urlparse
 
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 from curl_cffi.requests import AsyncSession
 
 from ..models import ImageItem, PostMetadata, SeriesMetadata
@@ -199,6 +199,22 @@ def _largest_srcset(srcset: str) -> str:
     return best or ""
 
 
+def _in_nav_anchor(img: Tag, page_url: str) -> bool:
+    """True when ``img`` links off the page (logo, related cover, ad).
+
+    The nearest ancestor ``<a>`` pointing at a different path marks the image
+    as navigation chrome rather than chapter content. Wraps pointing at an
+    image (lightbox to full-size) still count as the page.
+    """
+    anchor = img.find_parent("a", href=True)
+    if anchor is None:
+        return False
+    target = urljoin(page_url, _attr_text(anchor.get("href")))
+    if _is_image_url(target):
+        return False
+    return urlparse(target).path.rstrip("/") != urlparse(page_url).path.rstrip("/")
+
+
 def _candidate_urls(soup: BeautifulSoup, base_url: str) -> list[str]:
     """Ordered, deduped image-candidate URLs from every static source.
 
@@ -208,12 +224,14 @@ def _candidate_urls(soup: BeautifulSoup, base_url: str) -> list[str]:
     ``<style>`` blocks (document order of owning elements). Candidates are
     resolved against ``base_url``, deduped (fragment stripped), filtered for
     placeholder keywords / non-image assets, and run through
-    :func:`validate_request_url`.
+    :func:`validate_request_url`. Images inside off-page anchors (logos,
+    related covers) drop out when bare images exist; otherwise all stay.
     """
     candidates: list[str] = []
+    anchored: list[bool] = []
     seen: set[str] = set()
 
-    def add(raw: str) -> None:
+    def add(raw: str, linked: bool = False) -> None:
         if not raw:
             return
         lowered = raw.lstrip().lower()
@@ -233,27 +251,30 @@ def _candidate_urls(soup: BeautifulSoup, base_url: str) -> list[str]:
         except RequestBlockedError:
             return
         candidates.append(resolved)
+        anchored.append(linked)
 
     for img in soup.find_all("img"):
         if img.find_parent("picture") is not None:
             continue
+        linked = _in_nav_anchor(img, base_url)
         src = _attr_text(img.get("src"))
         if src:
-            add(src)
+            add(src, linked)
         for attr in _LAZY_ATTRS:
             lazy = _attr_text(img.get(attr))
             if lazy:
-                add(lazy)
+                add(lazy, linked)
         for attr in ("srcset", "data-srcset"):
             srcset = _attr_text(img.get(attr))
             if srcset:
-                add(_largest_srcset(srcset))
+                add(_largest_srcset(srcset), linked)
 
     for picture in soup.find_all("picture"):
         # Prefer the first <source> (browsers pick the first matching media
         # query); statically the largest candidate of the first source is the
         # best approximation of the displayed image.
         value = ""
+        linked = _in_nav_anchor(picture, base_url)
         for source in picture.find_all("source"):
             candidate = _attr_text(source.get("srcset")) or _attr_text(source.get("src"))
             if candidate:
@@ -269,13 +290,13 @@ def _candidate_urls(soup: BeautifulSoup, base_url: str) -> list[str]:
                         if value:
                             break
         if value:
-            add(_largest_srcset(value))
+            add(_largest_srcset(value), linked)
 
     for noscript in soup.find_all("noscript"):
         for img in noscript.find_all("img"):
             src = _attr_text(img.get("src"))
             if src:
-                add(src)
+                add(src, _in_nav_anchor(img, base_url))
 
     for el in soup.find_all(style=True):
         style = _attr_text(el.get("style"))
@@ -289,6 +310,8 @@ def _candidate_urls(soup: BeautifulSoup, base_url: str) -> list[str]:
             for match in _BACKGROUND_RE.finditer(text):
                 add(match.group(1))
 
+    if any(not link for link in anchored):
+        candidates = [url for url, link in zip(candidates, anchored, strict=True) if not link]
     return candidates
 
 
@@ -463,6 +486,11 @@ def _dir(path: str) -> str:
     return path.rstrip("/").rsplit("/", 1)[0] + "/"
 
 
+def _is_homepage(url: str) -> bool:
+    """True when ``url`` is a bare host with no path to scrape."""
+    return not urlparse(url).path.rstrip("/")
+
+
 def _chapter_group(links: list[tuple[str, str]], page_url: str) -> list[tuple[str, str]]:
     """Largest link group that reads as a chapter list, else ``[]``.
 
@@ -470,7 +498,9 @@ def _chapter_group(links: list[tuple[str, str]], page_url: str) -> list[tuple[st
     reader page's jump-to-chapter nav cannot promote itself to a series. With
     no digit group, same-directory links outside the page's own directory
     stand in for slug-only chapter URLs; the directory mismatch keeps reader
-    nav (same directory as the page) out.
+    nav out, and a group directory that strictly contains the page (a series
+    index or cross-series widget) never counts. A chapter list lives at or
+    below its own page, never above it.
     """
     by_shape: dict[str, list[tuple[str, str]]] = {}
     for href, text in links:
@@ -483,14 +513,20 @@ def _chapter_group(links: list[tuple[str, str]], page_url: str) -> list[tuple[st
     ]
     if digit:
         return max(digit, key=len)
-    page_dir = _dir(urlparse(page_url).path)
+    page_path = urlparse(page_url).path
+    page_dir = _dir(page_path)
     by_parent: dict[str, list[tuple[str, str]]] = {}
     for href, text in links:
         parent = _dir(urlparse(href).path)
-        if parent != page_dir:
+        if parent != page_dir and not _contains(parent, page_path):
             by_parent.setdefault(parent, []).append((href, text))
     same_dir = [group for group in by_parent.values() if len(group) >= SERIES_MIN_LINKS]
     return max(same_dir, key=len) if same_dir else []
+
+
+def _contains(dir_path: str, page_path: str) -> bool:
+    """True when directory ``dir_path`` (trailing slash) strictly contains ``page_path``."""
+    return page_path.startswith(dir_path) and page_path.rstrip("/") != dir_path.rstrip("/")
 
 
 def _deep_links(soup: BeautifulSoup, base_url: str) -> list[tuple[str, str]]:
@@ -520,12 +556,12 @@ def _deep_links(soup: BeautifulSoup, base_url: str) -> list[tuple[str, str]]:
         path = parsed.path or "/"
         if path == parsed_base.path or path in ("", "/"):
             continue
-        if len([p for p in path.split("/") if p]) < 2:
-            continue
         if _path_is_asset(path):
             continue
         segments = [p for p in path.split("/") if p]
-        if segments and segments[0].lower() in _NON_CHAPTER_FIRST:
+        if len(segments) < 2:
+            continue
+        if segments[0].lower() in _NON_CHAPTER_FIRST:
             continue
         if _is_pagination(resolved):
             continue
@@ -615,8 +651,21 @@ def _cover_url(idx: dict[str, list[str]], base_url: str) -> str:
     return urljoin(base_url, first).split("#")[0]
 
 
+_READ_MORE_RE = re.compile(
+    r"\s*\.{2,}\s*(?:continue reading|read more|show more)\s*→?\s*$",
+    re.IGNORECASE,
+)
+
+
 def _description(idx: dict[str, list[str]]) -> str:
-    return meta_get(idx, "og:description", "twitter:description", "description")
+    """Meta description minus read-more cruft.
+
+    Excerpt plugins append ``...Continue Reading →`` to the shared summary;
+    the prompt is page chrome, not the description. Genuine truncation
+    ellipses stay. Only the prompt words go.
+    """
+    text = meta_get(idx, "og:description", "twitter:description", "description")
+    return _READ_MORE_RE.sub("", text).strip()
 
 
 class GenericScraper(BaseScraper):
@@ -712,7 +761,7 @@ class GenericScraper(BaseScraper):
             return "series"
         if images:
             return "gallery"
-        if not urlparse(url).path.rstrip("/"):
+        if _is_homepage(url):
             self._remember_decline(url, "looks like a site homepage, not a gallery")
         elif links:
             self._remember_decline(url, f"{len(links)} links, no repeating chapter pattern")
@@ -735,7 +784,7 @@ class GenericScraper(BaseScraper):
 
         images = _extract_gallery_images(soup, url)
         if not images:
-            if not urlparse(url).path.rstrip("/"):
+            if _is_homepage(url):
                 raise no_images_error(
                     hint="This looks like a site homepage, not a gallery — "
                     "provide a series or chapter URL.",
@@ -746,7 +795,10 @@ class GenericScraper(BaseScraper):
         title = _page_title(soup, idx, url)
         series_title = _series_title_for(url, title)
         if series_title and title.startswith(series_title + " -"):
-            title = title[len(series_title) + 3 :].strip() or title
+            rest = title[len(series_title) + 3 :].strip()
+            if rest and not re.search(r"\d", rest):
+                rest = _path_segment(url) or rest
+            title = rest or title
         return PostMetadata(
             series_title=series_title,
             chapter_title=title,
