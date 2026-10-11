@@ -371,6 +371,15 @@ html[data-theme="dark"] .theme-toggle__icon--moon {
   color: var(--shiki-dark);
 }
 
+html[data-theme] {
+  --pagefind-ui-background: var(--surface-1);
+  --pagefind-ui-text: var(--fg);
+  --pagefind-ui-border: var(--line);
+  --pagefind-ui-primary: var(--accent-text);
+  --pagefind-ui-tag: var(--surface-2);
+  --pagefind-ui-font: var(--font-sans);
+}
+
 /* Bare pre (not yet wrapped in .codeblock) */
 pre.astro-code,
 pre.shiki {

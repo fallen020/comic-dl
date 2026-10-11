@@ -1,36 +1,16 @@
 ---
 import { getCollection } from 'astro:content';
-import type { CollectionEntry } from 'astro:content';
 import { docsPath } from '../utils/base';
+import { docGroups } from '../utils/doc-groups';
 
 interface Props {
   currentId: string;
 }
 
-type Doc = CollectionEntry<'docs'>;
-
 const { currentId } = Astro.props;
 
 const entries = (await getCollection('docs')).sort((a, b) => a.data.order - b.data.order);
-
-interface Group {
-  label: string;
-  order: number;
-  items: Doc[];
-}
-
-const groups = new Map<string | null, Group>();
-for (const entry of entries) {
-  const label = entry.data.section ?? null;
-  if (!groups.has(label)) {
-    groups.set(label, { label: label ?? '', order: entry.data.order, items: [] });
-  }
-  const g = groups.get(label)!;
-  g.items.push(entry);
-  if (entry.data.order < g.order) g.order = entry.data.order;
-}
-
-const orderedGroups = Array.from(groups.values()).sort((a, b) => a.order - b.order);
+const orderedGroups = docGroups(entries);
 ---
 <nav aria-label="Documentation" class="px-1">
   {orderedGroups.map((group) => (

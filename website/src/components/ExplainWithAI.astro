@@ -67,3 +67,13 @@ const providers: {
     </p>
   </div>
 </details>
+<script is:inline>
+(() => {
+  const root = document.currentScript?.previousElementSibling;
+  if (!(root instanceof HTMLDetailsElement)) return;
+  root.addEventListener('keydown', (e) => { if (e.key === 'Escape') root.open = false; });
+  document.addEventListener('click', (e) => {
+    if (root.open && e.target instanceof Node && !root.contains(e.target)) root.open = false;
+  });
+})();
+</script>
