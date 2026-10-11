@@ -1,4 +1,7 @@
-"""Streaming download engine with retries, resume, size caps, and the download pipeline."""
+"""Streaming download engine with retries, resume, size caps, and the download pipeline.
+
+Every request here is an idempotent GET, so challenge solves may refetch freely;
+a future POST addition must gate its retry on method (see ``cf.retry_challenge_once``)."""
 
 from __future__ import annotations
 
