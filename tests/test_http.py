@@ -821,3 +821,36 @@ class TestStealthProfile:
             assert "Firefox/147" in args["headers"]["User-Agent"]
         finally:
             cfgmodule._RUNTIME_HTTP.clear()
+
+
+class TestFetchKinds:
+    """Gallery sessions announce page loads; image bytes announce images."""
+
+    def test_nav_kwargs_carry_document_set(self):
+        from comic_dl.utils import fetch_headers, http_client_args
+
+        assert fetch_headers("nav")["Sec-Fetch-Dest"] == "document"
+        headers = http_client_args(kind="nav")["headers"]
+        assert headers["Sec-Fetch-Dest"] == "document"
+        assert headers["Upgrade-Insecure-Requests"] == "1"
+        assert headers["Sec-Fetch-User"] == "?1"
+
+    def test_gallery_helper_sends_nav_set(self):
+        from comic_dl.utils import _with_referer
+
+        headers = _with_referer("https://example.com/series")["headers"]
+        assert headers["Sec-Fetch-Dest"] == "document"
+        assert headers["Referer"] == "https://example.com/series"
+
+    def test_image_kwargs_carry_image_set(self):
+        from comic_dl.utils import fetch_headers, http_client_args
+
+        assert fetch_headers("image")["Sec-Fetch-Dest"] == "image"
+        headers = http_client_args(kind="image")["headers"]
+        assert headers["Sec-Fetch-Dest"] == "image"
+        assert headers["Sec-Fetch-Mode"] == "no-cors"
+        assert "image/avif" in headers["Accept"]
+
+    def test_legacy_shape_unchanged_without_kind(self):
+        headers = http_client_args()["headers"]
+        assert "Sec-Fetch-Dest" not in headers

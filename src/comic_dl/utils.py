@@ -438,7 +438,32 @@ async def resolve_redirect_url_async(base: str, location: str) -> str:
 
 
 def _with_referer(referer_url: str) -> dict[str, Any]:
-    return http_client_args(referer_url=referer_url)
+    return http_client_args(referer_url=referer_url, kind="nav")
+
+
+def fetch_headers(kind: str) -> dict[str, str]:
+    """Wire fetch metadata for a page load (``"nav"``) or an image (``"image"``).
+
+    Mirrors what a real browser attaches beyond ``Referer``: document
+    navigations announce themselves and opt into insecure-request upgrade,
+    while subresource image fetches declare the image destination so a
+    bare-TLS client stops reading as a script.
+    """
+    if kind == "image":
+        return {
+            "Accept": "image/avif,image/webp,image/png,image/*,*/*;q=0.8",
+            "Sec-Fetch-Site": "cross-site",
+            "Sec-Fetch-Mode": "no-cors",
+            "Sec-Fetch-Dest": "image",
+        }
+    return {
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Sec-Fetch-Site": "none",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-User": "?1",
+        "Upgrade-Insecure-Requests": "1",
+    }
 
 
 async def aclose_response(resp: object) -> None:
@@ -483,7 +508,12 @@ def referer_headers(referer_url: str) -> dict[str, str]:
     return headers
 
 
-def http_client_args(*, referer_url: str | None = None, host: str | None = None) -> dict[str, Any]:
+def http_client_args(
+    *,
+    referer_url: str | None = None,
+    host: str | None = None,
+    kind: str | None = None,
+) -> dict[str, Any]:
     """HTTP client kwargs with the effective impersonate profile applied.
 
     ``[http] impersonate`` (or ``--impersonate``) overrides the built-in
@@ -499,6 +529,11 @@ def http_client_args(*, referer_url: str | None = None, host: str | None = None)
     search-engine referrer is added for humane requests (rotating across
     Google, Brave, DuckDuckGo, Bing, Yahoo). Explicit hotlink referers always
     win when ``referer_url`` is given.
+
+    ``kind="nav"`` merges page-load fetch metadata into the session defaults
+    (gallery clients); ``kind="image"`` merges the image fetch set instead.
+    ``None`` keeps the legacy bare shape for callers that set per-request
+    headers themselves.
     """
     args: dict[str, Any] = dict(HTTP_CLIENT_ARGS)
     profile = http_setting("impersonate", "chrome146")
@@ -509,6 +544,8 @@ def http_client_args(*, referer_url: str | None = None, host: str | None = None)
     # Session headers are rebuilt per call from the locked pair: the shared
     # template must never be mutated, and non-table profiles keep it verbatim.
     args["headers"] = dict(_STEALTH.get(profile.lower(), HTTP_CLIENT_ARGS["headers"]))
+    if kind in ("nav", "image"):
+        args["headers"].update(fetch_headers(kind))
     args["curl_options"] = {
         CurlOpt.LOW_SPEED_LIMIT: LOW_SPEED_LIMIT_BPS,
         CurlOpt.LOW_SPEED_TIME: LOW_SPEED_WINDOW_SECONDS,
