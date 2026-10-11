@@ -22,6 +22,7 @@ from bs4 import BeautifulSoup
 from curl_cffi.requests import AsyncSession
 
 from ..models import ImageItem, PostMetadata, SeriesMetadata
+from ..ui import trace
 from ..utils import (
     RequestBlockedError,
     canonical_chapter_number,
@@ -638,12 +639,27 @@ class GenericScraper(BaseScraper):
         super().__init__()
         self._page_cache: dict[str, BeautifulSoup] = {}
         self._direct_urls: set[str] = set()
+        self._decline_reasons: dict[str, str] = {}
 
     def matches_url(self, url: str) -> bool:
         return url.lower().startswith(("http://", "https://"))
 
     def _cache_key(self, url: str) -> str:
         return normalize_url_key(url)
+
+    def decline_reason(self, url: str) -> str:
+        """Why :meth:`detect` declined ``url``, else ``""``.
+
+        Keyed by normalized URL: this scraper is a module-level singleton and
+        batch runs probe URLs in parallel, so one shared slot would mix
+        reasons between URLs.
+        """
+        return self._decline_reasons.get(self._cache_key(url), "")
+
+    def _remember_decline(self, url: str, reason: str) -> None:
+        self._decline_reasons[self._cache_key(url)] = reason
+        if len(self._decline_reasons) > _PAGE_CACHE_MAX:
+            self._decline_reasons.pop(next(iter(self._decline_reasons)))
 
     async def _load_page(self, url: str, client: AsyncSession) -> BeautifulSoup:
         key = self._cache_key(url)
@@ -690,11 +706,18 @@ class GenericScraper(BaseScraper):
         if soup is None:
             return "gallery"  # direct image URL
         images = _extract_gallery_images(soup, url)
-        group = _chapter_group(_deep_links(soup, url), url)
+        links = _deep_links(soup, url)
+        group = _chapter_group(links, url)
         if group and len(images) < len(group):
             return "series"
         if images:
             return "gallery"
+        if not urlparse(url).path.rstrip("/"):
+            self._remember_decline(url, "looks like a site homepage, not a gallery")
+        elif links:
+            self._remember_decline(url, f"{len(links)} links, no repeating chapter pattern")
+        else:
+            self._remember_decline(url, "no images and no chapter group")
         return None
 
     async def scrape(self, url: str, client: AsyncSession) -> PostMetadata:
@@ -808,8 +831,10 @@ async def _is_image_response(url: str, client: AsyncSession) -> bool:
     """
     try:
         resp = await BaseScraper._timeout_get(url, client, method="HEAD")
-    # Sniffing is best-effort.
-    except Exception:
+    # Best-effort sniff. Failures take the HTML path, so trace which way each
+    # URL went (exception class only: never raw args, never the URL).
+    except Exception as exc:
+        trace(f"generic HEAD sniff failed ({type(exc).__name__})")
         return False
     headers = getattr(resp, "headers", None) or {}
     return str(headers.get("content-type", "")).lower().startswith("image/")

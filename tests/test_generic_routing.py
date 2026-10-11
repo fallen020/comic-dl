@@ -66,6 +66,9 @@ class _FakeGeneric:
         self.detect_calls.append(url)
         return self.kind
 
+    def decline_reason(self, url):
+        return ""
+
     async def scrape(self, url, client):
         self.scrape_calls.append(url)
         return PostMetadata(
@@ -367,6 +370,31 @@ class TestProcessUrl:
         )
         assert status == "failed"
         assert fake.detect_calls == [GALLERY_URL]
+
+    @pytest.mark.asyncio
+    async def test_generic_decline_reason_reaches_sink(self, monkeypatch, tmp_path):
+        fake = _FakeGeneric(None)
+        fake.decline_reason = lambda url: "no images and no chapter group"
+        _patch_generic(monkeypatch, fake)
+        _patch_chapter_scraper(monkeypatch, {})
+
+        sink: list = []
+        status, _ = await cli.process_url(
+            url=GALLERY_URL,
+            output_dir=Path(tmp_path),
+            concurrency=1,
+            force=False,
+            quiet=True,
+            failure_sink=sink,
+        )
+        assert status == "failed"
+        assert sink == [
+            (
+                GALLERY_URL,
+                "Unsupported URL for domain 'unknown-gallery.example'. "
+                "Generic extraction declined: no images and no chapter group.",
+            )
+        ]
 
     @pytest.mark.asyncio
     async def test_known_domain_format_error_unchanged(self, monkeypatch, tmp_path):

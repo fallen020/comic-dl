@@ -1762,6 +1762,8 @@ async def process_url(
     scraper = get_chapter_scraper(domain)
     if scraper is not None:
         vlog(VERBOSE, f"Source: {domain}", tag=TAG_CONTEXT)
+    generic_reason = ""
+    generic_reported = False
     if not scraper and generic_enabled():
         generic = get_generic_scraper()
         if generic is not None:
@@ -1769,6 +1771,8 @@ async def process_url(
             async with AsyncSession(**_with_referer(url)) as client:
                 try:
                     kind = await generic.detect(url, client)
+                    if kind is None:
+                        generic_reason = generic.decline_reason(url)
                 except (CurlHTTPError, CurlConnectionError, CurlTimeout, ScrapeTimeout):
                     trace("dispatch: generic probe failed (network error)")
                     kind = None
@@ -1779,6 +1783,7 @@ async def process_url(
                         hint="Run again with -vvv for a traceback.",
                     )
                     kind = None
+                    generic_reported = True
             if kind == "series":
                 trace("dispatch: generic → series mode")
                 ok = await _process_series(
@@ -1806,10 +1811,14 @@ async def process_url(
                 trace("dispatch: generic → gallery")
                 scraper = generic
     if not scraper:
-        reason = f"Unsupported URL for domain '{domain}'." if domain else "Unsupported URL."
+        base = f"Unsupported URL for domain '{domain}'." if domain else "Unsupported URL."
+        if generic_reason:
+            reason = f"{base} Generic extraction declined: {generic_reason}."
+        else:
+            reason = base
         if failure_sink is not None:
             failure_sink.append((url, reason))
-        else:
+        elif not generic_reported:
             print_error(reason)
         _print_supported_sources()
         return "failed", ""
@@ -2955,6 +2964,7 @@ async def _preview_url(url: str, index: dict[str, Path], force: bool) -> dict:
             entry["pages"] = len(chapters)
             return _classify_preview_entry(entry, url, index, force)
         scraper = get_chapter_scraper(domain)
+        generic_reason = ""
         if scraper is None and generic_enabled():
             generic = get_generic_scraper()
             if generic is not None:
@@ -2962,8 +2972,10 @@ async def _preview_url(url: str, index: dict[str, Path], force: bool) -> dict:
                 async with AsyncSession(**_with_referer(url)) as client:
                     try:
                         kind = await generic.detect(url, client)
+                        generic_reason = generic.decline_reason(url) if kind is None else ""
                     except Exception:
                         kind = None
+                        generic_reason = ""
                 if kind == "series":
                     async with AsyncSession(**_with_referer(url)) as client:
                         info = await generic.scrape_series(url, client)
@@ -2979,8 +2991,9 @@ async def _preview_url(url: str, index: dict[str, Path], force: bool) -> dict:
                     scraper = generic
         if scraper is None:
             entry["action"] = "error"
+            base = f"Unsupported URL for domain {domain!r}." if domain else "Unsupported URL."
             entry["detail"] = (
-                f"Unsupported URL for domain {domain!r}." if domain else "Unsupported URL."
+                f"{base} Generic extraction declined: {generic_reason}." if generic_reason else base
             )
             return entry
         async with AsyncSession(**_with_referer(url)) as client:

@@ -876,3 +876,51 @@ class TestDigitlessSeries:
             "Interlude",
             "Prologue",
         ]
+
+
+class TestDeclineReasons:
+    @pytest.mark.asyncio
+    async def test_empty_page(self):
+        scraper = GenericScraper()
+        url = "https://manga.example.com/read/foo/12"
+        client = _FakeClient({url: _FakeResp(EMPTY_HTML)})
+        assert await scraper.detect(url, client) is None
+        assert scraper.decline_reason(url) == "no images and no chapter group"
+
+    @pytest.mark.asyncio
+    async def test_homepage(self):
+        scraper = GenericScraper()
+        url = "https://manga.example.com/"
+        client = _FakeClient({url: _FakeResp(EMPTY_HTML)})
+        assert await scraper.detect(url, client) is None
+        assert scraper.decline_reason(url) == "looks like a site homepage, not a gallery"
+
+    @pytest.mark.asyncio
+    async def test_links_without_pattern(self):
+        scraper = GenericScraper()
+        html = """
+        <html><body>
+          <a href="/series/foo/chapter-1">Chapter 1</a>
+          <a href="/series/foo/chapter-2">Chapter 2</a>
+        </body></html>
+        """
+        url = "https://manga.example.com/series/foo"
+        client = _FakeClient({url: _FakeResp(html)})
+        assert await scraper.detect(url, client) is None
+        assert scraper.decline_reason(url) == "2 links, no repeating chapter pattern"
+
+    @pytest.mark.asyncio
+    async def test_reasons_are_keyed_by_url(self):
+        scraper = GenericScraper()
+        first = "https://manga.example.com/read/foo/12"
+        second = "https://manga.example.com/read/foo/13"
+        client = _FakeClient(
+            {
+                first: _FakeResp(EMPTY_HTML),
+                second: _FakeResp(GALLERY_HTML),
+            }
+        )
+        assert await scraper.detect(first, client) is None
+        assert await scraper.detect(second, client) == "gallery"
+        assert scraper.decline_reason(first) == "no images and no chapter group"
+        assert scraper.decline_reason(second) == ""
