@@ -464,12 +464,14 @@ class TestDeepLinks:
 
 class TestSeriesHelpers:
     def test_episode_no_trailing_number(self):
-        assert _episode_no("Chapter 12", 1) == "12"
-        assert _episode_no("Episode 3.5", 1) == "3.5"
+        assert _episode_no("Chapter 12", "https://manga.example.com/series/foo/chapter-12") == "12"
+        assert (
+            _episode_no("Episode 3.5", "https://manga.example.com/series/foo/chapter-3.5") == "3.5"
+        )
 
-    def test_episode_no_falls_back_to_index(self):
-        assert _episode_no("Prologue", 1) == "1"
-        assert _episode_no("", 4) == "4"
+    def test_episode_no_empty_without_number(self):
+        assert _episode_no("Prologue", "https://manga.example.com/series/foo/prologue") == ""
+        assert _episode_no("", "https://manga.example.com/series/foo/extra") == ""
 
     def test_series_title_first_segment(self):
         assert _series_title_for(SERIES_BASE, "Manga - Chapter 1 | Site") == "Manga"
@@ -709,7 +711,7 @@ class TestSingleImageMeta:
         assert meta.images[0].filename == "page_0001.jpg"
 
 
-class TestChromePins:
+class TestChromeDetection:
     @pytest.mark.asyncio
     async def test_chapter_page_with_chrome_is_gallery(self):
         html = """
@@ -784,18 +786,36 @@ class TestChromePins:
         assert await scraper.detect(url, client) == "gallery"
 
 
-class TestEpisodeNoPins:
-    @pytest.mark.xfail(strict=True, reason="step 3: volume number shadows chapter")
+class TestEpisodeNo:
     def test_volume_prefix(self):
-        assert _episode_no("Vol. 3 Ch. 12", 1) == "12"
+        assert (
+            _episode_no("Vol. 3 Ch. 12", "https://manga.example.com/series/foo/chapter-12") == "12"
+        )
 
-    @pytest.mark.xfail(strict=True, reason="step 3: season number shadows episode")
     def test_season_prefix(self):
-        assert _episode_no("Season 2 Episode 5", 1) == "5"
+        assert (
+            _episode_no("Season 2 Episode 5", "https://manga.example.com/series/foo/chapter-5")
+            == "5"
+        )
 
-    @pytest.mark.xfail(strict=True, reason="step 3: unnumbered must stay empty")
     def test_prologue_has_no_number(self):
-        assert _episode_no("Prologue", 1) == ""
+        assert _episode_no("Prologue", "https://manga.example.com/series/foo/prologue") == ""
+
+    def test_url_dash_read_as_decimal(self):
+        assert (
+            _episode_no("The Return", "https://manga.example.com/series/foo/chapter-12-5") == "12.5"
+        )
+
+    def test_no_ignores_month_names(self):
+        assert _episode_no("November Release", "https://manga.example.com/series/foo/special") == ""
+
+    def test_bare_url_number_as_last_resort(self):
+        assert _episode_no("Special", "https://manga.example.com/series/foo/12") == "12"
+
+    def test_number_canonicalized(self):
+        assert (
+            _episode_no("Chapter 10.0", "https://manga.example.com/series/foo/chapter-10") == "10"
+        )
 
 
 class TestDigitlessSeries:
@@ -836,3 +856,23 @@ class TestDigitlessSeries:
         url = "https://manga.example.com/read/foo/finale"
         client = _FakeClient({url: _FakeResp(html)})
         assert await scraper.detect(url, client) == "gallery"
+
+    @pytest.mark.asyncio
+    async def test_unnumbered_newest_first_keeps_document_order(self):
+        html = """
+        <html><body>
+          <a href="/series/foo/epilogue">Epilogue</a>
+          <a href="/series/foo/interlude">Interlude</a>
+          <a href="/series/foo/prologue">Prologue</a>
+        </body></html>
+        """
+        scraper = GenericScraper()
+        url = "https://manga.example.com/series/foo"
+        client = _FakeClient({url: _FakeResp(html)})
+        series = await scraper.scrape_series(url, client)
+        assert [c["episode_no"] for c in series.chapters] == ["", "", ""]
+        assert [c["title"] for c in series.chapters] == [
+            "Epilogue",
+            "Interlude",
+            "Prologue",
+        ]

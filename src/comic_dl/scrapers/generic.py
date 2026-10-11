@@ -24,6 +24,7 @@ from curl_cffi.requests import AsyncSession
 from ..models import ImageItem, PostMetadata, SeriesMetadata
 from ..utils import (
     RequestBlockedError,
+    canonical_chapter_number,
     host_of,
     image_source_name,
     normalize_url,
@@ -411,6 +412,16 @@ _NON_CHAPTER_FIRST = frozenset(
 
 _PAGE_SEGMENT_RE = re.compile(r"^(?:page|p)[-_ ]?\d+$", re.IGNORECASE)
 
+_LABEL_NO_RE = re.compile(
+    r"(?:\b(?:ch(?:apter)?|ep(?:isode)?|no)\b\.?\s*#?\s*|#\s*)(\d+(?:[.\-]\d+)?)",
+    re.IGNORECASE,
+)
+
+_URL_NO_RE = re.compile(
+    r"(?<![a-zA-Z])(?:chapter|ch|ep)[-_ ]?(\d+(?:[-.]\d+)?)",
+    re.IGNORECASE,
+)
+
 
 def _is_pagination(url: str) -> bool:
     """True when ``url`` is a paged-listing hop rather than a chapter.
@@ -526,10 +537,29 @@ def _deep_links(soup: BeautifulSoup, base_url: str) -> list[tuple[str, str]]:
     return links
 
 
-def _episode_no(text: str, fallback: int) -> str:
-    """Trailing number from a chapter title/href, else ``fallback``."""
-    match = re.search(r"(\d+(?:\.\d+)?)", text)
-    return match.group(1) if match else str(fallback)
+def _episode_no(label: str, href: str) -> str:
+    """Chapter number from a label, else the chapter URL, else ``""``.
+
+    The label match is token-anchored (``ch``/``chapter``/``ep``/``episode``/
+    ``no``/``#`` with word boundaries), so ``Vol. 3 Ch. 12`` yields ``12``
+    and ``no`` never fires inside ``Nov``. The URL match prefers a
+    ``chapter``/``ch``/``ep``-anchored run in the last path segment (reading
+    ``-`` as a decimal point, so ``chapter-12-5`` is ``12.5``) over a bare
+    trailing run. Unnumbered chapters stay ``""``. Callers already sort those
+    last and exclude them from ``--chapters`` matching.
+    """
+    match = _LABEL_NO_RE.search(label)
+    if match:
+        return canonical_chapter_number(match.group(1).replace("-", "."))
+    segments = [p for p in urlparse(href).path.split("/") if p]
+    last = segments[-1] if segments else ""
+    url_match = _URL_NO_RE.search(last)
+    if url_match:
+        return canonical_chapter_number(url_match.group(1).replace("-", "."))
+    bare = re.search(r"(\d+(?:\.\d+)?)", last)
+    if bare:
+        return canonical_chapter_number(bare.group(1))
+    return ""
 
 
 def _json_ld_name(soup: BeautifulSoup) -> str:
@@ -719,13 +749,13 @@ class GenericScraper(BaseScraper):
             raise no_chapters_error()
 
         chapters: list[dict] = []
-        for index, (href, text) in enumerate(links):
+        for href, text in links:
             label = text or _path_segment(href) or href
             chapters.append(
                 {
                     "title": label,
                     "url": href,
-                    "episode_no": _episode_no(label, index + 1),
+                    "episode_no": _episode_no(label, href),
                 }
             )
 
