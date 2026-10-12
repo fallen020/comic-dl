@@ -12,7 +12,7 @@ comic-dl self version
 ## Update
 
 ```
-comic-dl self update [--check] [-y] [--channel beta]
+comic-dl self update [--check] [-y]
 ```
 
 `self update` asks the GitHub Releases API for the latest published version and
@@ -28,8 +28,6 @@ Status:               update available.
 - `--check` only checks; nothing is installed or changed.
 - `-y` / `--yes` skips the confirmation prompt. Without a TTY and without
   `--yes`, the update refuses rather than proceeding unattended.
-- `--channel` selects the release channel. Only `beta` exists today; `stable`
-  ships once the release pipeline formalizes it.
 
 ### What happens, by installation type
 
