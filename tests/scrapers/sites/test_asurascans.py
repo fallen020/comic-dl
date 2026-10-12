@@ -430,8 +430,6 @@ class TestAsurascansScraper:
         from comic_dl import config as cfgmodule
         from comic_dl.errors import SITE_BLOCKED
 
-        # Pin an explicit profile: the automatic older-profile retry runs
-        # only on the default profile and must stay out of this mapping test.
         monkeypatch.setattr(cfgmodule, "_RUNTIME_HTTP", {"impersonate": "chrome131"})
 
         challenged = _MockResponse(b"Attention Required", status=403)
