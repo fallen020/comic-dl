@@ -226,7 +226,9 @@ class GenzToonsScraper(BaseScraper):
     content_warning = "safe"
     chapter_url_pattern = "/chapter/{uid}/"
     series_url_pattern = "/series/{slug}/"
-    version = "1.0.1"
+    version = "1.0.2"
+    test_url = "https://genztoons.org/chapter/31ad113715e-65b3675e7d7/"
+    test_url_kind = "chapter"
     minimum_core_version = "0.0.2"
 
     series_url_re = _SERIES_PATH_RE

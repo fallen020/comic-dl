@@ -254,6 +254,7 @@ class Library:
                         if norm:
                             have.add(norm)
             except sqlite3.Error:
+                # DB is optional; the filesystem scan in build_have_set covers.
                 pass
         return have
 

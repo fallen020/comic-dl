@@ -4,9 +4,7 @@ Loops the live registry and checks routing metadata without network:
 every builtin carries identity attrs, capabilities match methods, its own
 ``test_url`` routes, and foreign domains never match.
 
-New breakage must fail here, not at download time. Sites that fail today
-are listed in ``KNOWN_VIOLATIONS``; each later plan step removes entries
-until the dict is empty, then the constant goes with it.
+New breakage must fail here, not at download time.
 """
 
 from __future__ import annotations
@@ -21,12 +19,6 @@ from comic_dl.scrapers.registry import url_in_domain
 _VERSION_RE = re.compile(r"^\d+\.\d+\.\d+$")
 _SITE_ID_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 
-# ponytail: allowlist, delete entries as sites migrate, delete dict at empty
-KNOWN_VIOLATIONS = {
-    "genztoons.org": {"test-url"},
-    "hdporncomics.com": {"test-url"},
-}
-
 
 def _builtins():
     """Built-in entries from real site modules (skips test registrations)."""
@@ -38,10 +30,6 @@ def _builtins():
         ),
         key=lambda e: e.domain,
     )
-
-
-def _violated(domain: str, check: str) -> bool:
-    return check in KNOWN_VIOLATIONS.get(domain, set())
 
 
 ENTRIES = _builtins()
@@ -67,8 +55,6 @@ def test_metadata(entry):
         assert entry.chapter_url_pattern.strip(), f"{domain} lacks a chapter URL pattern"
     if "series" in entry.capabilities:
         assert entry.series_url_pattern.strip(), f"{domain} lacks a series URL pattern"
-    if _violated(domain, "test-url"):
-        pytest.skip(f"known violation: {domain} missing test_url")
     assert entry.test_url, f"{domain} declares no test_url"
 
 
@@ -85,8 +71,7 @@ def test_capabilities_match_methods(entry):
 @pytest.mark.parametrize("entry", ENTRIES, ids=IDS)
 def test_test_url_routes(entry):
     domain = entry.domain
-    if not entry.test_url or _violated(domain, "test-url"):
-        pytest.skip(f"known violation: {domain} missing test_url")
+    assert entry.test_url, f"{domain} declares no test_url"
     matcher = getattr(entry.instance, "matches_url", None)
     if callable(matcher):
         assert matcher(entry.test_url), f"{domain}: matches_url rejects its test_url"
@@ -107,8 +92,6 @@ def test_series_matcher(entry):
     domain = entry.domain
     if "series" not in entry.capabilities:
         pytest.skip("chapter-only source")
-    if _violated(domain, "series-matcher"):
-        pytest.skip(f"known violation: {domain} relies on static series map")
     matcher = getattr(entry.instance, "matches_series_url", None)
     assert callable(matcher), domain
     if not entry.test_url:

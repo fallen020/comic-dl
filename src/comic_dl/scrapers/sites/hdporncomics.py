@@ -140,7 +140,9 @@ class HDPornComicsScraper(BaseScraper):
     content_warning = "nsfw"
     chapter_url_pattern = "/{slug}-sex-comic/"
     series_url_pattern = ""
-    version = "1.0.0"
+    version = "1.0.1"
+    test_url = "https://hdporncomics.com/cinderfrost-chapter-3-furries-sex-comic/"
+    test_url_kind = "chapter"
     minimum_core_version = "0.0.2"
 
     chapter_url_re = _POST_PATH_RE

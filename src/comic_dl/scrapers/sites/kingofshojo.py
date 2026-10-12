@@ -146,8 +146,6 @@ class KingofshojoScraper(BaseScraper):
     chapter_url_re = _CHAPTER_PATH_RE
     base_url = BASE
 
-    chapter_url_re = _CHAPTER_PATH_RE
-
     def matches_url(self, url: str) -> bool:
         return bool(self.chapter_url_re.match(url))
 
