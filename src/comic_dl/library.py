@@ -460,6 +460,13 @@ class Library:
     # ── writes ──────────────────────────────────────────────────
 
     @_serialized
+    def commit(self) -> None:
+        """Flush pending writes (pairs with ``commit=False`` upserts)."""
+        if not self.available:
+            return
+        self._db.commit()
+
+    @_serialized
     def upsert_series(
         self,
         series_id: str,
@@ -519,6 +526,7 @@ class Library:
         cbz: str = "",
         size_bytes: int | None = None,
         page_count: int | None = None,
+        commit: bool = True,
     ) -> None:
         if not self.available or not url:
             return
@@ -550,7 +558,8 @@ class Library:
                     _now(),
                 ),
             )
-            self._db.commit()
+            if commit:
+                self._db.commit()
         except sqlite3.Error as exc:
             raise LibraryError(f"Failed to record chapter {url}.") from exc
 

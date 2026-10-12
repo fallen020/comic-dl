@@ -611,7 +611,7 @@ class TestStreamToDiskEnospc:
         def raise_for_status(self):
             pass
 
-        async def aiter_content(self):
+        async def aiter_content(self, chunk_size=None):
             yield b"chunk-1"
             yield b"chunk-2"
 
@@ -758,7 +758,7 @@ class TestTryResume:
         class MockResponse:
             status_code = 206
 
-            async def aiter_content(self):
+            async def aiter_content(self, chunk_size=None):
                 yield b"complete\xff\xd9"
 
             async def __aenter__(self):
@@ -1833,15 +1833,9 @@ class TestResumeRevalidation:
     pytestmark = pytest.mark.asyncio
 
     @staticmethod
-    def _client(*, head_total=None, head_raises=False):
-        class HeadResp:
-            status_code = 200
-
-            def __init__(self):
-                self.headers = {"content-length": str(head_total)}
-
+    def _client(*, range_status=206):
         class RangeResp:
-            status_code = 206
+            status_code = range_status
             headers = {}
 
             async def aiter_content(self, chunk_size=None):
@@ -1854,11 +1848,6 @@ class TestResumeRevalidation:
                 return False
 
         class MockClient:
-            async def head(self, url, **kwargs):
-                if head_raises:
-                    raise CurlTimeout("no head")
-                return HeadResp()
-
             def stream(self, method, url, **kwargs):
                 return RangeResp()
 
@@ -1879,7 +1868,9 @@ class TestResumeRevalidation:
 
         part = tmp_path / "a.jpg.part"
         part.write_bytes(b"\x00" * 2048)
-        result = await _try_resume(self._item(), part, self._client(head_total=1024))
+        # A shrunk remote answers the Range GET with 416: nothing at our
+        # offset, so the stale partial is discarded for a fresh download.
+        result = await _try_resume(self._item(), part, self._client(range_status=416))
         assert result is None
         assert not part.exists()
 
@@ -1888,15 +1879,7 @@ class TestResumeRevalidation:
 
         part = tmp_path / "a.jpg.part"
         part.write_bytes(MAGIC_JPEG)
-        result = await _try_resume(self._item(), part, self._client(head_total=4096))
-        assert result is True
-
-    async def test_head_failure_resumes_unvalidated(self, tmp_path):
-        from comic_dl.downloader import _try_resume
-
-        part = tmp_path / "a.jpg.part"
-        part.write_bytes(MAGIC_JPEG)
-        result = await _try_resume(self._item(), part, self._client(head_raises=True))
+        result = await _try_resume(self._item(), part, self._client())
         assert result is True
 
 

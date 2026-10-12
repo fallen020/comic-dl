@@ -112,6 +112,9 @@ COVER_MAX_BYTES = 25 * 1024 * 1024
 # or ~0.2s, so a fast page streams smooth byte counts without a callback storm.
 BYTE_FLUSH_CHUNK = 100 * 1024
 BYTE_FLUSH_INTERVAL = 0.2
+# Explicit read size for every streaming body: fewer loop turns and
+# callbacks per image than the client default, same bytes on the wire.
+_STREAM_CHUNK_SIZE = 64 * 1024
 
 _REDIRECT_STATUSES = frozenset({301, 302, 303, 307, 308})
 
@@ -173,7 +176,7 @@ async def _peek_stream_body(resp: _StreamResponse) -> bytes:
     buf = bytearray()
 
     async def _drain() -> None:
-        async for chunk in resp.aiter_content():
+        async for chunk in resp.aiter_content(chunk_size=_STREAM_CHUNK_SIZE):
             if chunk:
                 buf.extend(chunk[: _CLASSIFY_PEEK_LIMIT - len(buf)])
             if len(buf) >= _CLASSIFY_PEEK_LIMIT:
@@ -209,7 +212,9 @@ class _PeekedStream:
     async def aiter_content(self, chunk_size: int | None = None) -> AsyncIterator[bytes]:
         if self._head:
             yield self._head
-        async for chunk in self._inner.aiter_content():
+        async for chunk in self._inner.aiter_content(
+            chunk_size=chunk_size if chunk_size is not None else _STREAM_CHUNK_SIZE
+        ):
             yield chunk
 
     async def aclose(self) -> None:
@@ -551,7 +556,7 @@ async def download_cover_to(
                 )
             chunks: list[bytes] = []
             size = 0
-            async for chunk in resp.aiter_content():
+            async for chunk in resp.aiter_content(chunk_size=_STREAM_CHUNK_SIZE):
                 size += len(chunk)
                 if size > COVER_MAX_BYTES:
                     raise ValueError(f"cover exceeds {COVER_MAX_BYTES} bytes")
@@ -915,18 +920,9 @@ async def _try_resume(
         part_path.unlink(missing_ok=True)
         return None
 
-    total = await _probe_image_size(client, item.url, REFRESH_TIMEOUT)
-    if 0 < total < existing_size:
-        # The remote shrank since the partial was written, so the bytes on
-        # disk cannot be a prefix of the current image. Drop the stale
-        # partial so the caller restarts instead of appending mismatched
-        # bytes. Unknown totals (0) resume unvalidated as before; same-size
-        # swaps stay undetectable without a stored validator.
-        trace(f"resume: {item.filename} — remote shrank, restarting{glyphs().ellipsis}")
-        part_path.unlink(missing_ok=True)
-        _clear_partial(part_path)
-        return None
-
+    # The Range reply below is authoritative: 206 continues, 416 or a
+    # full 200 restarts. A shrunk remote surfaces as 416, so no
+    # pre-probe is needed before the single Range GET.
     headers = {"Range": f"bytes={existing_size}-"}
     resp = None
     try:
@@ -934,7 +930,7 @@ async def _try_resume(
         if resp.status_code == 206:
             written = existing_size
             with open(part_path, "ab") as f:
-                async for chunk in resp.aiter_content():
+                async for chunk in resp.aiter_content(chunk_size=_STREAM_CHUNK_SIZE):
                     written += len(chunk)
                     if written > max_image_size:
                         part_path.unlink(missing_ok=True)
@@ -1003,7 +999,7 @@ async def _stream_to_disk(
         head = bytearray()
         tail = bytearray()
         with open(dest, "wb") as f:
-            async for chunk in resp.aiter_content():
+            async for chunk in resp.aiter_content(chunk_size=_STREAM_CHUNK_SIZE):
                 written += len(chunk)
                 if written > max_image_size:
                     raise ValueError(
@@ -1245,6 +1241,9 @@ async def _run_downloads(
     def _budget_exhausted() -> bool:
         return 0 < max_total_size <= consumed_bytes[0]
 
+    # Resolved once per batch: every page joins against the same dir.
+    dest_dir_resolved = dest_dir.resolve()
+
     async def _download_one(
         item: ImageItem,
         stream_formats: dict[str, str] | None = None,
@@ -1262,7 +1261,6 @@ async def _run_downloads(
 
         dest = (dest_dir / item.filename).resolve()
         part_path = (dest_dir / f"{item.filename}.part").resolve()
-        dest_dir_resolved = dest_dir.resolve()
         try:
             dest.relative_to(dest_dir_resolved)
             part_path.relative_to(dest_dir_resolved)
@@ -1298,10 +1296,6 @@ async def _run_downloads(
                     progress_cb(completed)
                 return
 
-        # Current attempt's peer; rebinds when a stale link is refreshed to
-        # a different node. Pre-bound so failure handlers never see it unset.
-        host: str = host_of(item.url)
-
         for attempt in range(max_attempts):
             if activity_cb is not None:
                 activity_cb("Downloading...")
@@ -1316,7 +1310,8 @@ async def _run_downloads(
                 return
             try:
                 loop = asyncio.get_running_loop()
-                host = host_of(item.url)
+                # Rebound per attempt: a refresh re-points item at a new node.
+                host: str = host_of(item.url)
                 while cooldown_until.get(host, 0.0) > loop.time():
                     if activity_cb is not None:
                         activity_cb(f"Waiting for server{glyphs().ellipsis}")
@@ -1618,6 +1613,8 @@ async def _probe_image_size(c: AsyncSession, url: str, timeout: float) -> int:
     through :func:`validate_request_url_async`, so a public image URL can never
     probe an internal/metadata/LAN address via a hostile redirect.
     """
+    # Advisory traffic still paces itself like image traffic.
+    await await_ratelimit(host_of(url) or url)
     current = url
     for _ in range(MAX_REDIRECTS + 1):
         try:
