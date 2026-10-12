@@ -233,7 +233,6 @@ comic-dl self update
 - `--check` reports the installed and latest versions and changes nothing.
 - `-y` / `--yes` skips the confirmation. Without a TTY and without `--yes`, it
   refuses rather than running unattended.
-- `--channel beta` opts into pre-releases.
 
 What it does depends on the install:
 

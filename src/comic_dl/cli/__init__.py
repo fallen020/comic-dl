@@ -3713,12 +3713,6 @@ def _build_self_parser() -> ComicArgumentParser:
         action="store_true",
         help="skip the confirmation prompt",
     )
-    update.add_argument(
-        "--channel",
-        default="beta",
-        choices=("beta",),
-        help="release channel (only 'beta' is available today)",
-    )
     return parser
 
 
@@ -3741,7 +3735,7 @@ async def _run_self(argv: list[str]) -> int:
         else:
             hint = suggest(
                 first,
-                ["--help", "-h", "--check", "-y", "--yes", "--channel", "--version", "--update"],
+                ["--help", "-h", "--check", "-y", "--yes", "--version", "--update"],
             )
             if hint is not None and hint != first:
                 print_dim(f"Did you mean: {hint}?")

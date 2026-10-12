@@ -65,7 +65,7 @@ per-host rate limiter, so raising it never exceeds the politeness budget.
 | Command | Description |
 | :------ | :---------- |
 | `comic-dl self version` | Print the installed version |
-| `comic-dl self update [--check] [-y/--yes] [--channel beta]` | Check for and install updates through the tool that installed comic-dl |
+| `comic-dl self update [--check] [-y/--yes]` | Check for and install updates through the tool that installed comic-dl |
 | `comic-dl self site list [--json]` | List installed site adapters, their versions, and cached status |
 | `comic-dl self site check [SITE] [--live] [--json]` | Compare installed adapter versions against the latest release manifest; `--live` runs a live check for one site |
 | `comic-dl self site update [SITE] [--all] [-y/--yes]` | Update site support (bundled adapters update with the core) |
