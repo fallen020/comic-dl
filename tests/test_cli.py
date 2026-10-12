@@ -4393,20 +4393,14 @@ class TestCompletionVerb:
         monkeypatch.setattr("sys.argv", ["prog", "completion", "bash"])
         assert await main() == 0
         out = capsys.readouterr().out
-        assert "complete -o default -F _comic_dl_complete comic-dl" in out
+        assert "_shtab_comic_dl" in out
         assert "--chapter-parallel" in out
         assert "--config" in out
         assert "update" in out
         assert "validate" in out
         assert "--dry-run" in out
-        upd = next(
-            line
-            for line in out.splitlines()
-            if line.strip().startswith("update) COMPREPLY") and "--dry-run" in line
-        )
-        assert " -p " in upd
-        assert "--parallel" in upd
-        assert "-o --output" not in upd
+        assert "cbz" in out
+        assert "--live" in out
 
     async def test_zsh(self, monkeypatch, capsys):
         from comic_dl.cli import main
@@ -4415,10 +4409,9 @@ class TestCompletionVerb:
         assert await main() == 0
         out = capsys.readouterr().out
         assert "#compdef comic-dl" in out
-        assert "compdef _comic_dl comic-dl" in out
+        assert "_describe" in out
         assert "validate" in out
-        assert "words[3]" in out
-        assert "compadd -d" in out
+        assert "cbz" in out
 
     async def test_fish(self, monkeypatch, capsys):
         from comic_dl.cli import main
@@ -4426,11 +4419,10 @@ class TestCompletionVerb:
         monkeypatch.setattr("sys.argv", ["prog", "completion", "fish"])
         assert await main() == 0
         out = capsys.readouterr().out
-        assert "complete -c comic-dl -f" in out
-        assert "__fish_seen_subcommand_from update" in out
+        assert "complete -c comic-dl" in out
+        assert "-l live" in out
         assert "validate" in out
-        assert "__fish_seen_subcommand_from self; and __fish_seen_subcommand_from update" in out
-        assert "\t" in out
+        assert "-d " in out
 
     async def test_invalid_shell(self, monkeypatch, capsys):
         from comic_dl.cli import main
@@ -4446,13 +4438,21 @@ class TestCompletionVerb:
         monkeypatch.setattr("sys.argv", ["prog", "completion", "powershell"])
         assert await main() == 0
         out = capsys.readouterr().out
-        assert "Register-ArgumentCompleter -Native -CommandName comic-dl" in out
-        assert "'comic-dl;self;site;check'" in out
+        assert "Register-ArgumentCompleter" in out
+        assert "_shtab_comic_dl_self_site_check" in out
         assert "CompletionResult" in out
 
     @pytest.mark.parametrize("shell", ["bash", "zsh", "fish", "powershell"])
     def test_scripts_cover_every_parser_word(self, shell):
-        """No parser flag/subcommand may exist without being offered."""
+        """No parser flag/subcommand/choice may exist without being offered.
+
+        Walks the builders directly (hidden ``SUPPRESS`` flags excluded);
+        fish splits longs into ``-l word``, which the matcher accounts for.
+        """
+        import argparse
+        from pathlib import Path
+
+        import comic_dl.cli as cli_pkg
         from comic_dl.cli import (
             _LIBRARY_COMMANDS,
             _build_cache_parser,
@@ -4464,14 +4464,36 @@ class TestCompletionVerb:
             _build_self_site_parser,
             _build_update_parser,
         )
-        from comic_dl.cli.completion import (
-            _completion_script,
-            _parser_flags,
-            _parser_subcommands,
-        )
         from comic_dl.cli.library import _build_parser as _build_library_parser
 
-        out = _completion_script(shell)
+        def _words(parser):
+            found = []
+            for action in parser._actions:
+                if action.help == argparse.SUPPRESS:
+                    continue
+                found.extend(action.option_strings)
+                if isinstance(action, argparse._SubParsersAction):
+                    for name, child in action.choices.items():
+                        found.append(name)
+                        if isinstance(child, argparse.ArgumentParser):
+                            found.extend(_words(child))
+                elif isinstance(action.choices, (list, tuple)):
+                    found.extend(str(c) for c in action.choices)
+            return found
+
+        def _present(word, out):
+            if word in out:
+                return True
+            if shell != "fish" or not word.startswith("-") or word == "-":
+                return False
+            stem = word.lstrip("-")
+            if len(stem) == 1:
+                return f"-s {stem}" in out
+            return f"-l {stem}" in out
+
+        suffix = {"bash": "bash", "zsh": "zsh", "fish": "fish", "powershell": "ps1"}
+        path = Path(cli_pkg.__file__).parent / "completions" / f"comic-dl.{suffix[shell]}"
+        out = path.read_text(encoding="utf-8")
         parsers = [
             _build_first_stage_parser(),
             _build_update_parser(),
@@ -4483,11 +4505,27 @@ class TestCompletionVerb:
             _build_list_sources_parser(),
         ]
         for parser in parsers:
-            for word in _parser_flags(parser) + _parser_subcommands(parser):
-                assert word in out, f"{word!r} missing from {shell} completions"
+            for word in _words(parser):
+                assert _present(word, out), f"{word!r} missing from {shell} completions"
         for cmd in _LIBRARY_COMMANDS:
-            for word in _parser_flags(_build_library_parser(cmd)):
-                assert word in out, f"{word!r} missing from {shell} completions"
+            for word in _words(_build_library_parser(cmd)):
+                assert _present(word, out), f"{word!r} missing from {shell} completions"
+
+    def test_baked_scripts_match_generator(self):
+        """Baked completions must equal fresh generator output (no hand-edits)."""
+        import subprocess
+        import sys
+        from pathlib import Path
+
+        root = Path(__file__).resolve().parent.parent
+        proc = subprocess.run(
+            [sys.executable, "scripts/gen-completions.py", "--check"],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+        assert proc.returncode == 0, proc.stdout + proc.stderr
 
 
 class TestListSourcesJson:
