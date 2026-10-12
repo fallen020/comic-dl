@@ -4511,6 +4511,22 @@ class TestCompletionVerb:
             for word in _words(_build_library_parser(cmd)):
                 assert _present(word, out), f"{word!r} missing from {shell} completions"
 
+    def test_baked_scripts_match_generator(self):
+        """Baked completions must equal fresh generator output (no hand-edits)."""
+        import subprocess
+        import sys
+        from pathlib import Path
+
+        root = Path(__file__).resolve().parent.parent
+        proc = subprocess.run(
+            [sys.executable, "scripts/gen-completions.py", "--check"],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+        assert proc.returncode == 0, proc.stdout + proc.stderr
+
 
 class TestListSourcesJson:
     async def test_json_before_flag(self, monkeypatch, capsys):

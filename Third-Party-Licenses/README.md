@@ -84,4 +84,5 @@ texts are vendored here. Versions are informational.
 | [mypy](https://www.mypy-lang.org) | 2.4.0 | MIT |
 | [bandit](https://bandit.readthedocs.io/) | 1.9.4 | Apache-2.0 |
 | [pyinstaller](https://pyinstaller.org) | 6.22.3 | GPL-2.0-or-later with bootloader exception |
+| [shtab](https://github.com/tqdm/shtab) | 1.12.1 | MPL-2.0 |
 | [types-defusedxml](https://pypi.org/project/types-defusedxml/) | 0.7.0.20260504 | Apache-2.0 |
