@@ -368,6 +368,7 @@ _TABLE_RULES: dict[str, dict[str, Any]] = {
     "[http]": {
         "impersonate": "str",
         "proxy": "str",
+        "no-proxy": "str",
         "solver": {"auto", "impersonation", "webview", "off"},
         "cookie-jar": "bool",
         "cookie-encryption": {"auto", "keyring", "off"},
