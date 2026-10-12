@@ -44,6 +44,7 @@ from .ui import (
     http_event,
     print_error,
     print_error_block,
+    print_warning,
     trace,
     vlog,
 )
@@ -914,6 +915,18 @@ async def _try_resume(
         part_path.unlink(missing_ok=True)
         return None
 
+    total = await _probe_image_size(client, item.url, REFRESH_TIMEOUT)
+    if 0 < total < existing_size:
+        # The remote shrank since the partial was written, so the bytes on
+        # disk cannot be a prefix of the current image. Drop the stale
+        # partial so the caller restarts instead of appending mismatched
+        # bytes. Unknown totals (0) resume unvalidated as before; same-size
+        # swaps stay undetectable without a stored validator.
+        trace(f"resume: {item.filename} — remote shrank, restarting{glyphs().ellipsis}")
+        part_path.unlink(missing_ok=True)
+        _clear_partial(part_path)
+        return None
+
     headers = {"Range": f"bytes={existing_size}-"}
     resp = None
     try:
@@ -1211,6 +1224,7 @@ async def _run_downloads(
     try:
         host_limit = max(1, int(http_setting("per-host-concurrency", 3)))
     except (TypeError, ValueError):
+        print_warning("config [http] per-host-concurrency: expected int >= 1, using 3")
         host_limit = 3
     host_sems: dict[str, asyncio.Semaphore] = {}
     # Cumulative hard cap on total bytes accepted across all downloads (0 = unlimited).
@@ -1302,12 +1316,12 @@ async def _run_downloads(
                 return
             try:
                 loop = asyncio.get_running_loop()
-                now = loop.time()
                 host = host_of(item.url)
-                if cooldown_until.get(host, 0.0) > now:
+                while cooldown_until.get(host, 0.0) > loop.time():
                     if activity_cb is not None:
                         activity_cb(f"Waiting for server{glyphs().ellipsis}")
-                    await asyncio.sleep(min(cooldown_until[host] - now, SHARED_COOLDOWN_CAP))
+                    remaining = cooldown_until[host] - loop.time()
+                    await asyncio.sleep(min(remaining, SHARED_COOLDOWN_CAP))
                 if host_parked(host, loop.time()):
                     # Parked node: fail fast WITHOUT taking a semaphore slot
                     # or opening a socket; rerun picks the page back up.

@@ -147,6 +147,9 @@ class TestHDPornComicsScraper:
 
     @pytest.mark.asyncio
     async def test_scrape_challenge_without_session_raises_hint(self, monkeypatch):
+        from comic_dl import config as cfgmodule
+
+        monkeypatch.setattr(cfgmodule, "_RUNTIME_HTTP", {"impersonate": "chrome131"})
         challenged = _MockResponse(b"Just a moment", status=403)
         challenged.headers = {"server": "cloudflare"}
         monkeypatch.setattr("comic_dl.webview.session_enabled", lambda: False)

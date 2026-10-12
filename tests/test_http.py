@@ -11,7 +11,7 @@ import comic_dl.http as httpmodule
 import comic_dl.rate as ratemodule
 from comic_dl.cf import looks_like_challenge, solver_mode
 from comic_dl.cookies import CookieJar
-from comic_dl.utils import http_client_args
+from comic_dl.utils import host_bypasses_proxy, http_client_args
 
 
 class _FakeCookie:
@@ -66,6 +66,48 @@ class TestRuntimeHttpOverrides:
         finally:
             cfgmodule.set_runtime_http(**{"solver": "auto", "cookie-jar": None})
             cfgmodule._RUNTIME_HTTP.clear()
+
+
+class TestProxyBypass:
+    def _clean_egress(self, monkeypatch, tmp_path):
+        _patch_paths(monkeypatch, tmp_path)
+        monkeypatch.setattr(cfgmodule, "_RUNTIME_HTTP", {})
+        for var in ("COMIC_DL_PROXY", "HTTPS_PROXY", "NO_PROXY", "no_proxy"):
+            monkeypatch.delenv(var, raising=False)
+
+    def test_matcher(self):
+        assert host_bypasses_proxy("x.example", "x.example") is True
+        assert host_bypasses_proxy("sub.x.example", "x.example") is True
+        assert host_bypasses_proxy("sub.x.example", ".x.example") is True
+        assert host_bypasses_proxy("Sub.X.Example", "x.example") is True
+        assert host_bypasses_proxy("other.test", "x.example") is False
+        assert host_bypasses_proxy("notx.example", "x.example") is False
+        assert host_bypasses_proxy("a.test", "*") is True
+        assert host_bypasses_proxy("a.test", "x.example, a.test") is True
+        assert host_bypasses_proxy(None, "x.example") is False
+        assert host_bypasses_proxy("x.example", "") is False
+
+    def test_env_bypass_skips_proxy(self, monkeypatch, tmp_path):
+        self._clean_egress(monkeypatch, tmp_path)
+        monkeypatch.setenv("COMIC_DL_PROXY", "http://127.0.0.1:8080")
+        monkeypatch.setenv("NO_PROXY", "x.example")
+        assert "proxies" not in http_client_args(host="sub.x.example")
+        assert http_client_args(host="other.test")["proxies"] == {
+            "http": "http://127.0.0.1:8080",
+            "https": "http://127.0.0.1:8080",
+        }
+
+    def test_config_bypass_beats_env(self, monkeypatch, tmp_path):
+        self._clean_egress(monkeypatch, tmp_path)
+        monkeypatch.setenv("COMIC_DL_PROXY", "http://127.0.0.1:8080")
+        monkeypatch.setenv("NO_PROXY", "other.test")
+        (tmp_path / "config.toml").write_text('[http]\nno-proxy = "x.example"\n')
+        assert "proxies" not in http_client_args(host="x.example")
+        assert "proxies" in http_client_args(host="other.test")
+
+    def test_no_proxy_means_direct(self, monkeypatch, tmp_path):
+        self._clean_egress(monkeypatch, tmp_path)
+        assert "proxies" not in http_client_args(host="x.example")
 
 
 class TestCookieJarList:

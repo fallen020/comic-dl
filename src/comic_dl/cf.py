@@ -9,9 +9,36 @@ from urllib.parse import urlsplit
 from .antibot import looks_like_challenge
 from .config import _RUNTIME_HTTP, http_setting
 from .ui import TAG_WARNING, trace, vlog
-from .utils import aclose_response
+from .utils import aclose_response, known_impersonate_profiles
 
 _SOLVER_MODES = frozenset({"auto", "impersonation", "webview", "off"})
+
+#: Value ``http_setting`` can never return from a real config layer, so its
+#: presence means no layer set the key at all.
+_UNSET: Any = object()
+
+#: Older TLS profile for one automatic retry after a 403 on the default
+#: profile. Firefox: some sites reject the newest Chromium signatures
+#: outright, and firefox147 has a locked header pair in ``_STEALTH`` so the
+#: wire headers agree with the negotiated fingerprint.
+_FALLBACK_IMPERSONATE = "firefox147"
+
+
+def fallback_impersonate(host: str | None = None) -> str | None:
+    """Older impersonation profile for one automatic 403 retry, else ``None``.
+
+    Only when the user kept the default profile: an explicit
+    ``--impersonate``, ``[http] impersonate``, or per-host impersonate is
+    never second-guessed. ``None`` when the pinned fallback is unknown to
+    this curl_cffi build.
+    """
+    if host is not None:
+        host = (host or "").lower() or None
+    if http_setting("impersonate", _UNSET, host=host) is not _UNSET:
+        return None
+    if _FALLBACK_IMPERSONATE not in known_impersonate_profiles():
+        return None
+    return _FALLBACK_IMPERSONATE
 
 
 def solver_mode(host: str | None = None) -> str:

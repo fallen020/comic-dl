@@ -6,6 +6,7 @@ import asyncio
 import time
 
 from .config import http_setting, load_config
+from .ui import trace
 
 _DEFAULT_RATES: dict[str, float] = {
     "kagane.to": 1.5,
@@ -92,6 +93,10 @@ class RateLimiter:
         self._next_available[host] = slot + 1.0 / limit
         wait = slot - now
         if wait > 0:
+            if wait > _MAX_STALL:
+                trace(
+                    f"rate: {host} wait {wait:.0f}s exceeds {_MAX_STALL:.0f}s cap; check its rate"
+                )
             await asyncio.sleep(min(wait, _MAX_STALL))
 
 

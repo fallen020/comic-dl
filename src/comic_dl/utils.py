@@ -513,11 +513,14 @@ def http_client_args(
     referer_url: str | None = None,
     host: str | None = None,
     kind: str | None = None,
+    impersonate: str | None = None,
 ) -> dict[str, Any]:
     """HTTP client kwargs with the effective impersonate profile applied.
 
     ``[http] impersonate`` (or ``--impersonate``) overrides the built-in
-    ``chrome146`` profile; anything else keeps the default. The UA and
+    ``chrome146`` profile; anything else keeps the default. ``impersonate``
+    forces one profile for the returned args only (e.g. an older-profile
+    retry), without touching the configured default. The UA and
     client-hint headers always come from the locked :data:`_STEALTH` pair
     for the effective profile, so headers never disagree with the TLS
     fingerprint. ``referer_url``
@@ -536,7 +539,7 @@ def http_client_args(
     headers themselves.
     """
     args: dict[str, Any] = dict(HTTP_CLIENT_ARGS)
-    profile = http_setting("impersonate", "chrome146")
+    profile = impersonate or http_setting("impersonate", "chrome146")
     if not (isinstance(profile, str) and profile.strip()):
         profile = "chrome146"
     profile = profile.strip()
@@ -548,11 +551,17 @@ def http_client_args(
         args["headers"].update(fetch_headers(kind))
     # Egress override, highest precedence first: --proxy flag, then
     # $COMIC_DL_PROXY / $HTTPS_PROXY, then [http] proxy. Empty means direct.
+    # [http] no-proxy (else $NO_PROXY / $no_proxy) lists hosts that skip the
+    # proxy so site-direct and proxied traffic can mix; without a known
+    # target host the proxy applies (status quo).
     proxy = http_setting("proxy", "")
     if not (isinstance(proxy, str) and proxy.strip()):
         proxy = os.environ.get("COMIC_DL_PROXY") or os.environ.get("HTTPS_PROXY") or ""
     proxy = proxy.strip()
-    if proxy:
+    bypass = http_setting("no-proxy", "")
+    if not (isinstance(bypass, str) and bypass.strip()):
+        bypass = os.environ.get("NO_PROXY") or os.environ.get("no_proxy") or ""
+    if proxy and not host_bypasses_proxy(host, bypass):
         args["proxies"] = {"http": proxy, "https": proxy}
     args["curl_options"] = {
         CurlOpt.LOW_SPEED_LIMIT: LOW_SPEED_LIMIT_BPS,
@@ -567,6 +576,25 @@ def http_client_args(
         headers: dict[str, str] = {**args["headers"], **referer_headers(effective_referer)}
         args = {**args, "headers": headers}
     return args
+
+
+def host_bypasses_proxy(host: str | None, no_proxy: str) -> bool:
+    """True when ``host`` matches a ``no_proxy``-style bypass entry.
+
+    Entries are comma/space separated and case-insensitive; a leading dot
+    is ignored, so ``example.com`` bypasses the host itself and every
+    subdomain, and a lone ``*`` bypasses everything.
+    """
+    if not host or not no_proxy:
+        return False
+    host = host.lower()
+    for entry in re.split(r"[,\s]+", no_proxy.strip()):
+        entry = entry.strip().lower().lstrip(".")
+        if not entry:
+            continue
+        if entry == "*" or host == entry or host.endswith(f".{entry}"):
+            return True
+    return False
 
 
 def clean_title(s: str) -> str:

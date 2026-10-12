@@ -236,3 +236,28 @@ class TestRetryRefetchGate:
         monkeypatch.setattr(cf, "handle_challenge", solve)
         _run(cf.retry_challenge_once(fetch, "https://x.example/a", refetch=False))
         assert calls == {"solve": 0}
+
+
+class TestFallbackImpersonate:
+    def _isolated(self, monkeypatch, tmp_path):
+        monkeypatch.setattr(cfgmodule, "_RUNTIME_HTTP", {})
+        monkeypatch.setattr(cfgmodule, "config_path", lambda: tmp_path / "config.toml")
+
+    def test_default_profile_gets_fallback(self, monkeypatch, tmp_path):
+        self._isolated(monkeypatch, tmp_path)
+        assert cf.fallback_impersonate("x.example") == "firefox147"
+
+    def test_explicit_flag_opts_out(self, monkeypatch, tmp_path):
+        self._isolated(monkeypatch, tmp_path)
+        cfgmodule.set_runtime_http(impersonate="chrome131")
+        assert cf.fallback_impersonate("x.example") is None
+
+    def test_config_file_opts_out(self, monkeypatch, tmp_path):
+        self._isolated(monkeypatch, tmp_path)
+        (tmp_path / "config.toml").write_text('[http]\nimpersonate = "chrome131"\n')
+        assert cf.fallback_impersonate("x.example") is None
+
+    def test_unknown_fallback_build_skips(self, monkeypatch, tmp_path):
+        self._isolated(monkeypatch, tmp_path)
+        monkeypatch.setattr(cf, "known_impersonate_profiles", frozenset)
+        assert cf.fallback_impersonate("x.example") is None

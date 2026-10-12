@@ -114,7 +114,7 @@ With a URL file or a multi-series run, each URL is independent: one failure does
 
 ## Interrupted downloads
 
-Ctrl-C stops the run: the current download finishes, partially written `.part` files are kept, and a resume hint is printed. Re-run the same command and each file resumes at the byte offset recorded in its `.part` file. comic-dl does not re-check the remote for changes, so if a site replaced an image mid-run the resumed copy could mix old and new bytes. Delete the affected `.part` file and re-run if a page ever looks corrupted after a resume.
+Ctrl-C stops the run: the current download finishes, partially written `.part` files are kept, and a resume hint is printed. Re-run the same command and each file resumes at the byte offset recorded in its `.part` file. Before resuming, comic-dl checks the remote size: if the image shrank since the partial was written, the `.part` file is dropped and the page downloads fresh instead of mixing old and new bytes. A same-size replacement stays undetectable, so delete the affected `.part` file and re-run if a page ever looks corrupted after a resume.
 
 ## Capturing a debug log
 

@@ -8,6 +8,7 @@ import tarfile
 import tempfile
 import time
 from pathlib import Path
+from types import SimpleNamespace
 from typing import ClassVar
 
 import pytest
@@ -1677,6 +1678,226 @@ class TestAdaptiveCooldown:
             assert (Path(td) / "a.jpg").exists()
             assert (Path(td) / "b.jpg").exists()
             assert served["fine"][0] - served["flop"][0] < 0.8
+
+    async def test_retry_after_window_holds_sibling_past_cap(self, tmp_path, monkeypatch):
+        """A Retry-After window longer than SHARED_COOLDOWN_CAP must hold a
+        sibling task for the full window, not one capped nap."""
+        import time as _time
+
+        started: dict[str, list[float]] = {"fast": [], "slow": []}
+
+        class OkResponse:
+            status_code = 200
+            headers = {"content-length": "3"}
+
+            def raise_for_status(self):
+                pass
+
+            async def aiter_content(self, chunk_size=None):
+                yield MAGIC_JPEG
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *args):
+                return False
+
+        class SlowFailResponse:
+            """First slow attempt: fails 0.2s in, inside the fast page's
+            Retry-After window, so its retry must observe the shared gate."""
+
+            status_code = 200
+            headers = {}
+
+            def raise_for_status(self):
+                pass
+
+            async def aiter_content(self, chunk_size=None):
+                yield MAGIC_JPEG  # pragma: no cover
+
+            async def __aenter__(self):
+                await asyncio.sleep(0.2)
+                raise CurlTimeout("stalled")
+
+            async def __aexit__(self, *args):
+                return False
+
+        class MockClient:
+            def __init__(self):
+                self._counts: dict[str, int] = {}
+
+            def stream(self, method, url, **kwargs):
+                tag = "fast" if "/fast" in url else "slow"
+                started[tag].append(_time.monotonic())
+                self._counts[url] = self._counts.get(url, 0) + 1
+                if self._counts[url] == 1:
+                    if tag == "fast":
+                        # 429 + Retry-After raised at fetch time so the
+                        # humane-retry layer cannot absorb it: it must land
+                        # in the engine's shared cooldown instead.
+                        raise CurlHTTPError(
+                            "too many",
+                            response=SimpleNamespace(
+                                status_code=429, headers={"retry-after": "0.6"}
+                            ),
+                        )
+                    return SlowFailResponse()
+                return OkResponse()
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *args):
+                pass
+
+        monkeypatch.setattr("comic_dl.downloader.SHARED_COOLDOWN_CAP", 0.05)
+        monkeypatch.setattr(
+            "comic_dl.downloader._backoff_delay",
+            lambda attempt, **kwargs: 0.01,
+        )
+
+        with tempfile.TemporaryDirectory() as td:
+            images = [
+                ImageItem(url="http://x.example/fast", page_number=1, filename="a.jpg"),
+                ImageItem(url="http://x.example/slow", page_number=2, filename="b.jpg"),
+            ]
+            run_start = _time.monotonic()
+            failed = await download_httpx(
+                images,
+                Path(td),
+                concurrency=2,
+                client=MockClient(),
+            )
+            assert failed == set()
+            assert (Path(td) / "a.jpg").exists()
+            assert (Path(td) / "b.jpg").exists()
+            # The slow page's retry starts inside the fast page's 0.6s
+            # Retry-After window (its first attempt only fails ~0.2s in,
+            # after the window is written). One capped 0.05s nap would
+            # re-fire it before ~0.4s; the re-gate must hold it past 0.5s.
+            assert started["slow"][1] - run_start >= 0.5
+
+
+class TestConcurrencyFallback:
+    async def test_bad_per_host_concurrency_warns_and_falls_back(
+        self, tmp_path, monkeypatch, capsys
+    ):
+        """Garbage per-host-concurrency must say so instead of silently
+        running at 3."""
+        from comic_dl import config as cfgmodule
+
+        cfgmodule.set_runtime_http(**{"per-host-concurrency": "bogus"})
+        try:
+
+            class OkResponse:
+                status_code = 200
+                headers = {"content-length": "3"}
+
+                def raise_for_status(self):
+                    pass
+
+                async def aiter_content(self, chunk_size=None):
+                    yield MAGIC_JPEG
+
+                async def __aenter__(self):
+                    return self
+
+                async def __aexit__(self, *args):
+                    return False
+
+            class MockClient:
+                def stream(self, method, url, **kwargs):
+                    return OkResponse()
+
+                async def __aenter__(self):
+                    return self
+
+                async def __aexit__(self, *args):
+                    pass
+
+            with tempfile.TemporaryDirectory() as td:
+                failed = await download_httpx(
+                    [ImageItem(url="http://x.example/a", page_number=1, filename="a.jpg")],
+                    Path(td),
+                    concurrency=1,
+                    client=MockClient(),
+                )
+                assert failed == set()
+                assert (Path(td) / "a.jpg").exists()
+                assert "per-host-concurrency" in capsys.readouterr().err
+        finally:
+            cfgmodule._RUNTIME_HTTP.pop("per-host-concurrency", None)
+
+
+class TestResumeRevalidation:
+    pytestmark = pytest.mark.asyncio
+
+    @staticmethod
+    def _client(*, head_total=None, head_raises=False):
+        class HeadResp:
+            status_code = 200
+
+            def __init__(self):
+                self.headers = {"content-length": str(head_total)}
+
+        class RangeResp:
+            status_code = 206
+            headers = {}
+
+            async def aiter_content(self, chunk_size=None):
+                yield MAGIC_JPEG
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *args):
+                return False
+
+        class MockClient:
+            async def head(self, url, **kwargs):
+                if head_raises:
+                    raise CurlTimeout("no head")
+                return HeadResp()
+
+            def stream(self, method, url, **kwargs):
+                return RangeResp()
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *args):
+                pass
+
+        return MockClient()
+
+    @staticmethod
+    def _item():
+        return ImageItem(url="http://x.example/a", page_number=1, filename="a.jpg")
+
+    async def test_shrunk_remote_drops_partial(self, tmp_path):
+        from comic_dl.downloader import _try_resume
+
+        part = tmp_path / "a.jpg.part"
+        part.write_bytes(b"\x00" * 2048)
+        result = await _try_resume(self._item(), part, self._client(head_total=1024))
+        assert result is None
+        assert not part.exists()
+
+    async def test_matching_remote_resumes(self, tmp_path):
+        from comic_dl.downloader import _try_resume
+
+        part = tmp_path / "a.jpg.part"
+        part.write_bytes(MAGIC_JPEG)
+        result = await _try_resume(self._item(), part, self._client(head_total=4096))
+        assert result is True
+
+    async def test_head_failure_resumes_unvalidated(self, tmp_path):
+        from comic_dl.downloader import _try_resume
+
+        part = tmp_path / "a.jpg.part"
+        part.write_bytes(MAGIC_JPEG)
+        result = await _try_resume(self._item(), part, self._client(head_raises=True))
+        assert result is True
 
 
 class TestEngineTuning:

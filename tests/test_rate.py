@@ -69,3 +69,17 @@ class TestAcquireConcurrency:
         gaps = [b - a for a, b in pairwise(stamps)]
         assert min(gaps) >= interval * 0.8
         assert stamps[-1] - stamps[0] >= interval * 7 * 0.8
+
+
+class TestStallCapDiagnostic:
+    async def test_truncation_emits_trace(self, monkeypatch, tmp_path):
+        """A wait past _MAX_STALL must name the host instead of silently
+        bursting."""
+        _isolated(monkeypatch, tmp_path)
+        monkeypatch.setattr("comic_dl.rate._MAX_STALL", 0.05)
+        seen: list[str] = []
+        monkeypatch.setattr("comic_dl.rate.trace", seen.append)
+        limiter = RateLimiter(rates={"example.com": 0.1})
+        await limiter.acquire("example.com")
+        await limiter.acquire("example.com")  # ~10s wait, capped to 0.05s
+        assert any("example.com" in message for message in seen)

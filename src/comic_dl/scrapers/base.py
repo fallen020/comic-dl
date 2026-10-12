@@ -13,7 +13,7 @@ from urllib.parse import urlsplit
 from bs4 import BeautifulSoup
 from curl_cffi.requests import AsyncSession
 
-from ..cf import retry_challenge_once
+from ..cf import _response_is_challenge, fallback_impersonate, retry_challenge_once
 from ..errors import (
     SITE_ID_RE,
     SITE_NO_CHAPTERS,
@@ -25,11 +25,12 @@ from ..errors import (
 )
 from ..http import absorb_response_cookies, jar_cookies_kwargs
 from ..rate import await_ratelimit
-from ..ui import DIAGNOSTIC, http_event
+from ..ui import DIAGNOSTIC, http_event, trace
 from ..utils import (
     MAX_REDIRECTS,
     RequestBlockedError,
     aclose_response,
+    http_client_args,
     resolve_redirect_url_async,
     validate_request_url_async,
 )
@@ -332,8 +333,6 @@ class BaseScraper:
         ``--no-cache``/``--no-cookie`` changes the run's cookie semantics.
         """
         current = await validate_request_url_async(url)
-        req = getattr(client, method.lower())
-
         from ..cache import (
             CachedResponse,
             cache_enabled,
@@ -376,8 +375,9 @@ class BaseScraper:
             merged.update(conditional_headers(stale_entry))
             headers = merged
 
-        async def _fetch_once():
+        async def _fetch_with(fetch_client):
             nonlocal current
+            req = getattr(fetch_client, method.lower())
             resp = None
             for _ in range(MAX_REDIRECTS + 1):
                 await await_ratelimit(urlsplit(current).hostname or current, rate=rate)
@@ -397,7 +397,7 @@ class BaseScraper:
                     _elapsed = time.monotonic() - _started
                 except TimeoutError as e:
                     raise ScrapeTimeout(url, SCRAPE_TIMEOUT) from e
-                absorb_response_cookies(client, getattr(resp, "headers", None))
+                absorb_response_cookies(fetch_client, getattr(resp, "headers", None))
                 status = resp.status_code
                 http_event(
                     method,
@@ -419,10 +419,28 @@ class BaseScraper:
                 f"too many redirects ({MAX_REDIRECTS}) while following {url!r}"
             )
 
+        async def _fetch_once():
+            return await _fetch_with(client)
+
         if challenge_retry:
             # Only idempotent methods replay after a solve; a POST is
             # fetched once and classified by the caller.
             resp = await retry_challenge_once(_fetch_once, url, refetch=method in ("GET", "HEAD"))
+            if (
+                method in ("GET", "HEAD")
+                and resp.status_code == 403
+                and _response_is_challenge(resp)
+                and (fallback := fallback_impersonate(urlsplit(url).hostname)) is not None
+            ):
+                # The default profile is rejected outright: one fetch with
+                # an older profile before giving up (never overrides an
+                # explicit --impersonate; see fallback_impersonate).
+                trace(f"cf: 403 on default profile, retrying once with {fallback}")
+                await aclose_response(resp)
+                async with AsyncSession(
+                    **http_client_args(host=urlsplit(url).hostname, impersonate=fallback)
+                ) as fb_client:
+                    resp = await _fetch_with(fb_client)
         else:
             resp = await _fetch_once()
         if cacheable and stale_entry is not None and resp.status_code == 304:
