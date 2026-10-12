@@ -2620,6 +2620,7 @@ async def _process_series(
                                     cbz=result.cbz_path.name,
                                     size_bytes=result.cbz_size,
                                     page_count=result.cbz_pages,
+                                    commit=False,
                                 )
                                 message = f"{len(result.failed_images)}/{total_pages} pages missing"
                                 act.finish_row(row_key, ok=False, message=message)
@@ -2637,6 +2638,7 @@ async def _process_series(
                                 cbz=result.cbz_path.name,
                                 size_bytes=result.cbz_size,
                                 page_count=result.cbz_pages,
+                                commit=False,
                             )
                             return "downloaded", result.cbz_size, result.cbz_path.name
                         else:
@@ -2672,6 +2674,9 @@ async def _process_series(
                     elif status == "downloaded":
                         downloaded += 1
                         total_bytes += count
+
+                # One flush for every deferred chapter upsert above.
+                library.commit()
 
                 last_meta = None
                 for idx in sorted(last_meta_by_idx):

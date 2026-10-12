@@ -31,6 +31,7 @@ from ...models import (
 )
 from ..base import (
     BaseScraper,
+    SeriesDataCache,
     _attr_text,
     listing_page_error,
     meta_get,
@@ -221,6 +222,10 @@ class VComicsScraper(BaseScraper):
     api_base: str = ""
     site_label: str = ""
 
+    def __init__(self) -> None:
+        super().__init__()
+        self._series_cache = SeriesDataCache()
+
     def matches_url(self, url: str) -> bool:
         return self._is_chapter(url) or self._is_series(url)
 
@@ -341,16 +346,22 @@ class VComicsScraper(BaseScraper):
         """Description + genres for ``slug`` from its series page (best-effort)."""
         if not slug:
             return {}
-        try:
-            soup, raw = await self.fetch_html_raw(f"https://{self.domain}/series/{slug}", client)
-        except Exception:
-            return {}
-        idx = meta_index(soup)
-        return {
-            "description": _extract_description(raw, soup, idx),
-            "genres": _extract_genres(raw)
-            or _extract_genres_from_og(meta_get(idx, "og:description")),
-        }
+
+        async def _load() -> dict:
+            try:
+                soup, raw = await self.fetch_html_raw(
+                    f"https://{self.domain}/series/{slug}", client
+                )
+            except Exception:
+                return {}
+            idx = meta_index(soup)
+            return {
+                "description": _extract_description(raw, soup, idx),
+                "genres": _extract_genres(raw)
+                or _extract_genres_from_og(meta_get(idx, "og:description")),
+            }
+
+        return await self._series_cache.get(slug, _load)
 
     async def _scrape_series(self, url: str, client: AsyncSession) -> SeriesMetadata:
         if not self._is_series(url):
