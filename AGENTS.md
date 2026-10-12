@@ -26,6 +26,12 @@ Adding or changing a site:
    `website/src/content/docs/reference/`):
    `uv run python scripts/update-sites-docs.py`
 
+Changing CLI flags, subcommands, or help text:
+
+1. Regenerate the baked shell completions:
+   `uv run python scripts/gen-completions.py` (needs the `shtab` dev
+   extra; `scripts/test.sh` fails on drift)
+
 ## Repository map
 
 ```
@@ -60,7 +66,7 @@ tests/                 # Offline-safe suite (no live network)
 docs/                  # Source of truth (plain Markdown); mirror published
                        # pages into website/ as .mdx
 scripts/               # Gates, docs generator, manifest/mirror checkers,
-                       # scraper scaffold
+                       # scraper scaffold, completion baking
 packaging/             # Distro packaging (deb/rpm/arch), versioning, PyInstaller
 examples/              # Sample config, plugin, URL list
 website/               # Astro docs site (GitHub Pages); mirrors a docs/ subset

@@ -82,8 +82,13 @@ The release steps below are run from the validated `staging` branch.
    `uv run python scripts/update-site-manifest.py`. `scripts/docs.sh` (CI's
    `docs` job) fails if the committed `site-support.json` drifts from the
    registry.
-7. Commit with `git commit -S -m "chore: release vX.Y.Z"`.
-8. Merge `staging` into `main` via a squash PR (or fast-forward after review),
+7. **Shell completions:** if any CLI flag, subcommand, or help text changed
+   since the last release, regenerate the baked scripts with
+   `uv run python scripts/gen-completions.py` (needs the `shtab` dev extra)
+   and commit the result. `scripts/test.sh` fails if the committed scripts
+   drift from the builders.
+8. Commit with `git commit -S -m "chore: release vX.Y.Z"`.
+9. Merge `staging` into `main` via a squash PR (or fast-forward after review),
    then cut the tag from `main`.
 
 ## Cut the tag
