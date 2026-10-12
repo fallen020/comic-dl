@@ -915,6 +915,18 @@ async def _try_resume(
         part_path.unlink(missing_ok=True)
         return None
 
+    total = await _probe_image_size(client, item.url, REFRESH_TIMEOUT)
+    if 0 < total < existing_size:
+        # The remote shrank since the partial was written, so the bytes on
+        # disk cannot be a prefix of the current image. Drop the stale
+        # partial so the caller restarts instead of appending mismatched
+        # bytes. Unknown totals (0) resume unvalidated as before; same-size
+        # swaps stay undetectable without a stored validator.
+        trace(f"resume: {item.filename} — remote shrank, restarting{glyphs().ellipsis}")
+        part_path.unlink(missing_ok=True)
+        _clear_partial(part_path)
+        return None
+
     headers = {"Range": f"bytes={existing_size}-"}
     resp = None
     try:
