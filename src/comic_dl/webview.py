@@ -492,8 +492,8 @@ class WebViewSession:
             try:
                 line = await asyncio.wait_for(self._proc.stdout.readline(), timeout=SESSION_TIMEOUT)
                 data = json.loads(line.decode(errors="ignore"))
-            except (TimeoutError, json.JSONDecodeError):
-                pass
+            except (TimeoutError, json.JSONDecodeError) as exc:
+                trace(f"webview: session handshake failed: {type(exc).__name__}")
         if not isinstance(data, dict) or not data.get("ready"):
             await self.close()
             return False
