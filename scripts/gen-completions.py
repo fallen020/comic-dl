@@ -158,12 +158,12 @@ def main(argv: list[str]) -> int:
     for shell, text in generated.items():
         path = _DEST / f"comic-dl.{_SUFFIX[shell]}"
         if check:
-            if not path.is_file() or path.read_text() != text:
+            if not path.is_file() or path.read_text(encoding="utf-8") != text:
                 print(f"stale: {path} (run scripts/gen-completions.py)")
                 failed = True
         else:
             _DEST.mkdir(parents=True, exist_ok=True)
-            path.write_text(text)
+            path.write_text(text, encoding="utf-8")
     return 1 if failed else 0
 
 

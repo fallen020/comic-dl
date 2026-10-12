@@ -4493,7 +4493,7 @@ class TestCompletionVerb:
 
         suffix = {"bash": "bash", "zsh": "zsh", "fish": "fish", "powershell": "ps1"}
         path = Path(cli_pkg.__file__).parent / "completions" / f"comic-dl.{suffix[shell]}"
-        out = path.read_text()
+        out = path.read_text(encoding="utf-8")
         parsers = [
             _build_first_stage_parser(),
             _build_update_parser(),
