@@ -26,6 +26,7 @@ new wheel and update its version below.
 | [packaging](https://github.com/pypa/packaging) | 26.3 | [Apache-2.0](packaging/LICENSE.APACHE) or [BSD-3-Clause](packaging/LICENSE.BSD), [notice](packaging/LICENSE) |
 | [platformdirs](https://github.com/tox-dev/platformdirs) | 4.13.0 | [MIT](platformdirs/LICENSE) |
 | [proxy-tools](https://github.com/jtushman/proxy_tools) | 0.1.0 | [MIT](proxy-tools/LICENSE) |
+| [publicsuffix2](https://github.com/nexb/python-publicsuffix2) | 2.20191221 | MIT (code), [MPL-2.0](publicsuffix2/mpl-2.0.LICENSE) (data), [ABOUT](publicsuffix2/public_suffix_list.ABOUT), [AUTHORS](publicsuffix2/AUTHORS.rst) |
 | [pycparser](https://github.com/eliben/pycparser) | 3.11 | [BSD-3-Clause](pycparser/LICENSE) |
 | [pygments](https://github.com/pygments/pygments) | 2.21.0 | [BSD-3-Clause](pygments/LICENSE), [AUTHORS](pygments/AUTHORS) |
 | [pyobjc-core](https://github.com/ronaldoussoren/pyobjc) | 12.2.2 | [MIT](pyobjc-core/LICENSE) |
@@ -86,3 +87,4 @@ texts are vendored here. Versions are informational.
 | [pyinstaller](https://pyinstaller.org) | 6.22.3 | GPL-2.0-or-later with bootloader exception |
 | [shtab](https://github.com/tqdm/shtab) | 1.12.1 | MPL-2.0 |
 | [types-defusedxml](https://pypi.org/project/types-defusedxml/) | 0.7.0.20260504 | Apache-2.0 |
+| [vulture](https://github.com/jendrikseipp/vulture) | 2.16 | MIT |
