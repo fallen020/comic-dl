@@ -513,11 +513,14 @@ def http_client_args(
     referer_url: str | None = None,
     host: str | None = None,
     kind: str | None = None,
+    impersonate: str | None = None,
 ) -> dict[str, Any]:
     """HTTP client kwargs with the effective impersonate profile applied.
 
     ``[http] impersonate`` (or ``--impersonate``) overrides the built-in
-    ``chrome146`` profile; anything else keeps the default. The UA and
+    ``chrome146`` profile; anything else keeps the default. ``impersonate``
+    forces one profile for the returned args only (e.g. an older-profile
+    retry), without touching the configured default. The UA and
     client-hint headers always come from the locked :data:`_STEALTH` pair
     for the effective profile, so headers never disagree with the TLS
     fingerprint. ``referer_url``
@@ -536,7 +539,7 @@ def http_client_args(
     headers themselves.
     """
     args: dict[str, Any] = dict(HTTP_CLIENT_ARGS)
-    profile = http_setting("impersonate", "chrome146")
+    profile = impersonate or http_setting("impersonate", "chrome146")
     if not (isinstance(profile, str) and profile.strip()):
         profile = "chrome146"
     profile = profile.strip()

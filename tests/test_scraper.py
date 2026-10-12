@@ -751,6 +751,78 @@ class TestTimeoutGetCache:
         assert calls == []  # validation fired before the cache was consulted
 
 
+class TestFallbackProfile:
+    pytestmark = pytest.mark.asyncio
+    url = "https://xfallback.example/manga/foo"
+
+    def _isolated(self, monkeypatch, tmp_path):
+        from comic_dl import config as cfgmodule
+
+        monkeypatch.setattr(cfgmodule, "_RUNTIME_HTTP", {})
+        monkeypatch.setattr(cfgmodule, "config_path", lambda: tmp_path / "config.toml")
+
+    @staticmethod
+    def _client():
+        class Resp:
+            status_code = 403
+            text = "<html>no</html>"
+            content = b"<html>no</html>"
+            headers = {"server": "cloudflare"}
+
+            def raise_for_status(self):
+                pass
+
+        class MockClient:
+            async def get(self, url, **kwargs):
+                return Resp()
+
+        return MockClient()
+
+    async def test_403_retries_once_with_older_profile(self, monkeypatch, tmp_path):
+        from comic_dl.scrapers import base as basemod
+        from comic_dl.scrapers.base import BaseScraper
+
+        self._isolated(monkeypatch, tmp_path)
+        created = []
+
+        class FakeSession:
+            def __init__(self, **kwargs):
+                created.append(kwargs)
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *args):
+                return False
+
+            async def get(self, url, **kwargs):
+                resp = _MockResponse(b"<html>fallback</html>", 200)
+                resp.headers = {"content-type": "text/html"}
+                return resp
+
+        monkeypatch.setattr(basemod, "AsyncSession", FakeSession)
+        resp = await BaseScraper._timeout_get(self.url, self._client(), use_cache=False)
+        assert resp.status_code == 200
+        assert resp.text == "<html>fallback</html>"
+        assert len(created) == 1
+        assert created[0].get("impersonate") == "firefox147"
+
+    async def test_explicit_profile_skips_fallback(self, monkeypatch, tmp_path):
+        from comic_dl import config as cfgmodule
+        from comic_dl.scrapers import base as basemod
+        from comic_dl.scrapers.base import BaseScraper
+
+        self._isolated(monkeypatch, tmp_path)
+        cfgmodule.set_runtime_http(impersonate="chrome131")
+
+        def _boom(**kwargs):
+            raise AssertionError("no fallback session expected")
+
+        monkeypatch.setattr(basemod, "AsyncSession", _boom)
+        resp = await BaseScraper._timeout_get(self.url, self._client(), use_cache=False)
+        assert resp.status_code == 403
+
+
 def _redirect_session(routes: dict[str, tuple[int, dict, bytes]]) -> _MockSession:
     """MockSession serving ``{url: (status, headers, body)}`` routes.
 

@@ -426,8 +426,13 @@ class TestAsurascansScraper:
         assert exc_info.value.site_error_code == SITE_AUTH_REQUIRED
 
     @pytest.mark.asyncio
-    async def test_scrape_challenge_maps_to_blocked(self):
+    async def test_scrape_challenge_maps_to_blocked(self, monkeypatch):
+        from comic_dl import config as cfgmodule
         from comic_dl.errors import SITE_BLOCKED
+
+        # Pin an explicit profile: the automatic older-profile retry runs
+        # only on the default profile and must stay out of this mapping test.
+        monkeypatch.setattr(cfgmodule, "_RUNTIME_HTTP", {"impersonate": "chrome131"})
 
         challenged = _MockResponse(b"Attention Required", status=403)
         challenged.headers = {"server": "cloudflare"}
