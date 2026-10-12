@@ -1302,12 +1302,12 @@ async def _run_downloads(
                 return
             try:
                 loop = asyncio.get_running_loop()
-                now = loop.time()
                 host = host_of(item.url)
-                if cooldown_until.get(host, 0.0) > now:
+                while cooldown_until.get(host, 0.0) > loop.time():
                     if activity_cb is not None:
                         activity_cb(f"Waiting for server{glyphs().ellipsis}")
-                    await asyncio.sleep(min(cooldown_until[host] - now, SHARED_COOLDOWN_CAP))
+                    remaining = cooldown_until[host] - loop.time()
+                    await asyncio.sleep(min(remaining, SHARED_COOLDOWN_CAP))
                 if host_parked(host, loop.time()):
                     # Parked node: fail fast WITHOUT taking a semaphore slot
                     # or opening a socket; rerun picks the page back up.
