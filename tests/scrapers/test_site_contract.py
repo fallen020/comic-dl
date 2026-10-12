@@ -21,9 +21,7 @@ from comic_dl.scrapers.registry import url_in_domain
 _VERSION_RE = re.compile(r"^\d+\.\d+\.\d+$")
 _SITE_ID_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 
-# ponytail: allowlist, delete entries as sites migrate, delete dict at empty
 KNOWN_VIOLATIONS = {
-    "genztoons.org": {"test-url"},
     "hdporncomics.com": {"test-url"},
 }
 
