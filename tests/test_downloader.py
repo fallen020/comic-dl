@@ -1778,6 +1778,57 @@ class TestAdaptiveCooldown:
             assert started["slow"][1] - run_start >= 0.5
 
 
+class TestConcurrencyFallback:
+    async def test_bad_per_host_concurrency_warns_and_falls_back(
+        self, tmp_path, monkeypatch, capsys
+    ):
+        """Garbage per-host-concurrency must say so instead of silently
+        running at 3."""
+        from comic_dl import config as cfgmodule
+
+        cfgmodule.set_runtime_http(**{"per-host-concurrency": "bogus"})
+        try:
+
+            class OkResponse:
+                status_code = 200
+                headers = {"content-length": "3"}
+
+                def raise_for_status(self):
+                    pass
+
+                async def aiter_content(self, chunk_size=None):
+                    yield MAGIC_JPEG
+
+                async def __aenter__(self):
+                    return self
+
+                async def __aexit__(self, *args):
+                    return False
+
+            class MockClient:
+                def stream(self, method, url, **kwargs):
+                    return OkResponse()
+
+                async def __aenter__(self):
+                    return self
+
+                async def __aexit__(self, *args):
+                    pass
+
+            with tempfile.TemporaryDirectory() as td:
+                failed = await download_httpx(
+                    [ImageItem(url="http://x.example/a", page_number=1, filename="a.jpg")],
+                    Path(td),
+                    concurrency=1,
+                    client=MockClient(),
+                )
+                assert failed == set()
+                assert (Path(td) / "a.jpg").exists()
+                assert "per-host-concurrency" in capsys.readouterr().err
+        finally:
+            cfgmodule._RUNTIME_HTTP.pop("per-host-concurrency", None)
+
+
 class TestEngineTuning:
     def test_defaults(self):
         timeout, attempts = _engine_tuning()

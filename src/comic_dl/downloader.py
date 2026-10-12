@@ -44,6 +44,7 @@ from .ui import (
     http_event,
     print_error,
     print_error_block,
+    print_warning,
     trace,
     vlog,
 )
@@ -1211,6 +1212,7 @@ async def _run_downloads(
     try:
         host_limit = max(1, int(http_setting("per-host-concurrency", 3)))
     except (TypeError, ValueError):
+        print_warning("config [http] per-host-concurrency: expected int >= 1, using 3")
         host_limit = 3
     host_sems: dict[str, asyncio.Semaphore] = {}
     # Cumulative hard cap on total bytes accepted across all downloads (0 = unlimited).
