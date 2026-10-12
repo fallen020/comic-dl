@@ -200,7 +200,6 @@ from ..utils import (
 from ..utils import (
     cbz_source_url as _cbz_source_url,
 )
-from .completion import _completion_commands, _completion_script
 from .library import COMMANDS as _LIBRARY_COMMANDS
 from .library import _resolve_series, run_library_command
 from .plugins import run_plugin_command
@@ -4779,8 +4778,30 @@ def _edit_config(path: Path) -> int:
     return rc
 
 
+def _completion_commands() -> list[str]:
+    """Top-level command names, for dispatch and unknown-command hints."""
+    return sorted(
+        set(_LIBRARY_COMMANDS)
+        | {
+            "update",
+            "self",
+            "list-sources",
+            "cookie",
+            "cache",
+            "config",
+            "plugin",
+            "completion",
+            "help",
+        }
+    )
+
+
 def _run_completion(argv: list[str]) -> int:
-    """Emit a shell-completion script: ``completion <bash|zsh|fish|powershell>``."""
+    """Emit a shell-completion script: ``completion <bash|zsh|fish|powershell>``.
+
+    Scripts are baked by ``scripts/gen-completions.py`` (shtab) and read
+    back verbatim; machine-consumed output is written as bytes exactly.
+    """
     parser = ComicArgumentParser(
         prog="comic-dl completion",
         description="Print a shell completion script for the given shell.",
@@ -4798,12 +4819,12 @@ def _run_completion(argv: list[str]) -> int:
     if args.shell is None:
         parser.print_help()
         return EXIT_USAGE
+    suffix = {"bash": "bash", "zsh": "zsh", "fish": "fish", "powershell": "ps1"}
+    path = Path(__file__).parent / "completions" / f"comic-dl.{suffix[args.shell]}"
     try:
-        # Machine-consumed output: write bytes exactly (Rich would expand
-        # the tabs fish uses between candidates and descriptions).
-        sys.stdout.write(_completion_script(args.shell))
-    except ValueError as exc:
-        print_error(str(exc))
+        sys.stdout.buffer.write(path.read_bytes())
+    except OSError as exc:
+        print_error(f"Could not read completion script: {path} ({exc})")
         return EXIT_USAGE
     return EXIT_OK
 

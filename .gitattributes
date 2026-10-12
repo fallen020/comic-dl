@@ -19,6 +19,10 @@ uv.lock text eol=lf
 # Windows PowerShell scripts use CRLF.
 *.ps1 text eol=crlf
 
+# Baked completion scripts must stay byte-stable for drift detection,
+# so they are exempt from the CRLF rule above.
+src/comic_dl/cli/completions/*.ps1 text eol=lf
+
 # Diff drivers (built-in) for better hunk boundaries.
 *.py  diff=python
 *.md  diff=markdown
