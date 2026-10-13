@@ -390,6 +390,17 @@ class TestSiteCheck:
         assert rc == EXIT_ERROR
         assert "unable to check" in _text(capsys)
 
+    async def test_json_mode_stdout_parses(self, monkeypatch, capsys):
+        monkeypatch.setattr("comic_dl.site_update.fetch_site_manifest", _noop_fetch)
+        monkeypatch.setattr("comic_dl.ui.JSON_MODE", True)
+        rc = await run_site_check_command(target=None, live=False, json_mode=True)
+        assert rc == EXIT_ERROR
+        cap = capsys.readouterr()
+        payload = json.loads(cap.out)
+        assert payload["core_version"] == _CORE_VERSION
+        assert payload["sites"]
+        assert "SITE" not in cap.out and "INSTALLED" not in cap.out
+
     async def test_unknown_site_is_usage_error(self, monkeypatch):
         monkeypatch.setattr("comic_dl.site_update.fetch_site_manifest", _noop_fetch)
         rc = await run_site_check_command(target="nope", live=False, json_mode=False)

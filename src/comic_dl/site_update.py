@@ -514,9 +514,9 @@ async def run_site_check_command(*, target: str | None, live: bool, json_mode: b
             missing = f"No manifest entry for: {names}."
             extra = f"{extra}\n{missing}" if extra else missing
         console.print()
-    print_table(f"Site support check ({len(sites)})", list(_CHECK_COLUMNS), rows)
-    if extra:
-        print_dim(extra)
+        print_table(f"Site support check ({len(sites)})", list(_CHECK_COLUMNS), rows)
+        if extra:
+            print_dim(extra)
 
     if json_mode:
         console.print(
