@@ -896,6 +896,56 @@ class TestFsicomixScraper:
             )
 
     @pytest.mark.asyncio
+    async def test_missing_chapter_maps_to_gone(self, monkeypatch):
+        from types import SimpleNamespace
+
+        from curl_cffi.requests.exceptions import HTTPError as CurlHTTPError
+
+        from comic_dl.errors import SITE_GONE
+
+        async def fake_timeout_get(u, client):
+            raise CurlHTTPError("404", response=SimpleNamespace(status_code=404))
+
+        monkeypatch.setattr("comic_dl.scrapers.base.BaseScraper._timeout_get", fake_timeout_get)
+        with pytest.raises(ValueError, match="missing") as exc_info:
+            await FsicomixScraper().scrape("https://fsicomics.com/nope/", object())
+        assert exc_info.value.site_error_code == SITE_GONE
+
+    @pytest.mark.asyncio
+    async def test_missing_series_maps_to_no_series(self, monkeypatch):
+        from types import SimpleNamespace
+
+        from curl_cffi.requests.exceptions import HTTPError as CurlHTTPError
+
+        from comic_dl.errors import SITE_NO_SERIES
+
+        async def fake_timeout_get(u, client):
+            raise CurlHTTPError("404", response=SimpleNamespace(status_code=404))
+
+        monkeypatch.setattr("comic_dl.scrapers.base.BaseScraper._timeout_get", fake_timeout_get)
+        with pytest.raises(ValueError, match="missing") as exc_info:
+            await FsicomixScraper().scrape_series(
+                "https://fsicomics.com/all-porn-comics/3d-porn-comics/kizaru3d/", object()
+            )
+        assert exc_info.value.site_error_code == SITE_NO_SERIES
+
+    @pytest.mark.asyncio
+    async def test_rejected_chapter_maps_to_request_failed(self, monkeypatch):
+        from types import SimpleNamespace
+
+        from curl_cffi.requests.exceptions import HTTPError as CurlHTTPError
+
+        from comic_dl.errors import SITE_REQUEST_FAILED
+
+        async def fake_timeout_get(u, client):
+            raise CurlHTTPError("503", response=SimpleNamespace(status_code=503))
+
+        monkeypatch.setattr("comic_dl.scrapers.base.BaseScraper._timeout_get", fake_timeout_get)
+        with pytest.raises(ValueError, match="rejected") as exc_info:
+            await FsicomixScraper().scrape("https://fsicomics.com/nope/", object())
+        assert exc_info.value.site_error_code == SITE_REQUEST_FAILED
+
+    @pytest.mark.asyncio
     async def test_scrape_series_empty_listing_raises(self):
         html = b"""
         <html><head><title>Empty - FSIComics</title></head>

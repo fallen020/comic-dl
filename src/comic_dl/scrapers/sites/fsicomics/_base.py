@@ -27,7 +27,7 @@ from curl_cffi.requests.exceptions import (
     Timeout as CurlTimeout,
 )
 
-from ....errors import SITE_REQUEST_FAILED, ScrapeError, ScrapeTimeout
+from ....errors import SITE_GONE, SITE_NO_SERIES, SITE_REQUEST_FAILED, ScrapeError, ScrapeTimeout
 from ....models import (
     ChapterInfo,
     ImageItem,
@@ -601,6 +601,22 @@ async def _collect_series_pages(
     return pages
 
 
+def _entry_fetch_error(exc: CurlHTTPError, not_found: ScrapeError) -> ScrapeError:
+    """Domain error for an entry fetch that raised ``CurlHTTPError``.
+
+    404/410 becomes ``not_found``; anything else is a rejected request worth
+    retrying later. Callers raise the result ``from exc`` to keep the chain.
+    """
+    resp = getattr(exc, "response", None)
+    if getattr(resp, "status_code", None) in _GONE_PAGE_STATUSES:
+        return not_found
+    return ScrapeError(
+        "FSI Comics rejected the request.",
+        hint="Run again later.",
+        site_error_code=SITE_REQUEST_FAILED,
+    )
+
+
 class FsicomixScraper(BaseScraper):
     """FSI Comics chapter and series scraper, shared by all five hosts.
 
@@ -639,7 +655,17 @@ class FsicomixScraper(BaseScraper):
         url: str,
         client: AsyncSession,
     ) -> ScrapedChapter:
-        soup, html = await self.fetch_html_raw(url, client)
+        try:
+            soup, html = await self.fetch_html_raw(url, client)
+        except CurlHTTPError as exc:
+            raise _entry_fetch_error(
+                exc,
+                ScrapeError(
+                    "This FSI Comics chapter is missing.",
+                    hint="The chapter may have been removed; check the series page.",
+                    site_error_code=SITE_GONE,
+                ),
+            ) from exc
         idx = meta_index(soup)
 
         if _is_archive_page(soup):
@@ -702,7 +728,17 @@ class FsicomixScraper(BaseScraper):
         # A series URL is a WordPress taxonomy page (``archive category``),
         # so the archive guard used in chapter mode must not fire here. An
         # empty listing raises ``no_chapters_error`` below instead.
-        soup = await self.fetch_html(url, client)
+        try:
+            soup = await self.fetch_html(url, client)
+        except CurlHTTPError as exc:
+            raise _entry_fetch_error(
+                exc,
+                ScrapeError(
+                    "This FSI Comics series is missing.",
+                    hint="The series may have been removed; check the URL.",
+                    site_error_code=SITE_NO_SERIES,
+                ),
+            ) from exc
 
         idx = meta_index(soup)
 
