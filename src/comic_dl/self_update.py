@@ -41,7 +41,9 @@ from .errors import EXIT_ERROR, EXIT_INTERRUPTED, EXIT_OK
 from .scrapers.base import BaseScraper
 from .ui import (
     DIAGNOSTIC,
+    JSON_SCHEMA_VERSION,
     TAG_HTTP,
+    console,
     get_ui_gate,
     print_dim,
     print_error,
@@ -391,6 +393,23 @@ def report_release_failure(failure: ReleaseFailure) -> None:
         print_dim("Check your network connection, or configure --proxy.")
 
 
+def _status_payload(info: InstallationInfo, release: ReleaseInfo | None) -> dict[str, Any]:
+    """Machine payload shared by ``version --json`` and ``update --check --json``.
+
+    One shape for both, so status bars and cron read the same keys either
+    way. ``latest`` is ``None`` (and ``update_available`` false) when the
+    lookup failed; the exit code still carries the failure.
+    """
+    latest = release.version if release is not None else None
+    return {
+        "schema_version": JSON_SCHEMA_VERSION,
+        "installed": _version,
+        "latest": latest,
+        "update_available": latest is not None and compare_versions(_version, latest) < 0,
+        "install_kind": info.kind.value,
+    }
+
+
 async def download_artifact(
     url: str, dest: Path, *, on_progress: Callable[[int, int | None], None] | None = None
 ) -> None:
@@ -472,7 +491,32 @@ def _verify_artifact(checksums: dict[str, str], name: str, path: Path) -> bool:
     return hmac.compare_digest(digest.hexdigest(), expected)
 
 
-async def run_update_command(*, check: bool, yes: bool, quiet: bool = False) -> int:
+async def run_version_command() -> int:
+    """``comic-dl self version --json`` — version state as machine JSON.
+
+    Plain ``self version`` stays fetch-free; this path looks up the latest
+    release, so an unknown lookup is an error exit with null fields.
+    """
+    info = detect_installation()
+    await get_ui_gate().acquire()
+    try:
+        release = await run_with_status("Checking for updates", fetch_latest_release())
+    finally:
+        get_ui_gate().release()
+    current = None if isinstance(release, ReleaseFailure) else release
+    payload = _status_payload(info, current)
+    console.print(json.dumps(payload, indent=2), soft_wrap=True)
+    return EXIT_OK if payload["latest"] is not None else EXIT_ERROR
+
+
+async def run_update_command(
+    *,
+    check: bool,
+    yes: bool,
+    quiet: bool = False,
+    json_mode: bool = False,
+    exit_code: bool = False,
+) -> int:
     """``comic-dl self update``: check, then update through the owner.
 
     Returns an exit code. ``check=True`` never modifies anything. Confirmations
@@ -497,19 +541,24 @@ async def run_update_command(*, check: bool, yes: bool, quiet: bool = False) -> 
             get_ui_gate().release()
     if isinstance(release, ReleaseFailure):
         print_dim("Latest version:       unknown")
+        if json_mode:
+            console.print(json.dumps(_status_payload(info, None), indent=2), soft_wrap=True)
         report_release_failure(release)
         return EXIT_ERROR
 
     latest = release.version
     print_dim(f"Latest version:       {latest}")
-    if compare_versions(_version, latest) >= 0:
+    update_available = compare_versions(_version, latest) < 0
+    if json_mode:
+        console.print(json.dumps(_status_payload(info, release), indent=2), soft_wrap=True)
+    if not update_available:
         print_success("Status:              already up to date.")
         return EXIT_OK
     print_warning(f"Status:              update available ({_version} → {latest}).")
     print_dim(f"Release notes:        {GITHUB_RELEASES_PAGE}/tag/{release.tag}")
 
     if check:
-        return EXIT_OK
+        return EXIT_ERROR if exit_code else EXIT_OK
 
     if info.kind is InstallKind.SOURCE:
         print_dim("comic-dl is running from a source checkout.")

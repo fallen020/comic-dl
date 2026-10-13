@@ -117,7 +117,7 @@ from ..scrapers.sites.webtoon import (
 from ..scrapers.sites.weebcentral import (
     is_chapter_url as is_weebcentral_chapter_url,
 )
-from ..self_update import run_update_command
+from ..self_update import run_update_command, run_version_command
 from ..site_update import (
     run_site_check_command,
     run_site_list_command,
@@ -3700,7 +3700,8 @@ def _build_self_parser() -> ComicArgumentParser:
         required=True,
         parser_class=ComicArgumentParser,
     )
-    sub.add_parser("version", help="print the installed version")
+    ver = sub.add_parser("version", help="print the installed version")
+    ver.add_argument("--json", action="store_true", help="emit machine-readable JSON")
     sub.add_parser("site", help="inspect and update per-site adapter support")
     update = sub.add_parser(
         "update",
@@ -3722,6 +3723,16 @@ def _build_self_parser() -> ComicArgumentParser:
         "--quiet",
         action="store_true",
         help="suppress progress output",
+    )
+    update.add_argument(
+        "--json",
+        action="store_true",
+        help="emit machine-readable JSON (implies --check)",
+    )
+    update.add_argument(
+        "--exit-code",
+        action="store_true",
+        help="exit 1 when an update is available (implies --check)",
     )
     return parser
 
@@ -3788,9 +3799,17 @@ async def _run_self(argv: list[str]) -> int:
         return exc.code if isinstance(exc.code, int) else 0
 
     if args.action == "version":
-        console.print(f"comic-dl {_version}")
-        return EXIT_OK
-    return await run_update_command(check=args.check, yes=args.yes, quiet=args.quiet)
+        if not args.json:
+            console.print(f"comic-dl {_version}")
+            return EXIT_OK
+        return await run_version_command()
+    return await run_update_command(
+        check=args.check or args.json or args.exit_code,
+        yes=args.yes,
+        quiet=args.quiet,
+        json_mode=args.json,
+        exit_code=args.exit_code,
+    )
 
 
 def _build_self_site_parser() -> ComicArgumentParser:

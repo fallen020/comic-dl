@@ -390,6 +390,8 @@ _shtab_comic_dl_self_update_options=(
   "--check[check only\; install or change nothing]"
   {-y,--yes}"[skip the confirmation prompt]"
   {-q,--quiet}"[suppress progress output]"
+  "--json[emit machine-readable JSON (implies --check)]"
+  "--exit-code[exit 1 when an update is available (implies --check)]"
 )
 
 # guard to ensure default positional specs are added only once per session
@@ -397,6 +399,7 @@ _shtab_comic_dl_self_update_defaults_added=0
 
 _shtab_comic_dl_self_version_options=(
   "(- : *)"{-h,--help}"[show this help message and exit]"
+  "--json[emit machine-readable JSON]"
 )
 
 # guard to ensure default positional specs are added only once per session

@@ -8,6 +8,7 @@ mocked, matching the repo-wide offline test convention.
 from __future__ import annotations
 
 import hashlib
+import json
 import time
 from pathlib import Path
 
@@ -35,6 +36,7 @@ from comic_dl.self_update import (
     run_update_command,
     select_asset,
 )
+from comic_dl.ui import JSON_SCHEMA_VERSION
 
 # Functional install fixture location; never touches disk.
 _MOCK_EXE = Path("/mock/comic-dl")
@@ -416,6 +418,137 @@ class TestReleaseLookup:
         assert "unexpected response" in out
         assert "HTTP 500" in out
         assert "resets at 14:00 UTC" in out
+
+
+class TestVersionJson:
+    async def test_payload(self, monkeypatch, capsys):
+        from comic_dl.cli import _run_self
+
+        async def newer():
+            return _rel(_FUTURE_TAG)
+
+        monkeypatch.setattr("comic_dl.self_update.fetch_latest_release", newer)
+        monkeypatch.setattr(
+            "comic_dl.self_update.detect_installation",
+            lambda: InstallationInfo(InstallKind.PIP, _MOCK_EXE, writable=True),
+        )
+        monkeypatch.setattr("comic_dl.ui.JSON_MODE", True)
+        rc = await _run_self(["version", "--json"])
+        assert rc == EXIT_OK
+        payload = json.loads(capsys.readouterr().out)
+        assert payload == {
+            "schema_version": JSON_SCHEMA_VERSION,
+            "installed": _CORE_VERSION,
+            "latest": _FUTURE_TAG,
+            "update_available": True,
+            "install_kind": "pip",
+        }
+
+    async def test_lookup_failure_has_null_fields(self, monkeypatch, capsys):
+        from comic_dl.cli import _run_self
+
+        async def offline():
+            return ReleaseFailure(ReleaseFailureKind.OFFLINE)
+
+        monkeypatch.setattr("comic_dl.self_update.fetch_latest_release", offline)
+        monkeypatch.setattr(
+            "comic_dl.self_update.detect_installation",
+            lambda: InstallationInfo(InstallKind.PIP, _MOCK_EXE, writable=True),
+        )
+        monkeypatch.setattr("comic_dl.ui.JSON_MODE", True)
+        rc = await _run_self(["version", "--json"])
+        assert rc == EXIT_ERROR
+        payload = json.loads(capsys.readouterr().out)
+        assert payload["latest"] is None
+        assert payload["update_available"] is False
+
+
+class TestUpdateCheckJson:
+    async def test_available_payload(self, monkeypatch, capsys):
+        async def newer():
+            return _rel(_FUTURE_TAG)
+
+        monkeypatch.setattr("comic_dl.self_update.fetch_latest_release", newer)
+        monkeypatch.setattr(
+            "comic_dl.self_update.detect_installation",
+            lambda: InstallationInfo(InstallKind.PIP, _MOCK_EXE, writable=True),
+        )
+        monkeypatch.setattr("comic_dl.ui.JSON_MODE", True)
+        rc = await run_update_command(check=True, yes=True, json_mode=True)
+        assert rc == EXIT_OK
+        payload = json.loads(capsys.readouterr().out)
+        assert payload["update_available"] is True
+        assert payload["install_kind"] == "pip"
+
+    async def test_up_to_date_payload(self, monkeypatch, capsys):
+        async def current():
+            return _rel("v0.0.2")
+
+        monkeypatch.setattr("comic_dl.self_update.fetch_latest_release", current)
+        monkeypatch.setattr(
+            "comic_dl.self_update.detect_installation",
+            lambda: InstallationInfo(InstallKind.PIP, _MOCK_EXE, writable=True),
+        )
+        monkeypatch.setattr("comic_dl.ui.JSON_MODE", True)
+        rc = await run_update_command(check=True, yes=True, json_mode=True)
+        assert rc == EXIT_OK
+        assert json.loads(capsys.readouterr().out)["update_available"] is False
+
+    async def test_failure_payload(self, monkeypatch, capsys):
+        async def offline():
+            return ReleaseFailure(ReleaseFailureKind.OFFLINE)
+
+        monkeypatch.setattr("comic_dl.self_update.fetch_latest_release", offline)
+        monkeypatch.setattr(
+            "comic_dl.self_update.detect_installation",
+            lambda: InstallationInfo(InstallKind.PIP, _MOCK_EXE, writable=True),
+        )
+        monkeypatch.setattr("comic_dl.ui.JSON_MODE", True)
+        rc = await run_update_command(check=True, yes=True, json_mode=True)
+        assert rc == EXIT_ERROR
+        payload = json.loads(capsys.readouterr().out)
+        assert payload["latest"] is None
+        assert payload["update_available"] is False
+
+    async def test_exit_code_flags_update(self, monkeypatch, capsys):
+        async def newer():
+            return _rel(_FUTURE_TAG)
+
+        monkeypatch.setattr("comic_dl.self_update.fetch_latest_release", newer)
+        monkeypatch.setattr(
+            "comic_dl.self_update.detect_installation",
+            lambda: InstallationInfo(InstallKind.PIP, _MOCK_EXE, writable=True),
+        )
+        assert await run_update_command(check=True, yes=True, exit_code=True) == EXIT_ERROR
+
+    async def test_exit_code_clean_when_current(self, monkeypatch, capsys):
+        async def current():
+            return _rel("v0.0.2")
+
+        monkeypatch.setattr("comic_dl.self_update.fetch_latest_release", current)
+        monkeypatch.setattr(
+            "comic_dl.self_update.detect_installation",
+            lambda: InstallationInfo(InstallKind.PIP, _MOCK_EXE, writable=True),
+        )
+        assert await run_update_command(check=True, yes=True, exit_code=True) == EXIT_OK
+
+    async def test_json_implies_check(self, monkeypatch, capsys):
+        from comic_dl.cli import _run_self
+
+        async def newer():
+            return _rel(_FUTURE_TAG)
+
+        monkeypatch.setattr("comic_dl.self_update.fetch_latest_release", newer)
+        monkeypatch.setattr(
+            "comic_dl.self_update.detect_installation",
+            lambda: InstallationInfo(InstallKind.SOURCE, _MOCK_EXE),
+        )
+        monkeypatch.setattr("comic_dl.ui.JSON_MODE", True)
+        rc = await _run_self(["update", "--json"])
+        assert rc == EXIT_OK
+        cap = capsys.readouterr()
+        assert json.loads(cap.out)["update_available"] is True
+        assert "git pull" not in cap.out + cap.err
 
 
 class TestUpdateRefusal:

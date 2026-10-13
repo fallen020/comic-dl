@@ -104,6 +104,7 @@ complete -c comic-dl -n '_shtab_comic_dl_using; and test $_shtab_comic_dl_npos -
 complete -c comic-dl -n '_shtab_comic_dl_using self' -s h -l help -d 'show this help message and exit'
 complete -c comic-dl -n '_shtab_comic_dl_using self; and test $_shtab_comic_dl_npos -eq 0' -a version -d 'print the installed version'
 complete -c comic-dl -n '_shtab_comic_dl_using self version' -s h -l help -d 'show this help message and exit'
+complete -c comic-dl -n '_shtab_comic_dl_using self version' -l json -d 'emit machine-readable JSON'
 complete -c comic-dl -n '_shtab_comic_dl_using self; and test $_shtab_comic_dl_npos -eq 0' -a site -d 'inspect and update per-site adapter support'
 complete -c comic-dl -n '_shtab_comic_dl_using self site' -s h -l help -d 'show this help message and exit'
 complete -c comic-dl -n '_shtab_comic_dl_using self site; and test $_shtab_comic_dl_npos -eq 0' -a list -d list
@@ -124,6 +125,8 @@ complete -c comic-dl -n '_shtab_comic_dl_using self update' -s h -l help -d 'sho
 complete -c comic-dl -n '_shtab_comic_dl_using self update' -l check -d 'check only; install or change nothing'
 complete -c comic-dl -n '_shtab_comic_dl_using self update' -s y -l yes -d 'skip the confirmation prompt'
 complete -c comic-dl -n '_shtab_comic_dl_using self update' -s q -l quiet -d 'suppress progress output'
+complete -c comic-dl -n '_shtab_comic_dl_using self update' -l json -d 'emit machine-readable JSON (implies --check)'
+complete -c comic-dl -n '_shtab_comic_dl_using self update' -l exit-code -d 'exit 1 when an update is available (implies --check)'
 complete -c comic-dl -n '_shtab_comic_dl_using; and test $_shtab_comic_dl_npos -eq 0' -a cookie -d 'Inspect or clear the persistent cookie jar.'
 complete -c comic-dl -n '_shtab_comic_dl_using cookie' -s h -l help -d 'show this help message and exit'
 complete -c comic-dl -n '_shtab_comic_dl_using cookie; and test $_shtab_comic_dl_npos -eq 0' -a ls -d 'list stored cookies (optionally for one host)'
