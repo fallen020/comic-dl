@@ -15,6 +15,7 @@ path — it only affects this command.
 
 from __future__ import annotations
 
+import contextlib
 import datetime
 import enum
 import hashlib
@@ -244,7 +245,7 @@ def detect_installation() -> InstallationInfo:
 
 
 def select_asset(release: ReleaseInfo, kind: InstallKind) -> tuple[str, str] | None:
-    """Pick the package asset URL for ``kind`` on this machine, or ``None``.
+    """Pick the install asset URL for ``kind`` on this machine, or ``None``.
 
     Returns ``(asset_name, url)``. Architecture is matched in the asset name
     since the release ships one package per distro per arch (the machine
@@ -260,6 +261,12 @@ def select_asset(release: ReleaseInfo, kind: InstallKind) -> tuple[str, str] | N
     arch = arch_map.get((platform.machine() or "").lower())
     if arch is None:
         return None
+    if kind is InstallKind.BINARY:
+        # Standalone executables only ship for Windows; anything else has
+        # no published asset, so the caller instructs.
+        want = f"comic-dl-{release.version}-windows-{arch}.exe"
+        url = release.assets.get(want)
+        return (want, url) if url else None
     suffix: str | None = None
     if kind is InstallKind.APT:
         suffix = f"_{arch}.deb"
@@ -567,8 +574,7 @@ async def run_update_command(
         print_dim("  uv sync")
         return EXIT_OK
     if info.kind is InstallKind.BINARY:
-        print_dim(f"Download the new release: {GITHUB_RELEASES_PAGE}")
-        return EXIT_OK
+        return await _replace_binary(info, release, latest, yes=yes, quiet=quiet)
     if info.kind is InstallKind.UNKNOWN:
         print_error("Could not identify how comic-dl was installed.")
         print_dim(f"Reinstall from: {GITHUB_RELEASES_PAGE}")
@@ -631,21 +637,14 @@ def _update_uv(latest: str, yes: bool) -> int:
     return EXIT_ERROR
 
 
-async def _install_package(
-    info: InstallationInfo, release: ReleaseInfo, latest: str, *, quiet: bool = False
-) -> int:
-    """Download the matching package artifact and hand it to a privileged
-    install; every failure instructs instead of leaving the system touched."""
-    asset = select_asset(release, info.kind)
-    if asset is None:
-        arch = (platform.machine() or "").lower()
-        print_error(f"No {info.kind.value} package is published for {arch}.")
-        print_dim(f"Pick a matching asset from: {GITHUB_RELEASES_PAGE}")
-        return EXIT_ERROR
+async def _download_verified(
+    release: ReleaseInfo, name: str, url: str, dest: Path, *, quiet: bool
+) -> bool:
+    """Fetch ``url`` into ``dest`` and check it against SHA256SUMS.
 
-    name, url = asset
-    tmp_root = Path(tempfile.mkdtemp(prefix="comic-dl-self-"))
-    artifact = tmp_root / name
+    False (after instructing) on any failure, so the package and the
+    standalone-binary paths share one security gate instead of drifting.
+    """
     from .ui import Pipeline, format_bytes_fixed
 
     # Bar once the length is known, spinner text while it is not.
@@ -668,25 +667,43 @@ async def _install_package(
                     pipe.set_activity(text)
 
         try:
-            await download_artifact(url, artifact, on_progress=on_progress)
+            await download_artifact(url, dest, on_progress=on_progress)
         except Exception:
             print_error(f"Failed to download {name}.")
             print_dim(f"Latest releases: {GITHUB_RELEASES_PAGE}")
-            _cleanup(tmp_root)
-            return EXIT_ERROR
+            return False
 
     checksums = await _fetch_checksums(release)
     if name not in checksums:
         print_error(f"No checksum published for {name} — refusing to install.")
         print_dim(f"Install manually from: {GITHUB_RELEASES_PAGE}")
-        _cleanup(tmp_root)
-        return EXIT_ERROR
-    if not _verify_artifact(checksums, name, artifact):
+        return False
+    if not _verify_artifact(checksums, name, dest):
         print_error(f"Checksum mismatch for {name} — refusing to install.")
         print_dim(f"Install manually from: {GITHUB_RELEASES_PAGE}")
+        return False
+    print_success(f"Checksum verified (sha256): {name}.")
+    return True
+
+
+async def _install_package(
+    info: InstallationInfo, release: ReleaseInfo, latest: str, *, quiet: bool = False
+) -> int:
+    """Download the matching package artifact and hand it to a privileged
+    install; every failure instructs instead of leaving the system touched."""
+    asset = select_asset(release, info.kind)
+    if asset is None:
+        arch = (platform.machine() or "").lower()
+        print_error(f"No {info.kind.value} package is published for {arch}.")
+        print_dim(f"Pick a matching asset from: {GITHUB_RELEASES_PAGE}")
+        return EXIT_ERROR
+
+    name, url = asset
+    tmp_root = Path(tempfile.mkdtemp(prefix="comic-dl-self-"))
+    artifact = tmp_root / name
+    if not await _download_verified(release, name, url, artifact, quiet=quiet):
         _cleanup(tmp_root)
         return EXIT_ERROR
-    print_success(f"Checksum verified (sha256): {name}.")
 
     is_root = _is_root()
     if is_root:
@@ -709,6 +726,101 @@ async def _install_package(
     print_error(f"The {info.kind.value} install failed (exit code {rc}).")
     print_dim(f"Run it yourself: {' '.join(argv)}")
     return EXIT_ERROR
+
+
+def _swap_executable(current: Path, new_file: Path, *, windows: bool) -> Path | None:
+    """Move ``new_file`` onto ``current``; return the backup path, if any.
+
+    POSIX replaces the running image in place. Windows cannot overwrite a
+    running image, so the current file is renamed aside first (moved back
+    if the final move fails); the backup outlives this process on purpose
+    and is removed by a later update.
+    """
+    if not windows:
+        os.replace(new_file, current)
+        return None
+    backup = current.with_name(current.name + ".old")
+    with contextlib.suppress(OSError):
+        backup.unlink(missing_ok=True)
+    current.rename(backup)
+    try:
+        os.replace(new_file, current)
+    except OSError:
+        with contextlib.suppress(OSError):
+            backup.rename(current)
+        raise
+    return backup
+
+
+def _new_binary_reports(path: Path, latest: str) -> bool:
+    """True when executing ``path`` prints the expected version line."""
+    try:
+        proc = subprocess.run(  # nosec B603
+            [str(path), "self", "version"], capture_output=True, text=True, timeout=60
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    return proc.returncode == 0 and proc.stdout.strip() == f"comic-dl {latest}"
+
+
+async def _replace_binary(
+    info: InstallationInfo,
+    release: ReleaseInfo,
+    latest: str,
+    *,
+    yes: bool,
+    quiet: bool = False,
+    windows: bool = os.name == "nt",
+) -> int:
+    """Swap a standalone executable for the new release, verified first.
+
+    Download, SHA256, and a version-check run all pass before the running
+    file is touched; every failure instructs instead of leaving the
+    install half-written.
+    """
+    exe = info.executable
+    asset = select_asset(release, info.kind)
+    if asset is None:
+        arch = (platform.machine() or "").lower()
+        print_error(f"No standalone executable is published for {arch}.")
+        print_dim(f"Pick a matching asset from: {GITHUB_RELEASES_PAGE}")
+        return EXIT_ERROR
+    if not info.writable:
+        print_error("The install location is not writable.")
+        print_dim(f"Reinstall from: {GITHUB_RELEASES_PAGE}")
+        return EXIT_ERROR
+    blocked = _request_confirmation(
+        yes,
+        f"Replace comic-dl {_version} with {latest}?",
+        says_interactive_no="Update skipped.",
+    )
+    if blocked is not None:
+        return blocked
+
+    name, url = asset
+    fd, tmp = tempfile.mkstemp(dir=exe.parent, prefix=".comic-dl-update-", suffix=".new")
+    os.close(fd)
+    new_file = Path(tmp)
+    if not await _download_verified(release, name, url, new_file, quiet=quiet):
+        with contextlib.suppress(OSError):
+            new_file.unlink(missing_ok=True)
+        return EXIT_ERROR
+    if not _new_binary_reports(new_file, latest):
+        print_error(f"Downloaded binary does not report {latest} — refusing to install.")
+        print_dim(f"Install manually from: {GITHUB_RELEASES_PAGE}")
+        with contextlib.suppress(OSError):
+            new_file.unlink(missing_ok=True)
+        return EXIT_ERROR
+    try:
+        _swap_executable(exe, new_file, windows=windows)
+    except OSError:
+        print_error(f"Could not replace {exe.name} — refusing to install.")
+        print_dim(f"Install manually from: {GITHUB_RELEASES_PAGE}")
+        with contextlib.suppress(OSError):
+            new_file.unlink(missing_ok=True)
+        return EXIT_ERROR
+    print_success(f"Installed comic-dl {latest}. Restart to use the new version.")
+    return EXIT_OK
 
 
 def _request_confirmation(yes: bool, question: str, *, says_interactive_no: str) -> int | None:

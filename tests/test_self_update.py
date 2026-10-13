@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import sys
 import time
 from pathlib import Path
 
@@ -25,7 +26,9 @@ from comic_dl.self_update import (
     ReleaseFailure,
     ReleaseFailureKind,
     ReleaseInfo,
+    _replace_binary,
     _request_confirmation,
+    _swap_executable,
     compare_versions,
     detect_installation,
     download_artifact,
@@ -132,6 +135,23 @@ class TestSelectAsset:
         monkeypatch.setattr("comic_dl.self_update.platform.machine", lambda: "arm64")
         rel = _rel("v0.0.3", "fallen020-comic-dl-0.0.3-1-x86_64.pkg.tar.zst")
         assert select_asset(rel, InstallKind.PACMAN) is None
+
+    def test_binary_selects_windows_exe(self, monkeypatch):
+        monkeypatch.setattr("comic_dl.self_update.platform.machine", lambda: "AMD64")
+        rel = ReleaseInfo(
+            tag="v0.0.7",
+            version="0.0.7",
+            assets={"comic-dl-0.0.7-windows-amd64.exe": "https://example.invalid/x.exe"},
+        )
+        assert select_asset(rel, InstallKind.BINARY) == (
+            "comic-dl-0.0.7-windows-amd64.exe",
+            "https://example.invalid/x.exe",
+        )
+
+    def test_binary_without_asset_is_none(self, monkeypatch):
+        monkeypatch.setattr("comic_dl.self_update.platform.machine", lambda: "x86_64")
+        rel = ReleaseInfo(tag="v0.0.7", version="0.0.7", assets={})
+        assert select_asset(rel, InstallKind.BINARY) is None
 
     def test_apt_ignores_other_arch(self, monkeypatch):
         monkeypatch.setattr("comic_dl.self_update.platform.machine", lambda: "x86_64")
@@ -578,7 +598,7 @@ class TestUpdateRefusal:
         rc = await run_update_command(check=False, yes=True)
         assert rc == EXIT_ERROR
 
-    async def test_binary_reports_only(self, monkeypatch, capsys):
+    async def test_binary_without_asset_instructs(self, monkeypatch, capsys):
         async def newer():
             return _rel(_FUTURE_TAG)
 
@@ -588,8 +608,8 @@ class TestUpdateRefusal:
             lambda: InstallationInfo(InstallKind.BINARY, _MOCK_EXE),
         )
         rc = await run_update_command(check=False, yes=True)
-        assert rc == EXIT_OK
-        assert "github.com/fallen020/comic-dl" in _text(capsys)
+        assert rc == EXIT_ERROR
+        assert "No standalone executable is published" in _text(capsys)
 
 
 class TestPipUpdate:
@@ -817,6 +837,175 @@ class TestDownloadProgress:
             on_progress=lambda d, t: seen.append((d, t)),
         )
         assert seen == [(5, None)]
+
+
+class TestSwapExecutable:
+    def test_posix_replaces_in_place(self, tmp_path):
+        current = tmp_path / "app"
+        current.write_bytes(b"old")
+        new = tmp_path / "app.new"
+        new.write_bytes(b"new")
+        assert _swap_executable(current, new, windows=False) is None
+        assert current.read_bytes() == b"new"
+        assert not new.exists()
+
+    def test_windows_renames_aside(self, tmp_path):
+        current = tmp_path / "app.exe"
+        current.write_bytes(b"old")
+        new = tmp_path / "app.new"
+        new.write_bytes(b"new")
+        backup = _swap_executable(current, new, windows=True)
+        assert backup == tmp_path / "app.exe.old"
+        assert current.read_bytes() == b"new"
+        assert backup.read_bytes() == b"old"
+
+    def test_windows_restores_on_failed_move(self, tmp_path):
+        current = tmp_path / "app.exe"
+        current.write_bytes(b"old")
+        with pytest.raises(OSError):
+            _swap_executable(current, tmp_path / "gone.new", windows=True)
+        assert current.read_bytes() == b"old"
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="fake binaries are POSIX shell scripts")
+class TestBinaryReplace:
+    def _release(self, version):
+        name = f"comic-dl-{version}-windows-amd64.exe"
+        return ReleaseInfo(
+            tag=f"v{version}",
+            version=version,
+            assets={name: f"https://example.invalid/{name}"},
+        ), name
+
+    def _script(self, version):
+        return f'#!/bin/sh\necho "comic-dl {version}"\n'.encode()
+
+    async def test_success_replaces_and_keeps_backup(self, monkeypatch, tmp_path, capsys):
+        exe = tmp_path / "comic-dl"
+        exe.write_bytes(b"old-binary")
+        release, name = self._release(_FUTURE)
+        content = self._script(_FUTURE)
+
+        async def fake_download(url, dest, **_ignored):
+            dest.write_bytes(content)
+            dest.chmod(0o755)
+
+        async def fake_checksums(release):
+            return {name: hashlib.sha256(content).hexdigest()}
+
+        monkeypatch.setattr("comic_dl.self_update.platform.machine", lambda: "AMD64")
+        monkeypatch.setattr("comic_dl.self_update.download_artifact", fake_download)
+        monkeypatch.setattr("comic_dl.self_update._fetch_checksums", fake_checksums)
+        monkeypatch.setattr("comic_dl.self_update._request_confirmation", lambda *a, **k: None)
+        info = InstallationInfo(InstallKind.BINARY, exe, writable=True)
+        rc = await _replace_binary(info, release, _FUTURE, yes=True, windows=True)
+        assert rc == EXIT_OK
+        assert exe.read_bytes() == content
+        assert (tmp_path / "comic-dl.old").read_bytes() == b"old-binary"
+        assert "Restart to use the new version." in _text(capsys)
+
+    async def test_posix_flow_replaces_without_backup(self, monkeypatch, tmp_path, capsys):
+        exe = tmp_path / "comic-dl"
+        exe.write_bytes(b"old-binary")
+        release, name = self._release(_FUTURE)
+        content = self._script(_FUTURE)
+
+        async def fake_download(url, dest, **_ignored):
+            dest.write_bytes(content)
+            dest.chmod(0o755)
+
+        async def fake_checksums(release):
+            return {name: hashlib.sha256(content).hexdigest()}
+
+        monkeypatch.setattr("comic_dl.self_update.platform.machine", lambda: "AMD64")
+        monkeypatch.setattr("comic_dl.self_update.download_artifact", fake_download)
+        monkeypatch.setattr("comic_dl.self_update._fetch_checksums", fake_checksums)
+        monkeypatch.setattr("comic_dl.self_update._request_confirmation", lambda *a, **k: None)
+        info = InstallationInfo(InstallKind.BINARY, exe, writable=True)
+        rc = await _replace_binary(info, release, _FUTURE, yes=True)
+        assert rc == EXIT_OK
+        assert exe.read_bytes() == content
+        assert not (tmp_path / "comic-dl.old").exists()
+
+    async def test_wrong_version_refuses(self, monkeypatch, tmp_path, capsys):
+        exe = tmp_path / "comic-dl"
+        exe.write_bytes(b"old-binary")
+        release, name = self._release(_FUTURE)
+        content = self._script("0.0.0")
+
+        async def fake_download(url, dest, **_ignored):
+            dest.write_bytes(content)
+            dest.chmod(0o755)
+
+        async def fake_checksums(release):
+            return {name: hashlib.sha256(content).hexdigest()}
+
+        monkeypatch.setattr("comic_dl.self_update.platform.machine", lambda: "AMD64")
+        monkeypatch.setattr("comic_dl.self_update.download_artifact", fake_download)
+        monkeypatch.setattr("comic_dl.self_update._fetch_checksums", fake_checksums)
+        monkeypatch.setattr("comic_dl.self_update._request_confirmation", lambda *a, **k: None)
+        info = InstallationInfo(InstallKind.BINARY, exe, writable=True)
+        rc = await _replace_binary(info, release, _FUTURE, yes=True, windows=True)
+        assert rc == EXIT_ERROR
+        assert exe.read_bytes() == b"old-binary"
+        assert not (tmp_path / "comic-dl.old").exists()
+        assert "does not report" in _text(capsys)
+
+    async def test_unwritable_instructs_without_downloading(self, monkeypatch, tmp_path, capsys):
+        calls: list[str] = []
+
+        async def fake_download(url, dest, **_ignored):
+            calls.append(url)
+
+        release, _ = self._release(_FUTURE)
+        monkeypatch.setattr("comic_dl.self_update.platform.machine", lambda: "AMD64")
+        monkeypatch.setattr("comic_dl.self_update.download_artifact", fake_download)
+        info = InstallationInfo(InstallKind.BINARY, tmp_path / "comic-dl", writable=False)
+        rc = await _replace_binary(info, release, _FUTURE, yes=True, windows=True)
+        assert rc == EXIT_ERROR
+        assert calls == []
+        assert "not writable" in _text(capsys)
+
+    async def test_decline_leaves_everything(self, monkeypatch, tmp_path, capsys):
+        calls: list[str] = []
+
+        async def fake_download(url, dest, **_ignored):
+            calls.append(url)
+
+        exe = tmp_path / "comic-dl"
+        exe.write_bytes(b"old-binary")
+        release, _ = self._release(_FUTURE)
+        monkeypatch.setattr("comic_dl.self_update.platform.machine", lambda: "AMD64")
+        monkeypatch.setattr("comic_dl.self_update.download_artifact", fake_download)
+        monkeypatch.setattr("comic_dl.self_update._request_confirmation", lambda *a, **k: EXIT_OK)
+        info = InstallationInfo(InstallKind.BINARY, exe, writable=True)
+        rc = await _replace_binary(info, release, _FUTURE, yes=False, windows=True)
+        assert rc == EXIT_OK
+        assert exe.read_bytes() == b"old-binary"
+        assert calls == []
+
+    async def test_stale_backup_replaced(self, monkeypatch, tmp_path, capsys):
+        exe = tmp_path / "comic-dl"
+        exe.write_bytes(b"old-binary")
+        (tmp_path / "comic-dl.old").write_bytes(b"stale")
+        release, name = self._release(_FUTURE)
+        content = self._script(_FUTURE)
+
+        async def fake_download(url, dest, **_ignored):
+            dest.write_bytes(content)
+            dest.chmod(0o755)
+
+        async def fake_checksums(release):
+            return {name: hashlib.sha256(content).hexdigest()}
+
+        monkeypatch.setattr("comic_dl.self_update.platform.machine", lambda: "AMD64")
+        monkeypatch.setattr("comic_dl.self_update.download_artifact", fake_download)
+        monkeypatch.setattr("comic_dl.self_update._fetch_checksums", fake_checksums)
+        monkeypatch.setattr("comic_dl.self_update._request_confirmation", lambda *a, **k: None)
+        info = InstallationInfo(InstallKind.BINARY, exe, writable=True)
+        rc = await _replace_binary(info, release, _FUTURE, yes=True, windows=True)
+        assert rc == EXIT_OK
+        assert (tmp_path / "comic-dl.old").read_bytes() == b"old-binary"
 
 
 class TestChecksumVerification:

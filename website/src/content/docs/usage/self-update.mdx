@@ -50,7 +50,7 @@ Release notes:        https://github.com/fallen020/comic-dl/releases/tag/<tag>.
 | `pip` environment | Runs `python -m pip install --upgrade comic-dl` — only when the environment is writable |
 | `uv tool` | Runs `uv tool upgrade comic-dl` |
 | Source checkout | Prints `git pull` and `uv sync`; never modifies the checkout |
-| Standalone executable | Prints where to download the new release; does not replace itself yet |
+| Standalone executable (Windows) | Downloads the published `.exe`, verifies SHA256 plus a version check, then atomically replaces itself (restart to use it) |
 | Unknown | Reports that it cannot identify the installation and points at the releases page |
 
 If you decline the confirmation (or an install fails), comic-dl prints the
