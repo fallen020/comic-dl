@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 import pytest
 from bs4 import BeautifulSoup
 
@@ -8,6 +10,7 @@ from comic_dl.scrapers.sites.asurascans import (
     DOMAIN,
     AsurascansScraper,
     _chapter_number_from_slug,
+    _declared_chapter_records,
     _extract_chapter_title,
     _extract_description,
     _extract_images,
@@ -459,6 +462,85 @@ class TestAsurascansScraper:
             session,
         )
         assert len(meta.images) == 2
+
+    @staticmethod
+    def _chapter_html(n_images: int) -> str:
+        imgs = "".join(
+            f'<img src="https://cdn.asurascans.com/asura-images/chapters/s/7/{i:03d}.webp"/>'
+            for i in range(1, n_images + 1)
+        )
+        return f"""<html lang="en"><head>
+            <title>Series Chapter 7 - Read Online | Asura Scans</title>
+            <script type="application/ld+json">
+            {{"@context":"https://schema.org","@type":"Article",
+             "headline":"Series Chapter 7",
+             "isPartOf":{{"@type":"ComicSeries","name":"Series"}}}}
+            </script>
+        </head><body><div class="reader">{imgs}</div></body></html>"""
+
+    @staticmethod
+    def _series_records_html(records: list[tuple[int, int, bool]]) -> str:
+        entries = [
+            [0, {"number": [0, n], "page_count": [0, pc], "is_premium": [0, prem]}]
+            for n, pc, prem in records
+        ]
+        props = json.dumps({"chapters": [1, entries]})
+        return (
+            "<html><head><title>Series | Asura Scans</title></head><body>"
+            f"<astro-island component-url=\"/_astro/ChapterListReact.x.js\" props='{props}'>"
+            "</astro-island></body></html>"
+        )
+
+    @pytest.mark.asyncio
+    async def test_scrape_short_chapter_raises(self):
+        from comic_dl.errors import SITE_NO_PAGES
+
+        def handler(url):
+            if url.endswith("/comics/s"):
+                return _MockResponse(self._series_records_html([(7, 20, False)]))
+            return _MockResponse(self._chapter_html(3))
+
+        session = _MockSession(handler)
+        scraper = AsurascansScraper()
+        with pytest.raises(ValueError, match="3 of 20") as exc_info:
+            await scraper.scrape("https://asurascans.com/comics/s/chapter/7", session)
+        assert exc_info.value.site_error_code == SITE_NO_PAGES
+
+    @pytest.mark.asyncio
+    async def test_scrape_full_declared_count_passes(self):
+        def handler(url):
+            if url.endswith("/comics/s"):
+                return _MockResponse(self._series_records_html([(7, 20, False)]))
+            return _MockResponse(self._chapter_html(20))
+
+        session = _MockSession(handler)
+        scraper = AsurascansScraper()
+        meta = await scraper.scrape("https://asurascans.com/comics/s/chapter/7", session)
+        assert meta.total_pages == 20
+        assert len(meta.images) == 20
+
+    @pytest.mark.asyncio
+    async def test_scrape_payload_premium_without_marker(self):
+        from comic_dl.errors import SITE_AUTH_REQUIRED
+
+        def handler(url):
+            if url.endswith("/comics/s"):
+                return _MockResponse(self._series_records_html([(7, 0, True)]))
+            return _MockResponse(self._chapter_html(0))
+
+        session = _MockSession(handler)
+        scraper = AsurascansScraper()
+        with pytest.raises(ValueError, match="premium/locked") as exc_info:
+            await scraper.scrape("https://asurascans.com/comics/s/chapter/7", session)
+        assert exc_info.value.site_error_code == SITE_AUTH_REQUIRED
+
+    def test_declared_records_empty_on_unknown_shape(self):
+        soup = BeautifulSoup(
+            '<html><body><astro-island component-url="/_astro/ChapterListReact.x.js"'
+            ' props="not json"></astro-island></body></html>',
+            "lxml",
+        )
+        assert _declared_chapter_records(soup) == {}
 
     @pytest.mark.asyncio
     async def test_scrape_challenge_maps_to_blocked(self, monkeypatch):

@@ -5,8 +5,8 @@
     "asurascans": {
       "minimum_core_version": "0.0.2",
       "status": "supported",
-      "test_url": "https://asurascans.com/comics/nano-machine-3ec3b16f/chapter/1",
-      "version": "1.0.3"
+      "test_url": "https://asurascans.com/comics/nano-machine-1bb35e56/chapter/1",
+      "version": "1.0.4"
     },
     "divascans": {
       "minimum_core_version": "0.0.2",
