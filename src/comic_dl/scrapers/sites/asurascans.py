@@ -52,6 +52,10 @@ _PREMIUM_MARKER = "Premium"
 # Single-segment routes under /comics/ that are site pages, not series.
 _SERIES_SLUG_DENYLIST = frozenset({"browse", "latest", "genres"})
 
+# The router ignores the trailing -<token> (8 hex chars, rotates globally),
+# so the base slug is the stable series identity.
+_SERIES_TOKEN_SUFFIX_RE = re.compile(r"-[0-9a-fA-F]{8}$")
+
 _STATUS_LABEL_SEL = "div, span, dt, dd, h5, h6"
 
 
@@ -301,7 +305,7 @@ class AsurascansScraper(BaseScraper):
     chapter_url_pattern = "/comics/{series}/chapter/{n}"
     series_url_pattern = "/comics/{series}/"
     version = "1.0.3"
-    test_url = "https://asurascans.com/comics/nano-machine-3ec3b16f/chapter/1"
+    test_url = "https://asurascans.com/comics/nano-machine-1bb35e56/chapter/1"
     test_url_kind = "chapter"
     minimum_core_version = "0.0.2"
 
@@ -469,7 +473,7 @@ class AsurascansScraper(BaseScraper):
         series_title = meta.get("series_title") or _extract_series_title(soup, idx)
         description = _extract_description(soup, idx) or meta.get("description", "")
         cover_url = meta.get("cover_url") or _extract_cover(soup, idx)
-        title_no = _series_slug_from_url(url)
+        title_no = _SERIES_TOKEN_SUFFIX_RE.sub("", _series_slug_from_url(url))
 
         chapters: list[dict] = []
         seen_urls: set[str] = set()

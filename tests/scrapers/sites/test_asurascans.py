@@ -624,13 +624,27 @@ class TestAsurascansScraper:
             "Full paragraph two with the rest of the synopsis."
         )
         assert series.cover_url == COVER
-        assert series.title_no == "murim-psychopath-00dcbf97"
+        assert series.title_no == "murim-psychopath"
         assert len(series.chapters) == 4
         assert series.chapters[0]["episode_no"] == "0"
         assert series.chapters[0]["title"] == "Chapter 0"
         assert series.chapters[1]["episode_no"] == "1"
         assert series.chapters[-1]["episode_no"] == "3"
         assert series.chapters[-1]["url"].endswith("/chapter/3")
+
+    @pytest.mark.asyncio
+    async def test_scrape_series_token_rotation_keeps_identity(self):
+        session = _MockSession(lambda url: _MockResponse(self.SERIES_PAGE_FULL_DESC))
+        scraper = AsurascansScraper()
+        first = await scraper.scrape_series(
+            "https://asurascans.com/comics/murim-psychopath-00000000",
+            session,
+        )
+        second = await scraper.scrape_series(
+            "https://asurascans.com/comics/murim-psychopath-1bb35e56",
+            session,
+        )
+        assert first.title_no == second.title_no == "murim-psychopath"
 
     @pytest.mark.asyncio
     async def test_scrape_series_no_chapters_raises(self):
