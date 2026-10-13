@@ -383,6 +383,15 @@ async def _noop_fetch():
     return None
 
 
+async def test_no_subcommand_defaults_to_list(monkeypatch, capsys):
+    from comic_dl.cli import _run_self_site
+
+    monkeypatch.setattr("comic_dl.site_update._read_manifest_cache", lambda: None)
+    rc = await _run_self_site([])
+    assert rc == EXIT_OK
+    assert "SITE" in _text(capsys)
+
+
 class TestSiteCheck:
     async def test_offline_is_unable_to_check(self, monkeypatch, capsys):
         monkeypatch.setattr("comic_dl.site_update.fetch_site_manifest", _noop_fetch)
@@ -405,6 +414,12 @@ class TestSiteCheck:
         monkeypatch.setattr("comic_dl.site_update.fetch_site_manifest", _noop_fetch)
         rc = await run_site_check_command(target="nope", live=False, json_mode=False)
         assert rc == EXIT_USAGE
+
+    async def test_unknown_site_suggests_close_id(self, monkeypatch, capsys):
+        monkeypatch.setattr("comic_dl.site_update.fetch_site_manifest", _noop_fetch)
+        rc = await run_site_check_command(target="webton", live=False, json_mode=False)
+        assert rc == EXIT_USAGE
+        assert "Did you mean: webtoon?" in _text(capsys)
 
     async def test_live_requires_target(self, monkeypatch):
         rc = await run_site_check_command(target=None, live=True, json_mode=False)
@@ -600,6 +615,15 @@ class TestSiteUpdate:
         rc = await run_site_update_command(target="nope", all_sites=False, yes=False)
         assert rc == EXIT_USAGE
 
+    async def test_unknown_site_suggests_close_id(self, monkeypatch, capsys):
+        async def fetch():
+            return _manifest({"webtoon": ("1.1.0", "0.0.2")})
+
+        monkeypatch.setattr("comic_dl.site_update.fetch_site_manifest", fetch)
+        rc = await run_site_update_command(target="webton", all_sites=False, yes=False)
+        assert rc == EXIT_USAGE
+        assert "Did you mean: webtoon?" in _text(capsys)
+
     async def test_up_to_date_single(self, monkeypatch, capsys):
         m = _manifest({"webtoon": ("1.0.0", "0.0.2")})
 
@@ -618,15 +642,15 @@ class TestSiteUpdate:
         async def fake_fetch():
             return m
 
-        async def fake_core_update(*, check, yes) -> int:
-            calls.append({"check": check, "yes": yes})
+        async def fake_core_update(*, check, yes, quiet=False) -> int:
+            calls.append({"check": check, "yes": yes, "quiet": quiet})
             return EXIT_OK
 
         monkeypatch.setattr("comic_dl.site_update.fetch_site_manifest", fake_fetch)
         monkeypatch.setattr("comic_dl.site_update.run_update_command", fake_core_update)
         rc = await run_site_update_command(target="webtoon", all_sites=False, yes=True)
         assert rc == EXIT_OK
-        assert calls == [{"check": False, "yes": True}]
+        assert calls == [{"check": False, "yes": True, "quiet": False}]
         out = _text(capsys)
         assert "Required core update" in out
         assert "1.1.0" in out

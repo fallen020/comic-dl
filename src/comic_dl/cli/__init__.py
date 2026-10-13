@@ -3717,6 +3717,12 @@ def _build_self_parser() -> ComicArgumentParser:
         action="store_true",
         help="skip the confirmation prompt",
     )
+    update.add_argument(
+        "-q",
+        "--quiet",
+        action="store_true",
+        help="suppress progress output",
+    )
     return parser
 
 
@@ -3741,7 +3747,8 @@ def _self_hint_terms() -> tuple[list[str], list[str]]:
 async def _run_self(argv: list[str]) -> int:
     """``comic-dl self`` — installation-aware self-management commands."""
     if not argv:
-        print_error("missing command.")
+        commands, _ = _self_hint_terms()
+        print_error(f"missing command ({', '.join(commands)}).")
         print_dim("Run 'comic-dl self --help' for usage.")
         return EXIT_USAGE
     first = argv[0]
@@ -3783,7 +3790,7 @@ async def _run_self(argv: list[str]) -> int:
     if args.action == "version":
         console.print(f"comic-dl {_version}")
         return EXIT_OK
-    return await run_update_command(check=args.check, yes=args.yes)
+    return await run_update_command(check=args.check, yes=args.yes, quiet=args.quiet)
 
 
 def _build_self_site_parser() -> ComicArgumentParser:
@@ -3807,6 +3814,7 @@ def _build_self_site_parser() -> ComicArgumentParser:
     chk.add_argument("site", nargs="?", help="site id (all sites when omitted)")
     chk.add_argument("--live", action="store_true", help="run a live check for one site")
     chk.add_argument("--json", action="store_true", help="emit machine-readable JSON")
+    chk.add_argument("-q", "--quiet", action="store_true", help="suppress progress output")
     upd = sub.add_parser(
         "update",
         help="update site support (bundled adapters update with the core)",
@@ -3814,15 +3822,14 @@ def _build_self_site_parser() -> ComicArgumentParser:
     upd.add_argument("site", nargs="?", help="site id (with --all when omitted)")
     upd.add_argument("--all", action="store_true", help="update every outdated site")
     upd.add_argument("-y", "--yes", action="store_true", help="skip the confirmation prompt")
+    upd.add_argument("-q", "--quiet", action="store_true", help="suppress progress output")
     return parser
 
 
 async def _run_self_site(argv: list[str]) -> int:
     """``comic-dl self site`` — per-site adapter support: list/check/update."""
     if not argv:
-        print_error("missing command (list, check, or update).")
-        print_dim("Run 'comic-dl self site --help' for usage.")
-        return EXIT_USAGE
+        return await run_site_list_command(json_mode=False)
     parser = _build_self_site_parser()
     try:
         args = parser.parse_args(argv)
@@ -3835,10 +3842,12 @@ async def _run_self_site(argv: list[str]) -> int:
         desc = "Running live site check" if args.live else "Checking site support"
         return await _with_spinner(
             desc,
-            False,
+            args.quiet,
             run_site_check_command(target=args.site, live=args.live, json_mode=args.json),
         )
-    return await run_site_update_command(target=args.site, all_sites=args.all, yes=args.yes)
+    return await run_site_update_command(
+        target=args.site, all_sites=args.all, yes=args.yes, quiet=args.quiet
+    )
 
 
 def _build_update_parser() -> ComicArgumentParser:

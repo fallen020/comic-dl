@@ -374,7 +374,7 @@ def _verify_artifact(checksums: dict[str, str], name: str, path: Path) -> bool:
     return hmac.compare_digest(digest.hexdigest(), expected)
 
 
-async def run_update_command(*, check: bool, yes: bool) -> int:
+async def run_update_command(*, check: bool, yes: bool, quiet: bool = False) -> int:
     """``comic-dl self update``: check, then update through the owner.
 
     Returns an exit code. ``check=True`` never modifies anything. Confirmations
@@ -389,11 +389,14 @@ async def run_update_command(*, check: bool, yes: bool) -> int:
     # Spinner covers the lookup only: prompts and installs below must run
     # without a live renderer. The gate is held here, so no caller may
     # hold it (a second acquire from the same task would deadlock).
-    await get_ui_gate().acquire()
-    try:
-        release = await run_with_status("Checking for updates", fetch_latest_release())
-    finally:
-        get_ui_gate().release()
+    if quiet:
+        release = await fetch_latest_release()
+    else:
+        await get_ui_gate().acquire()
+        try:
+            release = await run_with_status("Checking for updates", fetch_latest_release())
+        finally:
+            get_ui_gate().release()
     if release is None:
         print_dim("Latest version:       unknown")
         print_error("Unable to check for updates: network or GitHub API unavailable.")
@@ -406,6 +409,7 @@ async def run_update_command(*, check: bool, yes: bool) -> int:
         print_success("Status:              already up to date.")
         return EXIT_OK
     print_warning(f"Status:              update available ({_version} → {latest}).")
+    print_dim(f"Release notes:        {GITHUB_RELEASES_PAGE}/tag/{release.tag}")
 
     if check:
         return EXIT_OK
@@ -435,7 +439,7 @@ async def run_update_command(*, check: bool, yes: bool) -> int:
     )
     if blocked is not None:
         return blocked
-    return await _install_package(info, release, latest)
+    return await _install_package(info, release, latest, quiet=quiet)
 
 
 def _update_pip(info: InstallationInfo, latest: str, yes: bool) -> int:
@@ -481,7 +485,9 @@ def _update_uv(latest: str, yes: bool) -> int:
     return EXIT_ERROR
 
 
-async def _install_package(info: InstallationInfo, release: ReleaseInfo, latest: str) -> int:
+async def _install_package(
+    info: InstallationInfo, release: ReleaseInfo, latest: str, *, quiet: bool = False
+) -> int:
     """Download the matching package artifact and hand it to a privileged
     install; every failure instructs instead of leaving the system touched."""
     asset = select_asset(release, info.kind)
@@ -497,7 +503,7 @@ async def _install_package(info: InstallationInfo, release: ReleaseInfo, latest:
     from .ui import Pipeline, format_bytes_fixed
 
     # Bar once the length is known, spinner text while it is not.
-    async with Pipeline() as pipe:
+    async with Pipeline(quiet=quiet) as pipe:
         pipe.stage(f"Downloading {name}...")
         shown_total: int | None = None
         shown = ""

@@ -180,6 +180,7 @@ class TestSelfErrors:
         assert rc == EXIT_USAGE
         out = _text(capsys)
         assert "missing command" in out
+        assert "version" in out and "update" in out and "site" in out
         assert "comic-dl self --help" in out
 
     async def test_version_option_hint(self, capsys):
@@ -276,6 +277,27 @@ class TestUpdateCheck:
         out = _text(capsys)
         assert "update available" in out
         assert "Installed version:" in out and "Latest version:" in out
+        assert "releases/tag/" in out and _FUTURE_TAG in out
+
+    async def test_quiet_check_offline(self, monkeypatch, capsys):
+        async def boom():
+            return None
+
+        monkeypatch.setattr("comic_dl.self_update.fetch_latest_release", boom)
+        rc = await run_update_command(check=True, yes=True, quiet=True)
+        assert rc == EXIT_ERROR
+        assert "Unable to check for updates" in _text(capsys)
+
+    async def test_quiet_flag_threaded_from_cli(self, monkeypatch, capsys):
+        from comic_dl.cli import _run_self
+
+        async def boom():
+            return None
+
+        monkeypatch.setattr("comic_dl.self_update.fetch_latest_release", boom)
+        rc = await _run_self(["update", "--check", "--quiet"])
+        assert rc == EXIT_ERROR
+        assert "Unable to check for updates" in _text(capsys)
 
 
 class TestUpdateRefusal:

@@ -48,7 +48,15 @@ from .self_update import (
     fetch_latest_release,
     run_update_command,
 )
-from .ui import JSON_SCHEMA_VERSION, console, print_dim, print_error, print_success, print_table
+from .ui import (
+    JSON_SCHEMA_VERSION,
+    console,
+    print_dim,
+    print_error,
+    print_success,
+    print_table,
+    suggest,
+)
 from .utils import http_client_args
 
 MANIFEST_ASSET = "site-support.json"
@@ -466,11 +474,15 @@ async def run_site_check_command(*, target: str | None, live: bool, json_mode: b
     installed_core = _version
     sites = local_sites()
     if target is not None:
-        sites = [s for s in sites if s.site_id == target]
-        if not sites:
+        match = [s for s in sites if s.site_id == target]
+        if not match:
             print_error(f"unknown site id {target!r}.")
+            hint = suggest(target, [s.site_id for s in sites])
+            if hint is not None and hint != target:
+                print_dim(f"Did you mean: {hint}?")
             print_dim("Run 'comic-dl self site list' to see the site ids.")
             return EXIT_USAGE
+        sites = match
 
     rows: list[list[str]] = []
     json_sites: list[dict] = []
@@ -532,12 +544,14 @@ async def run_site_check_command(*, target: str | None, live: bool, json_mode: b
         )
 
     if degraded:
-        print_dim("Install as-is; no files were modified by this check.")
+        print_dim("No files were modified by this check.")
         return EXIT_ERROR
     return EXIT_OK
 
 
-async def run_site_update_command(*, target: str | None, all_sites: bool, yes: bool) -> int:
+async def run_site_update_command(
+    *, target: str | None, all_sites: bool, yes: bool, quiet: bool = False
+) -> int:
     """``self site update <id>`` / ``--all`` — route an adapter update through
     the core update strategy (bundled adapters update with the core)."""
     if target is not None and all_sites:
@@ -561,6 +575,9 @@ async def run_site_update_command(*, target: str | None, all_sites: bool, yes: b
         site = next((s for s in sites if s.site_id == target), None)
         if site is None:
             print_error(f"unknown site id {target!r}.")
+            hint = suggest(target, [s.site_id for s in sites])
+            if hint is not None and hint != target:
+                print_dim(f"Did you mean: {hint}?")
             print_dim("Run 'comic-dl self site list' to see the site ids.")
             return EXIT_USAGE
         available = manifest.sites.get(site.site_id)
@@ -593,4 +610,4 @@ async def run_site_update_command(*, target: str | None, all_sites: bool, yes: b
         )
         return EXIT_ERROR
 
-    return await run_update_command(check=False, yes=yes)
+    return await run_update_command(check=False, yes=yes, quiet=quiet)
