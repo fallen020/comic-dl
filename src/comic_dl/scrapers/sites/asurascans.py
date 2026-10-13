@@ -10,7 +10,7 @@ from curl_cffi.requests import AsyncSession
 from curl_cffi.requests.exceptions import HTTPError as CurlHTTPError
 
 from ...antibot import looks_like_challenge
-from ...errors import SITE_AUTH_REQUIRED, SITE_BLOCKED, SITE_NO_SERIES, ScrapeError
+from ...errors import SITE_AUTH_REQUIRED, SITE_BLOCKED, SITE_GONE, SITE_NO_SERIES, ScrapeError
 from ...models import (
     ChapterInfo,
     ImageItem,
@@ -325,7 +325,7 @@ class AsurascansScraper(BaseScraper):
                 raise ScrapeError(
                     "page not found on Asura Scans.",
                     hint="the series may have been removed, or this chapter link is dead.",
-                    site_error_code=SITE_NO_SERIES,
+                    site_error_code=SITE_GONE if _CHAPTER_PATH_RE.match(url) else SITE_NO_SERIES,
                 ) from None
             if resp is not None and looks_like_challenge(
                 status or 0,

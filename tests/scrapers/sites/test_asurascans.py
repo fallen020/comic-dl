@@ -445,8 +445,8 @@ class TestAsurascansScraper:
         assert "--solver auto" in exc_info.value.hint
 
     @pytest.mark.asyncio
-    async def test_scrape_missing_page_maps_to_no_series(self):
-        from comic_dl.errors import SITE_NO_SERIES
+    async def test_scrape_missing_chapter_maps_to_gone(self):
+        from comic_dl.errors import SITE_GONE
 
         session = _MockSession(lambda url: _MockResponse(b"Not found", status=404))
         scraper = AsurascansScraper()
@@ -455,7 +455,7 @@ class TestAsurascansScraper:
                 "https://asurascans.com/comics/nano-machine-3ec3b16f/chapter/1",
                 session,
             )
-        assert exc_info.value.site_error_code == SITE_NO_SERIES
+        assert exc_info.value.site_error_code == SITE_GONE
 
     @pytest.mark.asyncio
     async def test_scrape_raises_on_no_images(self):
@@ -553,13 +553,16 @@ class TestAsurascansScraper:
 
     @pytest.mark.asyncio
     async def test_scrape_404_gives_friendly_error(self):
+        from comic_dl.errors import SITE_GONE
+
         session = _MockSession(lambda url: _MockResponse(b"<html><body></body></html>", status=404))
         scraper = AsurascansScraper()
-        with pytest.raises(ValueError, match="page not found"):
+        with pytest.raises(ValueError, match="page not found") as exc_info:
             await scraper.scrape(
                 "https://asurascans.com/comics/gone-00dcbf97/chapter/1",
                 session,
             )
+        assert exc_info.value.site_error_code == SITE_GONE
 
     @pytest.mark.asyncio
     async def test_scrape_series_404_gives_friendly_error(self):
