@@ -111,7 +111,7 @@ class KodokuEasyAccessScraper(BaseScraper):
     content_warning = "nsfw"
     chapter_url_pattern = "/read/{slug}/{lang}/{n}/"
     series_url_pattern = "/manhwa/{slug}/"
-    version = "1.0.1"
+    version = "1.0.2"
     test_url = "https://kodokueasyaccess.com/read/reverend-insanity/en/1"
     test_url_kind = "chapter"
     minimum_core_version = "0.0.2"
@@ -139,13 +139,20 @@ class KodokuEasyAccessScraper(BaseScraper):
         are presigned and expire after 30 minutes, and a chapter's ``available``
         flag flips on its release schedule. A cache entry older than that hands
         back image links that 403, so freshness is worth more than the hit.
+
+        Application statuses carry a JSON body callers classify: a locked
+        chapter is 403 with ``{"available": false, ...}`` and a missing one
+        is 404. Only a non-JSON body or a 5xx is a transport failure.
         """
         resp = await BaseScraper._timeout_get(f"{BASE}{path}", client, use_cache=False)
-        resp.raise_for_status()
         try:
-            return resp.json()
+            payload = resp.json()
         except ValueError:
+            resp.raise_for_status()
             return None
+        if resp.status_code >= 500:
+            resp.raise_for_status()
+        return payload
 
     async def _scrape_chapter(self, url: str, client: AsyncSession) -> ScrapedChapter:
         if not is_chapter_url(url):
