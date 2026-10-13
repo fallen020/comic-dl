@@ -179,7 +179,7 @@ class TestScrapeChapter:
     async def test_locked_chapter_reports_unlock_date(self):
         def handler(url):
             if "/chapters/" in url:
-                return _MockResponse(json_data=LOCKED)
+                return _MockResponse(json_data=LOCKED, status=403)
             return _handler(url)
 
         with pytest.raises(ScrapeError) as exc:
@@ -194,7 +194,7 @@ class TestScrapeChapter:
     async def test_locked_chapter_without_date(self):
         def handler(url):
             if "/chapters/" in url:
-                return _MockResponse(json_data={"available": False})
+                return _MockResponse(json_data={"available": False}, status=403)
             return _handler(url)
 
         with pytest.raises(ScrapeError) as exc:
@@ -207,6 +207,19 @@ class TestScrapeChapter:
         def handler(url):
             if "/chapters/" in url:
                 return _MockResponse(json_data=dict(CHAPTER, images=[]))
+            return _handler(url)
+
+        with pytest.raises(ScrapeError, match="No images found"):
+            await KodokuEasyAccessScraper().scrape(CHAPTER_URL, _MockSession(handler))
+
+    @pytest.mark.asyncio
+    async def test_missing_chapter_raises(self):
+        def handler(url):
+            if "/chapters/" in url:
+                return _MockResponse(
+                    json_data={"type": "https://httpstatuses.com/404", "status": 404},
+                    status=404,
+                )
             return _handler(url)
 
         with pytest.raises(ScrapeError, match="No images found"):
