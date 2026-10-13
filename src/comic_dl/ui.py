@@ -29,10 +29,13 @@ from rich.markup import escape as esc
 from rich.padding import Padding
 from rich.progress import (
     BarColumn,
+    DownloadColumn,
     Progress,
     ProgressColumn,
     SpinnerColumn,
     TextColumn,
+    TimeRemainingColumn,
+    TransferSpeedColumn,
 )
 from rich.table import Table
 from rich.text import Text
@@ -1744,17 +1747,34 @@ def _running_row_renderable(
 
 def make_download_progress(
     state_getter: Callable[[], RowState | None] | None = None,
+    *,
+    unit: str = "pages",
 ) -> Progress:
-    """Build the live progress renderer used for a download run."""
+    """Build the live progress renderer used for a download run.
+
+    ``unit="pages"`` counts items with the byte/speed/ETA suffix;
+    any other unit renders raw byte columns instead (single-file
+    downloads, where a page count would mislabel).
+    """
+    bar = BarColumn(
+        complete_style=style("bar_complete"),
+        finished_style=style("bar_finished"),
+        pulse_style=style("bar_complete"),
+        style=style("bar_track"),
+    )
+    if unit == "pages":
+        return Progress(
+            bar,
+            TextColumn(" {task.completed}/{task.total} pages", style=MUTED),
+            _RowStatsColumn(state_getter),
+            console=err_console,
+            auto_refresh=False,
+        )
     return Progress(
-        BarColumn(
-            complete_style=style("bar_complete"),
-            finished_style=style("bar_finished"),
-            pulse_style=style("bar_complete"),
-            style=style("bar_track"),
-        ),
-        TextColumn(" {task.completed}/{task.total} pages", style=MUTED),
-        _RowStatsColumn(state_getter),
+        bar,
+        DownloadColumn(),
+        TransferSpeedColumn(),
+        TimeRemainingColumn(),
         console=err_console,
         auto_refresh=False,
     )
@@ -2410,7 +2430,7 @@ class Pipeline:
             self._state.stage = desc
             self._state.last_tick = time.monotonic()
 
-    def show_progress(self, total: int) -> None:
+    def show_progress(self, total: int, *, unit: str = "pages") -> None:
         if self._quiet or total <= 0:
             return
         if self._state is None:
@@ -2419,7 +2439,7 @@ class Pipeline:
             self._state.total = total
             if not self._state.started_at:
                 self._state.started_at = time.monotonic()
-        self._progress = make_download_progress(state_getter=lambda: self._state)
+        self._progress = make_download_progress(state_getter=lambda: self._state, unit=unit)
         self._progress.add_task("  ", total=total)
 
     def update_progress(self, done: int) -> None:

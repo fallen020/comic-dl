@@ -12,6 +12,7 @@ from pathlib import Path
 import pytest
 from rich.color import ColorSystem
 from rich.console import Console
+from rich.progress import DownloadColumn
 
 import comic_dl.ui as ui_module
 from comic_dl.ui import (
@@ -539,6 +540,17 @@ class TestPipelineProgress:
             p.update_progress(5)
             task = p._progress.tasks[0]
             assert task.completed == 5
+
+    async def test_bytes_unit_renders_byte_columns(self):
+        p = Pipeline(quiet=False)
+        async with p:
+            p.show_progress(total=10, unit="bytes")
+            assert p._progress is not None
+            assert any(isinstance(c, DownloadColumn) for c in p._progress.columns)
+            r = p._make_renderable()
+            assert len(r.renderables) == 2
+            p.update_progress(5)
+            assert p._progress.tasks[0].completed == 5
 
     async def test_quiet_mode_show_progress_noop(self):
         p = Pipeline(quiet=True)

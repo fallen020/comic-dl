@@ -25,6 +25,7 @@ import shutil
 import subprocess  # nosec B404
 import sys
 import tempfile
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -36,7 +37,7 @@ from . import __version__ as _version
 from .downloader import _open_stream
 from .errors import EXIT_ERROR, EXIT_INTERRUPTED, EXIT_OK
 from .scrapers.base import BaseScraper
-from .ui import print_dim, print_error, print_success, print_warning
+from .ui import get_ui_gate, print_dim, print_error, print_success, print_warning, run_with_status
 from .utils import http_client_args
 
 GITHUB_API_RELEASES_LATEST = "https://api.github.com/repos/fallen020/comic-dl/releases/latest"
@@ -292,20 +293,35 @@ async def fetch_latest_release() -> ReleaseInfo | None:
     return ReleaseInfo(tag=tag, version=tag.lstrip("vV"), assets=assets)
 
 
-async def download_artifact(url: str, dest: Path) -> None:
-    """Stream a release asset to ``dest`` with the shared validated streamer."""
+async def download_artifact(
+    url: str, dest: Path, *, on_progress: Callable[[int, int | None], None] | None = None
+) -> None:
+    """Stream a release asset to ``dest`` with the shared validated streamer.
+
+    ``on_progress(done, total)`` reports cumulative bytes (total ``None``
+    when the server hides its length); UI stays with the caller so this
+    remains unit-testable without a console.
+    """
     size = 0
     async with AsyncSession(**http_client_args()) as client:
         resp = await _open_stream(client, url)
         try:
             if resp.status_code >= 400:
                 raise OSError(f"HTTP {resp.status_code}")
+            total: int | None = None
+            if on_progress is not None:
+                try:
+                    total = int(resp.headers.get("content-length") or 0) or None
+                except (TypeError, ValueError):
+                    total = None
             with dest.open("wb") as fh:
                 async for chunk in resp.aiter_content(1 << 16):
                     size += len(chunk)
                     if size > _MAX_ARTIFACT_BYTES:
                         raise OSError("release asset exceeds size cap")
                     fh.write(chunk)
+                    if on_progress is not None:
+                        on_progress(size, total)
         finally:
             await resp.aclose()
 
@@ -370,7 +386,14 @@ async def run_update_command(*, check: bool, yes: bool) -> int:
     print_dim(f"Installed via:        {_install_label(info.kind)}")
     print_dim(f"Installed version:    {_version}")
 
-    release = await fetch_latest_release()
+    # Spinner covers the lookup only: prompts and installs below must run
+    # without a live renderer. The gate is held here, so no caller may
+    # hold it (a second acquire from the same task would deadlock).
+    await get_ui_gate().acquire()
+    try:
+        release = await run_with_status("Checking for updates", fetch_latest_release())
+    finally:
+        get_ui_gate().release()
     if release is None:
         print_dim("Latest version:       unknown")
         print_error("Unable to check for updates: network or GitHub API unavailable.")
@@ -471,14 +494,34 @@ async def _install_package(info: InstallationInfo, release: ReleaseInfo, latest:
     name, url = asset
     tmp_root = Path(tempfile.mkdtemp(prefix="comic-dl-self-"))
     artifact = tmp_root / name
-    print_dim(f"Downloading {name} ...")
-    try:
-        await download_artifact(url, artifact)
-    except Exception:
-        print_error(f"Failed to download {name}.")
-        print_dim(f"Latest releases: {GITHUB_RELEASES_PAGE}")
-        _cleanup(tmp_root)
-        return EXIT_ERROR
+    from .ui import Pipeline, format_bytes_fixed
+
+    # Bar once the length is known, spinner text while it is not.
+    async with Pipeline() as pipe:
+        pipe.stage(f"Downloading {name}...")
+        shown_total: int | None = None
+        shown = ""
+
+        def on_progress(done: int, total: int | None) -> None:
+            nonlocal shown, shown_total
+            if total and total != shown_total:
+                shown_total = total
+                pipe.show_progress(total, unit="bytes")
+            if shown_total:
+                pipe.update_progress(done)
+            else:
+                text = f"Downloading {name} ({format_bytes_fixed(done)})"
+                if text != shown:
+                    shown = text
+                    pipe.set_activity(text)
+
+        try:
+            await download_artifact(url, artifact, on_progress=on_progress)
+        except Exception:
+            print_error(f"Failed to download {name}.")
+            print_dim(f"Latest releases: {GITHUB_RELEASES_PAGE}")
+            _cleanup(tmp_root)
+            return EXIT_ERROR
 
     checksums = await _fetch_checksums(release)
     if name not in checksums:
@@ -491,6 +534,7 @@ async def _install_package(info: InstallationInfo, release: ReleaseInfo, latest:
         print_dim(f"Install manually from: {GITHUB_RELEASES_PAGE}")
         _cleanup(tmp_root)
         return EXIT_ERROR
+    print_success(f"Checksum verified (sha256): {name}.")
 
     is_root = _is_root()
     if is_root:

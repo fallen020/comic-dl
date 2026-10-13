@@ -3832,13 +3832,12 @@ async def _run_self_site(argv: list[str]) -> int:
     if args.action == "list":
         return await run_site_list_command(json_mode=args.json)
     if args.action == "check":
-        if args.live and not args.json:
-            return await _with_spinner(
-                "Running live site check",
-                False,
-                run_site_check_command(target=args.site, live=True, json_mode=False),
-            )
-        return await run_site_check_command(target=args.site, live=args.live, json_mode=args.json)
+        desc = "Running live site check" if args.live else "Checking site support"
+        return await _with_spinner(
+            desc,
+            False,
+            run_site_check_command(target=args.site, live=args.live, json_mode=args.json),
+        )
     return await run_site_update_command(target=args.site, all_sites=args.all, yes=args.yes)
 
 

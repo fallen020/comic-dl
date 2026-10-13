@@ -24,6 +24,7 @@ from comic_dl.self_update import (
     _request_confirmation,
     compare_versions,
     detect_installation,
+    download_artifact,
     install_args,
     parse_version,
     run_update_command,
@@ -395,11 +396,11 @@ class TestUvUpdate:
 
 
 class TestPackageManagerUpdate:
-    async def test_sudo_apt_install(self, monkeypatch):
+    async def test_sudo_apt_install(self, monkeypatch, capsys):
         async def newer():
             return _rel(_FUTURE_TAG, f"comic-dl_{_FUTURE}_amd64.deb")
 
-        async def fake_download(url, dest):
+        async def fake_download(url, dest, **_ignored):
             dest.write_bytes(b"pkg")
 
         calls: list[list[str]] = []
@@ -432,12 +433,13 @@ class TestPackageManagerUpdate:
         assert rc == EXIT_OK
         assert len(calls) == 1
         assert calls[0][0] == "/usr/bin/sudo" and calls[0][1] == "apt"
+        assert "Checksum verified (sha256)" in _text(capsys)
 
     async def test_sudo_absent_instructs(self, monkeypatch):
         async def newer():
             return _rel(_FUTURE_TAG, f"comic-dl_{_FUTURE}_amd64.deb")
 
-        async def fake_download(url, dest):
+        async def fake_download(url, dest, **_ignored):
             dest.write_bytes(b"pkg")
 
         monkeypatch.setattr("comic_dl.self_update.fetch_latest_release", newer)
@@ -463,7 +465,7 @@ class TestPackageManagerUpdate:
         async def newer():
             return _rel(_FUTURE_TAG, f"comic-dl_{_FUTURE}_amd64.deb")
 
-        async def fake_download(url, dest):
+        async def fake_download(url, dest, **_ignored):
             dest.write_bytes(b"pkg")
 
         monkeypatch.setattr("comic_dl.self_update.fetch_latest_release", newer)
@@ -493,12 +495,63 @@ class TestPackageManagerUpdate:
         assert rc == EXIT_ERROR
 
 
+class TestDownloadProgress:
+    async def test_reports_cumulative_bytes(self, monkeypatch, tmp_path):
+        seen: list[tuple[int, int | None]] = []
+
+        class FakeResp:
+            status_code = 200
+            headers = {"content-length": "10"}
+
+            async def aiter_content(self, _size):
+                yield b"12345"
+                yield b"67890"
+
+            async def aclose(self):
+                pass
+
+        async def fake_stream(_client, _url):
+            return FakeResp()
+
+        monkeypatch.setattr("comic_dl.self_update._open_stream", fake_stream)
+        dest = tmp_path / "pkg.deb"
+        await download_artifact(
+            "https://example.invalid/pkg.deb", dest, on_progress=lambda d, t: seen.append((d, t))
+        )
+        assert dest.read_bytes() == b"1234567890"
+        assert seen == [(5, 10), (10, 10)]
+
+    async def test_missing_length_is_indeterminate(self, monkeypatch, tmp_path):
+        seen: list[tuple[int, int | None]] = []
+
+        class FakeResp:
+            status_code = 200
+            headers = {}
+
+            async def aiter_content(self, _size):
+                yield b"12345"
+
+            async def aclose(self):
+                pass
+
+        async def fake_stream(_client, _url):
+            return FakeResp()
+
+        monkeypatch.setattr("comic_dl.self_update._open_stream", fake_stream)
+        await download_artifact(
+            "https://example.invalid/pkg.deb",
+            tmp_path / "pkg.deb",
+            on_progress=lambda d, t: seen.append((d, t)),
+        )
+        assert seen == [(5, None)]
+
+
 class TestChecksumVerification:
     async def test_mismatch_refuses_before_install(self, monkeypatch, capsys):
         async def newer():
             return _rel(_FUTURE_TAG, f"comic-dl_{_FUTURE}_amd64.deb")
 
-        async def fake_download(url, dest):
+        async def fake_download(url, dest, **_ignored):
             dest.write_bytes(b"pkg")
 
         calls: list[list[str]] = []
@@ -529,7 +582,7 @@ class TestChecksumVerification:
         async def newer():
             return _rel(_FUTURE_TAG, f"comic-dl_{_FUTURE}_amd64.deb")
 
-        async def fake_download(url, dest):
+        async def fake_download(url, dest, **_ignored):
             dest.write_bytes(b"pkg")
 
         calls: list[list[str]] = []
