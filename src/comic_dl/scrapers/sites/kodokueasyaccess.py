@@ -170,9 +170,15 @@ class KodokuEasyAccessScraper(BaseScraper):
 
         if payload.get("available") is False:
             when = _unlock_date(payload)
-            hint = "New chapters unlock on a schedule; Patreon tiers get them earlier."
+            hint = (
+                "New chapters unlock on a schedule; early access may be "
+                "available to eligible Patreon members."
+            )
             if when:
-                hint = f"Scheduled for {when}. Patreon tiers get new chapters earlier."
+                hint = (
+                    f"Expected release date: {when}. Early access may be "
+                    "available to eligible Patreon members."
+                )
             raise ScrapeError(
                 f"Chapter {number} ({language}) is not available yet.",
                 hint=hint,
