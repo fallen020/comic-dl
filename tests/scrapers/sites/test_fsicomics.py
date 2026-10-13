@@ -16,6 +16,7 @@ from comic_dl.scrapers.sites.fsicomics._base import (
     _extract_images,
     _extract_meta,
     _extract_post_id,
+    _extract_publisher,
     _extract_series_cover,
     is_chapter_url,
     is_series_url,
@@ -723,6 +724,14 @@ class TestFsicomixScraper:
             session,
         )
         assert chapter.info.publisher == "Super Melons"
+
+    def test_extract_publisher_defaults_idx(self):
+        soup = BeautifulSoup(
+            '<html><head><meta property="article:section" content="Kizaru3D"/>'
+            "</head><body></body></html>",
+            "lxml",
+        )
+        assert _extract_publisher(soup) == "Kizaru3D"
 
     @pytest.mark.asyncio
     async def test_scrape_series_reads_foxiz_taxonomy_grid(self):

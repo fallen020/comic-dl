@@ -23,7 +23,7 @@ class FsicomicsDeScraper(FsicomixScraper):
     content_warning = "nsfw"
     chapter_url_pattern = "/{comic-slug}/"
     series_url_pattern = "/{category}/{artist}/"
-    version = "2.0.0"
+    version = "2.0.1"
     test_url = "https://de.fsicomics.com/emmas-corruption-kapitel-10-antalore42/"
     test_url_kind = "chapter"
     minimum_core_version = "0.0.2"

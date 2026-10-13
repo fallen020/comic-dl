@@ -21,7 +21,7 @@ class FsicomixEnScraper(FsicomixScraper):
     content_warning = "nsfw"
     chapter_url_pattern = "/{comic-slug}/"
     series_url_pattern = "/all-porn-comics/..."
-    version = "2.0.0"
+    version = "2.0.1"
     test_url = "https://fsicomics.com/taming-the-beast-chapter-5-kizaru3d/"
     test_url_kind = "chapter"
     minimum_core_version = "0.0.2"

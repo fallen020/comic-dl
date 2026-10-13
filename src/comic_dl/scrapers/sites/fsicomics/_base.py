@@ -543,10 +543,10 @@ def _extract_publisher(soup: BeautifulSoup, idx: dict[str, list[str]] | None = N
     the site name ("FSI Comics"). On the mirrors ``article:section`` sometimes
     carries a translated category name instead, so treat it as best-effort.
     """
-    if idx:
-        for v in idx.get("prop:article:section", []):
-            if v and v.strip():
-                return v.strip()
+    idx = idx if idx is not None else meta_index(soup)
+    for v in idx.get("prop:article:section", []):
+        if v and v.strip():
+            return v.strip()
     for s in soup.select('script[type="application/ld+json"]'):
         if not s.string:
             continue
