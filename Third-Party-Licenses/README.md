@@ -39,7 +39,7 @@ new wheel and update its version below.
 | [pywebview](https://github.com/r0x0r/pywebview) | 6.2.1 | [BSD-3-Clause](pywebview/LICENSE) |
 | [qtpy](https://github.com/spyder-ide/qtpy) | 2.4.3 | [MIT](qtpy/LICENSE) |
 | [rich](https://github.com/Textualize/rich) | 15.0.0 | [MIT](rich/LICENSE) |
-| [soupsieve](https://github.com/facelessuser/soupsieve) | 3.0.1 | [MIT](soupsieve/LICENSE.md) |
+| [soupsieve](https://github.com/facelessuser/soupsieve) | 3.0.3 (≥3.11.5), 2.10 (<3.11.5) | [MIT](soupsieve/LICENSE.md) |
 | [typing-extensions](https://github.com/python/typing_extensions) | 4.16.0 | [PSF-2](typing-extensions/LICENSE) |
 
 Platform notes:
