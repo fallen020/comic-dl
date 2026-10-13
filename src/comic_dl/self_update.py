@@ -15,6 +15,8 @@ path — it only affects this command.
 
 from __future__ import annotations
 
+import contextlib
+import datetime
 import enum
 import hashlib
 import hmac
@@ -25,6 +27,8 @@ import shutil
 import subprocess  # nosec B404
 import sys
 import tempfile
+import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -36,7 +40,19 @@ from . import __version__ as _version
 from .downloader import _open_stream
 from .errors import EXIT_ERROR, EXIT_INTERRUPTED, EXIT_OK
 from .scrapers.base import BaseScraper
-from .ui import print_dim, print_error, print_success, print_warning
+from .ui import (
+    DIAGNOSTIC,
+    JSON_SCHEMA_VERSION,
+    TAG_HTTP,
+    console,
+    get_ui_gate,
+    print_dim,
+    print_error,
+    print_success,
+    print_warning,
+    run_with_status,
+    vlog,
+)
 from .utils import http_client_args
 
 GITHUB_API_RELEASES_LATEST = "https://api.github.com/repos/fallen020/comic-dl/releases/latest"
@@ -95,6 +111,28 @@ class ReleaseInfo:
     tag: str
     version: str
     assets: dict[str, str]
+
+
+class ReleaseFailureKind(enum.Enum):
+    """Why the latest-release lookup failed (each renders one user line)."""
+
+    OFFLINE = "offline"
+    RATE_LIMITED = "rate_limited"
+    NOT_FOUND = "not_found"
+    MALFORMED = "malformed"
+    SERVER_ERROR = "server_error"
+
+
+@dataclass(frozen=True)
+class ReleaseFailure:
+    """A failed latest-release lookup: machine-readable cause + detail.
+
+    ``detail`` carries the rate-limit reset ("14:02 UTC") or the HTTP
+    status for server errors; empty otherwise.
+    """
+
+    kind: ReleaseFailureKind
+    detail: str = ""
 
 
 def compare_versions(installed: str, latest: str) -> int:
@@ -207,7 +245,7 @@ def detect_installation() -> InstallationInfo:
 
 
 def select_asset(release: ReleaseInfo, kind: InstallKind) -> tuple[str, str] | None:
-    """Pick the package asset URL for ``kind`` on this machine, or ``None``.
+    """Pick the install asset URL for ``kind`` on this machine, or ``None``.
 
     Returns ``(asset_name, url)``. Architecture is matched in the asset name
     since the release ships one package per distro per arch (the machine
@@ -223,6 +261,12 @@ def select_asset(release: ReleaseInfo, kind: InstallKind) -> tuple[str, str] | N
     arch = arch_map.get((platform.machine() or "").lower())
     if arch is None:
         return None
+    if kind is InstallKind.BINARY:
+        # Standalone executables only ship for Windows; anything else has
+        # no published asset, so the caller instructs.
+        want = f"comic-dl-{release.version}-windows-{arch}.exe"
+        url = release.assets.get(want)
+        return (want, url) if url else None
     suffix: str | None = None
     if kind is InstallKind.APT:
         suffix = f"_{arch}.deb"
@@ -258,29 +302,46 @@ def install_args(kind: InstallKind, artifact: Path) -> list[str]:
     raise ValueError(f"no package-manager install for {kind.name}")
 
 
-async def fetch_latest_release() -> ReleaseInfo | None:
-    """The latest published release, or ``None`` on any lookup failure.
+async def fetch_latest_release() -> ReleaseInfo | ReleaseFailure:
+    """The latest published release, or a :class:`ReleaseFailure`.
 
-    Offline, API-rate-limited, and malformed responses collapse to ``None`` —
-    the caller turns that into a user-facing "unable to check" message without
-    leaking exception details.
+    Transport errors, rate limits, and malformed payloads no longer
+    collapse: the caller renders one line per cause, and the cause
+    itself is logged at ``-vv`` without leaking exception details.
     """
     try:
         async with AsyncSession(**http_client_args(host="api.github.com")) as client:
             resp = await BaseScraper._timeout_get(
                 GITHUB_API_RELEASES_LATEST, client, use_cache=True
             )
-    except Exception:
-        return None
+    except Exception as exc:
+        vlog(DIAGNOSTIC, f"release lookup failed: {type(exc).__name__}", tag=TAG_HTTP)
+        return ReleaseFailure(ReleaseFailureKind.OFFLINE)
+    if resp.status_code == 429 or (
+        resp.status_code == 403 and resp.headers.get("x-ratelimit-remaining") == "0"
+    ):
+        vlog(DIAGNOSTIC, f"release lookup rate limited (HTTP {resp.status_code})", tag=TAG_HTTP)
+        return ReleaseFailure(
+            ReleaseFailureKind.RATE_LIMITED, detail=_rate_limit_reset(resp.headers)
+        )
+    if resp.status_code == 404:
+        vlog(DIAGNOSTIC, "release lookup 404", tag=TAG_HTTP)
+        return ReleaseFailure(ReleaseFailureKind.NOT_FOUND)
     if resp.status_code != 200:
-        return None
+        vlog(DIAGNOSTIC, f"release lookup HTTP {resp.status_code}", tag=TAG_HTTP)
+        return ReleaseFailure(ReleaseFailureKind.SERVER_ERROR, detail=str(resp.status_code))
     try:
         data = resp.json()
     except (ValueError, TypeError, json.JSONDecodeError):
-        return None
+        vlog(DIAGNOSTIC, "release lookup returned malformed JSON", tag=TAG_HTTP)
+        return ReleaseFailure(ReleaseFailureKind.MALFORMED)
+    if not isinstance(data, dict):
+        vlog(DIAGNOSTIC, "release lookup returned malformed JSON", tag=TAG_HTTP)
+        return ReleaseFailure(ReleaseFailureKind.MALFORMED)
     tag = str(data.get("tag_name") or "")
     if not tag:
-        return None
+        vlog(DIAGNOSTIC, "release lookup response has no tag", tag=TAG_HTTP)
+        return ReleaseFailure(ReleaseFailureKind.MALFORMED)
     assets: dict[str, str] = {}
     for item in data.get("assets") or []:
         name = (item or {}).get("name")
@@ -292,20 +353,99 @@ async def fetch_latest_release() -> ReleaseInfo | None:
     return ReleaseInfo(tag=tag, version=tag.lstrip("vV"), assets=assets)
 
 
-async def download_artifact(url: str, dest: Path) -> None:
-    """Stream a release asset to ``dest`` with the shared validated streamer."""
+def _rate_limit_reset(headers: Any) -> str:
+    """Human reset time from rate-limit headers ("" when absent).
+
+    Prefers ``retry-after`` seconds, else the ``x-ratelimit-reset`` epoch.
+    Absolute UTC keeps the message deterministic and timezone-explicit.
+    """
+    try:
+        after = int(headers.get("retry-after") or 0)
+    except (TypeError, ValueError):
+        after = 0
+    if after > 0:
+        epoch: int | float = time.time() + after
+    else:
+        try:
+            epoch = int(headers.get("x-ratelimit-reset") or 0)
+        except (TypeError, ValueError):
+            return ""
+        if epoch <= 0:
+            return ""
+    return datetime.datetime.fromtimestamp(epoch, datetime.UTC).strftime("%H:%M UTC")
+
+
+def report_release_failure(failure: ReleaseFailure) -> None:
+    """One error line + one hint for a failed release lookup.
+
+    Stderr-safe under ``--json`` (``print_error`` always targets stderr;
+    ``print_dim`` reroutes there in JSON mode).
+    """
+    kind = failure.kind
+    if kind is ReleaseFailureKind.RATE_LIMITED:
+        reset = failure.detail or "an unknown time"
+        print_error(f"GitHub API rate limit reached; resets at {reset}.")
+        print_dim(f"Latest releases: {GITHUB_RELEASES_PAGE}")
+    elif kind is ReleaseFailureKind.NOT_FOUND:
+        print_error(f"GitHub API has no published release at {GITHUB_API_RELEASES_LATEST}.")
+        print_dim(f"Latest releases: {GITHUB_RELEASES_PAGE}")
+    elif kind is ReleaseFailureKind.MALFORMED:
+        print_error("GitHub API returned an unexpected response.")
+        print_dim(f"Latest releases: {GITHUB_RELEASES_PAGE}")
+    elif kind is ReleaseFailureKind.SERVER_ERROR:
+        print_error(f"GitHub API error (HTTP {failure.detail or 'unknown'}).")
+        print_dim(f"Latest releases: {GITHUB_RELEASES_PAGE}")
+    else:
+        print_error("Unable to check for updates: no network connection.")
+        print_dim("Check your network connection, or configure --proxy.")
+
+
+def _status_payload(info: InstallationInfo, release: ReleaseInfo | None) -> dict[str, Any]:
+    """Machine payload shared by ``version --json`` and ``update --check --json``.
+
+    One shape for both, so status bars and cron read the same keys either
+    way. ``latest`` is ``None`` (and ``update_available`` false) when the
+    lookup failed; the exit code still carries the failure.
+    """
+    latest = release.version if release is not None else None
+    return {
+        "schema_version": JSON_SCHEMA_VERSION,
+        "installed": _version,
+        "latest": latest,
+        "update_available": latest is not None and compare_versions(_version, latest) < 0,
+        "install_kind": info.kind.value,
+    }
+
+
+async def download_artifact(
+    url: str, dest: Path, *, on_progress: Callable[[int, int | None], None] | None = None
+) -> None:
+    """Stream a release asset to ``dest`` with the shared validated streamer.
+
+    ``on_progress(done, total)`` reports cumulative bytes (total ``None``
+    when the server hides its length); UI stays with the caller so this
+    remains unit-testable without a console.
+    """
     size = 0
     async with AsyncSession(**http_client_args()) as client:
         resp = await _open_stream(client, url)
         try:
             if resp.status_code >= 400:
                 raise OSError(f"HTTP {resp.status_code}")
+            total: int | None = None
+            if on_progress is not None:
+                try:
+                    total = int(resp.headers.get("content-length") or 0) or None
+                except (TypeError, ValueError):
+                    total = None
             with dest.open("wb") as fh:
                 async for chunk in resp.aiter_content(1 << 16):
                     size += len(chunk)
                     if size > _MAX_ARTIFACT_BYTES:
                         raise OSError("release asset exceeds size cap")
                     fh.write(chunk)
+                    if on_progress is not None:
+                        on_progress(size, total)
         finally:
             await resp.aclose()
 
@@ -358,7 +498,32 @@ def _verify_artifact(checksums: dict[str, str], name: str, path: Path) -> bool:
     return hmac.compare_digest(digest.hexdigest(), expected)
 
 
-async def run_update_command(*, check: bool, yes: bool) -> int:
+async def run_version_command() -> int:
+    """``comic-dl self version --json`` — version state as machine JSON.
+
+    Plain ``self version`` stays fetch-free; this path looks up the latest
+    release, so an unknown lookup is an error exit with null fields.
+    """
+    info = detect_installation()
+    await get_ui_gate().acquire()
+    try:
+        release = await run_with_status("Checking for updates", fetch_latest_release())
+    finally:
+        get_ui_gate().release()
+    current = None if isinstance(release, ReleaseFailure) else release
+    payload = _status_payload(info, current)
+    console.print(json.dumps(payload, indent=2), soft_wrap=True)
+    return EXIT_OK if payload["latest"] is not None else EXIT_ERROR
+
+
+async def run_update_command(
+    *,
+    check: bool,
+    yes: bool,
+    quiet: bool = False,
+    json_mode: bool = False,
+    exit_code: bool = False,
+) -> int:
     """``comic-dl self update``: check, then update through the owner.
 
     Returns an exit code. ``check=True`` never modifies anything. Confirmations
@@ -370,22 +535,37 @@ async def run_update_command(*, check: bool, yes: bool) -> int:
     print_dim(f"Installed via:        {_install_label(info.kind)}")
     print_dim(f"Installed version:    {_version}")
 
-    release = await fetch_latest_release()
-    if release is None:
+    # Spinner covers the lookup only: prompts and installs below must run
+    # without a live renderer. The gate is held here, so no caller may
+    # hold it (a second acquire from the same task would deadlock).
+    if quiet:
+        release = await fetch_latest_release()
+    else:
+        await get_ui_gate().acquire()
+        try:
+            release = await run_with_status("Checking for updates", fetch_latest_release())
+        finally:
+            get_ui_gate().release()
+    if isinstance(release, ReleaseFailure):
         print_dim("Latest version:       unknown")
-        print_error("Unable to check for updates: network or GitHub API unavailable.")
-        print_dim(f"Latest releases: {GITHUB_RELEASES_PAGE}")
+        if json_mode:
+            console.print(json.dumps(_status_payload(info, None), indent=2), soft_wrap=True)
+        report_release_failure(release)
         return EXIT_ERROR
 
     latest = release.version
     print_dim(f"Latest version:       {latest}")
-    if compare_versions(_version, latest) >= 0:
+    update_available = compare_versions(_version, latest) < 0
+    if json_mode:
+        console.print(json.dumps(_status_payload(info, release), indent=2), soft_wrap=True)
+    if not update_available:
         print_success("Status:              already up to date.")
         return EXIT_OK
     print_warning(f"Status:              update available ({_version} → {latest}).")
+    print_dim(f"Release notes:        {GITHUB_RELEASES_PAGE}/tag/{release.tag}")
 
     if check:
-        return EXIT_OK
+        return EXIT_ERROR if exit_code else EXIT_OK
 
     if info.kind is InstallKind.SOURCE:
         print_dim("comic-dl is running from a source checkout.")
@@ -394,8 +574,7 @@ async def run_update_command(*, check: bool, yes: bool) -> int:
         print_dim("  uv sync")
         return EXIT_OK
     if info.kind is InstallKind.BINARY:
-        print_dim(f"Download the new release: {GITHUB_RELEASES_PAGE}")
-        return EXIT_OK
+        return await _replace_binary(info, release, latest, yes=yes, quiet=quiet)
     if info.kind is InstallKind.UNKNOWN:
         print_error("Could not identify how comic-dl was installed.")
         print_dim(f"Reinstall from: {GITHUB_RELEASES_PAGE}")
@@ -412,7 +591,7 @@ async def run_update_command(*, check: bool, yes: bool) -> int:
     )
     if blocked is not None:
         return blocked
-    return await _install_package(info, release, latest)
+    return await _install_package(info, release, latest, quiet=quiet)
 
 
 def _update_pip(info: InstallationInfo, latest: str, yes: bool) -> int:
@@ -458,7 +637,58 @@ def _update_uv(latest: str, yes: bool) -> int:
     return EXIT_ERROR
 
 
-async def _install_package(info: InstallationInfo, release: ReleaseInfo, latest: str) -> int:
+async def _download_verified(
+    release: ReleaseInfo, name: str, url: str, dest: Path, *, quiet: bool
+) -> bool:
+    """Fetch ``url`` into ``dest`` and check it against SHA256SUMS.
+
+    False (after instructing) on any failure, so the package and the
+    standalone-binary paths share one security gate instead of drifting.
+    """
+    from .ui import Pipeline, format_bytes_fixed
+
+    # Bar once the length is known, spinner text while it is not.
+    async with Pipeline(quiet=quiet) as pipe:
+        pipe.stage(f"Downloading {name}...")
+        shown_total: int | None = None
+        shown = ""
+
+        def on_progress(done: int, total: int | None) -> None:
+            nonlocal shown, shown_total
+            if total and total != shown_total:
+                shown_total = total
+                pipe.show_progress(total, unit="bytes")
+            if shown_total:
+                pipe.update_progress(done)
+            else:
+                text = f"Downloading {name} ({format_bytes_fixed(done)})"
+                if text != shown:
+                    shown = text
+                    pipe.set_activity(text)
+
+        try:
+            await download_artifact(url, dest, on_progress=on_progress)
+        except Exception:
+            print_error(f"Failed to download {name}.")
+            print_dim(f"Latest releases: {GITHUB_RELEASES_PAGE}")
+            return False
+
+    checksums = await _fetch_checksums(release)
+    if name not in checksums:
+        print_error(f"No checksum published for {name} — refusing to install.")
+        print_dim(f"Install manually from: {GITHUB_RELEASES_PAGE}")
+        return False
+    if not _verify_artifact(checksums, name, dest):
+        print_error(f"Checksum mismatch for {name} — refusing to install.")
+        print_dim(f"Install manually from: {GITHUB_RELEASES_PAGE}")
+        return False
+    print_success(f"Checksum verified (sha256): {name}.")
+    return True
+
+
+async def _install_package(
+    info: InstallationInfo, release: ReleaseInfo, latest: str, *, quiet: bool = False
+) -> int:
     """Download the matching package artifact and hand it to a privileged
     install; every failure instructs instead of leaving the system touched."""
     asset = select_asset(release, info.kind)
@@ -471,24 +701,7 @@ async def _install_package(info: InstallationInfo, release: ReleaseInfo, latest:
     name, url = asset
     tmp_root = Path(tempfile.mkdtemp(prefix="comic-dl-self-"))
     artifact = tmp_root / name
-    print_dim(f"Downloading {name} ...")
-    try:
-        await download_artifact(url, artifact)
-    except Exception:
-        print_error(f"Failed to download {name}.")
-        print_dim(f"Latest releases: {GITHUB_RELEASES_PAGE}")
-        _cleanup(tmp_root)
-        return EXIT_ERROR
-
-    checksums = await _fetch_checksums(release)
-    if name not in checksums:
-        print_error(f"No checksum published for {name} — refusing to install.")
-        print_dim(f"Install manually from: {GITHUB_RELEASES_PAGE}")
-        _cleanup(tmp_root)
-        return EXIT_ERROR
-    if not _verify_artifact(checksums, name, artifact):
-        print_error(f"Checksum mismatch for {name} — refusing to install.")
-        print_dim(f"Install manually from: {GITHUB_RELEASES_PAGE}")
+    if not await _download_verified(release, name, url, artifact, quiet=quiet):
         _cleanup(tmp_root)
         return EXIT_ERROR
 
@@ -513,6 +726,101 @@ async def _install_package(info: InstallationInfo, release: ReleaseInfo, latest:
     print_error(f"The {info.kind.value} install failed (exit code {rc}).")
     print_dim(f"Run it yourself: {' '.join(argv)}")
     return EXIT_ERROR
+
+
+def _swap_executable(current: Path, new_file: Path, *, windows: bool) -> Path | None:
+    """Move ``new_file`` onto ``current``; return the backup path, if any.
+
+    POSIX replaces the running image in place. Windows cannot overwrite a
+    running image, so the current file is renamed aside first (moved back
+    if the final move fails); the backup outlives this process on purpose
+    and is removed by a later update.
+    """
+    if not windows:
+        os.replace(new_file, current)
+        return None
+    backup = current.with_name(current.name + ".old")
+    with contextlib.suppress(OSError):
+        backup.unlink(missing_ok=True)
+    current.rename(backup)
+    try:
+        os.replace(new_file, current)
+    except OSError:
+        with contextlib.suppress(OSError):
+            backup.rename(current)
+        raise
+    return backup
+
+
+def _new_binary_reports(path: Path, latest: str) -> bool:
+    """True when executing ``path`` prints the expected version line."""
+    try:
+        proc = subprocess.run(  # nosec B603
+            [str(path), "self", "version"], capture_output=True, text=True, timeout=60
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    return proc.returncode == 0 and proc.stdout.strip() == f"comic-dl {latest}"
+
+
+async def _replace_binary(
+    info: InstallationInfo,
+    release: ReleaseInfo,
+    latest: str,
+    *,
+    yes: bool,
+    quiet: bool = False,
+    windows: bool = os.name == "nt",
+) -> int:
+    """Swap a standalone executable for the new release, verified first.
+
+    Download, SHA256, and a version-check run all pass before the running
+    file is touched; every failure instructs instead of leaving the
+    install half-written.
+    """
+    exe = info.executable
+    asset = select_asset(release, info.kind)
+    if asset is None:
+        arch = (platform.machine() or "").lower()
+        print_error(f"No standalone executable is published for {arch}.")
+        print_dim(f"Pick a matching asset from: {GITHUB_RELEASES_PAGE}")
+        return EXIT_ERROR
+    if not info.writable:
+        print_error("The install location is not writable.")
+        print_dim(f"Reinstall from: {GITHUB_RELEASES_PAGE}")
+        return EXIT_ERROR
+    blocked = _request_confirmation(
+        yes,
+        f"Replace comic-dl {_version} with {latest}?",
+        says_interactive_no="Update skipped.",
+    )
+    if blocked is not None:
+        return blocked
+
+    name, url = asset
+    fd, tmp = tempfile.mkstemp(dir=exe.parent, prefix=".comic-dl-update-", suffix=".new")
+    os.close(fd)
+    new_file = Path(tmp)
+    if not await _download_verified(release, name, url, new_file, quiet=quiet):
+        with contextlib.suppress(OSError):
+            new_file.unlink(missing_ok=True)
+        return EXIT_ERROR
+    if not _new_binary_reports(new_file, latest):
+        print_error(f"Downloaded binary does not report {latest} — refusing to install.")
+        print_dim(f"Install manually from: {GITHUB_RELEASES_PAGE}")
+        with contextlib.suppress(OSError):
+            new_file.unlink(missing_ok=True)
+        return EXIT_ERROR
+    try:
+        _swap_executable(exe, new_file, windows=windows)
+    except OSError:
+        print_error(f"Could not replace {exe.name} — refusing to install.")
+        print_dim(f"Install manually from: {GITHUB_RELEASES_PAGE}")
+        with contextlib.suppress(OSError):
+            new_file.unlink(missing_ok=True)
+        return EXIT_ERROR
+    print_success(f"Installed comic-dl {latest}. Restart to use the new version.")
+    return EXIT_OK
 
 
 def _request_confirmation(yes: bool, question: str, *, says_interactive_no: str) -> int | None:

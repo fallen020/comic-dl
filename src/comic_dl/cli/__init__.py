@@ -117,7 +117,7 @@ from ..scrapers.sites.webtoon import (
 from ..scrapers.sites.weebcentral import (
     is_chapter_url as is_weebcentral_chapter_url,
 )
-from ..self_update import run_update_command
+from ..self_update import run_update_command, run_version_command
 from ..site_update import (
     run_site_check_command,
     run_site_list_command,
@@ -3700,7 +3700,8 @@ def _build_self_parser() -> ComicArgumentParser:
         required=True,
         parser_class=ComicArgumentParser,
     )
-    sub.add_parser("version", help="print the installed version")
+    ver = sub.add_parser("version", help="print the installed version")
+    ver.add_argument("--json", action="store_true", help="emit machine-readable JSON")
     sub.add_parser("site", help="inspect and update per-site adapter support")
     update = sub.add_parser(
         "update",
@@ -3717,41 +3718,76 @@ def _build_self_parser() -> ComicArgumentParser:
         action="store_true",
         help="skip the confirmation prompt",
     )
+    update.add_argument(
+        "-q",
+        "--quiet",
+        action="store_true",
+        help="suppress progress output",
+    )
+    update.add_argument(
+        "--json",
+        action="store_true",
+        help="emit machine-readable JSON (implies --check)",
+    )
+    update.add_argument(
+        "--exit-code",
+        action="store_true",
+        help="exit 1 when an update is available (implies --check)",
+    )
     return parser
+
+
+def _self_hint_terms() -> tuple[list[str], list[str]]:
+    """`(commands, flags)` for ``self`` error hints, read off the parser.
+
+    The runner pre-validates argv before argparse sees it, so these terms
+    must track the parser; reading them here keeps the two from drifting.
+    """
+    sub = next(
+        a for a in _build_self_parser()._actions if isinstance(a, argparse._SubParsersAction)
+    )
+    flags = [o for act in sub.choices["update"]._actions for o in act.option_strings]
+    ordered = [
+        "--help",
+        "-h",
+        *(f for f in flags if f not in ("--help", "-h")),
+    ]
+    return list(sub.choices), [*ordered, "--version", "--update"]
 
 
 async def _run_self(argv: list[str]) -> int:
     """``comic-dl self`` — installation-aware self-management commands."""
     if not argv:
-        print_error("missing command.")
+        commands, _ = _self_hint_terms()
+        print_error(f"missing command ({', '.join(commands)}).")
         print_dim("Run 'comic-dl self --help' for usage.")
         return EXIT_USAGE
     first = argv[0]
     if first in ("-h", "--help", "-?"):
         pass  # fall through; parse_args prints help and exits 0
-    elif first.startswith("-"):
-        canonical = {"--version": "comic-dl self version", "--update": "comic-dl self update"}.get(
-            first
-        )
-        print_error(f"unexpected option '{first}'.")
-        if canonical:
-            print_dim(f"Hint: use '{canonical}'.")
-        else:
-            hint = suggest(
-                first,
-                ["--help", "-h", "--check", "-y", "--yes", "--version", "--update"],
-            )
+    else:
+        commands, flags = _self_hint_terms()
+        if first.startswith("-"):
+            canonical = {
+                "--version": "comic-dl self version",
+                "--update": "comic-dl self update",
+            }.get(first)
+            print_error(f"unexpected option '{first}'.")
+            if canonical:
+                print_dim(f"Hint: use '{canonical}'.")
+            else:
+                hint = suggest(first, flags)
+                if hint is not None and hint != first:
+                    print_dim(f"Did you mean: {hint}?")
+                print_dim("Run 'comic-dl self --help' for usage.")
+            return EXIT_USAGE
+        if first not in commands:
+            print_error(f"unknown command '{first}'.")
+            hint = suggest(first, commands)
             if hint is not None and hint != first:
                 print_dim(f"Did you mean: {hint}?")
             print_dim("Run 'comic-dl self --help' for usage.")
-        return EXIT_USAGE
-    elif first not in ("version", "update", "site"):
-        print_error(f"unknown command '{first}'.")
-        hint = suggest(first, ["version", "update", "site"])
-        if hint is not None and hint != first:
-            print_dim(f"Did you mean: {hint}?")
-        print_dim("Run 'comic-dl self --help' for usage.")
-        return EXIT_USAGE
+            return EXIT_USAGE
 
     if first == "site":
         return await _run_self_site(argv[1:])
@@ -3763,11 +3799,17 @@ async def _run_self(argv: list[str]) -> int:
         return exc.code if isinstance(exc.code, int) else 0
 
     if args.action == "version":
-        console.print(f"comic-dl {_version}")
-        return EXIT_OK
-    if args.action == "site":
-        return await _run_self_site(argv[1:])
-    return await run_update_command(check=args.check, yes=args.yes)
+        if not args.json:
+            console.print(f"comic-dl {_version}")
+            return EXIT_OK
+        return await run_version_command()
+    return await run_update_command(
+        check=args.check or args.json or args.exit_code,
+        yes=args.yes,
+        quiet=args.quiet,
+        json_mode=args.json,
+        exit_code=args.exit_code,
+    )
 
 
 def _build_self_site_parser() -> ComicArgumentParser:
@@ -3791,6 +3833,7 @@ def _build_self_site_parser() -> ComicArgumentParser:
     chk.add_argument("site", nargs="?", help="site id (all sites when omitted)")
     chk.add_argument("--live", action="store_true", help="run a live check for one site")
     chk.add_argument("--json", action="store_true", help="emit machine-readable JSON")
+    chk.add_argument("-q", "--quiet", action="store_true", help="suppress progress output")
     upd = sub.add_parser(
         "update",
         help="update site support (bundled adapters update with the core)",
@@ -3798,15 +3841,14 @@ def _build_self_site_parser() -> ComicArgumentParser:
     upd.add_argument("site", nargs="?", help="site id (with --all when omitted)")
     upd.add_argument("--all", action="store_true", help="update every outdated site")
     upd.add_argument("-y", "--yes", action="store_true", help="skip the confirmation prompt")
+    upd.add_argument("-q", "--quiet", action="store_true", help="suppress progress output")
     return parser
 
 
 async def _run_self_site(argv: list[str]) -> int:
     """``comic-dl self site`` — per-site adapter support: list/check/update."""
     if not argv:
-        print_error("missing command (list, check, or update).")
-        print_dim("Run 'comic-dl self site --help' for usage.")
-        return EXIT_USAGE
+        return await run_site_list_command(json_mode=False)
     parser = _build_self_site_parser()
     try:
         args = parser.parse_args(argv)
@@ -3816,14 +3858,15 @@ async def _run_self_site(argv: list[str]) -> int:
     if args.action == "list":
         return await run_site_list_command(json_mode=args.json)
     if args.action == "check":
-        if args.live and not args.json:
-            return await _with_spinner(
-                "Running live site check",
-                False,
-                run_site_check_command(target=args.site, live=True, json_mode=False),
-            )
-        return await run_site_check_command(target=args.site, live=args.live, json_mode=args.json)
-    return await run_site_update_command(target=args.site, all_sites=args.all, yes=args.yes)
+        desc = "Running live site check" if args.live else "Checking site support"
+        return await _with_spinner(
+            desc,
+            args.quiet,
+            run_site_check_command(target=args.site, live=args.live, json_mode=args.json),
+        )
+    return await run_site_update_command(
+        target=args.site, all_sites=args.all, yes=args.yes, quiet=args.quiet
+    )
 
 
 def _build_update_parser() -> ComicArgumentParser:

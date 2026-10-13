@@ -8,6 +8,9 @@ mocked, matching the repo-wide offline test convention.
 from __future__ import annotations
 
 import hashlib
+import json
+import sys
+import time
 from pathlib import Path
 
 import pytest
@@ -20,15 +23,23 @@ from comic_dl.self_update import (
     EXIT_OK,
     InstallationInfo,
     InstallKind,
+    ReleaseFailure,
+    ReleaseFailureKind,
     ReleaseInfo,
+    _replace_binary,
     _request_confirmation,
+    _swap_executable,
     compare_versions,
     detect_installation,
+    download_artifact,
+    fetch_latest_release,
     install_args,
     parse_version,
+    report_release_failure,
     run_update_command,
     select_asset,
 )
+from comic_dl.ui import JSON_SCHEMA_VERSION
 
 # Functional install fixture location; never touches disk.
 _MOCK_EXE = Path("/mock/comic-dl")
@@ -125,6 +136,23 @@ class TestSelectAsset:
         rel = _rel("v0.0.3", "fallen020-comic-dl-0.0.3-1-x86_64.pkg.tar.zst")
         assert select_asset(rel, InstallKind.PACMAN) is None
 
+    def test_binary_selects_windows_exe(self, monkeypatch):
+        monkeypatch.setattr("comic_dl.self_update.platform.machine", lambda: "AMD64")
+        rel = ReleaseInfo(
+            tag="v0.0.7",
+            version="0.0.7",
+            assets={"comic-dl-0.0.7-windows-amd64.exe": "https://example.invalid/x.exe"},
+        )
+        assert select_asset(rel, InstallKind.BINARY) == (
+            "comic-dl-0.0.7-windows-amd64.exe",
+            "https://example.invalid/x.exe",
+        )
+
+    def test_binary_without_asset_is_none(self, monkeypatch):
+        monkeypatch.setattr("comic_dl.self_update.platform.machine", lambda: "x86_64")
+        rel = ReleaseInfo(tag="v0.0.7", version="0.0.7", assets={})
+        assert select_asset(rel, InstallKind.BINARY) is None
+
     def test_apt_ignores_other_arch(self, monkeypatch):
         monkeypatch.setattr("comic_dl.self_update.platform.machine", lambda: "x86_64")
         rel = _rel("v0.0.3", "comic-dl_0.0.3_arm64.deb")
@@ -179,6 +207,7 @@ class TestSelfErrors:
         assert rc == EXIT_USAGE
         out = _text(capsys)
         assert "missing command" in out
+        assert "version" in out and "update" in out and "site" in out
         assert "comic-dl self --help" in out
 
     async def test_version_option_hint(self, capsys):
@@ -218,6 +247,21 @@ class TestSelfErrors:
         assert rc == EXIT_USAGE
         assert "unknown command 'deploy'" in _text(capsys)
 
+    async def test_hints_come_from_parser(self, monkeypatch, capsys):
+        import argparse
+
+        from comic_dl.cli import _build_self_parser, _run_self, _self_hint_terms
+
+        commands, flags = _self_hint_terms()
+        sub = next(
+            a for a in _build_self_parser()._actions if isinstance(a, argparse._SubParsersAction)
+        )
+        assert commands == list(sub.choices)
+        assert {"--check", "-y", "--yes"} <= set(flags)
+        monkeypatch.setattr("comic_dl.cli._self_hint_terms", lambda: (["zzz"], flags))
+        assert await _run_self(["updat"]) == EXIT_USAGE
+        assert "Did you mean" not in _text(capsys)
+
     async def test_help_option_shows_group_help(self, capsys):
         from comic_dl.cli import _run_self
 
@@ -228,12 +272,14 @@ class TestSelfErrors:
 class TestUpdateCheck:
     async def test_network_failure(self, monkeypatch, capsys):
         async def boom():
-            return None
+            return ReleaseFailure(ReleaseFailureKind.OFFLINE)
 
         monkeypatch.setattr("comic_dl.self_update.fetch_latest_release", boom)
         rc = await run_update_command(check=True, yes=True)
         assert rc == EXIT_ERROR
-        assert "Unable to check for updates" in _text(capsys)
+        out = _text(capsys)
+        assert "Unable to check for updates: no network connection." in out
+        assert "--proxy" in out
 
     async def test_already_up_to_date(self, monkeypatch, capsys):
         async def current():
@@ -260,6 +306,269 @@ class TestUpdateCheck:
         out = _text(capsys)
         assert "update available" in out
         assert "Installed version:" in out and "Latest version:" in out
+        assert "releases/tag/" in out and _FUTURE_TAG in out
+
+    async def test_quiet_check_offline(self, monkeypatch, capsys):
+        async def boom():
+            return ReleaseFailure(ReleaseFailureKind.OFFLINE)
+
+        monkeypatch.setattr("comic_dl.self_update.fetch_latest_release", boom)
+        rc = await run_update_command(check=True, yes=True, quiet=True)
+        assert rc == EXIT_ERROR
+        assert "Unable to check for updates" in _text(capsys)
+
+    async def test_quiet_flag_threaded_from_cli(self, monkeypatch, capsys):
+        from comic_dl.cli import _run_self
+
+        async def boom():
+            return ReleaseFailure(ReleaseFailureKind.OFFLINE)
+
+        monkeypatch.setattr("comic_dl.self_update.fetch_latest_release", boom)
+        rc = await _run_self(["update", "--check", "--quiet"])
+        assert rc == EXIT_ERROR
+        assert "Unable to check for updates" in _text(capsys)
+
+
+class TestReleaseLookup:
+    """`fetch_latest_release` classifies failures instead of collapsing them."""
+
+    class _Resp:
+        """Minimal stand-in for the response the lookup reads."""
+
+        def __init__(self, status, headers=None, payload=None, broken=False):
+            self.status_code = status
+            self.headers = headers or {}
+            self._payload = payload
+            self._broken = broken
+
+        def json(self):
+            if self._broken:
+                raise ValueError("not JSON")
+            return self._payload
+
+    async def test_transport_error_is_offline(self, monkeypatch):
+        async def dead(url, client, **kw):
+            raise OSError("down")
+
+        monkeypatch.setattr("comic_dl.self_update.BaseScraper._timeout_get", dead)
+        assert await fetch_latest_release() == ReleaseFailure(ReleaseFailureKind.OFFLINE)
+
+    async def test_rate_limit_names_reset(self, monkeypatch):
+        async def limited(url, client, **kw):
+            return TestReleaseLookup._Resp(429, {"x-ratelimit-reset": "50400"})
+
+        monkeypatch.setattr("comic_dl.self_update.BaseScraper._timeout_get", limited)
+        result = await fetch_latest_release()
+        assert result.kind is ReleaseFailureKind.RATE_LIMITED
+        assert result.detail == "14:00 UTC"
+
+    async def test_exhausted_quota_is_rate_limited(self, monkeypatch):
+        async def limited(url, client, **kw):
+            return TestReleaseLookup._Resp(
+                403, {"x-ratelimit-remaining": "0", "x-ratelimit-reset": "50400"}
+            )
+
+        monkeypatch.setattr("comic_dl.self_update.BaseScraper._timeout_get", limited)
+        result = await fetch_latest_release()
+        assert result.kind is ReleaseFailureKind.RATE_LIMITED
+        assert result.detail == "14:00 UTC"
+
+    async def test_retry_after_counts_from_now(self, monkeypatch):
+        monkeypatch.setattr(time, "time", lambda: 1_000_000.0)
+
+        async def limited(url, client, **kw):
+            return TestReleaseLookup._Resp(429, {"retry-after": "3600"})
+
+        monkeypatch.setattr("comic_dl.self_update.BaseScraper._timeout_get", limited)
+        result = await fetch_latest_release()
+        assert result.kind is ReleaseFailureKind.RATE_LIMITED
+        assert result.detail == "14:46 UTC"
+
+    async def test_not_found(self, monkeypatch):
+        async def gone(url, client, **kw):
+            return TestReleaseLookup._Resp(404)
+
+        monkeypatch.setattr("comic_dl.self_update.BaseScraper._timeout_get", gone)
+        assert await fetch_latest_release() == ReleaseFailure(ReleaseFailureKind.NOT_FOUND)
+
+    async def test_server_error_carries_status(self, monkeypatch):
+        async def broken(url, client, **kw):
+            return TestReleaseLookup._Resp(500)
+
+        monkeypatch.setattr("comic_dl.self_update.BaseScraper._timeout_get", broken)
+        result = await fetch_latest_release()
+        assert result.kind is ReleaseFailureKind.SERVER_ERROR
+        assert result.detail == "500"
+
+    async def test_unexhausted_403_is_server_error(self, monkeypatch):
+        async def denied(url, client, **kw):
+            return TestReleaseLookup._Resp(403, {"x-ratelimit-remaining": "59"})
+
+        monkeypatch.setattr("comic_dl.self_update.BaseScraper._timeout_get", denied)
+        result = await fetch_latest_release()
+        assert result.kind is ReleaseFailureKind.SERVER_ERROR
+        assert result.detail == "403"
+
+    async def test_malformed_payloads(self, monkeypatch):
+        async def broken(url, client, **kw):
+            return TestReleaseLookup._Resp(200, broken=True)
+
+        async def tagless(url, client, **kw):
+            return TestReleaseLookup._Resp(200, payload={})
+
+        monkeypatch.setattr("comic_dl.self_update.BaseScraper._timeout_get", broken)
+        assert await fetch_latest_release() == ReleaseFailure(ReleaseFailureKind.MALFORMED)
+        monkeypatch.setattr("comic_dl.self_update.BaseScraper._timeout_get", tagless)
+        assert await fetch_latest_release() == ReleaseFailure(ReleaseFailureKind.MALFORMED)
+
+    async def test_non_object_payload_is_malformed(self, monkeypatch):
+        async def listed(url, client, **kw):
+            return TestReleaseLookup._Resp(200, payload=["v1"])
+
+        monkeypatch.setattr("comic_dl.self_update.BaseScraper._timeout_get", listed)
+        assert await fetch_latest_release() == ReleaseFailure(ReleaseFailureKind.MALFORMED)
+
+    async def test_report_names_each_cause(self, capsys):
+        report_release_failure(ReleaseFailure(ReleaseFailureKind.NOT_FOUND))
+        report_release_failure(ReleaseFailure(ReleaseFailureKind.MALFORMED))
+        report_release_failure(ReleaseFailure(ReleaseFailureKind.SERVER_ERROR, detail="500"))
+        report_release_failure(ReleaseFailure(ReleaseFailureKind.RATE_LIMITED, detail="14:00 UTC"))
+        out = _text(capsys)
+        assert "api.github.com" in out
+        assert "unexpected response" in out
+        assert "HTTP 500" in out
+        assert "resets at 14:00 UTC" in out
+
+
+class TestVersionJson:
+    async def test_payload(self, monkeypatch, capsys):
+        from comic_dl.cli import _run_self
+
+        async def newer():
+            return _rel(_FUTURE_TAG)
+
+        monkeypatch.setattr("comic_dl.self_update.fetch_latest_release", newer)
+        monkeypatch.setattr(
+            "comic_dl.self_update.detect_installation",
+            lambda: InstallationInfo(InstallKind.PIP, _MOCK_EXE, writable=True),
+        )
+        monkeypatch.setattr("comic_dl.ui.JSON_MODE", True)
+        rc = await _run_self(["version", "--json"])
+        assert rc == EXIT_OK
+        payload = json.loads(capsys.readouterr().out)
+        assert payload == {
+            "schema_version": JSON_SCHEMA_VERSION,
+            "installed": _CORE_VERSION,
+            "latest": _FUTURE_TAG,
+            "update_available": True,
+            "install_kind": "pip",
+        }
+
+    async def test_lookup_failure_has_null_fields(self, monkeypatch, capsys):
+        from comic_dl.cli import _run_self
+
+        async def offline():
+            return ReleaseFailure(ReleaseFailureKind.OFFLINE)
+
+        monkeypatch.setattr("comic_dl.self_update.fetch_latest_release", offline)
+        monkeypatch.setattr(
+            "comic_dl.self_update.detect_installation",
+            lambda: InstallationInfo(InstallKind.PIP, _MOCK_EXE, writable=True),
+        )
+        monkeypatch.setattr("comic_dl.ui.JSON_MODE", True)
+        rc = await _run_self(["version", "--json"])
+        assert rc == EXIT_ERROR
+        payload = json.loads(capsys.readouterr().out)
+        assert payload["latest"] is None
+        assert payload["update_available"] is False
+
+
+class TestUpdateCheckJson:
+    async def test_available_payload(self, monkeypatch, capsys):
+        async def newer():
+            return _rel(_FUTURE_TAG)
+
+        monkeypatch.setattr("comic_dl.self_update.fetch_latest_release", newer)
+        monkeypatch.setattr(
+            "comic_dl.self_update.detect_installation",
+            lambda: InstallationInfo(InstallKind.PIP, _MOCK_EXE, writable=True),
+        )
+        monkeypatch.setattr("comic_dl.ui.JSON_MODE", True)
+        rc = await run_update_command(check=True, yes=True, json_mode=True)
+        assert rc == EXIT_OK
+        payload = json.loads(capsys.readouterr().out)
+        assert payload["update_available"] is True
+        assert payload["install_kind"] == "pip"
+
+    async def test_up_to_date_payload(self, monkeypatch, capsys):
+        async def current():
+            return _rel("v0.0.2")
+
+        monkeypatch.setattr("comic_dl.self_update.fetch_latest_release", current)
+        monkeypatch.setattr(
+            "comic_dl.self_update.detect_installation",
+            lambda: InstallationInfo(InstallKind.PIP, _MOCK_EXE, writable=True),
+        )
+        monkeypatch.setattr("comic_dl.ui.JSON_MODE", True)
+        rc = await run_update_command(check=True, yes=True, json_mode=True)
+        assert rc == EXIT_OK
+        assert json.loads(capsys.readouterr().out)["update_available"] is False
+
+    async def test_failure_payload(self, monkeypatch, capsys):
+        async def offline():
+            return ReleaseFailure(ReleaseFailureKind.OFFLINE)
+
+        monkeypatch.setattr("comic_dl.self_update.fetch_latest_release", offline)
+        monkeypatch.setattr(
+            "comic_dl.self_update.detect_installation",
+            lambda: InstallationInfo(InstallKind.PIP, _MOCK_EXE, writable=True),
+        )
+        monkeypatch.setattr("comic_dl.ui.JSON_MODE", True)
+        rc = await run_update_command(check=True, yes=True, json_mode=True)
+        assert rc == EXIT_ERROR
+        payload = json.loads(capsys.readouterr().out)
+        assert payload["latest"] is None
+        assert payload["update_available"] is False
+
+    async def test_exit_code_flags_update(self, monkeypatch, capsys):
+        async def newer():
+            return _rel(_FUTURE_TAG)
+
+        monkeypatch.setattr("comic_dl.self_update.fetch_latest_release", newer)
+        monkeypatch.setattr(
+            "comic_dl.self_update.detect_installation",
+            lambda: InstallationInfo(InstallKind.PIP, _MOCK_EXE, writable=True),
+        )
+        assert await run_update_command(check=True, yes=True, exit_code=True) == EXIT_ERROR
+
+    async def test_exit_code_clean_when_current(self, monkeypatch, capsys):
+        async def current():
+            return _rel("v0.0.2")
+
+        monkeypatch.setattr("comic_dl.self_update.fetch_latest_release", current)
+        monkeypatch.setattr(
+            "comic_dl.self_update.detect_installation",
+            lambda: InstallationInfo(InstallKind.PIP, _MOCK_EXE, writable=True),
+        )
+        assert await run_update_command(check=True, yes=True, exit_code=True) == EXIT_OK
+
+    async def test_json_implies_check(self, monkeypatch, capsys):
+        from comic_dl.cli import _run_self
+
+        async def newer():
+            return _rel(_FUTURE_TAG)
+
+        monkeypatch.setattr("comic_dl.self_update.fetch_latest_release", newer)
+        monkeypatch.setattr(
+            "comic_dl.self_update.detect_installation",
+            lambda: InstallationInfo(InstallKind.SOURCE, _MOCK_EXE),
+        )
+        monkeypatch.setattr("comic_dl.ui.JSON_MODE", True)
+        rc = await _run_self(["update", "--json"])
+        assert rc == EXIT_OK
+        cap = capsys.readouterr()
+        assert json.loads(cap.out)["update_available"] is True
+        assert "git pull" not in cap.out + cap.err
 
 
 class TestUpdateRefusal:
@@ -289,7 +598,7 @@ class TestUpdateRefusal:
         rc = await run_update_command(check=False, yes=True)
         assert rc == EXIT_ERROR
 
-    async def test_binary_reports_only(self, monkeypatch, capsys):
+    async def test_binary_without_asset_instructs(self, monkeypatch, capsys):
         async def newer():
             return _rel(_FUTURE_TAG)
 
@@ -299,8 +608,8 @@ class TestUpdateRefusal:
             lambda: InstallationInfo(InstallKind.BINARY, _MOCK_EXE),
         )
         rc = await run_update_command(check=False, yes=True)
-        assert rc == EXIT_OK
-        assert "github.com/fallen020/comic-dl" in _text(capsys)
+        assert rc == EXIT_ERROR
+        assert "No standalone executable is published" in _text(capsys)
 
 
 class TestPipUpdate:
@@ -380,11 +689,11 @@ class TestUvUpdate:
 
 
 class TestPackageManagerUpdate:
-    async def test_sudo_apt_install(self, monkeypatch):
+    async def test_sudo_apt_install(self, monkeypatch, capsys):
         async def newer():
             return _rel(_FUTURE_TAG, f"comic-dl_{_FUTURE}_amd64.deb")
 
-        async def fake_download(url, dest):
+        async def fake_download(url, dest, **_ignored):
             dest.write_bytes(b"pkg")
 
         calls: list[list[str]] = []
@@ -417,12 +726,13 @@ class TestPackageManagerUpdate:
         assert rc == EXIT_OK
         assert len(calls) == 1
         assert calls[0][0] == "/usr/bin/sudo" and calls[0][1] == "apt"
+        assert "Checksum verified (sha256)" in _text(capsys)
 
     async def test_sudo_absent_instructs(self, monkeypatch):
         async def newer():
             return _rel(_FUTURE_TAG, f"comic-dl_{_FUTURE}_amd64.deb")
 
-        async def fake_download(url, dest):
+        async def fake_download(url, dest, **_ignored):
             dest.write_bytes(b"pkg")
 
         monkeypatch.setattr("comic_dl.self_update.fetch_latest_release", newer)
@@ -448,7 +758,7 @@ class TestPackageManagerUpdate:
         async def newer():
             return _rel(_FUTURE_TAG, f"comic-dl_{_FUTURE}_amd64.deb")
 
-        async def fake_download(url, dest):
+        async def fake_download(url, dest, **_ignored):
             dest.write_bytes(b"pkg")
 
         monkeypatch.setattr("comic_dl.self_update.fetch_latest_release", newer)
@@ -478,12 +788,232 @@ class TestPackageManagerUpdate:
         assert rc == EXIT_ERROR
 
 
+class TestDownloadProgress:
+    async def test_reports_cumulative_bytes(self, monkeypatch, tmp_path):
+        seen: list[tuple[int, int | None]] = []
+
+        class FakeResp:
+            status_code = 200
+            headers = {"content-length": "10"}
+
+            async def aiter_content(self, _size):
+                yield b"12345"
+                yield b"67890"
+
+            async def aclose(self):
+                pass
+
+        async def fake_stream(_client, _url):
+            return FakeResp()
+
+        monkeypatch.setattr("comic_dl.self_update._open_stream", fake_stream)
+        dest = tmp_path / "pkg.deb"
+        await download_artifact(
+            "https://example.invalid/pkg.deb", dest, on_progress=lambda d, t: seen.append((d, t))
+        )
+        assert dest.read_bytes() == b"1234567890"
+        assert seen == [(5, 10), (10, 10)]
+
+    async def test_missing_length_is_indeterminate(self, monkeypatch, tmp_path):
+        seen: list[tuple[int, int | None]] = []
+
+        class FakeResp:
+            status_code = 200
+            headers = {}
+
+            async def aiter_content(self, _size):
+                yield b"12345"
+
+            async def aclose(self):
+                pass
+
+        async def fake_stream(_client, _url):
+            return FakeResp()
+
+        monkeypatch.setattr("comic_dl.self_update._open_stream", fake_stream)
+        await download_artifact(
+            "https://example.invalid/pkg.deb",
+            tmp_path / "pkg.deb",
+            on_progress=lambda d, t: seen.append((d, t)),
+        )
+        assert seen == [(5, None)]
+
+
+class TestSwapExecutable:
+    def test_posix_replaces_in_place(self, tmp_path):
+        current = tmp_path / "app"
+        current.write_bytes(b"old")
+        new = tmp_path / "app.new"
+        new.write_bytes(b"new")
+        assert _swap_executable(current, new, windows=False) is None
+        assert current.read_bytes() == b"new"
+        assert not new.exists()
+
+    def test_windows_renames_aside(self, tmp_path):
+        current = tmp_path / "app.exe"
+        current.write_bytes(b"old")
+        new = tmp_path / "app.new"
+        new.write_bytes(b"new")
+        backup = _swap_executable(current, new, windows=True)
+        assert backup == tmp_path / "app.exe.old"
+        assert current.read_bytes() == b"new"
+        assert backup.read_bytes() == b"old"
+
+    def test_windows_restores_on_failed_move(self, tmp_path):
+        current = tmp_path / "app.exe"
+        current.write_bytes(b"old")
+        with pytest.raises(OSError):
+            _swap_executable(current, tmp_path / "gone.new", windows=True)
+        assert current.read_bytes() == b"old"
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="fake binaries are POSIX shell scripts")
+class TestBinaryReplace:
+    def _release(self, version):
+        name = f"comic-dl-{version}-windows-amd64.exe"
+        return ReleaseInfo(
+            tag=f"v{version}",
+            version=version,
+            assets={name: f"https://example.invalid/{name}"},
+        ), name
+
+    def _script(self, version):
+        return f'#!/bin/sh\necho "comic-dl {version}"\n'.encode()
+
+    async def test_success_replaces_and_keeps_backup(self, monkeypatch, tmp_path, capsys):
+        exe = tmp_path / "comic-dl"
+        exe.write_bytes(b"old-binary")
+        release, name = self._release(_FUTURE)
+        content = self._script(_FUTURE)
+
+        async def fake_download(url, dest, **_ignored):
+            dest.write_bytes(content)
+            dest.chmod(0o755)
+
+        async def fake_checksums(release):
+            return {name: hashlib.sha256(content).hexdigest()}
+
+        monkeypatch.setattr("comic_dl.self_update.platform.machine", lambda: "AMD64")
+        monkeypatch.setattr("comic_dl.self_update.download_artifact", fake_download)
+        monkeypatch.setattr("comic_dl.self_update._fetch_checksums", fake_checksums)
+        monkeypatch.setattr("comic_dl.self_update._request_confirmation", lambda *a, **k: None)
+        info = InstallationInfo(InstallKind.BINARY, exe, writable=True)
+        rc = await _replace_binary(info, release, _FUTURE, yes=True, windows=True)
+        assert rc == EXIT_OK
+        assert exe.read_bytes() == content
+        assert (tmp_path / "comic-dl.old").read_bytes() == b"old-binary"
+        assert "Restart to use the new version." in _text(capsys)
+
+    async def test_posix_flow_replaces_without_backup(self, monkeypatch, tmp_path, capsys):
+        exe = tmp_path / "comic-dl"
+        exe.write_bytes(b"old-binary")
+        release, name = self._release(_FUTURE)
+        content = self._script(_FUTURE)
+
+        async def fake_download(url, dest, **_ignored):
+            dest.write_bytes(content)
+            dest.chmod(0o755)
+
+        async def fake_checksums(release):
+            return {name: hashlib.sha256(content).hexdigest()}
+
+        monkeypatch.setattr("comic_dl.self_update.platform.machine", lambda: "AMD64")
+        monkeypatch.setattr("comic_dl.self_update.download_artifact", fake_download)
+        monkeypatch.setattr("comic_dl.self_update._fetch_checksums", fake_checksums)
+        monkeypatch.setattr("comic_dl.self_update._request_confirmation", lambda *a, **k: None)
+        info = InstallationInfo(InstallKind.BINARY, exe, writable=True)
+        rc = await _replace_binary(info, release, _FUTURE, yes=True)
+        assert rc == EXIT_OK
+        assert exe.read_bytes() == content
+        assert not (tmp_path / "comic-dl.old").exists()
+
+    async def test_wrong_version_refuses(self, monkeypatch, tmp_path, capsys):
+        exe = tmp_path / "comic-dl"
+        exe.write_bytes(b"old-binary")
+        release, name = self._release(_FUTURE)
+        content = self._script("0.0.0")
+
+        async def fake_download(url, dest, **_ignored):
+            dest.write_bytes(content)
+            dest.chmod(0o755)
+
+        async def fake_checksums(release):
+            return {name: hashlib.sha256(content).hexdigest()}
+
+        monkeypatch.setattr("comic_dl.self_update.platform.machine", lambda: "AMD64")
+        monkeypatch.setattr("comic_dl.self_update.download_artifact", fake_download)
+        monkeypatch.setattr("comic_dl.self_update._fetch_checksums", fake_checksums)
+        monkeypatch.setattr("comic_dl.self_update._request_confirmation", lambda *a, **k: None)
+        info = InstallationInfo(InstallKind.BINARY, exe, writable=True)
+        rc = await _replace_binary(info, release, _FUTURE, yes=True, windows=True)
+        assert rc == EXIT_ERROR
+        assert exe.read_bytes() == b"old-binary"
+        assert not (tmp_path / "comic-dl.old").exists()
+        assert "does not report" in _text(capsys)
+
+    async def test_unwritable_instructs_without_downloading(self, monkeypatch, tmp_path, capsys):
+        calls: list[str] = []
+
+        async def fake_download(url, dest, **_ignored):
+            calls.append(url)
+
+        release, _ = self._release(_FUTURE)
+        monkeypatch.setattr("comic_dl.self_update.platform.machine", lambda: "AMD64")
+        monkeypatch.setattr("comic_dl.self_update.download_artifact", fake_download)
+        info = InstallationInfo(InstallKind.BINARY, tmp_path / "comic-dl", writable=False)
+        rc = await _replace_binary(info, release, _FUTURE, yes=True, windows=True)
+        assert rc == EXIT_ERROR
+        assert calls == []
+        assert "not writable" in _text(capsys)
+
+    async def test_decline_leaves_everything(self, monkeypatch, tmp_path, capsys):
+        calls: list[str] = []
+
+        async def fake_download(url, dest, **_ignored):
+            calls.append(url)
+
+        exe = tmp_path / "comic-dl"
+        exe.write_bytes(b"old-binary")
+        release, _ = self._release(_FUTURE)
+        monkeypatch.setattr("comic_dl.self_update.platform.machine", lambda: "AMD64")
+        monkeypatch.setattr("comic_dl.self_update.download_artifact", fake_download)
+        monkeypatch.setattr("comic_dl.self_update._request_confirmation", lambda *a, **k: EXIT_OK)
+        info = InstallationInfo(InstallKind.BINARY, exe, writable=True)
+        rc = await _replace_binary(info, release, _FUTURE, yes=False, windows=True)
+        assert rc == EXIT_OK
+        assert exe.read_bytes() == b"old-binary"
+        assert calls == []
+
+    async def test_stale_backup_replaced(self, monkeypatch, tmp_path, capsys):
+        exe = tmp_path / "comic-dl"
+        exe.write_bytes(b"old-binary")
+        (tmp_path / "comic-dl.old").write_bytes(b"stale")
+        release, name = self._release(_FUTURE)
+        content = self._script(_FUTURE)
+
+        async def fake_download(url, dest, **_ignored):
+            dest.write_bytes(content)
+            dest.chmod(0o755)
+
+        async def fake_checksums(release):
+            return {name: hashlib.sha256(content).hexdigest()}
+
+        monkeypatch.setattr("comic_dl.self_update.platform.machine", lambda: "AMD64")
+        monkeypatch.setattr("comic_dl.self_update.download_artifact", fake_download)
+        monkeypatch.setattr("comic_dl.self_update._fetch_checksums", fake_checksums)
+        monkeypatch.setattr("comic_dl.self_update._request_confirmation", lambda *a, **k: None)
+        info = InstallationInfo(InstallKind.BINARY, exe, writable=True)
+        rc = await _replace_binary(info, release, _FUTURE, yes=True, windows=True)
+        assert rc == EXIT_OK
+        assert (tmp_path / "comic-dl.old").read_bytes() == b"old-binary"
+
+
 class TestChecksumVerification:
     async def test_mismatch_refuses_before_install(self, monkeypatch, capsys):
         async def newer():
             return _rel(_FUTURE_TAG, f"comic-dl_{_FUTURE}_amd64.deb")
 
-        async def fake_download(url, dest):
+        async def fake_download(url, dest, **_ignored):
             dest.write_bytes(b"pkg")
 
         calls: list[list[str]] = []
@@ -514,7 +1044,7 @@ class TestChecksumVerification:
         async def newer():
             return _rel(_FUTURE_TAG, f"comic-dl_{_FUTURE}_amd64.deb")
 
-        async def fake_download(url, dest):
+        async def fake_download(url, dest, **_ignored):
             dest.write_bytes(b"pkg")
 
         calls: list[list[str]] = []

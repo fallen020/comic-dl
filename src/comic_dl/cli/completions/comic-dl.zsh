@@ -359,6 +359,7 @@ _shtab_comic_dl_self_site_check_options=(
   "(- : *)"{-h,--help}"[show this help message and exit]"
   "--live[run a live check for one site]"
   "--json[emit machine-readable JSON]"
+  {-q,--quiet}"[suppress progress output]"
   ":site id (all sites when omitted):"
 )
 
@@ -377,6 +378,7 @@ _shtab_comic_dl_self_site_update_options=(
   "(- : *)"{-h,--help}"[show this help message and exit]"
   "--all[update every outdated site]"
   {-y,--yes}"[skip the confirmation prompt]"
+  {-q,--quiet}"[suppress progress output]"
   ":site id (with --all when omitted):"
 )
 
@@ -387,6 +389,9 @@ _shtab_comic_dl_self_update_options=(
   "(- : *)"{-h,--help}"[show this help message and exit]"
   "--check[check only\; install or change nothing]"
   {-y,--yes}"[skip the confirmation prompt]"
+  {-q,--quiet}"[suppress progress output]"
+  "--json[emit machine-readable JSON (implies --check)]"
+  "--exit-code[exit 1 when an update is available (implies --check)]"
 )
 
 # guard to ensure default positional specs are added only once per session
@@ -394,6 +399,7 @@ _shtab_comic_dl_self_update_defaults_added=0
 
 _shtab_comic_dl_self_version_options=(
   "(- : *)"{-h,--help}"[show this help message and exit]"
+  "--json[emit machine-readable JSON]"
 )
 
 # guard to ensure default positional specs are added only once per session

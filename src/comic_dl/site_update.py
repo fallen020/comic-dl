@@ -44,11 +44,21 @@ from .scrapers import list_sources
 from .scrapers.base import BaseScraper
 from .scrapers.registry import get_entry
 from .self_update import (
+    ReleaseFailure,
     compare_versions,
     fetch_latest_release,
+    report_release_failure,
     run_update_command,
 )
-from .ui import JSON_SCHEMA_VERSION, console, print_dim, print_error, print_success, print_table
+from .ui import (
+    JSON_SCHEMA_VERSION,
+    console,
+    print_dim,
+    print_error,
+    print_success,
+    print_table,
+    suggest,
+)
 from .utils import http_client_args
 
 MANIFEST_ASSET = "site-support.json"
@@ -244,15 +254,16 @@ def _age_seconds(path: Path) -> float:
     return time.time() - path.stat().st_mtime
 
 
-async def fetch_site_manifest() -> SiteManifest | None:
-    """The ``site-support.json`` of the latest release, or ``None``.
+async def fetch_site_manifest() -> SiteManifest | ReleaseFailure | None:
+    """The ``site-support.json`` of the latest release, if fetchable.
 
-    Any failure — offline, no manifest asset, malformed payload —
-    collapses to ``None``; the caller prints "unable to check".
+    A failed release lookup passes its :class:`ReleaseFailure` through so
+    the caller can name the cause; manifest-level failures (no asset, bad
+    payload) stay ``None`` and the caller prints "unable to check".
     """
     release = await fetch_latest_release()
-    if release is None:
-        return None
+    if isinstance(release, ReleaseFailure):
+        return release
     url = release.assets.get(MANIFEST_ASSET)
     if url is None:
         return None
@@ -463,14 +474,22 @@ async def run_site_check_command(*, target: str | None, live: bool, json_mode: b
         return EXIT_USAGE
 
     manifest = await fetch_site_manifest()
+    fetch_failure: ReleaseFailure | None = None
+    if isinstance(manifest, ReleaseFailure):
+        fetch_failure = manifest
+        manifest = None
     installed_core = _version
     sites = local_sites()
     if target is not None:
-        sites = [s for s in sites if s.site_id == target]
-        if not sites:
+        match = [s for s in sites if s.site_id == target]
+        if not match:
             print_error(f"unknown site id {target!r}.")
+            hint = suggest(target, [s.site_id for s in sites])
+            if hint is not None and hint != target:
+                print_dim(f"Did you mean: {hint}?")
             print_dim("Run 'comic-dl self site list' to see the site ids.")
             return EXIT_USAGE
+        sites = match
 
     rows: list[list[str]] = []
     json_sites: list[dict] = []
@@ -514,9 +533,9 @@ async def run_site_check_command(*, target: str | None, live: bool, json_mode: b
             missing = f"No manifest entry for: {names}."
             extra = f"{extra}\n{missing}" if extra else missing
         console.print()
-    print_table(f"Site support check ({len(sites)})", list(_CHECK_COLUMNS), rows)
-    if extra:
-        print_dim(extra)
+        print_table(f"Site support check ({len(sites)})", list(_CHECK_COLUMNS), rows)
+        if extra:
+            print_dim(extra)
 
     if json_mode:
         console.print(
@@ -532,12 +551,16 @@ async def run_site_check_command(*, target: str | None, live: bool, json_mode: b
         )
 
     if degraded:
-        print_dim("Install as-is; no files were modified by this check.")
+        if fetch_failure is not None:
+            report_release_failure(fetch_failure)
+        print_dim("No files were modified by this check.")
         return EXIT_ERROR
     return EXIT_OK
 
 
-async def run_site_update_command(*, target: str | None, all_sites: bool, yes: bool) -> int:
+async def run_site_update_command(
+    *, target: str | None, all_sites: bool, yes: bool, quiet: bool = False
+) -> int:
     """``self site update <id>`` / ``--all`` — route an adapter update through
     the core update strategy (bundled adapters update with the core)."""
     if target is not None and all_sites:
@@ -549,6 +572,9 @@ async def run_site_update_command(*, target: str | None, all_sites: bool, yes: b
         return EXIT_USAGE
 
     manifest = await fetch_site_manifest()
+    if isinstance(manifest, ReleaseFailure):
+        report_release_failure(manifest)
+        return EXIT_ERROR
     if manifest is None:
         print_error("Unable to check for site-support updates.")
         print_dim("No network access, or the latest release has no site-support manifest.")
@@ -561,6 +587,9 @@ async def run_site_update_command(*, target: str | None, all_sites: bool, yes: b
         site = next((s for s in sites if s.site_id == target), None)
         if site is None:
             print_error(f"unknown site id {target!r}.")
+            hint = suggest(target, [s.site_id for s in sites])
+            if hint is not None and hint != target:
+                print_dim(f"Did you mean: {hint}?")
             print_dim("Run 'comic-dl self site list' to see the site ids.")
             return EXIT_USAGE
         available = manifest.sites.get(site.site_id)
@@ -593,4 +622,4 @@ async def run_site_update_command(*, target: str | None, all_sites: bool, yes: b
         )
         return EXIT_ERROR
 
-    return await run_update_command(check=False, yes=yes)
+    return await run_update_command(check=False, yes=yes, quiet=quiet)
