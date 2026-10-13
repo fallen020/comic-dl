@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 from urllib.parse import urljoin, urlparse
 
@@ -10,7 +11,14 @@ from curl_cffi.requests import AsyncSession
 from curl_cffi.requests.exceptions import HTTPError as CurlHTTPError
 
 from ...antibot import looks_like_challenge
-from ...errors import SITE_AUTH_REQUIRED, SITE_BLOCKED, SITE_NO_SERIES, ScrapeError
+from ...errors import (
+    SITE_AUTH_REQUIRED,
+    SITE_BLOCKED,
+    SITE_GONE,
+    SITE_NO_PAGES,
+    SITE_NO_SERIES,
+    ScrapeError,
+)
 from ...models import (
     ChapterInfo,
     ImageItem,
@@ -49,12 +57,21 @@ _CHAPTER_PATH_RE = re.compile(r"^https?://(?:www\.)?asurascans\.com/comics/[^/]+
 _STATUS_LABEL = "Status"
 _PREMIUM_MARKER = "Premium"
 
+# Single-segment routes under /comics/ that are site pages, not series.
+_SERIES_SLUG_DENYLIST = frozenset({"browse", "latest", "genres"})
+
+# The router ignores the trailing -<token> (8 hex chars, rotates globally),
+# so the base slug is the stable series identity.
+_SERIES_TOKEN_SUFFIX_RE = re.compile(r"-[0-9a-fA-F]{8}$")
+
 _STATUS_LABEL_SEL = "div, span, dt, dd, h5, h6"
 
 
 def is_series_url(url: str) -> bool:
     """True when ``url`` points at a series page for this source."""
-    return bool(_SERIES_PATH_RE.match(url))
+    if not _SERIES_PATH_RE.match(url):
+        return False
+    return _series_slug_from_url(url).lower() not in _SERIES_SLUG_DENYLIST
 
 
 def is_chapter_url(url: str) -> bool:
@@ -230,6 +247,16 @@ def _is_premium_page(soup: BeautifulSoup, idx: dict[str, list[str]]) -> bool:
     return _PREMIUM_MARKER in meta_get(idx, "og:title", "twitter:title")
 
 
+def _premium_error() -> ScrapeError:
+    """Refusal for a chapter locked behind a paid account."""
+    return ScrapeError(
+        "This chapter is premium/locked on Asura Scans and requires a "
+        "paid account, which this tool does not support.",
+        hint="Pick a free chapter.",
+        site_error_code=SITE_AUTH_REQUIRED,
+    )
+
+
 def _extract_status(soup: BeautifulSoup) -> str | None:
     """``Status`` label whose parent card holds the value (e.g. ``ongoing``)."""
     for el in soup.select(_STATUS_LABEL_SEL):
@@ -259,6 +286,47 @@ def _chapter_number_from_slug(url: str) -> str | None:
     if m:
         return m.group(1)
     return None
+
+
+def _island_value(node: object) -> object:
+    """Unwrap one Astro island ``[0, value]`` cell; anything else is unknown."""
+    if isinstance(node, list) and len(node) == 2 and node[0] == 0:
+        return node[1]
+    return None
+
+
+def _declared_chapter_records(soup: BeautifulSoup) -> dict[int, dict]:
+    """Per-chapter ``{page_count, is_premium}`` from the ChapterList island.
+
+    Best-effort: only the exact shapes observed live are accepted, so a
+    payload change yields missing entries, which callers treat as unknown
+    rather than as a failure.
+    """
+    records: dict[int, dict] = {}
+    for el in soup.select('astro-island[props][component-url*="ChapterList"]'):
+        props = el.get("props")
+        if not isinstance(props, str) or not props:
+            continue
+        try:
+            payload = json.loads(props)
+        except ValueError:
+            continue
+        chapters = payload.get("chapters") if isinstance(payload, dict) else None
+        items = chapters[1] if isinstance(chapters, list) and len(chapters) == 2 else None
+        if not isinstance(items, list):
+            continue
+        for entry in items:
+            node = entry[1] if isinstance(entry, list) and len(entry) == 2 else None
+            if not isinstance(node, dict):
+                continue
+            number = _island_value(node.get("number"))
+            if not isinstance(number, int) or isinstance(number, bool):
+                continue
+            records[number] = {
+                "page_count": _island_value(node.get("page_count")),
+                "is_premium": _island_value(node.get("is_premium")),
+            }
+    return records
 
 
 def _extract_images(soup: BeautifulSoup) -> list[ImageItem]:
@@ -295,8 +363,8 @@ class AsurascansScraper(BaseScraper):
     content_warning = "safe"
     chapter_url_pattern = "/comics/{series}/chapter/{n}"
     series_url_pattern = "/comics/{series}/"
-    version = "1.0.3"
-    test_url = "https://asurascans.com/comics/nano-machine-3ec3b16f/chapter/1"
+    version = "1.0.4"
+    test_url = "https://asurascans.com/comics/nano-machine-1bb35e56/chapter/1"
     test_url_kind = "chapter"
     minimum_core_version = "0.0.2"
 
@@ -311,7 +379,7 @@ class AsurascansScraper(BaseScraper):
         return bool(self.chapter_url_re.match(url)) or bool(self.series_url_re.match(url))
 
     def matches_series_url(self, url: str) -> bool:
-        return bool(self.series_url_re.match(url))
+        return is_series_url(url)
 
     @staticmethod
     async def _fetch(url: str, client: AsyncSession) -> tuple[BeautifulSoup, str]:
@@ -325,7 +393,7 @@ class AsurascansScraper(BaseScraper):
                 raise ScrapeError(
                     "page not found on Asura Scans.",
                     hint="the series may have been removed, or this chapter link is dead.",
-                    site_error_code=SITE_NO_SERIES,
+                    site_error_code=SITE_GONE if _CHAPTER_PATH_RE.match(url) else SITE_NO_SERIES,
                 ) from None
             if resp is not None and looks_like_challenge(
                 status or 0,
@@ -370,9 +438,31 @@ class AsurascansScraper(BaseScraper):
                 "artists": meta.get("artists", []),
                 "community_rating": meta.get("community_rating"),
                 "status": _extract_status(soup),
+                "chapter_records": _declared_chapter_records(soup),
             }
 
         return await self._series_cache.get(series_slug, _load)
+
+    async def _series_chapter_record(
+        self,
+        series_slug: str,
+        chapter_number: str | None,
+        client: AsyncSession,
+    ) -> dict | None:
+        """Declared ``{page_count, is_premium}`` for one chapter, if known.
+
+        Unknown covers every failure: no slug/number, a dead series page
+        (the cache degrades loader failures to ``{}``), or a payload shape
+        change. Callers keep today's behavior when this returns None.
+        """
+        if not series_slug or not chapter_number or not chapter_number.isdigit():
+            return None
+        series = await self._series_page_data(series_slug, client)
+        records = series.get("chapter_records")
+        if not isinstance(records, dict):
+            return None
+        record = records.get(int(chapter_number))
+        return record if isinstance(record, dict) else None
 
     async def _scrape_chapter(
         self,
@@ -382,12 +472,30 @@ class AsurascansScraper(BaseScraper):
         soup, _ = await self._fetch(url, client)
         idx = meta_index(soup)
 
-        if _is_premium_page(soup, idx):
+        # Locked chapters render zero images, but "Premium" also matches series
+        # names, so the marker alone must not refuse a page with images.
+        images = _extract_images(soup)
+        if not images and _is_premium_page(soup, idx):
+            raise _premium_error()
+        series_slug = _series_slug_from_url(url)
+        chapter_number = _chapter_number_from_slug(url)
+        record = await self._series_chapter_record(series_slug, chapter_number, client)
+        if not images:
+            if (record or {}).get("is_premium") is True:
+                raise _premium_error()
+            raise no_images_error()
+        expected = (record or {}).get("page_count")
+        if (
+            isinstance(expected, int)
+            and not isinstance(expected, bool)
+            and expected > 0
+            and len(images) < expected
+        ):
             raise ScrapeError(
-                "This chapter is premium/locked on Asura Scans and requires a "
-                "paid account, which this tool does not support.",
-                hint=f"Pick an unlocked chapter or drop the URL: {url}",
-                site_error_code=SITE_AUTH_REQUIRED,
+                f"Chapter {chapter_number or '?'} rendered "
+                f"{len(images)} of {expected} declared pages.",
+                hint="the chapter page looks partial; retry it later or report the layout change.",
+                site_error_code=SITE_NO_PAGES,
             )
 
         article = _article_node(soup)
@@ -403,16 +511,11 @@ class AsurascansScraper(BaseScraper):
         if not series_title:
             series_title = _extract_series_title(soup, idx)
 
-        chapter_number = _chapter_number_from_slug(url)
         chapter_title = _extract_chapter_title(soup, idx, series_title)
         if not chapter_title or chapter_title == series_title:
             chapter_title = (
                 f"Chapter {chapter_number}" if chapter_number else chapter_title or "Chapter"
             )
-
-        images = _extract_images(soup)
-        if not images:
-            raise no_images_error()
 
         genres = meta.get("genres", [])
         authors = meta.get("authors", [])
@@ -420,7 +523,6 @@ class AsurascansScraper(BaseScraper):
         status: str | None = None
         community_rating = meta.get("community_rating")
         description = meta.get("description", "")
-        series_slug = _series_slug_from_url(url)
         if series_slug:
             series = await self._series_page_data(series_slug, client)
             genres = genres or series.get("genres", [])
@@ -463,7 +565,7 @@ class AsurascansScraper(BaseScraper):
         series_title = meta.get("series_title") or _extract_series_title(soup, idx)
         description = _extract_description(soup, idx) or meta.get("description", "")
         cover_url = meta.get("cover_url") or _extract_cover(soup, idx)
-        title_no = _series_slug_from_url(url)
+        title_no = _SERIES_TOKEN_SUFFIX_RE.sub("", _series_slug_from_url(url))
 
         chapters: list[dict] = []
         seen_urls: set[str] = set()

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 import pytest
 from bs4 import BeautifulSoup
 
@@ -8,6 +10,7 @@ from comic_dl.scrapers.sites.asurascans import (
     DOMAIN,
     AsurascansScraper,
     _chapter_number_from_slug,
+    _declared_chapter_records,
     _extract_chapter_title,
     _extract_description,
     _extract_images,
@@ -94,6 +97,13 @@ class TestUrlPatterns:
         assert scraper.matches_url("https://asurascans.com/comics/series/chapter/1")
         assert scraper.matches_url("https://asurascans.com/comics/series")
         assert not scraper.matches_url("https://asurascans.com/browse")
+
+    def test_reserved_comics_slugs_are_not_series(self):
+        for slug in ("browse", "latest", "genres"):
+            url = f"https://asurascans.com/comics/{slug}"
+            assert not is_series_url(url)
+            assert not AsurascansScraper().matches_series_url(url)
+        assert is_series_url("https://asurascans.com/comics/nano-machine-1bb35e56")
 
 
 class TestHelpers:
@@ -408,6 +418,24 @@ class TestAsurascansScraper:
     </head><body></body></html>
     """
 
+    PREMIUM_NAMED_PAGE = """
+    <html lang="en"><head>
+        <title>Premium Swordmaster Chapter 5 - Read Online | Asura Scans</title>
+        <meta property="og:title"
+              content="Premium Swordmaster Chapter 5 - Read Online | Asura Scans"/>
+        <script type="application/ld+json">
+        {"@context":"https://schema.org","@type":"Article",
+         "headline":"Premium Swordmaster Chapter 5",
+         "isPartOf":{"@type":"ComicSeries","name":"Premium Swordmaster"}}
+        </script>
+    </head><body>
+    <div class="reader">
+        <img src="https://cdn.asurascans.com/asura-images/chapters/premium-swordmaster-00dcbf97/5/001.webp"/>
+        <img src="https://cdn.asurascans.com/asura-images/chapters/premium-swordmaster-00dcbf97/5/002.webp"/>
+    </div>
+    </body></html>
+    """
+
     def test_domain_attr(self):
         scraper = AsurascansScraper()
         assert scraper.domain == DOMAIN
@@ -424,6 +452,95 @@ class TestAsurascansScraper:
                 session,
             )
         assert exc_info.value.site_error_code == SITE_AUTH_REQUIRED
+
+    @pytest.mark.asyncio
+    async def test_scrape_premium_named_series_with_images(self):
+        session = _MockSession(lambda url: _MockResponse(self.PREMIUM_NAMED_PAGE))
+        scraper = AsurascansScraper()
+        meta = await scraper.scrape(
+            "https://asurascans.com/comics/premium-swordmaster-00dcbf97/chapter/5",
+            session,
+        )
+        assert len(meta.images) == 2
+
+    @staticmethod
+    def _chapter_html(n_images: int) -> str:
+        imgs = "".join(
+            f'<img src="https://cdn.asurascans.com/asura-images/chapters/s/7/{i:03d}.webp"/>'
+            for i in range(1, n_images + 1)
+        )
+        return f"""<html lang="en"><head>
+            <title>Series Chapter 7 - Read Online | Asura Scans</title>
+            <script type="application/ld+json">
+            {{"@context":"https://schema.org","@type":"Article",
+             "headline":"Series Chapter 7",
+             "isPartOf":{{"@type":"ComicSeries","name":"Series"}}}}
+            </script>
+        </head><body><div class="reader">{imgs}</div></body></html>"""
+
+    @staticmethod
+    def _series_records_html(records: list[tuple[int, int, bool]]) -> str:
+        entries = [
+            [0, {"number": [0, n], "page_count": [0, pc], "is_premium": [0, prem]}]
+            for n, pc, prem in records
+        ]
+        props = json.dumps({"chapters": [1, entries]})
+        return (
+            "<html><head><title>Series | Asura Scans</title></head><body>"
+            f"<astro-island component-url=\"/_astro/ChapterListReact.x.js\" props='{props}'>"
+            "</astro-island></body></html>"
+        )
+
+    @pytest.mark.asyncio
+    async def test_scrape_short_chapter_raises(self):
+        from comic_dl.errors import SITE_NO_PAGES
+
+        def handler(url):
+            if url.endswith("/comics/s"):
+                return _MockResponse(self._series_records_html([(7, 20, False)]))
+            return _MockResponse(self._chapter_html(3))
+
+        session = _MockSession(handler)
+        scraper = AsurascansScraper()
+        with pytest.raises(ValueError, match="3 of 20") as exc_info:
+            await scraper.scrape("https://asurascans.com/comics/s/chapter/7", session)
+        assert exc_info.value.site_error_code == SITE_NO_PAGES
+
+    @pytest.mark.asyncio
+    async def test_scrape_full_declared_count_passes(self):
+        def handler(url):
+            if url.endswith("/comics/s"):
+                return _MockResponse(self._series_records_html([(7, 20, False)]))
+            return _MockResponse(self._chapter_html(20))
+
+        session = _MockSession(handler)
+        scraper = AsurascansScraper()
+        meta = await scraper.scrape("https://asurascans.com/comics/s/chapter/7", session)
+        assert meta.total_pages == 20
+        assert len(meta.images) == 20
+
+    @pytest.mark.asyncio
+    async def test_scrape_payload_premium_without_marker(self):
+        from comic_dl.errors import SITE_AUTH_REQUIRED
+
+        def handler(url):
+            if url.endswith("/comics/s"):
+                return _MockResponse(self._series_records_html([(7, 0, True)]))
+            return _MockResponse(self._chapter_html(0))
+
+        session = _MockSession(handler)
+        scraper = AsurascansScraper()
+        with pytest.raises(ValueError, match="premium/locked") as exc_info:
+            await scraper.scrape("https://asurascans.com/comics/s/chapter/7", session)
+        assert exc_info.value.site_error_code == SITE_AUTH_REQUIRED
+
+    def test_declared_records_empty_on_unknown_shape(self):
+        soup = BeautifulSoup(
+            '<html><body><astro-island component-url="/_astro/ChapterListReact.x.js"'
+            ' props="not json"></astro-island></body></html>',
+            "lxml",
+        )
+        assert _declared_chapter_records(soup) == {}
 
     @pytest.mark.asyncio
     async def test_scrape_challenge_maps_to_blocked(self, monkeypatch):
@@ -445,8 +562,8 @@ class TestAsurascansScraper:
         assert "--solver auto" in exc_info.value.hint
 
     @pytest.mark.asyncio
-    async def test_scrape_missing_page_maps_to_no_series(self):
-        from comic_dl.errors import SITE_NO_SERIES
+    async def test_scrape_missing_chapter_maps_to_gone(self):
+        from comic_dl.errors import SITE_GONE
 
         session = _MockSession(lambda url: _MockResponse(b"Not found", status=404))
         scraper = AsurascansScraper()
@@ -455,7 +572,7 @@ class TestAsurascansScraper:
                 "https://asurascans.com/comics/nano-machine-3ec3b16f/chapter/1",
                 session,
             )
-        assert exc_info.value.site_error_code == SITE_NO_SERIES
+        assert exc_info.value.site_error_code == SITE_GONE
 
     @pytest.mark.asyncio
     async def test_scrape_raises_on_no_images(self):
@@ -553,13 +670,16 @@ class TestAsurascansScraper:
 
     @pytest.mark.asyncio
     async def test_scrape_404_gives_friendly_error(self):
+        from comic_dl.errors import SITE_GONE
+
         session = _MockSession(lambda url: _MockResponse(b"<html><body></body></html>", status=404))
         scraper = AsurascansScraper()
-        with pytest.raises(ValueError, match="page not found"):
+        with pytest.raises(ValueError, match="page not found") as exc_info:
             await scraper.scrape(
                 "https://asurascans.com/comics/gone-00dcbf97/chapter/1",
                 session,
             )
+        assert exc_info.value.site_error_code == SITE_GONE
 
     @pytest.mark.asyncio
     async def test_scrape_series_404_gives_friendly_error(self):
@@ -586,13 +706,27 @@ class TestAsurascansScraper:
             "Full paragraph two with the rest of the synopsis."
         )
         assert series.cover_url == COVER
-        assert series.title_no == "murim-psychopath-00dcbf97"
+        assert series.title_no == "murim-psychopath"
         assert len(series.chapters) == 4
         assert series.chapters[0]["episode_no"] == "0"
         assert series.chapters[0]["title"] == "Chapter 0"
         assert series.chapters[1]["episode_no"] == "1"
         assert series.chapters[-1]["episode_no"] == "3"
         assert series.chapters[-1]["url"].endswith("/chapter/3")
+
+    @pytest.mark.asyncio
+    async def test_scrape_series_token_rotation_keeps_identity(self):
+        session = _MockSession(lambda url: _MockResponse(self.SERIES_PAGE_FULL_DESC))
+        scraper = AsurascansScraper()
+        first = await scraper.scrape_series(
+            "https://asurascans.com/comics/murim-psychopath-00000000",
+            session,
+        )
+        second = await scraper.scrape_series(
+            "https://asurascans.com/comics/murim-psychopath-1bb35e56",
+            session,
+        )
+        assert first.title_no == second.title_no == "murim-psychopath"
 
     @pytest.mark.asyncio
     async def test_scrape_series_no_chapters_raises(self):
