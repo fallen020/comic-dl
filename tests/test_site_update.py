@@ -19,6 +19,7 @@ from comic_dl.errors import (
     SiteRegistryError,
 )
 from comic_dl.scrapers.registry import register_builtin, register_scraper
+from comic_dl.self_update import ReleaseFailure, ReleaseFailureKind
 from comic_dl.site_update import (
     LiveResult,
     LocalSite,
@@ -409,6 +410,17 @@ class TestSiteCheck:
         assert payload["core_version"] == _CORE_VERSION
         assert payload["sites"]
         assert "SITE" not in cap.out and "INSTALLED" not in cap.out
+
+    async def test_release_failure_reason_reported(self, monkeypatch, capsys):
+        async def offline():
+            return ReleaseFailure(ReleaseFailureKind.OFFLINE)
+
+        monkeypatch.setattr("comic_dl.site_update.fetch_latest_release", offline)
+        rc = await run_site_check_command(target=None, live=False, json_mode=False)
+        assert rc == EXIT_ERROR
+        out = _text(capsys)
+        assert "no network connection" in out
+        assert "--proxy" in out
 
     async def test_unknown_site_is_usage_error(self, monkeypatch):
         monkeypatch.setattr("comic_dl.site_update.fetch_site_manifest", _noop_fetch)

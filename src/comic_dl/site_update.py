@@ -44,8 +44,10 @@ from .scrapers import list_sources
 from .scrapers.base import BaseScraper
 from .scrapers.registry import get_entry
 from .self_update import (
+    ReleaseFailure,
     compare_versions,
     fetch_latest_release,
+    report_release_failure,
     run_update_command,
 )
 from .ui import (
@@ -252,15 +254,16 @@ def _age_seconds(path: Path) -> float:
     return time.time() - path.stat().st_mtime
 
 
-async def fetch_site_manifest() -> SiteManifest | None:
-    """The ``site-support.json`` of the latest release, or ``None``.
+async def fetch_site_manifest() -> SiteManifest | ReleaseFailure | None:
+    """The ``site-support.json`` of the latest release, if fetchable.
 
-    Any failure — offline, no manifest asset, malformed payload —
-    collapses to ``None``; the caller prints "unable to check".
+    A failed release lookup passes its :class:`ReleaseFailure` through so
+    the caller can name the cause; manifest-level failures (no asset, bad
+    payload) stay ``None`` and the caller prints "unable to check".
     """
     release = await fetch_latest_release()
-    if release is None:
-        return None
+    if isinstance(release, ReleaseFailure):
+        return release
     url = release.assets.get(MANIFEST_ASSET)
     if url is None:
         return None
@@ -471,6 +474,10 @@ async def run_site_check_command(*, target: str | None, live: bool, json_mode: b
         return EXIT_USAGE
 
     manifest = await fetch_site_manifest()
+    fetch_failure: ReleaseFailure | None = None
+    if isinstance(manifest, ReleaseFailure):
+        fetch_failure = manifest
+        manifest = None
     installed_core = _version
     sites = local_sites()
     if target is not None:
@@ -544,6 +551,8 @@ async def run_site_check_command(*, target: str | None, live: bool, json_mode: b
         )
 
     if degraded:
+        if fetch_failure is not None:
+            report_release_failure(fetch_failure)
         print_dim("No files were modified by this check.")
         return EXIT_ERROR
     return EXIT_OK
@@ -563,6 +572,9 @@ async def run_site_update_command(
         return EXIT_USAGE
 
     manifest = await fetch_site_manifest()
+    if isinstance(manifest, ReleaseFailure):
+        report_release_failure(manifest)
+        return EXIT_ERROR
     if manifest is None:
         print_error("Unable to check for site-support updates.")
         print_dim("No network access, or the latest release has no site-support manifest.")

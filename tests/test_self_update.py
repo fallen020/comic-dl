@@ -8,6 +8,7 @@ mocked, matching the repo-wide offline test convention.
 from __future__ import annotations
 
 import hashlib
+import time
 from pathlib import Path
 
 import pytest
@@ -20,13 +21,17 @@ from comic_dl.self_update import (
     EXIT_OK,
     InstallationInfo,
     InstallKind,
+    ReleaseFailure,
+    ReleaseFailureKind,
     ReleaseInfo,
     _request_confirmation,
     compare_versions,
     detect_installation,
     download_artifact,
+    fetch_latest_release,
     install_args,
     parse_version,
+    report_release_failure,
     run_update_command,
     select_asset,
 )
@@ -245,12 +250,14 @@ class TestSelfErrors:
 class TestUpdateCheck:
     async def test_network_failure(self, monkeypatch, capsys):
         async def boom():
-            return None
+            return ReleaseFailure(ReleaseFailureKind.OFFLINE)
 
         monkeypatch.setattr("comic_dl.self_update.fetch_latest_release", boom)
         rc = await run_update_command(check=True, yes=True)
         assert rc == EXIT_ERROR
-        assert "Unable to check for updates" in _text(capsys)
+        out = _text(capsys)
+        assert "Unable to check for updates: no network connection." in out
+        assert "--proxy" in out
 
     async def test_already_up_to_date(self, monkeypatch, capsys):
         async def current():
@@ -281,7 +288,7 @@ class TestUpdateCheck:
 
     async def test_quiet_check_offline(self, monkeypatch, capsys):
         async def boom():
-            return None
+            return ReleaseFailure(ReleaseFailureKind.OFFLINE)
 
         monkeypatch.setattr("comic_dl.self_update.fetch_latest_release", boom)
         rc = await run_update_command(check=True, yes=True, quiet=True)
@@ -292,12 +299,123 @@ class TestUpdateCheck:
         from comic_dl.cli import _run_self
 
         async def boom():
-            return None
+            return ReleaseFailure(ReleaseFailureKind.OFFLINE)
 
         monkeypatch.setattr("comic_dl.self_update.fetch_latest_release", boom)
         rc = await _run_self(["update", "--check", "--quiet"])
         assert rc == EXIT_ERROR
         assert "Unable to check for updates" in _text(capsys)
+
+
+class TestReleaseLookup:
+    """`fetch_latest_release` classifies failures instead of collapsing them."""
+
+    class _Resp:
+        """Minimal stand-in for the response the lookup reads."""
+
+        def __init__(self, status, headers=None, payload=None, broken=False):
+            self.status_code = status
+            self.headers = headers or {}
+            self._payload = payload
+            self._broken = broken
+
+        def json(self):
+            if self._broken:
+                raise ValueError("not JSON")
+            return self._payload
+
+    async def test_transport_error_is_offline(self, monkeypatch):
+        async def dead(url, client, **kw):
+            raise OSError("down")
+
+        monkeypatch.setattr("comic_dl.self_update.BaseScraper._timeout_get", dead)
+        assert await fetch_latest_release() == ReleaseFailure(ReleaseFailureKind.OFFLINE)
+
+    async def test_rate_limit_names_reset(self, monkeypatch):
+        async def limited(url, client, **kw):
+            return TestReleaseLookup._Resp(429, {"x-ratelimit-reset": "50400"})
+
+        monkeypatch.setattr("comic_dl.self_update.BaseScraper._timeout_get", limited)
+        result = await fetch_latest_release()
+        assert result.kind is ReleaseFailureKind.RATE_LIMITED
+        assert result.detail == "14:00 UTC"
+
+    async def test_exhausted_quota_is_rate_limited(self, monkeypatch):
+        async def limited(url, client, **kw):
+            return TestReleaseLookup._Resp(
+                403, {"x-ratelimit-remaining": "0", "x-ratelimit-reset": "50400"}
+            )
+
+        monkeypatch.setattr("comic_dl.self_update.BaseScraper._timeout_get", limited)
+        result = await fetch_latest_release()
+        assert result.kind is ReleaseFailureKind.RATE_LIMITED
+        assert result.detail == "14:00 UTC"
+
+    async def test_retry_after_counts_from_now(self, monkeypatch):
+        monkeypatch.setattr(time, "time", lambda: 1_000_000.0)
+
+        async def limited(url, client, **kw):
+            return TestReleaseLookup._Resp(429, {"retry-after": "3600"})
+
+        monkeypatch.setattr("comic_dl.self_update.BaseScraper._timeout_get", limited)
+        result = await fetch_latest_release()
+        assert result.kind is ReleaseFailureKind.RATE_LIMITED
+        assert result.detail == "14:46 UTC"
+
+    async def test_not_found(self, monkeypatch):
+        async def gone(url, client, **kw):
+            return TestReleaseLookup._Resp(404)
+
+        monkeypatch.setattr("comic_dl.self_update.BaseScraper._timeout_get", gone)
+        assert await fetch_latest_release() == ReleaseFailure(ReleaseFailureKind.NOT_FOUND)
+
+    async def test_server_error_carries_status(self, monkeypatch):
+        async def broken(url, client, **kw):
+            return TestReleaseLookup._Resp(500)
+
+        monkeypatch.setattr("comic_dl.self_update.BaseScraper._timeout_get", broken)
+        result = await fetch_latest_release()
+        assert result.kind is ReleaseFailureKind.SERVER_ERROR
+        assert result.detail == "500"
+
+    async def test_unexhausted_403_is_server_error(self, monkeypatch):
+        async def denied(url, client, **kw):
+            return TestReleaseLookup._Resp(403, {"x-ratelimit-remaining": "59"})
+
+        monkeypatch.setattr("comic_dl.self_update.BaseScraper._timeout_get", denied)
+        result = await fetch_latest_release()
+        assert result.kind is ReleaseFailureKind.SERVER_ERROR
+        assert result.detail == "403"
+
+    async def test_malformed_payloads(self, monkeypatch):
+        async def broken(url, client, **kw):
+            return TestReleaseLookup._Resp(200, broken=True)
+
+        async def tagless(url, client, **kw):
+            return TestReleaseLookup._Resp(200, payload={})
+
+        monkeypatch.setattr("comic_dl.self_update.BaseScraper._timeout_get", broken)
+        assert await fetch_latest_release() == ReleaseFailure(ReleaseFailureKind.MALFORMED)
+        monkeypatch.setattr("comic_dl.self_update.BaseScraper._timeout_get", tagless)
+        assert await fetch_latest_release() == ReleaseFailure(ReleaseFailureKind.MALFORMED)
+
+    async def test_non_object_payload_is_malformed(self, monkeypatch):
+        async def listed(url, client, **kw):
+            return TestReleaseLookup._Resp(200, payload=["v1"])
+
+        monkeypatch.setattr("comic_dl.self_update.BaseScraper._timeout_get", listed)
+        assert await fetch_latest_release() == ReleaseFailure(ReleaseFailureKind.MALFORMED)
+
+    async def test_report_names_each_cause(self, capsys):
+        report_release_failure(ReleaseFailure(ReleaseFailureKind.NOT_FOUND))
+        report_release_failure(ReleaseFailure(ReleaseFailureKind.MALFORMED))
+        report_release_failure(ReleaseFailure(ReleaseFailureKind.SERVER_ERROR, detail="500"))
+        report_release_failure(ReleaseFailure(ReleaseFailureKind.RATE_LIMITED, detail="14:00 UTC"))
+        out = _text(capsys)
+        assert "api.github.com" in out
+        assert "unexpected response" in out
+        assert "HTTP 500" in out
+        assert "resets at 14:00 UTC" in out
 
 
 class TestUpdateRefusal:

@@ -15,6 +15,7 @@ path — it only affects this command.
 
 from __future__ import annotations
 
+import datetime
 import enum
 import hashlib
 import hmac
@@ -25,6 +26,7 @@ import shutil
 import subprocess  # nosec B404
 import sys
 import tempfile
+import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -37,7 +39,17 @@ from . import __version__ as _version
 from .downloader import _open_stream
 from .errors import EXIT_ERROR, EXIT_INTERRUPTED, EXIT_OK
 from .scrapers.base import BaseScraper
-from .ui import get_ui_gate, print_dim, print_error, print_success, print_warning, run_with_status
+from .ui import (
+    DIAGNOSTIC,
+    TAG_HTTP,
+    get_ui_gate,
+    print_dim,
+    print_error,
+    print_success,
+    print_warning,
+    run_with_status,
+    vlog,
+)
 from .utils import http_client_args
 
 GITHUB_API_RELEASES_LATEST = "https://api.github.com/repos/fallen020/comic-dl/releases/latest"
@@ -96,6 +108,28 @@ class ReleaseInfo:
     tag: str
     version: str
     assets: dict[str, str]
+
+
+class ReleaseFailureKind(enum.Enum):
+    """Why the latest-release lookup failed (each renders one user line)."""
+
+    OFFLINE = "offline"
+    RATE_LIMITED = "rate_limited"
+    NOT_FOUND = "not_found"
+    MALFORMED = "malformed"
+    SERVER_ERROR = "server_error"
+
+
+@dataclass(frozen=True)
+class ReleaseFailure:
+    """A failed latest-release lookup: machine-readable cause + detail.
+
+    ``detail`` carries the rate-limit reset ("14:02 UTC") or the HTTP
+    status for server errors; empty otherwise.
+    """
+
+    kind: ReleaseFailureKind
+    detail: str = ""
 
 
 def compare_versions(installed: str, latest: str) -> int:
@@ -259,29 +293,46 @@ def install_args(kind: InstallKind, artifact: Path) -> list[str]:
     raise ValueError(f"no package-manager install for {kind.name}")
 
 
-async def fetch_latest_release() -> ReleaseInfo | None:
-    """The latest published release, or ``None`` on any lookup failure.
+async def fetch_latest_release() -> ReleaseInfo | ReleaseFailure:
+    """The latest published release, or a :class:`ReleaseFailure`.
 
-    Offline, API-rate-limited, and malformed responses collapse to ``None`` —
-    the caller turns that into a user-facing "unable to check" message without
-    leaking exception details.
+    Transport errors, rate limits, and malformed payloads no longer
+    collapse: the caller renders one line per cause, and the cause
+    itself is logged at ``-vv`` without leaking exception details.
     """
     try:
         async with AsyncSession(**http_client_args(host="api.github.com")) as client:
             resp = await BaseScraper._timeout_get(
                 GITHUB_API_RELEASES_LATEST, client, use_cache=True
             )
-    except Exception:
-        return None
+    except Exception as exc:
+        vlog(DIAGNOSTIC, f"release lookup failed: {type(exc).__name__}", tag=TAG_HTTP)
+        return ReleaseFailure(ReleaseFailureKind.OFFLINE)
+    if resp.status_code == 429 or (
+        resp.status_code == 403 and resp.headers.get("x-ratelimit-remaining") == "0"
+    ):
+        vlog(DIAGNOSTIC, f"release lookup rate limited (HTTP {resp.status_code})", tag=TAG_HTTP)
+        return ReleaseFailure(
+            ReleaseFailureKind.RATE_LIMITED, detail=_rate_limit_reset(resp.headers)
+        )
+    if resp.status_code == 404:
+        vlog(DIAGNOSTIC, "release lookup 404", tag=TAG_HTTP)
+        return ReleaseFailure(ReleaseFailureKind.NOT_FOUND)
     if resp.status_code != 200:
-        return None
+        vlog(DIAGNOSTIC, f"release lookup HTTP {resp.status_code}", tag=TAG_HTTP)
+        return ReleaseFailure(ReleaseFailureKind.SERVER_ERROR, detail=str(resp.status_code))
     try:
         data = resp.json()
     except (ValueError, TypeError, json.JSONDecodeError):
-        return None
+        vlog(DIAGNOSTIC, "release lookup returned malformed JSON", tag=TAG_HTTP)
+        return ReleaseFailure(ReleaseFailureKind.MALFORMED)
+    if not isinstance(data, dict):
+        vlog(DIAGNOSTIC, "release lookup returned malformed JSON", tag=TAG_HTTP)
+        return ReleaseFailure(ReleaseFailureKind.MALFORMED)
     tag = str(data.get("tag_name") or "")
     if not tag:
-        return None
+        vlog(DIAGNOSTIC, "release lookup response has no tag", tag=TAG_HTTP)
+        return ReleaseFailure(ReleaseFailureKind.MALFORMED)
     assets: dict[str, str] = {}
     for item in data.get("assets") or []:
         name = (item or {}).get("name")
@@ -291,6 +342,53 @@ async def fetch_latest_release() -> ReleaseInfo | None:
     # Tags are ``vX.Y.Z``; display and compare the bare ``X.Y.Z`` form so
     # output never mixes prefix styles.
     return ReleaseInfo(tag=tag, version=tag.lstrip("vV"), assets=assets)
+
+
+def _rate_limit_reset(headers: Any) -> str:
+    """Human reset time from rate-limit headers ("" when absent).
+
+    Prefers ``retry-after`` seconds, else the ``x-ratelimit-reset`` epoch.
+    Absolute UTC keeps the message deterministic and timezone-explicit.
+    """
+    try:
+        after = int(headers.get("retry-after") or 0)
+    except (TypeError, ValueError):
+        after = 0
+    if after > 0:
+        epoch: int | float = time.time() + after
+    else:
+        try:
+            epoch = int(headers.get("x-ratelimit-reset") or 0)
+        except (TypeError, ValueError):
+            return ""
+        if epoch <= 0:
+            return ""
+    return datetime.datetime.fromtimestamp(epoch, datetime.UTC).strftime("%H:%M UTC")
+
+
+def report_release_failure(failure: ReleaseFailure) -> None:
+    """One error line + one hint for a failed release lookup.
+
+    Stderr-safe under ``--json`` (``print_error`` always targets stderr;
+    ``print_dim`` reroutes there in JSON mode).
+    """
+    kind = failure.kind
+    if kind is ReleaseFailureKind.RATE_LIMITED:
+        reset = failure.detail or "an unknown time"
+        print_error(f"GitHub API rate limit reached; resets at {reset}.")
+        print_dim(f"Latest releases: {GITHUB_RELEASES_PAGE}")
+    elif kind is ReleaseFailureKind.NOT_FOUND:
+        print_error(f"GitHub API has no published release at {GITHUB_API_RELEASES_LATEST}.")
+        print_dim(f"Latest releases: {GITHUB_RELEASES_PAGE}")
+    elif kind is ReleaseFailureKind.MALFORMED:
+        print_error("GitHub API returned an unexpected response.")
+        print_dim(f"Latest releases: {GITHUB_RELEASES_PAGE}")
+    elif kind is ReleaseFailureKind.SERVER_ERROR:
+        print_error(f"GitHub API error (HTTP {failure.detail or 'unknown'}).")
+        print_dim(f"Latest releases: {GITHUB_RELEASES_PAGE}")
+    else:
+        print_error("Unable to check for updates: no network connection.")
+        print_dim("Check your network connection, or configure --proxy.")
 
 
 async def download_artifact(
@@ -397,10 +495,9 @@ async def run_update_command(*, check: bool, yes: bool, quiet: bool = False) -> 
             release = await run_with_status("Checking for updates", fetch_latest_release())
         finally:
             get_ui_gate().release()
-    if release is None:
+    if isinstance(release, ReleaseFailure):
         print_dim("Latest version:       unknown")
-        print_error("Unable to check for updates: network or GitHub API unavailable.")
-        print_dim(f"Latest releases: {GITHUB_RELEASES_PAGE}")
+        report_release_failure(release)
         return EXIT_ERROR
 
     latest = release.version
