@@ -218,6 +218,21 @@ class TestSelfErrors:
         assert rc == EXIT_USAGE
         assert "unknown command 'deploy'" in _text(capsys)
 
+    async def test_hints_come_from_parser(self, monkeypatch, capsys):
+        import argparse
+
+        from comic_dl.cli import _build_self_parser, _run_self, _self_hint_terms
+
+        commands, flags = _self_hint_terms()
+        sub = next(
+            a for a in _build_self_parser()._actions if isinstance(a, argparse._SubParsersAction)
+        )
+        assert commands == list(sub.choices)
+        assert {"--check", "-y", "--yes"} <= set(flags)
+        monkeypatch.setattr("comic_dl.cli._self_hint_terms", lambda: (["zzz"], flags))
+        assert await _run_self(["updat"]) == EXIT_USAGE
+        assert "Did you mean" not in _text(capsys)
+
     async def test_help_option_shows_group_help(self, capsys):
         from comic_dl.cli import _run_self
 

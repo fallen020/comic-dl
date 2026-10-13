@@ -3720,6 +3720,24 @@ def _build_self_parser() -> ComicArgumentParser:
     return parser
 
 
+def _self_hint_terms() -> tuple[list[str], list[str]]:
+    """`(commands, flags)` for ``self`` error hints, read off the parser.
+
+    The runner pre-validates argv before argparse sees it, so these terms
+    must track the parser; reading them here keeps the two from drifting.
+    """
+    sub = next(
+        a for a in _build_self_parser()._actions if isinstance(a, argparse._SubParsersAction)
+    )
+    flags = [o for act in sub.choices["update"]._actions for o in act.option_strings]
+    ordered = [
+        "--help",
+        "-h",
+        *(f for f in flags if f not in ("--help", "-h")),
+    ]
+    return list(sub.choices), [*ordered, "--version", "--update"]
+
+
 async def _run_self(argv: list[str]) -> int:
     """``comic-dl self`` — installation-aware self-management commands."""
     if not argv:
@@ -3729,29 +3747,29 @@ async def _run_self(argv: list[str]) -> int:
     first = argv[0]
     if first in ("-h", "--help", "-?"):
         pass  # fall through; parse_args prints help and exits 0
-    elif first.startswith("-"):
-        canonical = {"--version": "comic-dl self version", "--update": "comic-dl self update"}.get(
-            first
-        )
-        print_error(f"unexpected option '{first}'.")
-        if canonical:
-            print_dim(f"Hint: use '{canonical}'.")
-        else:
-            hint = suggest(
-                first,
-                ["--help", "-h", "--check", "-y", "--yes", "--version", "--update"],
-            )
+    else:
+        commands, flags = _self_hint_terms()
+        if first.startswith("-"):
+            canonical = {
+                "--version": "comic-dl self version",
+                "--update": "comic-dl self update",
+            }.get(first)
+            print_error(f"unexpected option '{first}'.")
+            if canonical:
+                print_dim(f"Hint: use '{canonical}'.")
+            else:
+                hint = suggest(first, flags)
+                if hint is not None and hint != first:
+                    print_dim(f"Did you mean: {hint}?")
+                print_dim("Run 'comic-dl self --help' for usage.")
+            return EXIT_USAGE
+        if first not in commands:
+            print_error(f"unknown command '{first}'.")
+            hint = suggest(first, commands)
             if hint is not None and hint != first:
                 print_dim(f"Did you mean: {hint}?")
             print_dim("Run 'comic-dl self --help' for usage.")
-        return EXIT_USAGE
-    elif first not in ("version", "update", "site"):
-        print_error(f"unknown command '{first}'.")
-        hint = suggest(first, ["version", "update", "site"])
-        if hint is not None and hint != first:
-            print_dim(f"Did you mean: {hint}?")
-        print_dim("Run 'comic-dl self --help' for usage.")
-        return EXIT_USAGE
+            return EXIT_USAGE
 
     if first == "site":
         return await _run_self_site(argv[1:])
@@ -3765,8 +3783,6 @@ async def _run_self(argv: list[str]) -> int:
     if args.action == "version":
         console.print(f"comic-dl {_version}")
         return EXIT_OK
-    if args.action == "site":
-        return await _run_self_site(argv[1:])
     return await run_update_command(check=args.check, yes=args.yes)
 
 
