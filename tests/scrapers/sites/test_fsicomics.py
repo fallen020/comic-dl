@@ -16,6 +16,7 @@ from comic_dl.scrapers.sites.fsicomics._base import (
     _extract_images,
     _extract_meta,
     _extract_post_id,
+    _extract_series_cover,
     is_chapter_url,
     is_series_url,
 )
@@ -961,6 +962,31 @@ class TestFsicomixScraper:
                 "https://fsicomics.com/all-porn-comics/empty/",
                 session,
             )
+
+    @pytest.mark.asyncio
+    async def test_series_cover_falls_back_to_first_card(self):
+        html = b"""
+        <html><head><title>Kizaru3D - FSIComics</title></head>
+        <body class="archive category category-kizaru3d">
+        <div class="p-wrap p-grid p-grid-1"><div class="p-content">
+            <img src="data:image/gif;base64,placeholder"
+             data-src="https://fsicomics.com/wp-content/uploads/2026/05/cover-213.webp"/>
+            <h4 class="entry-title"><a href="https://fsicomics.com/mine-chapter-1-x/">
+            Mine Chapter 1 - X</a></h4>
+        </div></div>
+        </body></html>
+        """
+
+        session = _MockSession(lambda url: _MockResponse(html))
+        series = await FsicomixScraper().scrape_series(
+            "https://fsicomics.com/all-porn-comics/3d-porn-comics/kizaru3d/",
+            session,
+        )
+        assert series.cover_url == "https://fsicomics.com/wp-content/uploads/2026/05/cover-213.webp"
+
+    def test_series_cover_empty_without_cards(self):
+        soup = BeautifulSoup('<html><body><div class="block-inner"></div></body></html>', "lxml")
+        assert _extract_series_cover(soup) == ""
 
     @pytest.mark.asyncio
     async def test_scrape_chapter_still_rejects_archive_page(self):

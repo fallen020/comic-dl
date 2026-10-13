@@ -452,6 +452,28 @@ def _extract_cover(soup: BeautifulSoup, idx: dict[str, list[str]] | None = None)
     return ""
 
 
+def _extract_series_cover(soup: BeautifulSoup) -> str:
+    """Cover from the first chapter card's thumbnail, or ``""`` when none.
+
+    Taxonomy pages carry no ``og:image``; each archive card has its own
+    thumbnail, so the first card stands in for the series.
+    """
+    for link in _chapter_card_links(soup):
+        wrap = link.find_parent(class_="p-wrap")
+        if wrap is None:
+            continue
+        for img in wrap.find_all("img"):
+            src = (
+                _attr_text(img.get("data-src"))
+                or _attr_text(img.get("data-lazy-src"))
+                or _attr_text(img.get("src"))
+            )
+            if not src or src.startswith("data:"):
+                continue
+            return _clean_image_url(src)
+    return ""
+
+
 def _extract_chapter_number(title: str) -> str | None:
     m = _CHAPTER_NUMBER_RE.search(title)
     return m.group(1) if m else None
@@ -748,7 +770,7 @@ class FsicomixScraper(BaseScraper):
         series_title = parts[0] if parts else ""
 
         description = _extract_description(soup, idx)
-        cover_url = _extract_cover(soup, idx)
+        cover_url = _extract_cover(soup, idx) or _extract_series_cover(soup)
 
         title_no = url.rstrip("/").rsplit("/", 1)[-1]
 
