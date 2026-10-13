@@ -98,6 +98,14 @@ class TestUrlPatterns:
         assert not is_series_url("https://fsicomics.com/elixer-tlameteotl/")
         assert not is_series_url("https://other.com/all-porn-comics/artist/")
 
+    def test_apex_pagination_and_category_roots_are_not_series(self):
+        for url in (
+            "https://fsicomics.com/all-porn-comics/page/2/",
+            "https://fsicomics.com/all-porn-comics/3d-porn-comics/",
+            "https://fsicomics.com/all-porn-comics/3d-porn-comics/kizaru3d/page/2/",
+        ):
+            assert not is_series_url(url), url
+
 
 class TestImageUrlCleaning:
     def test_no_resize_suffix(self):

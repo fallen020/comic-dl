@@ -270,7 +270,9 @@ def is_series_url(url: str) -> bool:
         return False
     segments = _path_segments(url)
     if host == DOMAIN:
-        return len(segments) >= 2 and segments[0] == _APEX_TAXONOMY_ROOT
+        # Apex taxonomy is exactly /all-porn-comics/{category}/{artist}/:
+        # category roots and /page/N/ pagination URLs are listings, not series.
+        return len(segments) == 3 and segments[0] == _APEX_TAXONOMY_ROOT and "page" not in segments
     # A mirror's taxonomy is exactly /{category}/{artist-or-group}/: the
     # category root is a reserved word, so only machinery is rejected here.
     if len(segments) != 2:
