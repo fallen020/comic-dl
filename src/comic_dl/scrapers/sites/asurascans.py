@@ -49,12 +49,17 @@ _CHAPTER_PATH_RE = re.compile(r"^https?://(?:www\.)?asurascans\.com/comics/[^/]+
 _STATUS_LABEL = "Status"
 _PREMIUM_MARKER = "Premium"
 
+# Single-segment routes under /comics/ that are site pages, not series.
+_SERIES_SLUG_DENYLIST = frozenset({"browse", "latest", "genres"})
+
 _STATUS_LABEL_SEL = "div, span, dt, dd, h5, h6"
 
 
 def is_series_url(url: str) -> bool:
     """True when ``url`` points at a series page for this source."""
-    return bool(_SERIES_PATH_RE.match(url))
+    if not _SERIES_PATH_RE.match(url):
+        return False
+    return _series_slug_from_url(url).lower() not in _SERIES_SLUG_DENYLIST
 
 
 def is_chapter_url(url: str) -> bool:
@@ -311,7 +316,7 @@ class AsurascansScraper(BaseScraper):
         return bool(self.chapter_url_re.match(url)) or bool(self.series_url_re.match(url))
 
     def matches_series_url(self, url: str) -> bool:
-        return bool(self.series_url_re.match(url))
+        return is_series_url(url)
 
     @staticmethod
     async def _fetch(url: str, client: AsyncSession) -> tuple[BeautifulSoup, str]:

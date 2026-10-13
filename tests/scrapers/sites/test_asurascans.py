@@ -95,6 +95,13 @@ class TestUrlPatterns:
         assert scraper.matches_url("https://asurascans.com/comics/series")
         assert not scraper.matches_url("https://asurascans.com/browse")
 
+    def test_reserved_comics_slugs_are_not_series(self):
+        for slug in ("browse", "latest", "genres"):
+            url = f"https://asurascans.com/comics/{slug}"
+            assert not is_series_url(url)
+            assert not AsurascansScraper().matches_series_url(url)
+        assert is_series_url("https://asurascans.com/comics/nano-machine-1bb35e56")
+
 
 class TestHelpers:
     def test_clean_image_url_strips_cache_buster(self):
