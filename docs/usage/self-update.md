@@ -22,7 +22,7 @@ reports the installation source, installed version, latest version, and status:
 Installed via:        uv tool
 Installed version:    <current>
 Latest version:       <latest>
-Status:               update available.
+Status:              update available (<current> → <latest>).
 ```
 
 - `--check` only checks; nothing is installed or changed.
