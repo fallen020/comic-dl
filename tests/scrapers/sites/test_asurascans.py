@@ -415,6 +415,24 @@ class TestAsurascansScraper:
     </head><body></body></html>
     """
 
+    PREMIUM_NAMED_PAGE = """
+    <html lang="en"><head>
+        <title>Premium Swordmaster Chapter 5 - Read Online | Asura Scans</title>
+        <meta property="og:title"
+              content="Premium Swordmaster Chapter 5 - Read Online | Asura Scans"/>
+        <script type="application/ld+json">
+        {"@context":"https://schema.org","@type":"Article",
+         "headline":"Premium Swordmaster Chapter 5",
+         "isPartOf":{"@type":"ComicSeries","name":"Premium Swordmaster"}}
+        </script>
+    </head><body>
+    <div class="reader">
+        <img src="https://cdn.asurascans.com/asura-images/chapters/premium-swordmaster-00dcbf97/5/001.webp"/>
+        <img src="https://cdn.asurascans.com/asura-images/chapters/premium-swordmaster-00dcbf97/5/002.webp"/>
+    </div>
+    </body></html>
+    """
+
     def test_domain_attr(self):
         scraper = AsurascansScraper()
         assert scraper.domain == DOMAIN
@@ -431,6 +449,16 @@ class TestAsurascansScraper:
                 session,
             )
         assert exc_info.value.site_error_code == SITE_AUTH_REQUIRED
+
+    @pytest.mark.asyncio
+    async def test_scrape_premium_named_series_with_images(self):
+        session = _MockSession(lambda url: _MockResponse(self.PREMIUM_NAMED_PAGE))
+        scraper = AsurascansScraper()
+        meta = await scraper.scrape(
+            "https://asurascans.com/comics/premium-swordmaster-00dcbf97/chapter/5",
+            session,
+        )
+        assert len(meta.images) == 2
 
     @pytest.mark.asyncio
     async def test_scrape_challenge_maps_to_blocked(self, monkeypatch):

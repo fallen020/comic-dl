@@ -387,13 +387,18 @@ class AsurascansScraper(BaseScraper):
         soup, _ = await self._fetch(url, client)
         idx = meta_index(soup)
 
-        if _is_premium_page(soup, idx):
+        # Locked chapters render zero images, but "Premium" also matches series
+        # names, so the marker alone must not refuse a page with images.
+        images = _extract_images(soup)
+        if not images and _is_premium_page(soup, idx):
             raise ScrapeError(
                 "This chapter is premium/locked on Asura Scans and requires a "
                 "paid account, which this tool does not support.",
                 hint=f"Pick an unlocked chapter or drop the URL: {url}",
                 site_error_code=SITE_AUTH_REQUIRED,
             )
+        if not images:
+            raise no_images_error()
 
         article = _article_node(soup)
         series_title = ""
@@ -414,10 +419,6 @@ class AsurascansScraper(BaseScraper):
             chapter_title = (
                 f"Chapter {chapter_number}" if chapter_number else chapter_title or "Chapter"
             )
-
-        images = _extract_images(soup)
-        if not images:
-            raise no_images_error()
 
         genres = meta.get("genres", [])
         authors = meta.get("authors", [])
