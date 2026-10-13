@@ -16,6 +16,8 @@ from comic_dl.scrapers.sites.fsicomics._base import (
     _extract_images,
     _extract_meta,
     _extract_post_id,
+    _extract_publisher,
+    _extract_series_cover,
     is_chapter_url,
     is_series_url,
 )
@@ -96,6 +98,14 @@ class TestUrlPatterns:
         assert not is_series_url("")
         assert not is_series_url("https://fsicomics.com/elixer-tlameteotl/")
         assert not is_series_url("https://other.com/all-porn-comics/artist/")
+
+    def test_apex_pagination_and_category_roots_are_not_series(self):
+        for url in (
+            "https://fsicomics.com/all-porn-comics/page/2/",
+            "https://fsicomics.com/all-porn-comics/3d-porn-comics/",
+            "https://fsicomics.com/all-porn-comics/3d-porn-comics/kizaru3d/page/2/",
+        ):
+            assert not is_series_url(url), url
 
 
 class TestImageUrlCleaning:
@@ -715,6 +725,14 @@ class TestFsicomixScraper:
         )
         assert chapter.info.publisher == "Super Melons"
 
+    def test_extract_publisher_defaults_idx(self):
+        soup = BeautifulSoup(
+            '<html><head><meta property="article:section" content="Kizaru3D"/>'
+            "</head><body></body></html>",
+            "lxml",
+        )
+        assert _extract_publisher(soup) == "Kizaru3D"
+
     @pytest.mark.asyncio
     async def test_scrape_series_reads_foxiz_taxonomy_grid(self):
         html = b"""
@@ -821,8 +839,8 @@ class TestFsicomixScraper:
         assert [c["episode_no"] for c in series.chapters] == ["2", "1"]
 
     @pytest.mark.asyncio
-    async def test_pagination_probes_past_single_dead_page(self, monkeypatch):
-        """One dead page must not truncate the listing; later pages still land."""
+    async def test_transient_blip_retries_and_continues(self, monkeypatch):
+        """One transient blip is retried; the walk continues with all pages."""
         from comic_dl.scrapers.sites.fsicomics._base import _collect_series_pages
 
         def page(next_on):
@@ -833,10 +851,8 @@ class TestFsicomixScraper:
 
         async def fake_timeout_get(u, client):
             fetched.append(u)
-            if u.endswith("/page/2/"):
-                raise RuntimeError("blip")
-            if u.endswith("/page/3/"):
-                return _HtmlResp(page(True))
+            if u.endswith("/page/2/") and fetched.count(u) == 1:
+                raise TimeoutError("blip")
             return _HtmlResp(page(False))
 
         monkeypatch.setattr("comic_dl.scrapers.base.BaseScraper._timeout_get", fake_timeout_get)
@@ -846,25 +862,23 @@ class TestFsicomixScraper:
             BeautifulSoup(page(True), "lxml"),
             object(),  # type: ignore
         )
-        assert [u for u, _ in pages] == [
-            base,
-            base + "page/2/",
-            base + "page/3/",
-            base + "page/4/",
-        ]
-        assert [ps is not None for _, ps in pages] == [True, False, True, True]
-        assert fetched == [base + "page/2/", base + "page/3/", base + "page/4/"]
+        assert [u for u, _ in pages] == [base, base + "page/2/"]
+        assert fetched == [base + "page/2/", base + "page/2/"]
 
     @pytest.mark.asyncio
-    async def test_pagination_stops_after_consecutive_dead_pages(self, monkeypatch):
-        """A genuinely finished series still terminates after two misses."""
+    async def test_past_the_end_404_ends_walk(self, monkeypatch):
+        """A 404 past the last archive page ends the walk quietly."""
+        from types import SimpleNamespace
+
+        from curl_cffi.requests.exceptions import HTTPError as CurlHTTPError
+
         from comic_dl.scrapers.sites.fsicomics._base import _collect_series_pages
 
         fetched = []
 
         async def fake_timeout_get(u, client):
             fetched.append(u)
-            raise RuntimeError("gone")
+            raise CurlHTTPError("404", response=SimpleNamespace(status_code=404))
 
         monkeypatch.setattr("comic_dl.scrapers.base.BaseScraper._timeout_get", fake_timeout_get)
         base = "https://fsicomics.com/all-porn-comics/x/"
@@ -873,8 +887,81 @@ class TestFsicomixScraper:
             BeautifulSoup('<html><body><a class="next page-numbers">N</a></body></html>', "lxml"),
             object(),  # type: ignore
         )
-        assert [u for u, _ in pages] == [base, base + "page/2/", base + "page/3/"]
-        assert fetched == [base + "page/2/", base + "page/3/"]
+        assert [u for u, _ in pages] == [base]
+        assert fetched == [base + "page/2/"]
+
+    @pytest.mark.asyncio
+    async def test_dead_series_page_raises_instead_of_dropping_chapters(self, monkeypatch):
+        """A series page that fails must abort, not silently drop its chapters."""
+        from comic_dl.errors import ScrapeError
+
+        page = (
+            '<html><body><a class="next page-numbers" href="/page/2/">Next</a>'
+            '<div class="p-wrap p-grid p-grid-1"><h4 class="entry-title">'
+            '<a href="https://fsicomics.com/x-chapter-1-a/">X Chapter 1 - A</a></h4></div>'
+            "</body></html>"
+        )
+
+        async def fake_timeout_get(u, client):
+            if "/page/2/" in u:
+                raise RuntimeError("blip")  # not transient, so no retry sleep
+            return _HtmlResp(page)
+
+        monkeypatch.setattr("comic_dl.scrapers.base.BaseScraper._timeout_get", fake_timeout_get)
+        with pytest.raises(ScrapeError, match="failed to load"):
+            await FsicomixScraper().scrape_series(
+                "https://fsicomics.com/all-porn-comics/3d-porn-comics/kizaru3d/", object()
+            )
+
+    @pytest.mark.asyncio
+    async def test_missing_chapter_maps_to_gone(self, monkeypatch):
+        from types import SimpleNamespace
+
+        from curl_cffi.requests.exceptions import HTTPError as CurlHTTPError
+
+        from comic_dl.errors import SITE_GONE
+
+        async def fake_timeout_get(u, client):
+            raise CurlHTTPError("404", response=SimpleNamespace(status_code=404))
+
+        monkeypatch.setattr("comic_dl.scrapers.base.BaseScraper._timeout_get", fake_timeout_get)
+        with pytest.raises(ValueError, match="missing") as exc_info:
+            await FsicomixScraper().scrape("https://fsicomics.com/nope/", object())
+        assert exc_info.value.site_error_code == SITE_GONE
+
+    @pytest.mark.asyncio
+    async def test_missing_series_maps_to_no_series(self, monkeypatch):
+        from types import SimpleNamespace
+
+        from curl_cffi.requests.exceptions import HTTPError as CurlHTTPError
+
+        from comic_dl.errors import SITE_NO_SERIES
+
+        async def fake_timeout_get(u, client):
+            raise CurlHTTPError("404", response=SimpleNamespace(status_code=404))
+
+        monkeypatch.setattr("comic_dl.scrapers.base.BaseScraper._timeout_get", fake_timeout_get)
+        with pytest.raises(ValueError, match="missing") as exc_info:
+            await FsicomixScraper().scrape_series(
+                "https://fsicomics.com/all-porn-comics/3d-porn-comics/kizaru3d/", object()
+            )
+        assert exc_info.value.site_error_code == SITE_NO_SERIES
+
+    @pytest.mark.asyncio
+    async def test_rejected_chapter_maps_to_request_failed(self, monkeypatch):
+        from types import SimpleNamespace
+
+        from curl_cffi.requests.exceptions import HTTPError as CurlHTTPError
+
+        from comic_dl.errors import SITE_REQUEST_FAILED
+
+        async def fake_timeout_get(u, client):
+            raise CurlHTTPError("503", response=SimpleNamespace(status_code=503))
+
+        monkeypatch.setattr("comic_dl.scrapers.base.BaseScraper._timeout_get", fake_timeout_get)
+        with pytest.raises(ValueError, match="rejected") as exc_info:
+            await FsicomixScraper().scrape("https://fsicomics.com/nope/", object())
+        assert exc_info.value.site_error_code == SITE_REQUEST_FAILED
 
     @pytest.mark.asyncio
     async def test_scrape_series_empty_listing_raises(self):
@@ -892,6 +979,31 @@ class TestFsicomixScraper:
                 "https://fsicomics.com/all-porn-comics/empty/",
                 session,
             )
+
+    @pytest.mark.asyncio
+    async def test_series_cover_falls_back_to_first_card(self):
+        html = b"""
+        <html><head><title>Kizaru3D - FSIComics</title></head>
+        <body class="archive category category-kizaru3d">
+        <div class="p-wrap p-grid p-grid-1"><div class="p-content">
+            <img src="data:image/gif;base64,placeholder"
+             data-src="https://fsicomics.com/wp-content/uploads/2026/05/cover-213.webp"/>
+            <h4 class="entry-title"><a href="https://fsicomics.com/mine-chapter-1-x/">
+            Mine Chapter 1 - X</a></h4>
+        </div></div>
+        </body></html>
+        """
+
+        session = _MockSession(lambda url: _MockResponse(html))
+        series = await FsicomixScraper().scrape_series(
+            "https://fsicomics.com/all-porn-comics/3d-porn-comics/kizaru3d/",
+            session,
+        )
+        assert series.cover_url == "https://fsicomics.com/wp-content/uploads/2026/05/cover-213.webp"
+
+    def test_series_cover_empty_without_cards(self):
+        soup = BeautifulSoup('<html><body><div class="block-inner"></div></body></html>', "lxml")
+        assert _extract_series_cover(soup) == ""
 
     @pytest.mark.asyncio
     async def test_scrape_chapter_still_rejects_archive_page(self):

@@ -23,7 +23,7 @@ class FsicomicsItScraper(FsicomixScraper):
     content_warning = "nsfw"
     chapter_url_pattern = "/{comic-slug}/"
     series_url_pattern = "/{category}/{artist}/"
-    version = "2.0.0"
+    version = "2.0.1"
     test_url = "https://it.fsicomics.com/oba-to-haha-zenpen-zia-e-madre-capitolo-2-nishikawa-kou/"
     test_url_kind = "chapter"
     minimum_core_version = "0.0.2"

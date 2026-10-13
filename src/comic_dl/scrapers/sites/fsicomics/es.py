@@ -23,7 +23,7 @@ class FsicomicsEsScraper(FsicomixScraper):
     content_warning = "nsfw"
     chapter_url_pattern = "/{comic-slug}/"
     series_url_pattern = "/{category}/{artist}/"
-    version = "2.0.0"
+    version = "2.0.1"
     test_url = "https://es.fsicomics.com/a-night-with-loona-capitulo-3-jizoku/"
     test_url_kind = "chapter"
     minimum_core_version = "0.0.2"

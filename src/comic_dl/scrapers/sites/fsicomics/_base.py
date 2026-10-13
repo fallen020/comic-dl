@@ -17,7 +17,17 @@ from urllib.parse import urljoin, urlparse
 
 from bs4 import BeautifulSoup
 from curl_cffi.requests import AsyncSession
+from curl_cffi.requests.exceptions import (
+    ConnectionError as CurlConnectionError,
+)
+from curl_cffi.requests.exceptions import (
+    HTTPError as CurlHTTPError,
+)
+from curl_cffi.requests.exceptions import (
+    Timeout as CurlTimeout,
+)
 
+from ....errors import SITE_GONE, SITE_NO_SERIES, SITE_REQUEST_FAILED, ScrapeError, ScrapeTimeout
 from ....models import (
     ChapterInfo,
     ImageItem,
@@ -27,7 +37,6 @@ from ....models import (
     SourceInfo,
     chapter_to_post_metadata,
 )
-from ....ui import trace
 from ....utils import sanitize_filename
 from ...base import (
     BaseScraper,
@@ -37,6 +46,7 @@ from ...base import (
     meta_index,
     no_chapters_error,
     no_images_error,
+    retry_transient,
 )
 
 DOMAIN = "fsicomics.com"
@@ -135,6 +145,37 @@ _APEX_TAXONOMY_ROOT = "all-porn-comics"
 _WORDPRESS_RESIZE_RE = re.compile(r"-\d+x\d+(?=\.\w+$)")
 _MAX_SERIES_PAGES = 50
 
+_LIST_PAGE_RETRIES = 3
+_LIST_PAGE_RETRYABLE_HTTP = frozenset({408, 429, 500, 502, 503, 504, 509, 530})
+_LIST_PAGE_BACKOFF = 1.0
+_GONE_PAGE_STATUSES = frozenset({404, 410})
+
+
+def _is_transient_page_error(exc: BaseException) -> bool:
+    """Whether ``exc`` is worth re-fetching a series page over."""
+    if isinstance(
+        exc,
+        (
+            ScrapeTimeout,
+            CurlConnectionError,
+            CurlTimeout,
+            ConnectionError,
+            TimeoutError,
+        ),
+    ):
+        return True
+    if isinstance(exc, CurlHTTPError):
+        resp = getattr(exc, "response", None)
+        return resp is not None and resp.status_code in _LIST_PAGE_RETRYABLE_HTTP
+    return False
+
+
+def _page_is_past_the_end(exc: BaseException) -> bool:
+    """Whether ``exc`` is a 404/410: the walk ran past the last archive page."""
+    resp = getattr(exc, "response", None)
+    return resp is not None and resp.status_code in _GONE_PAGE_STATUSES
+
+
 # "Chapter"/"Ch." and each mirror's own word: Capítulo, Capitolo, Chapitre,
 # Kapitel. ``\s`` also matches the non-breaking space the mirrors put before the
 # number ("Capítulo\u00a03"). Longer alternatives must precede the bare ``ch``.
@@ -229,7 +270,9 @@ def is_series_url(url: str) -> bool:
         return False
     segments = _path_segments(url)
     if host == DOMAIN:
-        return len(segments) >= 2 and segments[0] == _APEX_TAXONOMY_ROOT
+        # Apex taxonomy is exactly /all-porn-comics/{category}/{artist}/:
+        # category roots and /page/N/ pagination URLs are listings, not series.
+        return len(segments) == 3 and segments[0] == _APEX_TAXONOMY_ROOT and "page" not in segments
     # A mirror's taxonomy is exactly /{category}/{artist-or-group}/: the
     # category root is a reserved word, so only machinery is rejected here.
     if len(segments) != 2:
@@ -411,6 +454,28 @@ def _extract_cover(soup: BeautifulSoup, idx: dict[str, list[str]] | None = None)
     return ""
 
 
+def _extract_series_cover(soup: BeautifulSoup) -> str:
+    """Cover from the first chapter card's thumbnail, or ``""`` when none.
+
+    Taxonomy pages carry no ``og:image``; each archive card has its own
+    thumbnail, so the first card stands in for the series.
+    """
+    for link in _chapter_card_links(soup):
+        wrap = link.find_parent(class_="p-wrap")
+        if wrap is None:
+            continue
+        for img in wrap.find_all("img"):
+            src = (
+                _attr_text(img.get("data-src"))
+                or _attr_text(img.get("data-lazy-src"))
+                or _attr_text(img.get("src"))
+            )
+            if not src or src.startswith("data:"):
+                continue
+            return _clean_image_url(src)
+    return ""
+
+
 def _extract_chapter_number(title: str) -> str | None:
     m = _CHAPTER_NUMBER_RE.search(title)
     return m.group(1) if m else None
@@ -478,10 +543,10 @@ def _extract_publisher(soup: BeautifulSoup, idx: dict[str, list[str]] | None = N
     the site name ("FSI Comics"). On the mirrors ``article:section`` sometimes
     carries a translated category name instead, so treat it as best-effort.
     """
-    if idx:
-        for v in idx.get("prop:article:section", []):
-            if v and v.strip():
-                return v.strip()
+    idx = idx if idx is not None else meta_index(soup)
+    for v in idx.get("prop:article:section", []):
+        if v and v.strip():
+            return v.strip()
     for s in soup.select('script[type="application/ld+json"]'):
         if not s.string:
             continue
@@ -514,43 +579,66 @@ def _extract_publisher(soup: BeautifulSoup, idx: dict[str, list[str]] | None = N
 
 async def _collect_series_pages(
     url: str, soup: BeautifulSoup, client: AsyncSession
-) -> list[tuple[str, BeautifulSoup | None]]:
-    """Walk series pagination, tolerating isolated dead pages.
+) -> list[tuple[str, BeautifulSoup]]:
+    """Walk series pagination; a failed page aborts instead of dropping chapters.
 
     Page URLs form a predictable ``/page/N/`` chain, but only a live page
-    reveals whether a next one exists — hence the serial walk. A single dead
-    page (transient blip) is probed past instead of truncating the listing;
-    only consecutive misses end it, so a genuinely finished series still
-    stops after two wasted fetches.
+    reveals whether a next one exists, so the walk is serial. Transient
+    failures are retried per page; a page still failing aborts the scrape, so
+    a gapped or truncated series can never look like a success.
     """
-    pages: list[tuple[str, BeautifulSoup | None]] = [(url, soup)]
+    pages: list[tuple[str, BeautifulSoup]] = [(url, soup)]
 
-    async def fetch_page(u: str) -> tuple[str, BeautifulSoup | None]:
-        try:
+    async def fetch_page(u: str) -> BeautifulSoup | None:
+        async def _op(_attempt: int) -> BeautifulSoup:
             pr = await BaseScraper._timeout_get(u, client)
             pr.raise_for_status()
-            return u, BeautifulSoup(pr.text, "lxml")
-        # One dead page must not fail the fan-out.
-        except Exception:  # nosec
-            return u, None
+            return BeautifulSoup(pr.text, "lxml")
 
-    dead_streak = 0
+        try:
+            return await retry_transient(
+                _op,
+                tries=_LIST_PAGE_RETRIES,
+                delay=lambda attempt, _exc: (attempt + 1) * _LIST_PAGE_BACKOFF,
+                is_transient=_is_transient_page_error,
+            )
+        except Exception as exc:
+            # A page past the end of the archive is the only legitimate miss.
+            if _page_is_past_the_end(exc):
+                return None
+            raise ScrapeError(
+                f"FSI Comics series page failed to load: {u}",
+                hint="The listing may be throttled or offline; run again later.",
+                site_error_code=SITE_REQUEST_FAILED,
+            ) from exc
+
     page_num = 2
     has_next = soup.select_one("a.next.page-numbers") is not None
     while has_next and page_num <= _MAX_SERIES_PAGES:
         page_url = f"{url.rstrip('/')}/page/{page_num}/"
-        u, ps = await fetch_page(page_url)
-        pages.append((u, ps))
+        ps = await fetch_page(page_url)
         if ps is None:
-            dead_streak += 1
-            if dead_streak >= 2:
-                break
-            trace(f"fsicomics: series page {page_num} unreadable, probing on")
-        else:
-            dead_streak = 0
-            has_next = ps.select_one("a.next.page-numbers") is not None
+            break
+        pages.append((page_url, ps))
+        has_next = ps.select_one("a.next.page-numbers") is not None
         page_num += 1
     return pages
+
+
+def _entry_fetch_error(exc: CurlHTTPError, not_found: ScrapeError) -> ScrapeError:
+    """Domain error for an entry fetch that raised ``CurlHTTPError``.
+
+    404/410 becomes ``not_found``; anything else is a rejected request worth
+    retrying later. Callers raise the result ``from exc`` to keep the chain.
+    """
+    resp = getattr(exc, "response", None)
+    if getattr(resp, "status_code", None) in _GONE_PAGE_STATUSES:
+        return not_found
+    return ScrapeError(
+        "FSI Comics rejected the request.",
+        hint="Run again later.",
+        site_error_code=SITE_REQUEST_FAILED,
+    )
 
 
 class FsicomixScraper(BaseScraper):
@@ -591,7 +679,17 @@ class FsicomixScraper(BaseScraper):
         url: str,
         client: AsyncSession,
     ) -> ScrapedChapter:
-        soup, html = await self.fetch_html_raw(url, client)
+        try:
+            soup, html = await self.fetch_html_raw(url, client)
+        except CurlHTTPError as exc:
+            raise _entry_fetch_error(
+                exc,
+                ScrapeError(
+                    "This FSI Comics chapter is missing.",
+                    hint="The chapter may have been removed; check the series page.",
+                    site_error_code=SITE_GONE,
+                ),
+            ) from exc
         idx = meta_index(soup)
 
         if _is_archive_page(soup):
@@ -654,7 +752,17 @@ class FsicomixScraper(BaseScraper):
         # A series URL is a WordPress taxonomy page (``archive category``),
         # so the archive guard used in chapter mode must not fire here. An
         # empty listing raises ``no_chapters_error`` below instead.
-        soup = await self.fetch_html(url, client)
+        try:
+            soup = await self.fetch_html(url, client)
+        except CurlHTTPError as exc:
+            raise _entry_fetch_error(
+                exc,
+                ScrapeError(
+                    "This FSI Comics series is missing.",
+                    hint="The series may have been removed; check the URL.",
+                    site_error_code=SITE_NO_SERIES,
+                ),
+            ) from exc
 
         idx = meta_index(soup)
 
@@ -664,7 +772,7 @@ class FsicomixScraper(BaseScraper):
         series_title = parts[0] if parts else ""
 
         description = _extract_description(soup, idx)
-        cover_url = _extract_cover(soup, idx)
+        cover_url = _extract_cover(soup, idx) or _extract_series_cover(soup)
 
         title_no = url.rstrip("/").rsplit("/", 1)[-1]
 
@@ -674,8 +782,6 @@ class FsicomixScraper(BaseScraper):
         pages_to_fetch = await _collect_series_pages(url, soup, client)
 
         for _page_url, ps in pages_to_fetch:
-            if ps is None:
-                continue
             for link in _chapter_card_links(ps):
                 href = _attr_text(link.get("href"))
                 if not href or href in seen_urls:
