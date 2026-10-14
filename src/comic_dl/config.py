@@ -49,7 +49,7 @@ cache = true
 #cache-max-entries = 5000
 
 rate-enabled = true
-rate = { "kagane.to" = 1.5, "kstatic.to" = 2.0, "e-hentai.org" = 2.0 }
+rate = { "kagane.org" = 1.5, "kstatic.to" = 2.0, "e-hentai.org" = 2.0 }
 
 download-timeout = 60
 download-retries = 2
@@ -68,7 +68,7 @@ generic = true
 format = "cbz"  # [cbz | zip | cbt]
 compression = "stored"  # [stored | deflate | deflate:0-9]
 
-#[sources."kagane.to"]  # host keys must be quoted; beats the [http] table
+#[sources."kagane.org"]  # host keys must be quoted; beats the [http] table
 #rate = 0.8
 #mode = "auto"  # [auto | impersonation | webview | off]
 #impersonate = "chrome146"
@@ -95,7 +95,7 @@ _DEFAULTS: dict[str, Any] = {
         "cache-max-bytes": "50MB",
         "cache-max-entries": 5000,
         "rate-enabled": True,
-        "rate": {"kagane.to": 1.5, "kstatic.to": 2.0, "e-hentai.org": 2.0},
+        "rate": {"kagane.org": 1.5, "kstatic.to": 2.0, "e-hentai.org": 2.0},
         "download-timeout": 60,
         "download-retries": 2,
         "per-host-concurrency": 3,

@@ -9,7 +9,7 @@ from .config import http_setting, load_config
 from .ui import trace
 
 _DEFAULT_RATES: dict[str, float] = {
-    "kagane.to": 1.5,
+    "kagane.org": 1.5,
     "kstatic.to": 2.0,
     "e-hentai.org": 2.0,
 }

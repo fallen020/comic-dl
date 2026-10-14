@@ -34,16 +34,16 @@ from ...rate import await_ratelimit
 from ..base import BaseScraper, no_chapters_error, no_images_error
 from ..registry import register_scraper
 
-DOMAIN = "kagane.to"
-BASE = "https://kagane.to"
+DOMAIN = "kagane.org"
+BASE = "https://kagane.org"
 _API = f"{BASE}/api/v2"
 
-_SERIES_PATH_RE = re.compile(r"^https?://(?:www\.)?kagane\.to/series/[^/]+/?$")
-_CHAPTER_PATH_RE = re.compile(r"^https?://(?:www\.)?kagane\.to/series/[^/]+/reader/[^/]+/?$")
+_SERIES_PATH_RE = re.compile(r"^https?://(?:www\.)?kagane\.org/series/[^/]+/?$")
+_CHAPTER_PATH_RE = re.compile(r"^https?://(?:www\.)?kagane\.org/series/[^/]+/reader/[^/]+/?$")
 
 # Cover/avatar images (best-effort; the real CDN host comes from each book's
 # ``cache_url`` and is never hardcoded).
-_IMAGE_BASE_URL = "https://kagane.to/api/v2/image"
+_IMAGE_BASE_URL = "https://kagane.org/api/v2/image"
 
 
 def is_series_url(url: str) -> bool:
@@ -57,7 +57,7 @@ def is_chapter_url(url: str) -> bool:
 
 
 def _extract_ids(url: str) -> tuple[str, str | None]:
-    """Return ``(series_id, book_id)`` from a kagane.to series/reader URL.
+    """Return ``(series_id, book_id)`` from a kagane.org series/reader URL.
 
     ``book_id`` is ``None`` for a plain series page. Kagane IDs are opaque
     (UUIDs or short base32 tokens), so the raw path segments are used.
@@ -228,7 +228,7 @@ def _raise_for_status(response: Any) -> None:
     """Raise for a bad API response, mapping 404 to a removal error."""
     if getattr(response, "status_code", 200) == 404:
         raise ScrapeError(
-            "Page not found on kagane.to.",
+            "Page not found on kagane.org.",
             hint="The series may have been removed, or this chapter link is dead.",
             site_error_code=SITE_NO_SERIES,
         )
@@ -273,8 +273,8 @@ class KaganeScraper(BaseScraper):
     content_warning = "safe"
     chapter_url_pattern = "/series/{id}/reader/{book}"
     series_url_pattern = "/series/{id}/"
-    version = "1.0.3"
-    test_url = "https://kagane.to/series/019c2b1c-cc9b-745f-afed-09c230759162/reader/019c2bda-f619-716e-b0f5-043564eecffe"
+    version = "1.0.4"
+    test_url = "https://kagane.org/series/019c2b1c-cc9b-745f-afed-09c230759162/reader/019c2bda-f619-716e-b0f5-043564eecffe"
     test_url_kind = "chapter"
     minimum_core_version = "0.0.2"
 
@@ -369,7 +369,7 @@ class KaganeScraper(BaseScraper):
             getattr(resp, "text", "") or "",
         ):
             raise ScrapeError(
-                "Cloudflare challenged the kagane.to request.",
+                "Cloudflare challenged the kagane.org request.",
                 hint=(
                     "This site only answers the webview solver — run with a "
                     "display and --solver auto (or webview) to pass the "
@@ -392,7 +392,7 @@ class KaganeScraper(BaseScraper):
         data = response.json()
         if not isinstance(data, dict):
             raise ScrapeError(
-                "Unexpected series response from kagane.to.",
+                "Unexpected series response from kagane.org.",
                 hint="The API shape may have changed; try updating comic-dl.",
                 site_error_code=SITE_LAYOUT_CHANGED,
             )
@@ -415,7 +415,7 @@ class KaganeScraper(BaseScraper):
         token_data = integrity.json()
         if not isinstance(token_data, dict) or not token_data.get("token"):
             raise ScrapeError(
-                "Unexpected integrity response from kagane.to.",
+                "Unexpected integrity response from kagane.org.",
                 hint="The DRM handshake may have changed; try updating comic-dl.",
                 site_error_code=SITE_LAYOUT_CHANGED,
             )
@@ -431,7 +431,7 @@ class KaganeScraper(BaseScraper):
         data = books.json()
         if not isinstance(data, dict):
             raise ScrapeError(
-                "Unexpected book response from kagane.to.",
+                "Unexpected book response from kagane.org.",
                 hint="The API shape may have changed; try updating comic-dl.",
                 site_error_code=SITE_LAYOUT_CHANGED,
             )
@@ -445,8 +445,8 @@ class KaganeScraper(BaseScraper):
         series_id, book_id = _extract_ids(url)
         if not book_id:
             raise ScrapeError(
-                "Unsupported kagane.to URL.",
-                hint="Expected a reader URL like https://kagane.to/series/{series}/reader/{book}",
+                "Unsupported kagane.org URL.",
+                hint="Expected a reader URL like https://kagane.org/series/{series}/reader/{book}",
                 site_error_code=SITE_NOT_RECOGNIZED,
             )
         reader_url = f"{BASE}/series/{series_id}/reader/{book_id}"
@@ -458,7 +458,7 @@ class KaganeScraper(BaseScraper):
                 raise
             if _is_cf_challenge_error(exc):
                 raise ScrapeError(
-                    "Cloudflare challenged the kagane.to request.",
+                    "Cloudflare challenged the kagane.org request.",
                     hint=(
                         "Run again to let the webview solver pass the "
                         "challenge, or set a stored `cf_clearance` via "
@@ -467,7 +467,7 @@ class KaganeScraper(BaseScraper):
                     site_error_code=SITE_BLOCKED,
                 ) from exc
             raise ScrapeError(
-                "Could not reach the kagane.to API.",
+                "Could not reach the kagane.org API.",
                 hint=(
                     "This site requires a passing Cloudflare session — "
                     "install the webview solver (`comic-dl[webview]`) and "
@@ -526,8 +526,8 @@ class KaganeScraper(BaseScraper):
         series_id, _ = _extract_ids(url)
         if not series_id:
             raise ScrapeError(
-                "Unsupported kagane.to URL.",
-                hint="Expected a series URL like https://kagane.to/series/{series}",
+                "Unsupported kagane.org URL.",
+                hint="Expected a series URL like https://kagane.org/series/{series}",
                 site_error_code=SITE_NOT_RECOGNIZED,
             )
         data = await self._series_json(series_id, client)

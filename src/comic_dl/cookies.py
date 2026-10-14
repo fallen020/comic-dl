@@ -193,7 +193,7 @@ class CookieJar:
         """Non-expired ``{name: value}`` cookies matching ``host``.
 
         ``host`` matches a stored domain exactly, or as a subdomain
-        (``api.kagane.to`` matches a stored ``kagane.to``). Cookies flagged
+        (``api.kagane.org`` matches a stored ``kagane.org``). Cookies flagged
         ``Secure`` are only returned when ``https`` is set — they must never
         ride a plain-HTTP request to their own host. Session-only cookies
         (this process) are merged in.

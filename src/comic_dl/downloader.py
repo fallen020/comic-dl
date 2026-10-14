@@ -590,7 +590,7 @@ async def _session_cover_fallback(
 ) -> bool:
     """Retry a failed cover via the webview session (fingerprint-bound hosts).
 
-    Some sites (kagane.to) 403 even the cover API when replayed over plain
+    Some sites (kagane.org) 403 even the cover API when replayed over plain
     curl; when a webview request session is enabled, fetch the bytes as an
     in-page XHR instead. Best-effort like the rest of the cover path.
     """

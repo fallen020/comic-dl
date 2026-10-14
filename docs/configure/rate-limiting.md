@@ -8,7 +8,7 @@ that a site will not throttle or block a run.
 
 | Host | Rate |
 | :--- | :--- |
-| `kagane.to` | 1.5 req/s |
+| `kagane.org` | 1.5 req/s |
 | `kstatic.to` | 2.0 req/s |
 | `e-hentai.org` | 2.0 req/s |
 
@@ -21,7 +21,7 @@ Fractional rates are honored precisely: `1.5` means one request every ~0.67s.
 ```toml
 [http]
 rate-enabled = true
-rate = { "kagane.to" = 1.5, "kstatic.to" = 2.0, "e-hentai.org" = 2.0 }
+rate = { "kagane.org" = 1.5, "kstatic.to" = 2.0, "e-hentai.org" = 2.0 }
 ```
 
 ### Per-host overrides
@@ -29,7 +29,7 @@ rate = { "kagane.to" = 1.5, "kstatic.to" = 2.0, "e-hentai.org" = 2.0 }
 Host-specific rates in `[sources."<host>"]` override `[http] rate`:
 
 ```toml
-[sources."kagane.to"]
+[sources."kagane.org"]
 rate = 0.8
 ```
 

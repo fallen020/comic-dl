@@ -55,7 +55,7 @@ you means that ladder failed. Work through these in order:
    `cf: escalating to system webview`, then `webview harvested fresh
    cf_clearance`, then a successful retry.
 4. **Still 403?** Some hosts bind the clearance cookie to the webview's
-   own TLS fingerprint (kagane.to), so plain HTTP rejects the fresh
+   own TLS fingerprint (kagane.org), so plain HTTP rejects the fresh
    cookie when it replays it. The `-vvv` log shows exactly this path, and
    no setting changes it — attach the log to an issue.
 

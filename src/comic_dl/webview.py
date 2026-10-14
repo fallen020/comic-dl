@@ -13,7 +13,7 @@ The browser is strictly a one-time interactive cookie acquisition mechanism:
 (valid ~1-2 hours) is reused by plain ``curl_cffi`` requests until the
 server challenges again.
 
-Some sites (e.g. kagane.to) bind ``cf_clearance`` to the exact TLS
+Some sites (e.g. kagane.org) bind ``cf_clearance`` to the exact TLS
 fingerprint that minted it, so a WebKit-acquired cookie is 403-rejected when
 replayed by curl_cffi regardless of User-Agent. For those, :class:
 `WebViewSession` keeps the webview open and serves the request path itself:
