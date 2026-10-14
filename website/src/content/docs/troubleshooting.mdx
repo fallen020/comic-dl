@@ -36,7 +36,7 @@ comic-dl already tried to get through: it detects Cloudflare challenges, solves 
 
    Still 403 — step 3.
 3. **Force the webview solver**: `--solver webview`. On headless Linux, install WebKitGTK and PyGObject first; see [No webview available](#no-webview-available) below. With `-vvv`, the log shows `cf: escalating to system webview`, then `webview harvested fresh cf_clearance`, then a successful retry.
-4. **Still 403?** Some hosts bind the clearance cookie to the webview's own TLS fingerprint (kagane.to), so plain HTTP rejects the fresh cookie when it replays it. The `-vvv` log shows exactly this path, and no setting changes it — attach the log to an issue.
+4. **Still 403?** Some hosts bind the clearance cookie to the webview's own TLS fingerprint (kagane.org), so plain HTTP rejects the fresh cookie when it replays it. The `-vvv` log shows exactly this path, and no setting changes it — attach the log to an issue.
 
 Stop when step 1 shows a login or IP wall, or step 4 shows a fingerprint-bound cookie. Both are site behavior, not a comic-dl bug.
 

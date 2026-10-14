@@ -27,11 +27,11 @@ is not a guarantee of the store.
 
 ```bash
 comic-dl cookie ls                     # list all stored cookies
-comic-dl cookie ls kagane.to           # list cookies for a host
+comic-dl cookie ls kagane.org           # list cookies for a host
 comic-dl cookie ls --json              # machine-readable output
 comic-dl cookie set <host> <name> <value> [--expires <epoch>]
 comic-dl cookie clear                  # clear all cookies
-comic-dl cookie clear kagane.to        # clear cookies for a host
+comic-dl cookie clear kagane.org        # clear cookies for a host
 ```
 
 <Warning>
@@ -96,7 +96,7 @@ renders. A stored `cf_clearance` is reused for its full validity (~1–2 hours).
 
 ### TLS fingerprint binding
 
-Some sites (e.g. kagane.to) bind `cf_clearance` to the exact TLS fingerprint.
+Some sites (e.g. kagane.org) bind `cf_clearance` to the exact TLS fingerprint.
 The webview session serves requests from inside the page so the fingerprint
 matches. Plain `curl_cffi` replay fails with 403 on these sites.
 
@@ -120,7 +120,7 @@ for configuration and concurrency details. Defaults exist for:
 
 | Host | Rate |
 | :--- | :--- |
-| `kagane.to` | 1.5 req/s |
+| `kagane.org` | 1.5 req/s |
 | `kstatic.to` | 2.0 req/s |
 | `e-hentai.org` | 2.0 req/s |
 

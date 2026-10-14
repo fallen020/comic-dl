@@ -22,7 +22,7 @@ any third-party plugins — is shown by `comic-dl --list-sources`.
 | **HiveToons** | `hivetoons.org` | `/series/{slug}/`, `/series/{slug}/chapter-{n}/` | Yes | Yes | Safe |
 | **IMHentai** | `imhentai.xxx` | `/gallery/{id}/`, `/view/{id}/{n}/` | Yes | — | NSFW |
 | **FSI Comics IT** | `it.fsicomics.com` | `/{category}/{artist}/`, `/{comic-slug}/` | Yes | Yes | NSFW |
-| **Kagane** | `kagane.to` | `/series/{id}/`, `/series/{id}/reader/{book}` | Yes | Yes | Safe |
+| **Kagane** | `kagane.org` | `/series/{id}/`, `/series/{id}/reader/{book}` | Yes | Yes | Safe |
 | **Kingofshojo** | `kingofshojo.com` | `/{slug}-chapter-{n}/` | Yes | — | NSFW |
 | **Kodoku** | `kodokueasyaccess.com` | `/manhwa/{slug}/`, `/read/{slug}/{lang}/{n}/` | Yes | Yes | NSFW |
 | **LGBTics** | `lgbtics.com` | `/comic/{slug}/`, `/comic/{slug}/{chapter}/` | Yes | Yes | NSFW |

@@ -643,7 +643,7 @@ class TestDefaultConfigParity:
         assert conf["output"] == "~/Downloads/comic-dl"
         assert conf["http"]["solver"] == "off"
         assert conf["archive"]["format"] == "cbz"
-        assert conf["http"]["rate"]["kagane.to"] == 1.5
+        assert conf["http"]["rate"]["kagane.org"] == 1.5
 
     def test_starter_never_overrides_defaults(self):
         """``config init`` output must be behavior-neutral: every active key

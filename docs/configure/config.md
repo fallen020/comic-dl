@@ -70,7 +70,7 @@ built-in defaults, which surfaces values inherited from an older template.
 ## Per-source overrides
 
 Host-specific settings live in `[sources."<host>"]` tables. The host key
-must be quoted; unquoted `[sources.kagane.to]` would nest incorrectly.
+must be quoted; unquoted `[sources.kagane.org]` would nest incorrectly.
 
 The supported per-host keys are:
 - `rate` — requests/second, overrides both `[http] rate` and the built-in

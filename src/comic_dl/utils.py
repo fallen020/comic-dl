@@ -488,7 +488,7 @@ def host_of(url: str) -> str:
 def referer_headers(referer_url: str) -> dict[str, str]:
     """Per-request ``Referer``/``Origin`` headers derived from ``referer_url``.
 
-    Image CDNs that enforce hotlinking (e.g. kagane.to's ``kstatic.to``) check
+    Image CDNs that enforce hotlinking (e.g. kagane.org's ``kstatic.to``) check
     both, so callers that build requests outside a session's default headers
     (a shared cover session, for instance) can pass these per-request.
     """
@@ -526,7 +526,7 @@ def http_client_args(
     fingerprint. ``referer_url``
     merges a ``Referer`` header (and a matching ``Origin`` derived from its
     scheme+host) when the caller needs one — image CDNs that enforce
-    hotlinking, such as kagane.to's ``kstatic.to``, check both.
+    hotlinking, such as kagane.org's ``kstatic.to``, check both.
 
     If ``referer_url`` is not provided but ``host`` is, a deterministic
     search-engine referrer is added for humane requests (rotating across

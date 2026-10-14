@@ -105,7 +105,7 @@ async def handle_challenge(url: str) -> bool:
     if not host:
         return False
     # A 403 does not mean the clearance cookie is stale — fingerprint-bound
-    # hosts (e.g. kagane.to) reject plain-HTTP replays even with valid
+    # hosts (e.g. kagane.org) reject plain-HTTP replays even with valid
     # clearance. Deleting it here would throw away a working webview session.
 
     mode = solver_mode(host)

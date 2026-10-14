@@ -1676,9 +1676,9 @@ _CHAPTER_URL_GUARDS: dict[str, _ChapterUrlGuard] = {
         "https://asurascans.com/comics/{series}/chapter/{n} "
         "or https://asurascans.com/comics/{series}/",
     ),
-    "kagane.to": _ChapterUrlGuard(
+    "kagane.org": _ChapterUrlGuard(
         is_kagane_chapter_url,
-        "https://kagane.to/series/{series}/reader/{book} or https://kagane.to/series/{series}/",
+        "https://kagane.org/series/{series}/reader/{book} or https://kagane.org/series/{series}/",
     ),
     "weebcentral.com": _ChapterUrlGuard(
         is_weebcentral_chapter_url,
@@ -4272,7 +4272,7 @@ def _build_cookie_parser() -> ComicArgumentParser:
         "set",
         help="store a cookie for a host",
     )
-    st.add_argument("host", help="host (e.g. kagane.to)")
+    st.add_argument("host", help="host (e.g. kagane.org)")
     st.add_argument("name", help="cookie name (e.g. cf_clearance)")
     st.add_argument("value", help="cookie value")
     st.add_argument(

@@ -444,7 +444,7 @@ class TestRateLimiterDisable:
     def test_rate_enabled_keeps_defaults(self, monkeypatch, tmp_path):
         _patch_paths(monkeypatch, tmp_path)
         limiter = ratemodule.RateLimiter({})
-        assert limiter.limit_for("kagane.to") == 1.5
+        assert limiter.limit_for("kagane.org") == 1.5
         assert limiter.limit_for("example.com") is None
 
 

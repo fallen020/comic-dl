@@ -239,7 +239,7 @@ _shtab_comic_dl_cookie_ls_defaults_added=0
 _shtab_comic_dl_cookie_set_options=(
   "(- : *)"{-h,--help}"[show this help message and exit]"
   "--expires[expiry as a Unix epoch timestamp (default\: session\/never)]:expires:"
-  ":host (e.g. kagane.to):"
+  ":host (e.g. kagane.org):"
   ":cookie name (e.g. cf_clearance):"
   ":cookie value:"
 )
