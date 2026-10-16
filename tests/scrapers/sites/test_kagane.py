@@ -8,8 +8,11 @@ import comic_dl.scrapers.sites.kagane as kagane_module
 from comic_dl.errors import SITE_BLOCKED, SITE_NO_SERIES, ScrapeError
 from comic_dl.scrapers import base as base_module
 from comic_dl.scrapers.sites.kagane import (
+    CANONICAL_BASE,
     DOMAIN,
+    KAGANE_HOSTS,
     KaganeScraper,
+    _base_for_url,
     _extract_ids,
     _series_fields,
     build_image_urls,
@@ -22,6 +25,7 @@ from tests.helpers import MockSession as _MockSession
 SERIES_ID = "3VZ9ZMQCIO6BNFJ8WAKIUR7RD5"
 BOOK_1 = "11111111-1111-1111-1111-111111111111"
 BOOK_2 = "22222222-2222-2222-2222-222222222222"
+BASE_SI = "https://kagane.si"
 
 SERIES_JSON = {
     "series_id": SERIES_ID,
@@ -47,38 +51,6 @@ SERIES_JSON = {
     ],
     "tags": [],
     "series_alternate_titles": [],
-    "series_books": [
-        {
-            "book_id": BOOK_1,
-            "chapter_no": "1",
-            "title": "The Weakest Hunter",
-            "sort_no": 1,
-            "page_count": 3,
-            "views": 100,
-            "created_at": "2025-01-01T00:00:00Z",
-            "updated_at": "2025-01-02T00:00:00Z",
-            "volume_no": None,
-            "published_on": None,
-            "internal_release": False,
-            "groups": [],
-            "uploader": None,
-        },
-        {
-            "book_id": BOOK_2,
-            "chapter_no": "2",
-            "title": "Rising from the Ruins",
-            "sort_no": 2,
-            "page_count": 8,
-            "views": 90,
-            "created_at": "2025-01-03T00:00:00Z",
-            "updated_at": "2025-01-04T00:00:00Z",
-            "volume_no": None,
-            "published_on": None,
-            "internal_release": False,
-            "groups": [],
-            "uploader": None,
-        },
-    ],
     "series_covers": [
         {
             "cover_id": "c1",
@@ -95,6 +67,21 @@ SERIES_JSON = {
         {"staff_id": "s2", "name": "Dubu", "role": "Artist"},
     ],
 }
+
+BOOK_ROW_1 = {
+    "book_id": BOOK_1,
+    "chapter_no": "1",
+    "title": "The Weakest Hunter",
+    "sort_no": 1,
+}
+BOOK_ROW_2 = {
+    "book_id": BOOK_2,
+    "chapter_no": "2",
+    "title": "Rising from the Ruins",
+    "sort_no": 2,
+}
+BOOKS_ALL = {"items": [BOOK_ROW_1, BOOK_ROW_2], "next_cursor": None}
+BOOKS_EMPTY = {"items": [], "next_cursor": None}
 
 DRM_TOKENS = {
     "cache_url": "https://kstatic.to",
@@ -152,6 +139,22 @@ async def _fake_ensure_session(url):
     return _FAKE_SESSION
 
 
+def _api_handler(books_payload: dict | None = None):
+    """Route API URLs to fixtures: integrity, manifest, book list, series."""
+    payload = BOOKS_ALL if books_payload is None else books_payload
+
+    def handler(url):
+        if "/api/integrity" in url:
+            return _MockResponse(json_data=INTEGRITY_RESPONSE)
+        if "/api/v2/books/" in url:
+            return _MockResponse(json_data=DRM_TOKENS)
+        if url.rstrip("?").endswith("/books") or "/books?" in url:
+            return _MockResponse(json_data=payload)
+        return _MockResponse(json_data=SERIES_JSON)
+
+    return handler
+
+
 def _session_enabled_true():
     return True
 
@@ -189,7 +192,15 @@ class TestUrlPatterns:
     def test_valid_series_urls(self):
         assert is_series_url(f"https://kagane.org/series/{SERIES_ID}")
         assert is_series_url(f"https://www.kagane.org/series/{SERIES_ID}/")
-        assert not is_series_url(f"https://kagane.org/series/{SERIES_ID}/reader/{BOOK_1}")
+
+    def test_mirror_series_urls(self):
+        for host in ("kagane.si", "kagane.cx", "kagane.moe", "kagane.net"):
+            assert is_series_url(f"https://{host}/series/{SERIES_ID}")
+            assert is_chapter_url(f"https://{host}/series/{SERIES_ID}/reader/{BOOK_1}")
+        assert not is_series_url(f"https://kagane.io/series/{SERIES_ID}")
+
+    def test_reader_url_is_not_series(self):
+        assert not is_series_url(f"https://kagane.si/series/{SERIES_ID}/reader/{BOOK_1}")
 
     def test_invalid_series_urls(self):
         assert not is_series_url("")
@@ -198,28 +209,55 @@ class TestUrlPatterns:
         assert not is_series_url("https://other.com/series/abc")
 
     def test_valid_chapter_urls(self):
-        assert is_chapter_url(f"https://kagane.org/series/{SERIES_ID}/reader/{BOOK_1}")
+        assert is_chapter_url(f"https://kagane.si/series/{SERIES_ID}/reader/{BOOK_1}")
         assert is_chapter_url(f"https://www.kagane.org/series/{SERIES_ID}/reader/{BOOK_1}/")
 
     def test_invalid_chapter_urls(self):
         assert not is_chapter_url("")
-        assert not is_chapter_url(f"https://kagane.org/series/{SERIES_ID}")
+        assert not is_chapter_url(f"https://kagane.si/series/{SERIES_ID}")
         assert not is_chapter_url(f"https://kagane.org/series/{SERIES_ID}/reader/")
         assert not is_chapter_url("https://kagane.org/reader/some-book")
         assert not is_chapter_url("https://other.com/series/a/reader/b")
 
     def test_matches_url(self):
         scraper = KaganeScraper()
-        assert scraper.matches_url(f"https://kagane.org/series/{SERIES_ID}")
-        assert scraper.matches_url(f"https://kagane.org/series/{SERIES_ID}/reader/{BOOK_1}")
+        assert scraper.matches_url(f"https://kagane.si/series/{SERIES_ID}")
+        assert scraper.matches_url(f"https://kagane.si/series/{SERIES_ID}/reader/{BOOK_1}")
+
+
+class TestKaganeHosts:
+    def test_canonical_base(self):
+        assert CANONICAL_BASE == "https://kagane.si"
+        expected = {
+            "kagane.org",
+            "kagane.si",
+            "kagane.cx",
+            "kagane.moe",
+            "kagane.net",
+        }
+        assert expected == KAGANE_HOSTS
+
+    def test_base_for_url_keeps_mirrors(self):
+        assert _base_for_url("https://kagane.cx/series/x") == "https://kagane.cx"
+        assert _base_for_url("https://www.kagane.moe/series/x") == "https://kagane.moe"
+
+    def test_base_for_url_remaps_retired_org_host(self):
+        assert _base_for_url(f"https://kagane.org/series/{SERIES_ID}") == CANONICAL_BASE
+        assert _base_for_url("https://unknown.example/series/x") == CANONICAL_BASE
+
+    def test_scraper_claims_every_mirror(self):
+        scraper = KaganeScraper()
+        for host in KAGANE_HOSTS:
+            assert scraper.matches_url(f"https://{host}/series/{SERIES_ID}")
+            assert scraper.matches_series_url(f"https://{host}/series/{SERIES_ID}")
 
 
 class TestExtractIds:
     def test_series_url(self):
-        assert _extract_ids(f"https://kagane.org/series/{SERIES_ID}") == (SERIES_ID, None)
+        assert _extract_ids(f"https://kagane.si/series/{SERIES_ID}") == (SERIES_ID, None)
 
     def test_reader_url(self):
-        assert _extract_ids(f"https://kagane.org/series/{SERIES_ID}/reader/{BOOK_1}") == (
+        assert _extract_ids(f"https://kagane.si/series/{SERIES_ID}/reader/{BOOK_1}") == (
             SERIES_ID,
             BOOK_1,
         )
@@ -279,12 +317,13 @@ class TestSeriesParsing:
 
     def test_cover_url(self):
         assert (
-            kagane_module._cover_url(SERIES_JSON) == "https://kagane.org/api/v2/image/cover-image-1"
+            kagane_module._cover_url(SERIES_JSON, BASE_SI)
+            == "https://kagane.si/api/v2/image/cover-image-1"
         )
-        assert kagane_module._cover_url({}) == ""
+        assert kagane_module._cover_url({}, BASE_SI) == ""
 
     def test_series_fields(self):
-        fields = _series_fields(SERIES_JSON)
+        fields = _series_fields(SERIES_JSON, BASE_SI)
         assert fields["series_title"] == "Solo Leveling"
         assert fields["description"].startswith("A hunter rises")
         assert fields["genres"] == ["Action", "Fantasy"]
@@ -293,20 +332,20 @@ class TestSeriesParsing:
         assert fields["language"] == "en"
         assert fields["year"] == 2018
         assert fields["community_rating"] == 9.6
-        empty = _series_fields({})
+        empty = _series_fields({}, BASE_SI)
         assert empty["series_title"] == ""
         assert empty["artists"] == []
         assert empty["genres"] == []
 
     def test_chapters_ordered_by_sort_no(self):
-        chapters = kagane_module._chapters(SERIES_JSON, SERIES_ID)
+        chapters = kagane_module._chapters(BOOKS_ALL["items"], SERIES_ID, BASE_SI)
         assert len(chapters) == 2
         assert chapters[0]["title"] == "The Weakest Hunter"
         assert chapters[0]["episode_no"] == "1"
-        assert chapters[0]["url"] == f"https://kagane.org/series/{SERIES_ID}/reader/{BOOK_1}"
+        assert chapters[0]["url"] == f"https://kagane.si/series/{SERIES_ID}/reader/{BOOK_1}"
         assert chapters[1]["title"] == "Rising from the Ruins"
         assert chapters[1]["episode_no"] == "2"
-        assert chapters[1]["url"] == f"https://kagane.org/series/{SERIES_ID}/reader/{BOOK_2}"
+        assert chapters[1]["url"] == f"https://kagane.si/series/{SERIES_ID}/reader/{BOOK_2}"
 
 
 class TestKaganeScraper:
@@ -316,17 +355,10 @@ class TestKaganeScraper:
 
     @pytest.mark.asyncio
     async def test_scrape_chapter_success(self):
-        def handler(url):
-            if "/api/integrity" in url:
-                return _MockResponse(json_data=INTEGRITY_RESPONSE)
-            if "/api/v2/books/" in url:
-                return _MockResponse(json_data=DRM_TOKENS)
-            return _MockResponse(json_data=SERIES_JSON)
-
-        session = _MockSession(handler)
+        session = _MockSession(_api_handler())
         scraper = KaganeScraper()
         meta = await scraper.scrape(
-            f"https://kagane.org/series/{SERIES_ID}/reader/{BOOK_1}",
+            f"https://kagane.si/series/{SERIES_ID}/reader/{BOOK_1}",
             session,
         )
 
@@ -343,7 +375,7 @@ class TestKaganeScraper:
         assert meta.status == "Ongoing"
         assert meta.community_rating == 9.6
         assert meta.year == 2018
-        assert meta.cover_url == "https://kagane.org/api/v2/image/cover-image-1"
+        assert meta.cover_url == "https://kagane.si/api/v2/image/cover-image-1"
         assert meta.description.startswith("A hunter rises")
         assert [img.url for img in meta.images] == PAGE_URLS
         assert [img.page_number for img in meta.images] == [1, 2, 3]
@@ -353,6 +385,45 @@ class TestKaganeScraper:
         assert integrity_calls and books_calls
         assert "X-Integrity-Token" in books_calls[0][1]["headers"]
         assert books_calls[0][1]["json"] == {}
+
+    @pytest.mark.asyncio
+    async def test_scrape_chapter_org_url_uses_canonical_api(self):
+        """Retired kagane.org URLs keep working via the canonical mirror."""
+        session = _MockSession(_api_handler())
+        scraper = KaganeScraper()
+        meta = await scraper.scrape(
+            f"https://kagane.org/series/{SERIES_ID}/reader/{BOOK_1}",
+            session,
+        )
+        assert meta.total_pages == 3
+        assert meta.cover_url == "https://kagane.si/api/v2/image/cover-image-1"
+        assert session.requests, "expected API calls"
+        assert all("kagane.si" in url for url, _ in session.requests)
+
+    @pytest.mark.asyncio
+    async def test_scrape_chapter_follows_book_pages(self):
+        """The book list is walked with ``before`` until ``next_cursor`` ends."""
+        pages: dict[str, dict] = {
+            "first": {"items": [BOOK_ROW_1], "next_cursor": "1,x"},
+            "second": {"items": [BOOK_ROW_2], "next_cursor": None},
+        }
+
+        def paged(url):
+            if "/api/integrity" in url:
+                return _MockResponse(json_data=INTEGRITY_RESPONSE)
+            if "/api/v2/books/" in url:
+                return _MockResponse(json_data=DRM_TOKENS)
+            if "before=" in url:
+                return _MockResponse(json_data=pages["second"])
+            if "/books" in url:
+                return _MockResponse(json_data=pages["first"])
+            return _MockResponse(json_data=SERIES_JSON)
+
+        session = _MockSession(paged)
+        scraper = KaganeScraper()
+        books = await scraper._series_books(SERIES_ID, BASE_SI, session)
+        assert [b["book_id"] for b in books] == [BOOK_1, BOOK_2]
+        assert any("before=" in url for url, _ in session.requests)
 
     @pytest.mark.asyncio
     async def test_scrape_chapter_missing_integrity_raises(self):
@@ -365,7 +436,7 @@ class TestKaganeScraper:
         scraper = KaganeScraper()
         with pytest.raises(ValueError, match="API"):
             await scraper.scrape(
-                f"https://kagane.org/series/{SERIES_ID}/reader/{BOOK_1}",
+                f"https://kagane.si/series/{SERIES_ID}/reader/{BOOK_1}",
                 session,
             )
 
@@ -388,7 +459,7 @@ class TestKaganeScraper:
         scraper = KaganeScraper()
         with pytest.raises(ValueError, match="No images found"):
             await scraper.scrape(
-                f"https://kagane.org/series/{SERIES_ID}/reader/{BOOK_1}",
+                f"https://kagane.si/series/{SERIES_ID}/reader/{BOOK_1}",
                 session,
             )
 
@@ -404,7 +475,7 @@ class TestKaganeScraper:
         session = _MockSession(handler)
         scraper = KaganeScraper()
         meta = await scraper.scrape(
-            f"https://kagane.org/series/{SERIES_ID}/reader/{BOOK_1}",
+            f"https://kagane.si/series/{SERIES_ID}/reader/{BOOK_1}",
             session,
         )
 
@@ -419,17 +490,17 @@ class TestKaganeScraper:
 
     @pytest.mark.asyncio
     async def test_scrape_series(self):
-        session = _MockSession(lambda url: _MockResponse(json_data=SERIES_JSON))
+        session = _MockSession(_api_handler())
         scraper = KaganeScraper()
         series = await scraper.scrape_series(
-            f"https://kagane.org/series/{SERIES_ID}",
+            f"https://kagane.si/series/{SERIES_ID}",
             session,
         )
 
         assert series.series_title == "Solo Leveling"
         assert series.title_no == SERIES_ID
         assert series.description.startswith("A hunter rises")
-        assert series.cover_url == "https://kagane.org/api/v2/image/cover-image-1"
+        assert series.cover_url == "https://kagane.si/api/v2/image/cover-image-1"
         assert len(series.chapters) == 2
         assert series.chapters[0]["episode_no"] == "1"
         assert series.chapters[0]["title"] == "The Weakest Hunter"
@@ -439,12 +510,11 @@ class TestKaganeScraper:
 
     @pytest.mark.asyncio
     async def test_scrape_series_no_chapters_raises(self):
-        empty = dict(SERIES_JSON, series_books=[])
-        session = _MockSession(lambda url: _MockResponse(json_data=empty))
+        session = _MockSession(_api_handler(BOOKS_EMPTY))
         scraper = KaganeScraper()
         with pytest.raises(ValueError, match="No chapters found"):
             await scraper.scrape_series(
-                f"https://kagane.org/series/{SERIES_ID}",
+                f"https://kagane.si/series/{SERIES_ID}",
                 session,
             )
 
@@ -464,19 +534,12 @@ class TestKaganeScraperSessionPath:
 
     @pytest.mark.asyncio
     async def test_scrape_chapter_success(self, monkeypatch):
-        def handler(url):
-            if "/api/integrity" in url:
-                return _MockResponse(json_data=INTEGRITY_RESPONSE)
-            if "/api/v2/books/" in url:
-                return _MockResponse(json_data=DRM_TOKENS)
-            return _MockResponse(json_data=SERIES_JSON)
-
         global _FAKE_SESSION
-        _FAKE_SESSION = _FakeWebViewSession(handler)
+        _FAKE_SESSION = _FakeWebViewSession(_api_handler())
         session = _MockSession(lambda url: _MockResponse(json_data={}))
         scraper = KaganeScraper()
         meta = await scraper.scrape(
-            f"https://kagane.org/series/{SERIES_ID}/reader/{BOOK_1}",
+            f"https://kagane.si/series/{SERIES_ID}/reader/{BOOK_1}",
             session,
         )
 
@@ -509,6 +572,8 @@ class TestKaganeScraperSessionPath:
                         "manifest": {"pages": []},
                     }
                 )
+            if "/books" in url:
+                return _MockResponse(json_data=BOOKS_ALL)
             return _MockResponse(json_data=SERIES_JSON)
 
         global _FAKE_SESSION
@@ -517,18 +582,18 @@ class TestKaganeScraperSessionPath:
         scraper = KaganeScraper()
         with pytest.raises(ValueError, match="No images found"):
             await scraper.scrape(
-                f"https://kagane.org/series/{SERIES_ID}/reader/{BOOK_1}",
+                f"https://kagane.si/series/{SERIES_ID}/reader/{BOOK_1}",
                 session,
             )
 
     @pytest.mark.asyncio
     async def test_scrape_series(self, monkeypatch):
         global _FAKE_SESSION
-        _FAKE_SESSION = _FakeWebViewSession(lambda url: _MockResponse(json_data=SERIES_JSON))
+        _FAKE_SESSION = _FakeWebViewSession(_api_handler())
         session = _MockSession(lambda url: _MockResponse(json_data={}))
         scraper = KaganeScraper()
         series = await scraper.scrape_series(
-            f"https://kagane.org/series/{SERIES_ID}",
+            f"https://kagane.si/series/{SERIES_ID}",
             session,
         )
 
@@ -543,6 +608,8 @@ class TestKaganeScraperSessionPath:
                 return _MockResponse(json_data=INTEGRITY_RESPONSE)
             if "/api/v2/books/" in url:
                 return _MockResponse(json_data=DRM_TOKENS)
+            if "/books" in url:
+                return _MockResponse(json_data=BOOKS_ALL)
             raise ConnectionError("boom")
 
         global _FAKE_SESSION
@@ -550,7 +617,7 @@ class TestKaganeScraperSessionPath:
         session = _MockSession(lambda url: _MockResponse(json_data={}))
         scraper = KaganeScraper()
         meta = await scraper.scrape(
-            f"https://kagane.org/series/{SERIES_ID}/reader/{BOOK_1}",
+            f"https://kagane.si/series/{SERIES_ID}/reader/{BOOK_1}",
             session,
         )
 
@@ -572,7 +639,7 @@ class TestApiFetchClearanceFirst:
         monkeypatch.setattr(kagane_module.webview, "ensure_session", _boom)
         session = _MockSession(lambda url: _MockResponse(json_data=SERIES_JSON))
         scraper = KaganeScraper()
-        data = await scraper._series_json(SERIES_ID, session)
+        data = await scraper._series_json(SERIES_ID, BASE_SI, session)
         assert data["title"] == "Solo Leveling"
         assert session.requests, "expected a plain-HTTP attempt"
 
@@ -587,7 +654,7 @@ class TestApiFetchClearanceFirst:
         monkeypatch.setattr(kagane_module.webview, "session_enabled", _session_enabled_true)
         monkeypatch.setattr(kagane_module.webview, "ensure_session", _fake_ensure_session)
         scraper = KaganeScraper()
-        data = await scraper._series_json(SERIES_ID, session)
+        data = await scraper._series_json(SERIES_ID, BASE_SI, session)
         assert data["title"] == "Solo Leveling"
         assert _FAKE_SESSION.calls, "expected a session fallback after the challenge"
 
@@ -599,7 +666,7 @@ class TestApiFetchClearanceFirst:
         monkeypatch.setattr(kagane_module.webview, "session_enabled", _session_enabled_true)
         monkeypatch.setattr(kagane_module.webview, "ensure_session", _fake_ensure_session)
         scraper = KaganeScraper()
-        data = await scraper._series_json(SERIES_ID, session)
+        data = await scraper._series_json(SERIES_ID, BASE_SI, session)
         assert data["title"] == "Solo Leveling"
         assert not session.requests, "no plain attempt without a stored cookie"
         assert _FAKE_SESSION.calls
@@ -615,10 +682,10 @@ class TestApiFetchClearanceFirst:
         monkeypatch.setattr(kagane_module.webview, "session_enabled", _session_enabled_true)
         monkeypatch.setattr(kagane_module.webview, "ensure_session", _fake_ensure_session)
         scraper = KaganeScraper()
-        await scraper._series_json(SERIES_ID, session)
+        await scraper._series_json(SERIES_ID, BASE_SI, session)
         first_plain_attempts = session._handler_calls
         assert first_plain_attempts > 0
-        await scraper._series_json(SERIES_ID, session)
+        await scraper._series_json(SERIES_ID, BASE_SI, session)
         assert session._handler_calls == first_plain_attempts, (
             "after one challenged replay the run must go straight to the session"
         )
@@ -637,7 +704,7 @@ class TestApiFetchClearanceFirst:
         )
         scraper = KaganeScraper()
         with pytest.raises(Exception, match="HTTP Error 403"):
-            await scraper._series_json(SERIES_ID, session)
+            await scraper._series_json(SERIES_ID, BASE_SI, session)
 
 
 class TestCfChallengeClassification:
@@ -664,7 +731,7 @@ class TestCfChallengeClassification:
 
     @pytest.mark.asyncio
     async def test_scrape_raises_challenge_message(self):
-        async def _tokens_fail(book_id, client):
+        async def _tokens_fail(book_id, base, client):
             resp = _MockResponse(b"", status=503)
             resp.headers = {"server": "cloudflare"}
             from curl_cffi.requests.exceptions import HTTPError as CurlHTTPError
@@ -677,7 +744,7 @@ class TestCfChallengeClassification:
         scraper._chapter_tokens = _tokens_fail  # type: ignore[method-assign]
         with pytest.raises(ScrapeError, match="Cloudflare challenged") as excinfo:
             await scraper.scrape(
-                f"https://kagane.org/series/{SERIES_ID}/reader/{BOOK_1}",
+                f"https://kagane.si/series/{SERIES_ID}/reader/{BOOK_1}",
                 _MockSession(lambda url: _MockResponse(json_data={})),
             )
         assert excinfo.value.site_error_code == SITE_BLOCKED
@@ -706,8 +773,9 @@ class TestCfChallengeClassification:
         with pytest.raises(ScrapeError, match="Cloudflare challenged") as excinfo:
             await scraper._api_fetch(
                 "GET",
-                f"https://kagane.org/api/v2/series/{SERIES_ID}",
+                f"https://kagane.si/api/v2/series/{SERIES_ID}",
                 _MockSession(lambda url: challenge),
+                base=BASE_SI,
             )
         assert excinfo.value.site_error_code == SITE_BLOCKED
         assert "solver" in (excinfo.value.hint or "")
@@ -721,8 +789,9 @@ class TestCfChallengeClassification:
         scraper = KaganeScraper()
         resp = await scraper._api_fetch(
             "GET",
-            f"https://kagane.org/api/v2/series/{SERIES_ID}",
+            f"https://kagane.si/api/v2/series/{SERIES_ID}",
             _MockSession(lambda url: forbidden),
+            base=BASE_SI,
         )
         assert resp.status_code == 403
 
@@ -740,7 +809,7 @@ class TestKaganeRemovedContent:
         scraper = KaganeScraper()
         with pytest.raises(ScrapeError, match=r"Page not found on kagane\.org") as excinfo:
             await scraper.scrape(
-                f"https://kagane.org/series/{SERIES_ID}/reader/{BOOK_1}",
+                f"https://kagane.si/series/{SERIES_ID}/reader/{BOOK_1}",
                 _MockSession(handler),
             )
         assert excinfo.value.site_error_code == SITE_NO_SERIES
@@ -751,7 +820,7 @@ class TestKaganeRemovedContent:
         scraper = KaganeScraper()
         with pytest.raises(ScrapeError, match=r"Page not found on kagane\.org") as excinfo:
             await scraper.scrape_series(
-                f"https://kagane.org/series/{SERIES_ID}",
+                f"https://kagane.si/series/{SERIES_ID}",
                 _MockSession(lambda url: _MockResponse(b"not found", status=404)),
             )
         assert excinfo.value.site_error_code == SITE_NO_SERIES

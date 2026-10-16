@@ -89,8 +89,8 @@
     "kagane": {
       "minimum_core_version": "0.0.2",
       "status": "supported",
-      "test_url": "https://kagane.org/series/019c2b1c-cc9b-745f-afed-09c230759162/reader/019c2bda-f619-716e-b0f5-043564eecffe",
-      "version": "1.0.4"
+      "test_url": "https://kagane.si/series/019c2b1c-cc9b-745f-afed-09c230759162/reader/019c2bda-f6fe-7a0c-a4db-669f54b67a86",
+      "version": "1.1.0"
     },
     "kingofshojo": {
       "minimum_core_version": "0.0.2",
