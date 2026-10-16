@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import re
 from typing import Any
-from urllib.parse import urlparse, urlsplit
+from urllib.parse import quote, urlparse, urlsplit
 
 from curl_cffi.requests import AsyncSession
 
@@ -35,15 +35,36 @@ from ..base import BaseScraper, no_chapters_error, no_images_error
 from ..registry import register_scraper
 
 DOMAIN = "kagane.org"
-BASE = "https://kagane.org"
-_API = f"{BASE}/api/v2"
 
-_SERIES_PATH_RE = re.compile(r"^https?://(?:www\.)?kagane\.org/series/[^/]+/?$")
-_CHAPTER_PATH_RE = re.compile(r"^https?://(?:www\.)?kagane\.org/series/[^/]+/reader/[^/]+/?$")
+#: Hosts serving the same catalogue. kagane.org is now a mirror chooser
+#: (its API answers only challenges), so its URLs are fetched from here.
+CANONICAL_BASE = "https://kagane.si"
+KAGANE_HOSTS = frozenset(
+    {
+        "kagane.org",
+        "kagane.si",
+        "kagane.cx",
+        "kagane.moe",
+        "kagane.net",
+    }
+)
+
+_HOSTS_RE = r"(?:kagane\.org|kagane\.si|kagane\.cx|kagane\.moe|kagane\.net)"
+_SERIES_PATH_RE = re.compile(rf"^https?://(?:www\.)?{_HOSTS_RE}/series/[^/]+/?$")
+_CHAPTER_PATH_RE = re.compile(rf"^https?://(?:www\.)?{_HOSTS_RE}/series/[^/]+/reader/[^/]+/?$")
 
 # Cover/avatar images (best-effort; the real CDN host comes from each book's
 # ``cache_url`` and is never hardcoded).
-_IMAGE_BASE_URL = "https://kagane.org/api/v2/image"
+
+
+def _base_for_url(url: str) -> str:
+    """API base for ``url`` (kagane.org remapped: it no longer serves content)."""
+    host = (urlsplit(url).hostname or "").lower()
+    if host.startswith("www."):
+        host = host[4:]
+    if host in KAGANE_HOSTS and host != "kagane.org":
+        return f"https://{host}"
+    return CANONICAL_BASE
 
 
 def is_series_url(url: str) -> bool:
@@ -104,9 +125,14 @@ def build_image_urls(data: object, book_id: str) -> list[str]:
 
 
 def _books(data: object) -> list[dict]:
+    """Book rows from a books-endpoint payload (``items``) or legacy inline."""
     if not isinstance(data, dict):
         return []
-    return [b for b in data.get("series_books", []) if isinstance(b, dict)]
+    for key in ("items", "series_books"):
+        rows = data.get(key)
+        if isinstance(rows, list):
+            return [b for b in rows if isinstance(b, dict)]
+    return []
 
 
 def _genres(data: object) -> list[str]:
@@ -129,12 +155,12 @@ def _staff_names(data: object) -> list[str]:
     return out
 
 
-def _cover_url(data: object) -> str:
+def _cover_url(data: object, base: str) -> str:
     if not isinstance(data, dict):
         return ""
     covers = data.get("series_covers", [])
     if covers and isinstance(covers[0], dict) and covers[0].get("image_id"):
-        return f"{_IMAGE_BASE_URL}/{covers[0]['image_id']}"
+        return f"{base}/api/v2/image/{covers[0]['image_id']}"
     return ""
 
 
@@ -152,10 +178,10 @@ def _sort_no(book: dict) -> float:
     return 0.0
 
 
-def _chapters(data: object, series_id: str) -> list[dict]:
-    """Chapter list from the API payload, ordered by ``sort_no``."""
+def _chapters(books: list[dict], series_id: str, base: str) -> list[dict]:
+    """Chapter list from walked book rows, ordered by ``sort_no``."""
     chapters: list[dict] = []
-    for book in sorted(_books(data), key=_sort_no):
+    for book in sorted(books, key=_sort_no):
         book_id = book.get("book_id")
         if not book_id:
             continue
@@ -165,21 +191,21 @@ def _chapters(data: object, series_id: str) -> list[dict]:
         chapters.append(
             {
                 "title": str(title),
-                "url": f"{BASE}/series/{series_id}/reader/{book_id}",
+                "url": f"{base}/series/{series_id}/reader/{book_id}",
                 "episode_no": number_s or str(title),
             }
         )
     return chapters
 
 
-def _find_book(data: object, book_id: str) -> dict:
-    for book in _books(data):
+def _find_book(books: list[dict], book_id: str) -> dict:
+    for book in books:
         if book.get("book_id") == book_id:
             return book
     return {}
 
 
-def _series_fields(data: object) -> dict:
+def _series_fields(data: object, base: str) -> dict:
     """Flat best-effort metadata shared by the chapter and series models."""
     if not isinstance(data, dict):
         return {}
@@ -198,7 +224,7 @@ def _series_fields(data: object) -> dict:
         "language": str(language) if language else None,
         "year": year,
         "community_rating": community_rating,
-        "cover_url": _cover_url(data),
+        "cover_url": _cover_url(data, base),
     }
 
 
@@ -273,8 +299,8 @@ class KaganeScraper(BaseScraper):
     content_warning = "safe"
     chapter_url_pattern = "/series/{id}/reader/{book}"
     series_url_pattern = "/series/{id}/"
-    version = "1.0.4"
-    test_url = "https://kagane.org/series/019c2b1c-cc9b-745f-afed-09c230759162/reader/019c2bda-f619-716e-b0f5-043564eecffe"
+    version = "1.1.0"
+    test_url = "https://kagane.si/series/019c2b1c-cc9b-745f-afed-09c230759162/reader/019c2bda-f6fe-7a0c-a4db-669f54b67a86"
     test_url_kind = "chapter"
     minimum_core_version = "0.0.2"
 
@@ -300,6 +326,7 @@ class KaganeScraper(BaseScraper):
         url: str,
         client: AsyncSession,
         *,
+        base: str,
         headers: dict[str, str] | None = None,
         body: str | None = None,
     ) -> Any:
@@ -337,7 +364,7 @@ class KaganeScraper(BaseScraper):
             note_replay_dead(host)
         if webview.session_enabled():
             try:
-                session = await webview.ensure_session(BASE)
+                session = await webview.ensure_session(base)
             except Exception:
                 session = None
             if session is not None:
@@ -379,15 +406,15 @@ class KaganeScraper(BaseScraper):
             )
         return resp
 
-    async def _series_json(self, series_id: str, client: AsyncSession) -> dict:
+    async def _series_json(self, series_id: str, base: str, client: AsyncSession) -> dict:
         """Series metadata + books from the Kagane API.
 
         Served through the long-lived webview session when possible (see
         :meth:`_api_fetch`); the API sits behind Cloudflare, so plain HTTP
         replay of a harvested cookie is unreliable.
         """
-        url = f"{_API}/series/{series_id}"
-        response = await self._api_fetch("GET", url, client)
+        url = f"{base}/api/v2/series/{series_id}"
+        response = await self._api_fetch("GET", url, client, base=base)
         _raise_for_status(response)
         data = response.json()
         if not isinstance(data, dict):
@@ -398,7 +425,36 @@ class KaganeScraper(BaseScraper):
             )
         return data
 
-    async def _chapter_tokens(self, book_id: str, client: AsyncSession) -> dict:
+    async def _series_books(self, series_id: str, base: str, client: AsyncSession) -> list[dict]:
+        """Every book row, following the books endpoint's ``next_cursor`` pages."""
+        books: list[dict] = []
+        seen_cursors: set[str] = set()
+        before: str | None = None
+        while True:
+            if before is None:
+                query = "?limit=100"
+            else:
+                query = f"?limit=100&before={quote(before, safe='')}"
+            response = await self._api_fetch(
+                "GET", f"{base}/api/v2/series/{series_id}/books{query}", client, base=base
+            )
+            _raise_for_status(response)
+            data = response.json()
+            if not isinstance(data, dict):
+                raise ScrapeError(
+                    "Unexpected books response from kagane.org.",
+                    hint="The API shape may have changed; try updating comic-dl.",
+                    site_error_code=SITE_LAYOUT_CHANGED,
+                )
+            books.extend(_books(data))
+            cursor = data.get("next_cursor")
+            if not cursor or not isinstance(cursor, str) or cursor in seen_cursors:
+                break
+            seen_cursors.add(cursor)
+            before = cursor
+        return books
+
+    async def _chapter_tokens(self, book_id: str, base: str, client: AsyncSession) -> dict:
         """Signed DRM payload for one book via Kagane's public API.
 
         Mirrors haruneko's kagane connector: an integrity token is minted at
@@ -408,8 +464,9 @@ class KaganeScraper(BaseScraper):
         """
         integrity = await self._api_fetch(
             "POST",
-            f"{BASE}/api/integrity",
+            f"{base}/api/integrity",
             client,
+            base=base,
         )
         _raise_for_status(integrity)
         token_data = integrity.json()
@@ -422,8 +479,9 @@ class KaganeScraper(BaseScraper):
 
         books = await self._api_fetch(
             "POST",
-            f"{_API}/books/{book_id}?is_datasaver=false",
+            f"{base}/api/v2/books/{book_id}?is_datasaver=false",
             client,
+            base=base,
             headers={"X-Integrity-Token": str(token_data["token"])},
             body="{}",
         )
@@ -449,10 +507,11 @@ class KaganeScraper(BaseScraper):
                 hint="Expected a reader URL like https://kagane.org/series/{series}/reader/{book}",
                 site_error_code=SITE_NOT_RECOGNIZED,
             )
-        reader_url = f"{BASE}/series/{series_id}/reader/{book_id}"
+        base = _base_for_url(url)
+        reader_url = f"{base}/series/{series_id}/reader/{book_id}"
 
         try:
-            data = await self._chapter_tokens(book_id, client)
+            data = await self._chapter_tokens(book_id, base, client)
         except Exception as exc:
             if isinstance(exc, (ValueError, ScrapeError)):
                 raise
@@ -486,12 +545,16 @@ class KaganeScraper(BaseScraper):
         ]
 
         try:
-            series_data = await self._series_json(series_id, client)
+            series_data = await self._series_json(series_id, base, client)
         except Exception:
             series_data = {}
+        try:
+            books = await self._series_books(series_id, base, client)
+        except Exception:
+            books = []
 
-        meta = _series_fields(series_data)
-        book = _find_book(series_data, book_id)
+        meta = _series_fields(series_data, base)
+        book = _find_book(books, book_id)
         number = book.get("chapter_no")
         chapter_number = str(number).strip() if number not in (None, "") else None
         chapter_title = book.get("title") or (
@@ -530,11 +593,12 @@ class KaganeScraper(BaseScraper):
                 hint="Expected a series URL like https://kagane.org/series/{series}",
                 site_error_code=SITE_NOT_RECOGNIZED,
             )
-        data = await self._series_json(series_id, client)
-        chapters = _chapters(data, series_id)
+        base = _base_for_url(url)
+        data = await self._series_json(series_id, base, client)
+        chapters = _chapters(await self._series_books(series_id, base, client), series_id, base)
         if not chapters:
             raise no_chapters_error()
-        meta = _series_fields(data)
+        meta = _series_fields(data, base)
         return SeriesMetadata(
             series_title=meta.get("series_title") or "Untitled",
             description=meta.get("description", ""),
