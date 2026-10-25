@@ -19,7 +19,7 @@
     "@lucide/astro": "^1.57.0",
     "@tailwindcss/typography": "^0.5.16",
     "@tailwindcss/vite": "^4.3.0",
-    "astro": "^7.3.7",
+    "astro": "^7.4.2",
     "shiki": "^4.5.0",
     "tailwindcss": "^4.3.0"
   },
